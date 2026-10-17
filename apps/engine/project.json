@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "sourceRoot": "apps/engine/src",
-  "tags": [],
+  "tags": ["type:app", "runtime:node"],
   "targets": {
     "build": {
       "executor": "@nx/esbuild:esbuild",
@@ -27,6 +27,7 @@
         "production": { "minify": false, "sourcemap": true }
       }
     },
+    "lint": {},
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,

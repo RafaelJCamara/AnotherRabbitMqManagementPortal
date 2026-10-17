@@ -4,7 +4,7 @@
   "projectType": "application",
   "prefix": "app",
   "sourceRoot": "apps/web/src",
-  "tags": [],
+  "tags": ["type:app", "runtime:browser"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
@@ -73,6 +73,7 @@
         "spa": true
       }
     },
+    "lint": {},
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,

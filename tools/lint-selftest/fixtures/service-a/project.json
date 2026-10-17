@@ -1,0 +1,8 @@
+{
+  "name": "lint-fixture-service-a",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/lint-selftest/fixtures/service-a/src",
+  "tags": ["type:service", "runtime:node"],
+  "targets": {}
+}

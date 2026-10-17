@@ -7,7 +7,10 @@
   "engines": {
     "node": ">=24.15"
   },
-  "scripts": {},
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "devDependencies": {
     "@angular-devkit/core": "catalog:",
     "@angular-devkit/schematics": "catalog:",
@@ -15,20 +18,29 @@
     "@angular/cli": "catalog:",
     "@angular/compiler-cli": "catalog:",
     "@angular/language-service": "catalog:",
+    "@eslint/js": "catalog:",
     "@nx/angular": "catalog:",
     "@nx/devkit": "catalog:",
     "@nx/esbuild": "catalog:",
+    "@nx/eslint": "catalog:",
+    "@nx/eslint-plugin": "catalog:",
     "@nx/js": "catalog:",
     "@nx/vitest": "catalog:",
     "@nx/web": "catalog:",
     "@schematics/angular": "catalog:",
     "@swc/helpers": "catalog:",
     "@types/node": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "angular-eslint": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "globals": "catalog:",
     "jsdom": "catalog:",
     "nx": "catalog:",
     "prettier": "catalog:",
     "tslib": "catalog:",
     "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
     "vitest": "catalog:"
   },
   "dependencies": {

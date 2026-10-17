@@ -1,0 +1,8 @@
+{
+  "name": "lint-fixture-pure-lib",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/lint-selftest/fixtures/pure-lib/src",
+  "tags": ["type:pure", "runtime:isomorphic"],
+  "targets": {}
+}

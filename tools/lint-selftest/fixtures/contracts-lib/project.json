@@ -1,0 +1,8 @@
+{
+  "name": "lint-fixture-contracts-lib",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/lint-selftest/fixtures/contracts-lib/src",
+  "tags": ["type:contracts", "runtime:isomorphic"],
+  "targets": {}
+}

@@ -10,6 +10,15 @@
   },
   "analytics": false,
   "targetDefaults": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production", "{workspaceRoot}/eslint.config.mjs"],
+      "options": {
+        "command": "eslint --max-warnings=0 {projectRoot}",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "@angular/build:application": {
       "cache": true,
       "dependsOn": ["^build"],

@@ -1,0 +1,8 @@
+{
+  "name": "lint-fixture-ui-data",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/lint-selftest/fixtures/ui-data/src",
+  "tags": ["type:ui-data", "runtime:browser"],
+  "targets": {}
+}

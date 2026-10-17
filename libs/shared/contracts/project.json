@@ -3,8 +3,9 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/shared/contracts/src",
   "projectType": "library",
-  "tags": [],
+  "tags": ["type:contracts", "runtime:isomorphic"],
   "targets": {
+    "lint": {},
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,

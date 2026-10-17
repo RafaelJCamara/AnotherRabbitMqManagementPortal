@@ -19,7 +19,28 @@
     "sourceMap": true,
     "declaration": false,
     "paths": {
-      "@app/contracts": ["./libs/shared/contracts/src/index.ts"]
+      "@app/contracts": ["./libs/shared/contracts/src/index.ts"],
+      "@lint-fixtures/contracts-lib": [
+        "./tools/lint-selftest/fixtures/contracts-lib/src/index.ts"
+      ],
+      "@lint-fixtures/pure-lib": [
+        "./tools/lint-selftest/fixtures/pure-lib/src/index.ts"
+      ],
+      "@lint-fixtures/service-a": [
+        "./tools/lint-selftest/fixtures/service-a/src/index.ts"
+      ],
+      "@lint-fixtures/service-b": [
+        "./tools/lint-selftest/fixtures/service-b/src/index.ts"
+      ],
+      "@lint-fixtures/ui-data": [
+        "./tools/lint-selftest/fixtures/ui-data/src/index.ts"
+      ],
+      "@lint-fixtures/ui-feature-a": [
+        "./tools/lint-selftest/fixtures/ui-feature-a/src/index.ts"
+      ],
+      "@lint-fixtures/ui-feature-b": [
+        "./tools/lint-selftest/fixtures/ui-feature-b/src/index.ts"
+      ]
     }
   },
   "exclude": ["node_modules", "tmp"]

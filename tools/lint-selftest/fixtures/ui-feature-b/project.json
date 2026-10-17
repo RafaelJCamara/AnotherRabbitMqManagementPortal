@@ -1,0 +1,8 @@
+{
+  "name": "lint-fixture-ui-feature-b",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/lint-selftest/fixtures/ui-feature-b/src",
+  "tags": ["type:ui-feature", "runtime:browser"],
+  "targets": {}
+}

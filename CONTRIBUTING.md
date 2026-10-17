@@ -6,6 +6,7 @@ Thank you for helping. This project is built mostly by AI coding agents under hu
 - **No work without a GitHub issue** ([ADR-033](docs/adr/ADR-033-github-as-system-of-record.md)). Work packages, spikes, lab cells, ADRs and bugs all start as issues, assigned to a milestone.
 - Read the spec with `gh issue view <n>`; branch as `wi/<ID>-<slug>`; open a PR whose body contains `Closes #<n>`.
 - Work discovered mid-task becomes a **new issue**, never silent scope creep.
+- New projects, adapters, lint rules and the like are **scaffolded with the Nx generators** (`pnpm nx g @app/generators:<name>`), not copied by hand. See [docs/architecture/generators.md](docs/architecture/generators.md).
 
 ## Conventional Commits
 Commit messages (and PR titles, which become the squash commit) follow [Conventional Commits 1.0](https://www.conventionalcommits.org/): `<type>(<optional scope>): <summary>`, for example `feat(engine): add capability probe` or `fix!: reject empty vhost names` (a `!` or a `BREAKING CHANGE:` footer marks a breaking change).

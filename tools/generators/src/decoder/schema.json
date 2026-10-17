@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppDecoder",
+  "title": "Decoder",
+  "description": "Adds a framework decoder: a header-registry entry, a fixture folder and, for the builtin tier, a code skeleton in libs/engine/decoders.",
+  "type": "object",
+  "properties": {
+    "framework": {
+      "type": "string",
+      "description": "Framework id, kebab-case (for example masstransit).",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "tier": {
+      "type": "string",
+      "description": "builtin: code decoder in libs/engine/decoders. declarative: header-registry data only.",
+      "enum": ["builtin", "declarative"],
+      "default": "builtin"
+    }
+  },
+  "required": ["framework"],
+  "additionalProperties": false
+}

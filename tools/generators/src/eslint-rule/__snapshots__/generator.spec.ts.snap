@@ -1,0 +1,49 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`eslint-rule > creates the rule and its RuleTester spec 1`] = `
+{
+  "tools/eslint-rules/src/rules/no-demo-thing.spec.ts": "import { typescriptTester } from '../test-utils.ts';
+import { noDemoThing } from './no-demo-thing.ts';
+
+typescriptTester().run('no-demo-thing', noDemoThing, {
+  valid: ['doSomething();'],
+  invalid: [
+    {
+      code: 'noDemoThingPlaceholder();',
+      errors: [{ messageId: 'violation' }],
+    },
+  ],
+});
+",
+  "tools/eslint-rules/src/rules/no-demo-thing.ts": "// I-99: demo things stay out
+import { defineRule } from '../utils.ts';
+
+export const noDemoThing = defineRule({
+  meta: {
+    type: 'problem',
+    docs: {
+      description: 'Guards: I-99: demo things stay out',
+    },
+    schema: [],
+    messages: {
+      violation: 'Guards: I-99: demo things stay out (no-demo-thing)',
+    },
+  },
+  create(context) {
+    return {
+      // Replace this visitor with the real check. Until then the rule only reports calls to a
+      // placeholder function, so it cannot produce a false positive.
+      CallExpression(node) {
+        if (
+          node.callee.type === 'Identifier' &&
+          node.callee.name === 'noDemoThingPlaceholder'
+        ) {
+          context.report({ node, messageId: 'violation' });
+        }
+      },
+    };
+  },
+});
+",
+}
+`;

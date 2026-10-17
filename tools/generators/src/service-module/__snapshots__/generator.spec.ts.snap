@@ -1,0 +1,129 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`service-module > creates the uniform service shape for svc-demo > README 1`] = `
+"# svc-demo
+
+The demo engine service: say in one or two sentences what it owns.
+
+Tags: \`type:service\`, \`runtime:node\`.
+
+## Public API
+
+- \`createDemoModule(deps)\`: returns the \`EngineModule\` the composition root registers.
+- \`DemoModuleDeps\`: the ports the module needs.
+
+## Invariants
+
+- Never imports another service or an adapter; cross-service needs are ports wired in the composition root (blueprint 2.2).
+- Every mutation is an \`implementAction\` file in \`src/actions/\`; nothing writes through a WritePort outside one (mutation funnel).
+- Engine buffers are \`BoundedRing\` or \`BoundedQueue\` (\`@app/bounded-buffers-only\`).
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p svc-demo
+\`\`\`
+"
+`;
+
+exports[`service-module > creates the uniform service shape for svc-demo > files 1`] = `
+[
+  "libs/engine/svc-demo/README.md",
+  "libs/engine/svc-demo/project.json",
+  "libs/engine/svc-demo/src/actions/index.ts",
+  "libs/engine/svc-demo/src/index.ts",
+  "libs/engine/svc-demo/src/internal/.gitkeep",
+  "libs/engine/svc-demo/src/jobs/index.ts",
+  "libs/engine/svc-demo/src/module.spec.ts",
+  "libs/engine/svc-demo/src/module.ts",
+  "libs/engine/svc-demo/src/topics.ts",
+  "libs/engine/svc-demo/tsconfig.json",
+  "libs/engine/svc-demo/tsconfig.lib.json",
+  "libs/engine/svc-demo/tsconfig.spec.json",
+  "libs/engine/svc-demo/vitest.config.mts",
+]
+`;
+
+exports[`service-module > creates the uniform service shape for svc-demo > module 1`] = `
+"// The composition root calls createDemoModule with the ports this service needs and
+// registers what the module returns. A service never imports another service or an adapter:
+// cross-service needs are ports wired in the composition root.
+import { actions } from './actions';
+import { jobs } from './jobs';
+import { topics } from './topics';
+
+/**
+ * What the composition root registers. This is a local stand-in: replace it with the type
+ * exported by the kernel once libs/engine/kernel provides EngineModule.
+ */
+export interface EngineModule {
+  readonly id: string;
+  readonly actions: readonly unknown[];
+  readonly topics: readonly unknown[];
+  readonly jobs: readonly unknown[];
+}
+
+/** The ports this module needs, injected by the composition root. */
+export type DemoModuleDeps = Readonly<Record<string, never>>;
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the first port is wired in with the first action.
+export function createDemoModule(deps: DemoModuleDeps): EngineModule {
+  return { id: 'svc-demo', actions, topics, jobs };
+}
+"
+`;
+
+exports[`service-module > creates the uniform service shape for svc-demo > project.json 1`] = `
+"{
+  "name": "svc-demo",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/svc-demo/src",
+  "projectType": "library",
+  "tags": ["type:service", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/svc-demo/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/svc-demo/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/svc-demo/vitest.config.mts"
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`service-module > creates the uniform service shape for svc-demo > spec 1`] = `
+"import { describe, expect, it } from 'vitest';
+
+import { createDemoModule } from './module';
+
+describe('createDemoModule', () => {
+  it('registers the module under the project name', () => {
+    expect(createDemoModule({}).id).toBe('svc-demo');
+  });
+
+  it('starts without actions, topics or jobs', () => {
+    const module = createDemoModule({});
+
+    expect(module.actions).toEqual([]);
+    expect(module.topics).toEqual([]);
+    expect(module.jobs).toEqual([]);
+  });
+});
+"
+`;

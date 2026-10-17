@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppEslintRule",
+  "title": "ESLint rule",
+  "description": "Adds a project rule to tools/eslint-rules: rule, RuleTester spec, registration, path scoping in eslint.config.mjs and a lint-selftest case.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Rule id, kebab-case. It is registered as @app/<id>.",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "invariant": {
+      "type": "string",
+      "description": "The invariant the rule guards, with its I-n, DC-n or ADR-n id."
+    },
+    "description": {
+      "type": "string",
+      "description": "Rule description and report message. Defaults to the invariant."
+    },
+    "paths": {
+      "type": "string",
+      "description": "Comma-separated top-level directories the rule applies to.",
+      "default": "libs,apps"
+    }
+  },
+  "required": ["id"],
+  "additionalProperties": false
+}

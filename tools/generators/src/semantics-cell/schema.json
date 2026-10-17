@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppSemanticsCell",
+  "title": "Semantics cell",
+  "description": "Adds a code-derived cell to the settle matrix in libs/shared/semantics, linked to a conformance id. Run conformance-cell <CF-id> next.",
+  "type": "object",
+  "properties": {
+    "era": {
+      "type": ["string", "number"],
+      "description": "Broker era: 3.13, 4.0-4.2, 4.3 or 4.4. The Nx CLI parses 4.3 as a number, so the generator checks the value itself."
+    },
+    "queueType": {
+      "type": "string",
+      "description": "Queue type.",
+      "enum": ["classic", "quorum", "stream"]
+    },
+    "protocol": {
+      "type": "string",
+      "description": "Client protocol.",
+      "enum": ["amqp091", "amqp10", "http"]
+    },
+    "action": {
+      "type": "string",
+      "description": "Settle action.",
+      "enum": [
+        "amqp091.nack_requeue",
+        "amqp091.reject_requeue",
+        "amqp091.no_requeue",
+        "amqp10.released",
+        "amqp10.modified_df_false",
+        "amqp10.modified_df_true",
+        "amqp10.rejected",
+        "close_while_holding",
+        "tcp_loss",
+        "partition",
+        "amqp10.detach_unsettled",
+        "consumer_timeout",
+        "http.ack_requeue_true"
+      ]
+    },
+    "limit": {
+      "type": "string",
+      "description": "Delivery-limit state, when the cell depends on it.",
+      "enum": ["unset", "finite", "minus1"]
+    },
+    "delayedRetry": {
+      "type": "string",
+      "description": "Delayed-retry mode, when the cell depends on it.",
+      "enum": ["disabled", "all", "failed", "returned"]
+    },
+    "cf": {
+      "type": "string",
+      "description": "Conformance id the cell is linked to, for example CF-QQ-42-GUARD-01."
+    }
+  },
+  "required": ["era", "queueType", "protocol", "action", "cf"],
+  "additionalProperties": false
+}

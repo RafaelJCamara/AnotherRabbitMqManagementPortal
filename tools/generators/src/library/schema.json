@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppLibrary",
+  "title": "Library",
+  "description": "Creates a workspace library with the tags, targets, README and @app/* path alias the workspace rules expect.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name, kebab-case. It is also the directory name.",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "type": {
+      "type": "string",
+      "description": "Layer tag (type:<value>, blueprint 2.1).",
+      "enum": [
+        "contracts",
+        "pure",
+        "port",
+        "kernel",
+        "adapter",
+        "net",
+        "service",
+        "transport",
+        "ui-platform",
+        "ui-data",
+        "ui-design",
+        "ui-lib",
+        "ui-feature",
+        "sdk",
+        "test"
+      ]
+    },
+    "runtime": {
+      "type": "string",
+      "description": "Runtime tag (runtime:<value>). Defaults to the layer's usual runtime.",
+      "enum": [
+        "isomorphic",
+        "node",
+        "browser",
+        "electron-main",
+        "electron-preload"
+      ]
+    },
+    "directory": {
+      "type": "string",
+      "description": "Parent directory. Defaults to the layer's directory (for example libs/engine for services)."
+    },
+    "importPath": {
+      "type": "string",
+      "description": "Path alias. Defaults to @app/<name>."
+    },
+    "description": {
+      "type": "string",
+      "description": "One or two sentences for the README purpose section."
+    },
+    "trustCritical": {
+      "type": "boolean",
+      "description": "Adds trust:critical: the paths need human CODEOWNERS sign-off.",
+      "default": false
+    }
+  },
+  "required": ["name", "type"],
+  "additionalProperties": false
+}

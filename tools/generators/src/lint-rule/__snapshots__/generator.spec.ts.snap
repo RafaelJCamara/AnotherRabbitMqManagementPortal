@@ -1,0 +1,217 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`lint-rule > creates the library on first use, with the rule, fixtures and spec 1`] = `
+{
+  "libs/shared/lint-rules/README.md": "# lint-rules
+
+The broker linter rules (DC-56): pure functions from a topology or profile snapshot to findings.
+
+Tags: \`type:pure\`, \`runtime:isomorphic\`.
+
+## Public API
+
+- \`lintRules\`: every registered rule.
+- \`LintRule\`, \`LintFinding\`, \`LintSeverity\`, \`RuleFixture\`: the rule shape.
+
+## Invariants
+
+- Rules are pure and isomorphic: no I/O, no \`node:*\` imports (type:pure).
+- Every rule has fixtures for each broker version it behaves differently on, and a spec that runs them.
+- Version differences are data in the semantics registry, not comparisons in a rule (I-3).
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p lint-rules
+pnpm nx test lint-rules
+\`\`\`
+",
+  "libs/shared/lint-rules/project.json": "{
+  "name": "lint-rules",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/lint-rules/src",
+  "projectType": "library",
+  "tags": ["type:pure", "runtime:isomorphic"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/shared/lint-rules/tsconfig.lib.json --noEmit",
+          "tsc -p libs/shared/lint-rules/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/shared/lint-rules/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "libs/shared/lint-rules/src/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import * as api from './index';
+
+describe('lint-rules public API', () => {
+  // Update this list, and the README, together with every export you add.
+  it('exports exactly the documented names', () => {
+    expect(Object.keys(api).sort()).toEqual(['lintRules']);
+  });
+});
+",
+  "libs/shared/lint-rules/src/index.ts": "export type { LintFinding, LintRule, LintSeverity, RuleFixture } from './types';
+export { lintRules } from './rules';
+",
+  "libs/shared/lint-rules/src/rules/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import { lintRules } from './index';
+
+describe('lintRules', () => {
+  it('has unique ids', () => {
+    const ids = lintRules.map((rule) => rule.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('names a broker version for every rule', () => {
+    for (const rule of lintRules) {
+      expect(rule.since).toMatch(/^\\d+\\.\\d+(?:\\.\\d+)?$/);
+    }
+  });
+});
+",
+  "libs/shared/lint-rules/src/rules/index.ts": "import type { LintRule } from '../types';
+import { queueWithoutDlx } from './queue-without-dlx';
+
+export const lintRules: readonly LintRule[] = [queueWithoutDlx];
+",
+  "libs/shared/lint-rules/src/rules/queue-without-dlx.fixtures.ts": "import type { RuleFixture } from '../types';
+
+/** One fixture per broker version on which the rule behaves differently; the first is \`since\`. */
+export const queueWithoutDlxFixtures: readonly RuleFixture[] = [
+  { brokerVersion: '4.3', input: {}, expected: [] },
+];
+",
+  "libs/shared/lint-rules/src/rules/queue-without-dlx.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import { queueWithoutDlx } from './queue-without-dlx';
+import { queueWithoutDlxFixtures } from './queue-without-dlx.fixtures';
+import { lintRules } from './index';
+
+describe('queue-without-dlx', () => {
+  it('is registered', () => {
+    expect(lintRules).toContain(queueWithoutDlx);
+  });
+
+  it('applies from broker 4.3', () => {
+    expect(queueWithoutDlx.since).toBe('4.3');
+  });
+
+  it.each(queueWithoutDlxFixtures)(
+    'reports the expected findings on broker $brokerVersion',
+    (fixture) => {
+      const messages = queueWithoutDlx
+        .check(fixture.input)
+        .map((finding) => finding.message);
+
+      expect(messages).toEqual(fixture.expected);
+    },
+  );
+});
+",
+  "libs/shared/lint-rules/src/rules/queue-without-dlx.ts": "import type { LintFinding, LintRule } from '../types';
+
+export const queueWithoutDlx: LintRule = {
+  id: 'queue-without-dlx',
+  severity: 'error',
+  since: '4.3',
+  check(): readonly LintFinding[] {
+    // Replace with the check. Report one finding per offending object.
+    return [];
+  },
+};
+",
+  "libs/shared/lint-rules/src/types.ts": "// The shape of a broker lint rule (DC-56). Rules are data-driven and runtime-neutral: they run
+// in the engine, the CLI and the browser, so this library has no Node dependency.
+export type LintSeverity = 'info' | 'warn' | 'error';
+
+export interface LintFinding {
+  readonly ruleId: string;
+  readonly severity: LintSeverity;
+  readonly message: string;
+}
+
+export interface LintRule {
+  readonly id: string;
+  readonly severity: LintSeverity;
+  /** First broker version the rule applies to, for example 4.3. */
+  readonly since: string;
+  /** The input is the topology or profile snapshot; narrow it inside the rule. */
+  check(input: unknown): readonly LintFinding[];
+}
+
+/** One fixture per broker version on which the rule behaves differently. */
+export interface RuleFixture {
+  readonly brokerVersion: string;
+  readonly input: unknown;
+  /** Messages of the findings the rule must report, in order. */
+  readonly expected: readonly string[];
+}
+",
+  "libs/shared/lint-rules/tsconfig.json": "{
+  "extends": "../../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "libs/shared/lint-rules/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "libs/shared/lint-rules/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "libs/shared/lint-rules/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'lint-rules',
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+}
+`;

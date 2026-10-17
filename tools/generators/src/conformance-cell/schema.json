@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppConformanceCell",
+  "title": "Conformance cell",
+  "description": "Adds a lab-cell stub to apps/conformance for a conformance id, creating the project on first use. Never writes lab evidence.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Conformance id, for example CF-QQ-42-GUARD-01.",
+      "$default": { "$source": "argv", "index": 0 }
+    }
+  },
+  "required": ["id"],
+  "additionalProperties": false
+}

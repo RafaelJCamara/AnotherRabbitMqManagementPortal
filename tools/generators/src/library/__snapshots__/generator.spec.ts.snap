@@ -1,0 +1,117 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`library > creates a type:pure library 1`] = `
+{
+  "libs/shared/demo-pure/README.md": "# demo-pure
+
+DemoPure: say in one or two sentences what this library is for.
+
+Tags: \`type:pure\`, \`runtime:isomorphic\`.
+
+## Public API
+
+- Nothing yet. List every export of \`src/index.ts\` here.
+
+## Invariants
+
+- Dependencies follow the type:pure row of blueprint 2.2; \`pnpm nx lint demo-pure\` enforces them.
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p demo-pure
+\`\`\`
+",
+  "libs/shared/demo-pure/project.json": "{
+  "name": "demo-pure",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/demo-pure/src",
+  "projectType": "library",
+  "tags": ["type:pure", "runtime:isomorphic"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/shared/demo-pure/tsconfig.lib.json --noEmit",
+          "tsc -p libs/shared/demo-pure/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/shared/demo-pure/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "libs/shared/demo-pure/src/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import * as api from './index';
+
+describe('demo-pure public API', () => {
+  // Update this list, and the README, together with every export you add.
+  it('exports exactly the documented names', () => {
+    expect(Object.keys(api).sort()).toEqual([]);
+  });
+});
+",
+  "libs/shared/demo-pure/src/index.ts": "// Public API of this library. Export only what other projects need.
+export {};
+",
+  "libs/shared/demo-pure/tsconfig.json": "{
+  "extends": "../../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "libs/shared/demo-pure/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "libs/shared/demo-pure/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "libs/shared/demo-pure/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'demo-pure',
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+}
+`;

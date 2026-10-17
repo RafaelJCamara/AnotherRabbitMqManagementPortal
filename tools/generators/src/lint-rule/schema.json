@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppLintRule",
+  "title": "Broker lint rule",
+  "description": "Adds a broker lint rule (DC-56) to libs/shared/lint-rules, creating the library on first use.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Rule id, kebab-case.",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "severity": {
+      "type": "string",
+      "description": "Severity of the rule's findings.",
+      "enum": ["info", "warn", "error"],
+      "default": "warn"
+    },
+    "since": {
+      "type": ["string", "number"],
+      "description": "First broker version the rule applies to, for example 4.3. The Nx CLI parses 4.10 as the number 4.1, so write a release with a patch part (4.10.0)."
+    }
+  },
+  "required": ["id", "since"],
+  "additionalProperties": false
+}

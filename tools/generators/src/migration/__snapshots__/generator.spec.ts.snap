@@ -1,0 +1,193 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`migration > creates the library on first use and migration 0001 1`] = `
+{
+  "libs/engine/persistence/README.md": "# persistence
+
+Persistence over SQLite and Postgres (ADR-013): the repositories and the one ordered migration set both dialects apply.
+
+Tags: \`type:adapter\`, \`runtime:node\`.
+
+## Public API
+
+- \`migrations\`: every migration, in order.
+- \`Migration\`, \`SqlExecutor\`: the migration shape.
+
+## Invariants
+
+- Migrations are numbered \`NNNN_name\`, contiguous and append-only: a released migration is never edited.
+- One migration set serves both dialects; dialect differences live in the migrate helpers.
+- The engine refuses a database stamped with a newer schema than the highest migration here.
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p persistence
+pnpm nx test persistence
+\`\`\`
+",
+  "libs/engine/persistence/project.json": "{
+  "name": "persistence",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/persistence/src",
+  "projectType": "library",
+  "tags": ["type:adapter", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/persistence/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/persistence/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/persistence/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "libs/engine/persistence/src/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import * as api from './index';
+
+describe('persistence public API', () => {
+  // Update this list, and the README, together with every export you add.
+  it('exports exactly the documented names', () => {
+    expect(Object.keys(api).sort()).toEqual(['migrations']);
+  });
+});
+",
+  "libs/engine/persistence/src/index.ts": "export type { Migration, SqlExecutor } from './migrate/types';
+export { migrations } from './migrations';
+",
+  "libs/engine/persistence/src/migrate/types.ts": "/** The statement runner a migration receives; the dialect adapters implement it. */
+export interface SqlExecutor {
+  execute(sql: string): Promise<void>;
+}
+
+export interface Migration {
+  /** \`NNNN_name\`, equal to the file name without the extension. */
+  readonly id: string;
+  up(db: SqlExecutor): Promise<void>;
+}
+",
+  "libs/engine/persistence/src/migrations/0001_core.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import { migration0001Core } from './0001_core';
+
+describe('0001_core', () => {
+  it('has an id equal to its file name', () => {
+    expect(migration0001Core.id).toBe('0001_core');
+  });
+
+  it('runs the statements it declares', async () => {
+    const statements: string[] = [];
+
+    await migration0001Core.up({
+      execute: (sql) => {
+        statements.push(sql);
+        return Promise.resolve();
+      },
+    });
+
+    // Assert the DDL here once the migration has some.
+    expect(statements).toEqual([]);
+  });
+});
+",
+  "libs/engine/persistence/src/migrations/0001_core.ts": "import type { Migration } from '../migrate/types';
+
+export const migration0001Core: Migration = {
+  id: '0001_core',
+  // Replace with the DDL, one db.execute call per statement. Write SQL both SQLite and Postgres
+  // accept, or put the difference in the migrate helpers.
+  up: () => Promise.resolve(),
+};
+",
+  "libs/engine/persistence/src/migrations/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import { migrations } from './index';
+
+describe('migrations', () => {
+  it('are numbered 0001, 0002, ... without gaps, in order', () => {
+    const numbers = migrations.map((migration) => migration.id.slice(0, 4));
+
+    expect(numbers).toEqual(
+      migrations.map((_, index) => String(index + 1).padStart(4, '0')),
+    );
+  });
+
+  it('have ids of the form NNNN_name', () => {
+    for (const migration of migrations) {
+      expect(migration.id).toMatch(/^\\d{4}_[a-z0-9_]+$/);
+    }
+  });
+});
+",
+  "libs/engine/persistence/src/migrations/index.ts": "import type { Migration } from '../migrate/types';
+import { migration0001Core } from './0001_core';
+
+export const migrations: readonly Migration[] = [migration0001Core];
+",
+  "libs/engine/persistence/tsconfig.json": "{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2022"]
+  },
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "libs/engine/persistence/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "libs/engine/persistence/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "libs/engine/persistence/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'persistence',
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+}
+`;

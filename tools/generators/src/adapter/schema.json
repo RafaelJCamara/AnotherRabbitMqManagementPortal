@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppAdapter",
+  "title": "Adapter",
+  "description": "Creates a type:adapter library with a port implementation skeleton and, with --confine, the third-party confinement row.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Adapter name; adapter- is added when missing (adapter-demo or demo).",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "port": {
+      "type": "string",
+      "description": "The port interface this adapter implements, PascalCase (for example DemoPort)."
+    },
+    "confine": {
+      "type": "string",
+      "description": "Comma-separated npm packages that only this adapter may import. Adds a row to the confinement table in eslint.config.mjs; the package must also pass the supply-chain allow-list."
+    },
+    "directory": {
+      "type": "string",
+      "description": "Parent directory. Defaults to libs/engine."
+    },
+    "description": {
+      "type": "string",
+      "description": "One or two sentences for the README purpose section."
+    },
+    "trustCritical": {
+      "type": "boolean",
+      "description": "Adds trust:critical (net-dialer-like adapters that need CODEOWNERS sign-off).",
+      "default": false
+    }
+  },
+  "required": ["name", "port"],
+  "additionalProperties": false
+}

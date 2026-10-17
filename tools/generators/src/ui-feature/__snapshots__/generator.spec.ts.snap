@@ -1,0 +1,176 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ui-feature > creates a lazy route, a component and an i18n scope 1`] = `
+{
+  "libs/ui/feature-demo/README.md": "# feature-demo
+
+The demo feature of the web UI: say in one or two sentences what the user can do here.
+
+Tags: \`type:ui-feature\`, \`runtime:browser\`.
+
+## Public API
+
+- \`demoRoute\`: the lazy route the web shell mounts at \`/c/:cid/demo\`.
+
+## Invariants
+
+- Depends on ui-data, ui-design, ui-lib, ui-platform, contracts and pure; never on another feature (blueprint 2.2).
+- All copy lives in \`src/i18n/*.json\`; templates contain bindings only (\`@app/ui-no-raw-template-text\`, \`@app/honest-wording\`).
+- Talks to the engine through EngineApi and the LiveChannel, never \`fetch\` or sockets (\`@app/no-direct-fetch\`).
+- Renders untrusted text through bindings, never \`innerHTML\` (\`@app/no-inner-html\`).
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p feature-demo
+\`\`\`
+",
+  "libs/ui/feature-demo/project.json": "{
+  "name": "feature-demo",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/feature-demo/src",
+  "projectType": "library",
+  "tags": ["type:ui-feature", "runtime:browser"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "ngc -p libs/ui/feature-demo/tsconfig.lib.json --noEmit",
+          "ngc -p libs/ui/feature-demo/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/ui/feature-demo/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "libs/ui/feature-demo/src/i18n/en.json": "{
+  "demo": {
+    "title": "Demo"
+  }
+}
+",
+  "libs/ui/feature-demo/src/index.ts": "export { demoRoute } from './lib/demo.route';
+",
+  "libs/ui/feature-demo/src/lib/demo.component.html": "<section>
+  <h1>{{ titleKey }}</h1>
+</section>
+",
+  "libs/ui/feature-demo/src/lib/demo.component.ts": "import { ChangeDetectionStrategy, Component } from '@angular/core';
+
+@Component({
+  selector: 'app-demo',
+  templateUrl: './demo.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class DemoComponent {
+  /** Copy comes from the i18n scope (src/i18n/en.json), never from the template. */
+  protected readonly titleKey = 'demo.title';
+}
+",
+  "libs/ui/feature-demo/src/lib/demo.route.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import { demoRoute } from './demo.route';
+
+describe('demoRoute', () => {
+  it('mounts at c/:cid/demo', () => {
+    expect(demoRoute.path).toBe('c/:cid/demo');
+  });
+
+  it('lazy-loads its child routes', () => {
+    expect(demoRoute.loadChildren).toBeTypeOf('function');
+  });
+});
+",
+  "libs/ui/feature-demo/src/lib/demo.route.ts": "import type { Route } from '@angular/router';
+
+/**
+ * Mounted by the web shell. The feature code is lazy: it loads when the route is first visited,
+ * so a feature never adds to the initial bundle.
+ */
+export const demoRoute: Route = {
+  path: 'c/:cid/demo',
+  loadChildren: () => import('./demo.routes').then((m) => m.demoRoutes),
+};
+",
+  "libs/ui/feature-demo/src/lib/demo.routes.ts": "import type { Routes } from '@angular/router';
+
+export const demoRoutes: Routes = [
+  {
+    path: '',
+    loadComponent: () =>
+      import('./demo.component').then((m) => m.DemoComponent),
+  },
+];
+",
+  "libs/ui/feature-demo/tsconfig.json": "{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noPropertyAccessFromIndexSignature": true,
+    "experimentalDecorators": true,
+    "module": "preserve"
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "libs/ui/feature-demo/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "libs/ui/feature-demo/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "libs/ui/feature-demo/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'feature-demo',
+    environment: 'jsdom',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+}
+`;

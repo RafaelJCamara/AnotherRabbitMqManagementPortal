@@ -1,0 +1,62 @@
+{
+  "name": "generators",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/generators/src",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "options": {
+        "command": "tsc -p tools/generators/tsconfig.json --noEmit"
+      }
+    },
+    "unit": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{workspaceRoot}/tools/eslint-rules/**/*",
+        "{workspaceRoot}/tools/lint-selftest/src/project-rules.spec.ts",
+        "{workspaceRoot}/tools/supply-chain/deps-allowlist.json"
+      ],
+      "options": {
+        "command": "vitest run --config tools/generators/vitest.config.mts"
+      }
+    },
+    "e2e": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/nx.json",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/pnpm-lock.yaml",
+        "{workspaceRoot}/pnpm-workspace.yaml",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{workspaceRoot}/tools/eslint-rules/**/*",
+        "{workspaceRoot}/tools/lint-selftest/**/*",
+        "{workspaceRoot}/tools/supply-chain/deps-allowlist.json"
+      ],
+      "options": {
+        "command": "vitest run --config tools/generators/vitest.e2e.config.mts"
+      }
+    },
+    "test": {
+      "executor": "nx:noop",
+      "dependsOn": ["unit", "e2e"]
+    }
+  }
+}

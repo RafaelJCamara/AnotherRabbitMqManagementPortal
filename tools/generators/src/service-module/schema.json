@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppServiceModule",
+  "title": "Service module",
+  "description": "Creates an engine service library (type:service, runtime:node) in the uniform service shape of blueprint 2.4.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name; svc- is added when missing (svc-demo or demo).",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "directory": {
+      "type": "string",
+      "description": "Parent directory. Defaults to libs/engine."
+    },
+    "description": {
+      "type": "string",
+      "description": "One or two sentences for the README purpose section."
+    },
+    "trustCritical": {
+      "type": "boolean",
+      "description": "Adds trust:critical for services that need CODEOWNERS sign-off (svc-access, svc-audit, svc-identity, svc-mcp).",
+      "default": false
+    }
+  },
+  "required": ["name"],
+  "additionalProperties": false
+}

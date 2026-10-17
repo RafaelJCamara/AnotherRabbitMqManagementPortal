@@ -1,0 +1,130 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`conformance-cell > creates the conformance project and a stub with the two assertions 1`] = `
+{
+  "apps/conformance/README.md": "# conformance
+
+The conformance suite: one cell per conformance id, run against recorded lab evidence and a live broker.
+
+Tags: \`type:test\`, \`runtime:node\`.
+
+## Public API
+
+- Nothing: the cells are specs in \`src/cells/\`.
+
+## Invariants
+
+- Every cell asserts that the live run matches the recorded evidence and that the registry cell matches it (blueprint 5.2).
+- Evidence in \`testing/lab-evidence/\` is recorded by a separate job and committed by a human; a cell never writes it.
+- This project may import amqplib (third-party confinement, blueprint 2.4).
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p conformance
+\`\`\`
+",
+  "apps/conformance/project.json": "{
+  "name": "conformance",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/conformance/src",
+  "projectType": "application",
+  "tags": ["type:test", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p apps/conformance/tsconfig.lib.json --noEmit",
+          "tsc -p apps/conformance/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config apps/conformance/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "apps/conformance/src/cells/cf-qq-42-guard-01.cell.spec.ts": "// Lab cell CF-QQ-42-GUARD-01. The evidence file testing/lab-evidence/<broker-version>/CF-QQ-42-GUARD-01.json is
+// recorded by \`conformance:record\` and committed by a human; do not create it here.
+import { describe, it } from 'vitest';
+
+describe('CF-QQ-42-GUARD-01', () => {
+  it.todo('the live run matches the recorded evidence');
+  it.todo('the registry cell matches the recorded evidence');
+});
+",
+  "apps/conformance/src/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import * as api from './index';
+
+describe('conformance public API', () => {
+  it('exports no code', () => {
+    expect(Object.keys(api)).toEqual([]);
+  });
+});
+",
+  "apps/conformance/src/index.ts": "// The suite is the specs in src/cells; there is no code API.
+export {};
+",
+  "apps/conformance/tsconfig.json": "{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2022"]
+  },
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "apps/conformance/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "apps/conformance/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "apps/conformance/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'conformance',
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+}
+`;

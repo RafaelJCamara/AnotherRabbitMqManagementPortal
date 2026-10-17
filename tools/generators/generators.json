@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "name": "@app/generators",
+  "version": "0.0.1",
+  "generators": {
+    "library": {
+      "factory": "./src/library/generator",
+      "schema": "./src/library/schema.json",
+      "description": "A library with the tags, targets, README and @app/* path alias the workspace rules expect."
+    },
+    "service-module": {
+      "factory": "./src/service-module/generator",
+      "schema": "./src/service-module/schema.json",
+      "description": "An engine service (type:service, runtime:node) in the uniform service shape."
+    },
+    "adapter": {
+      "factory": "./src/adapter/generator",
+      "schema": "./src/adapter/schema.json",
+      "description": "A type:adapter library with a port implementation skeleton and, with --confine, a third-party confinement row."
+    },
+    "ui-feature": {
+      "factory": "./src/ui-feature/generator",
+      "schema": "./src/ui-feature/schema.json",
+      "description": "A type:ui-feature library with a lazy route, a standalone component and an i18n scope."
+    },
+    "eslint-rule": {
+      "factory": "./src/eslint-rule/generator",
+      "schema": "./src/eslint-rule/schema.json",
+      "description": "A project ESLint rule in tools/eslint-rules with its spec, registration, path scoping and self-test."
+    },
+    "lint-rule": {
+      "factory": "./src/lint-rule/generator",
+      "schema": "./src/lint-rule/schema.json",
+      "description": "A broker lint rule (DC-56) in libs/shared/lint-rules with fixtures per broker version."
+    },
+    "decoder": {
+      "factory": "./src/decoder/generator",
+      "schema": "./src/decoder/schema.json",
+      "description": "A framework decoder: header-registry entry, fixture folder and, for the builtin tier, a code skeleton."
+    },
+    "semantics-cell": {
+      "factory": "./src/semantics-cell/generator",
+      "schema": "./src/semantics-cell/schema.json",
+      "description": "A code-derived semantics cell linked to a conformance id."
+    },
+    "conformance-cell": {
+      "factory": "./src/conformance-cell/generator",
+      "schema": "./src/conformance-cell/schema.json",
+      "description": "A lab-cell stub in apps/conformance for a conformance id."
+    },
+    "migration": {
+      "factory": "./src/migration/generator",
+      "schema": "./src/migration/schema.json",
+      "description": "The next numbered persistence migration, with its spec."
+    }
+  }
+}

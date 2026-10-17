@@ -20,6 +20,7 @@
     "declaration": false,
     "paths": {
       "@app/contracts": ["./libs/shared/contracts/src/index.ts"],
+      "@app/generators": ["./tools/generators/src/index.ts"],
       "@lint-fixtures/contracts-lib": [
         "./tools/lint-selftest/fixtures/contracts-lib/src/index.ts"
       ],

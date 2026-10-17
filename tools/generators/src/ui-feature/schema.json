@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppUiFeature",
+  "title": "UI feature",
+  "description": "Creates a type:ui-feature library with a lazy route, a standalone component and an i18n scope.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Feature name; feature- is added when missing (feature-explorer or explorer).",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "route": {
+      "type": "string",
+      "description": "Route the web shell mounts, for example /c/:cid/explorer."
+    },
+    "directory": {
+      "type": "string",
+      "description": "Parent directory. Defaults to libs/ui."
+    },
+    "description": {
+      "type": "string",
+      "description": "One or two sentences for the README purpose section."
+    }
+  },
+  "required": ["name", "route"],
+  "additionalProperties": false
+}

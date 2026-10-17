@@ -1,0 +1,242 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`semantics-cell > creates the trust:critical library and a code-derived cell 1`] = `
+{
+  "libs/shared/semantics/README.md": "# semantics
+
+The broker semantics registry (DC-01/02, ADR-007): typed data cells keyed by era, queue type, protocol and action, each linked to lab evidence recorded outside the registry.
+
+Tags: \`type:pure\`, \`runtime:isomorphic\`, \`trust:critical\`.
+
+## Public API
+
+- \`settleMatrix\`: the settle-matrix cells.
+- \`SemanticsCell\` and its key types.
+
+## Invariants
+
+- Version-dependent broker behaviour is data here and nowhere else (I-3, \`@app/no-broker-version-compare\`).
+- A missing cell, or a cell with a null effect, is a gap: lookups fail closed.
+- A cell leaves \`code-derived\` only with an evidence artefact in the same change and CODEOWNERS approval (I-14).
+- Cell ids and keys are unique, and every cell names at least one conformance id.
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p semantics
+pnpm nx test semantics
+\`\`\`
+",
+  "libs/shared/semantics/project.json": "{
+  "name": "semantics",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/semantics/src",
+  "projectType": "library",
+  "tags": ["type:pure", "runtime:isomorphic", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/shared/semantics/tsconfig.lib.json --noEmit",
+          "tsc -p libs/shared/semantics/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/shared/semantics/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "libs/shared/semantics/src/data/settle-matrix.data.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import { settleMatrix } from './settle-matrix.data';
+
+describe('settleMatrix', () => {
+  it('has unique ids', () => {
+    const ids = settleMatrix.map((cell) => cell.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('has unique keys', () => {
+    const keys = settleMatrix.map((cell) => JSON.stringify(cell.key));
+
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('links every cell to a conformance id', () => {
+    for (const cell of settleMatrix) {
+      expect(cell.conformance.length, cell.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('requires evidence for every cell that is not code-derived', () => {
+    for (const cell of settleMatrix) {
+      if (cell.status !== 'code-derived') {
+        expect(cell.evidence.length, cell.id).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+",
+  "libs/shared/semantics/src/data/settle-matrix.data.ts": "import type { SemanticsCell } from '../types';
+
+export const settleMatrix: readonly SemanticsCell[] = [
+  {
+    id: 'SEM-4.3-quorum-amqp091-amqp091.nack_requeue',
+    key: {
+      era: '4.3',
+      queueType: 'quorum',
+      protocol: 'amqp091',
+      action: 'amqp091.nack_requeue',
+    },
+    effect: null,
+    citations: [],
+    conformance: ['CF-QQ-42-GUARD-01'],
+    status: 'code-derived',
+    evidence: [],
+  },
+];
+",
+  "libs/shared/semantics/src/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import * as api from './index';
+
+describe('semantics public API', () => {
+  // Update this list, and the README, together with every export you add.
+  it('exports exactly the documented names', () => {
+    expect(Object.keys(api).sort()).toEqual(['settleMatrix']);
+  });
+});
+",
+  "libs/shared/semantics/src/index.ts": "export type {
+  CellId,
+  ConformanceId,
+  DelayedRetry,
+  Era,
+  LimitState,
+  Protocol,
+  QueueType,
+  SemanticsCell,
+  SettleAction,
+  SettleEffect,
+} from './types';
+export { settleMatrix } from './data/settle-matrix.data';
+",
+  "libs/shared/semantics/src/types.ts": "export type Era = '3.13' | '4.0-4.2' | '4.3' | '4.4';
+export type QueueType = 'classic' | 'quorum' | 'stream';
+export type Protocol = 'amqp091' | 'amqp10' | 'http';
+export type SettleAction =
+  | 'amqp091.nack_requeue'
+  | 'amqp091.reject_requeue'
+  | 'amqp091.no_requeue'
+  | 'amqp10.released'
+  | 'amqp10.modified_df_false'
+  | 'amqp10.modified_df_true'
+  | 'amqp10.rejected'
+  | 'close_while_holding'
+  | 'tcp_loss'
+  | 'partition'
+  | 'amqp10.detach_unsettled'
+  | 'consumer_timeout'
+  | 'http.ack_requeue_true';
+export type LimitState = 'unset' | 'finite' | 'minus1';
+export type DelayedRetry = 'disabled' | 'all' | 'failed' | 'returned';
+export type CellId = \`SEM-\${string}\`;
+export type ConformanceId = \`CF-\${string}\`;
+
+export interface SettleEffect {
+  deltaAC: 0 | 1;
+  deltaDC: 0 | 1;
+  countsTowardLimit: 'yes' | 'no' | 'if-dc-gt-limit' | 'if-limit-set';
+  position:
+    | 'head'
+    | 'tail'
+    | 'original'
+    | 'delayed'
+    | 'dlx-or-drop'
+    | 'removed';
+  destructive: boolean;
+}
+
+export interface SemanticsCell {
+  id: CellId;
+  key: {
+    era: Era;
+    queueType: QueueType;
+    protocol: Protocol;
+    action: SettleAction;
+    limit?: LimitState;
+    delayedRetry?: DelayedRetry;
+  };
+  /**
+   * Null until the effect is derived from the cited sources. A lookup must treat a null effect as
+   * a gap and fail closed (SemanticsGapError), exactly like a missing cell.
+   */
+  effect: SettleEffect | null;
+  citations: { kind: 'S' | 'D' | 'RN' | 'GH' | 'M3' | 'LAB'; ref: string }[];
+  conformance: ConformanceId[];
+  status: 'code-derived' | 'lab-verified' | 'lab-contradicted';
+  /** Paths testing/lab-evidence/<broker-version>/<CF-id>.json, recorded independently. */
+  evidence: string[];
+}
+",
+  "libs/shared/semantics/tsconfig.json": "{
+  "extends": "../../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "libs/shared/semantics/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "libs/shared/semantics/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "libs/shared/semantics/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'semantics',
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+}
+`;

@@ -1,0 +1,149 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`adapter > creates the adapter library with a port skeleton and the contract hook 1`] = `
+{
+  "libs/engine/adapter-demo/README.md": "# adapter-demo
+
+Implements DemoPort for demo: say in one or two sentences what it talks to.
+
+Tags: \`type:adapter\`, \`runtime:node\`.
+
+## Public API
+
+- \`DemoAdapter\`: the DemoPort implementation.
+- \`createDemoAdapter()\`: the hook the shared port contract suite uses.
+
+## Invariants
+
+- Imports only contracts, pure, port and \`net-*\` projects (blueprint 2.2); never a service.
+- Only this project imports left-pad (third-party confinement, blueprint 2.4); the row is in \`eslint.config.mjs\`.
+- Passes the DemoPort contract suite.
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p adapter-demo
+\`\`\`
+",
+  "libs/engine/adapter-demo/project.json": "{
+  "name": "adapter-demo",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/adapter-demo/src",
+  "projectType": "library",
+  "tags": ["type:adapter", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/adapter-demo/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/adapter-demo/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/adapter-demo/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "libs/engine/adapter-demo/src/adapter-demo.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import { DemoAdapter, createDemoAdapter } from './adapter-demo';
+
+describe('DemoAdapter', () => {
+  it('identifies itself by the project name', () => {
+    expect(new DemoAdapter().id).toBe('adapter-demo');
+  });
+
+  it('is built by the contract-suite hook', () => {
+    expect(createDemoAdapter()).toBeInstanceOf(DemoAdapter);
+  });
+
+  it.todo('passes the DemoPort contract suite against a real broker');
+});
+",
+  "libs/engine/adapter-demo/src/adapter-demo.ts": "// The only project that may import left-pad (blueprint 2.4, eslint.config.mjs).
+import type { DemoPort } from './port';
+
+/** Implements DemoPort. Add the port's members here; the compiler lists the missing ones. */
+export class DemoAdapter implements DemoPort {
+  readonly id = 'adapter-demo';
+}
+
+/** The hook the shared port contract suite uses to build the adapter under test. */
+export function createDemoAdapter(): DemoPort {
+  return new DemoAdapter();
+}
+",
+  "libs/engine/adapter-demo/src/index.ts": "export { DemoAdapter, createDemoAdapter } from './adapter-demo';
+",
+  "libs/engine/adapter-demo/src/port.ts": "/**
+ * Placeholder. Replace this file with an import of DemoPort from '@app/ports' once
+ * libs/engine/ports defines it; the generator does that automatically when the alias exists.
+ */
+export interface DemoPort {
+  /** Stable adapter id used in logs, receipts and the conformance report. */
+  readonly id: string;
+}
+",
+  "libs/engine/adapter-demo/tsconfig.json": "{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2022"]
+  },
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "libs/engine/adapter-demo/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "libs/engine/adapter-demo/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "libs/engine/adapter-demo/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'adapter-demo',
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+}
+`;

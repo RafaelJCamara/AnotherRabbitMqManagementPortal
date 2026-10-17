@@ -1,0 +1,374 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`decoder > creates a builtin decoder with registry entry, fixtures and skeleton 1`] = `
+{
+  "libs/engine/decoders/README.md": "# decoders
+
+Decoders that turn a failed message into a normalised failure (DC-53): the built-in code decoders and the generic declarative engine.
+
+Tags: \`type:adapter\`, \`runtime:node\`.
+
+## Public API
+
+- \`builtinDecoders\`: every built-in decoder.
+- \`DecoderPlugin\`, \`DecodeInput\`, \`NormalizedFailure\`, \`TypedHeaderValue\`: the plugin shape.
+
+## Invariants
+
+- A decoder never throws on a message it does not recognise: \`detect\` returns 0.
+- Most frameworks are pure data in \`libs/sdk/header-registry\`; code is only for body envelopes and fingerprints.
+- Every decoder has fixtures in \`testing/fixtures/messages/<framework>\`.
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p decoders
+pnpm nx test decoders
+\`\`\`
+",
+  "libs/engine/decoders/project.json": "{
+  "name": "decoders",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/decoders/src",
+  "projectType": "library",
+  "tags": ["type:adapter", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/decoders/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/decoders/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/decoders/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "libs/engine/decoders/src/builtin/index.ts": "import type { DecoderPlugin } from '../types';
+import { masstransitDecoder } from './masstransit';
+
+export const builtinDecoders: readonly DecoderPlugin[] = [masstransitDecoder];
+",
+  "libs/engine/decoders/src/builtin/masstransit.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import type { DecodeInput } from '../types';
+import { masstransitDecoder } from './masstransit';
+
+const empty: DecodeInput = {
+  headers: {},
+  properties: {},
+  body: new Uint8Array(),
+  bodyTruncated: false,
+  protocol: 'amqp091',
+  era: '4.3',
+};
+
+describe('masstransit decoder', () => {
+  it('does not claim a message with no framework headers', () => {
+    expect(masstransitDecoder.detect(empty)).toBe(0);
+  });
+
+  it.todo('decodes every message in testing/fixtures/messages/masstransit');
+});
+",
+  "libs/engine/decoders/src/builtin/masstransit.ts": "import type { DecoderPlugin } from '../types';
+
+export const masstransitDecoder: DecoderPlugin = {
+  apiVersion: 1,
+  id: 'builtin.masstransit',
+  tier: 'builtin',
+  frameworks: ['masstransit'],
+  // 0 means "not masstransit", 1 means certain. Never claims a message until implemented.
+  detect: () => 0,
+  decode: () => {
+    throw new Error('The masstransit decoder does not implement decode yet.');
+  },
+  fingerprint: () => {
+    throw new Error(
+      'The masstransit decoder does not implement fingerprint yet.',
+    );
+  },
+  replayPlan: () => null,
+};
+",
+  "libs/engine/decoders/src/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import * as api from './index';
+
+describe('decoders public API', () => {
+  // Update this list, and the README, together with every export you add.
+  it('exports exactly the documented names', () => {
+    expect(Object.keys(api).sort()).toEqual(['builtinDecoders']);
+  });
+});
+",
+  "libs/engine/decoders/src/index.ts": "export type {
+  DecodeInput,
+  DecoderPlugin,
+  NormalizedFailure,
+  TypedHeaderValue,
+} from './types';
+export { builtinDecoders } from './builtin';
+",
+  "libs/engine/decoders/src/types.ts": "export type TypedHeaderValue =
+  | {
+      t:
+        | 'string'
+        | 'long'
+        | 'int'
+        | 'short'
+        | 'byte'
+        | 'double'
+        | 'float'
+        | 'bool'
+        | 'timestamp'
+        | 'decimal'
+        | 'bytes'
+        | 'void';
+      v: unknown;
+    }
+  | { t: 'array'; v: TypedHeaderValue[] }
+  | { t: 'table'; v: Record<string, TypedHeaderValue> };
+
+export interface DecodeInput {
+  headers: Readonly<Record<string, TypedHeaderValue>>;
+  properties: Readonly<Record<string, unknown>>;
+  body: Uint8Array;
+  bodyTruncated: boolean;
+  queue?: string;
+  protocol: 'amqp091' | 'amqp10';
+  era: string;
+}
+
+export interface NormalizedFailure {
+  framework: string;
+  messageId?: string;
+  logicalIds: Record<string, string>;
+  exception?: { type?: string; message?: string; frames?: string[] };
+  deaths: {
+    queue: string;
+    reason: 'rejected' | 'expired' | 'maxlen' | 'delivery_limit';
+    count: number;
+    scheduledNotFailed?: boolean;
+  }[];
+  infrastructure?: 'delay' | 'retry' | 'none';
+}
+
+export interface DecoderPlugin {
+  apiVersion: 1;
+  id: string;
+  tier: 'builtin' | 'declarative' | 'sandboxed';
+  frameworks: readonly string[];
+  /** 0 means "not this framework", 1 means certain. */
+  detect(message: DecodeInput): number;
+  decode(message: DecodeInput): NormalizedFailure;
+  fingerprint(
+    failure: NormalizedFailure,
+    level: 'type' | 'type+frame' | 'type+frame+template',
+  ): string;
+  replayPlan(
+    failure: NormalizedFailure,
+    context: { knownQueues: ReadonlySet<string> },
+  ): {
+    destinationQueue?: string;
+    stripHeaders: string[];
+    preserveIds: string[];
+    confidence: number;
+  } | null;
+}
+",
+  "libs/engine/decoders/tsconfig.json": "{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2022"]
+  },
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "libs/engine/decoders/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "libs/engine/decoders/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "libs/engine/decoders/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'decoders',
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+  "libs/sdk/header-registry/README.md": "# header-registry
+
+The machine-readable header registry (DC-53): per framework, the header mappings, queue naming conventions and delay-infrastructure patterns that the declarative decoder interprets.
+
+Tags: \`type:sdk\`, \`runtime:isomorphic\`.
+
+## Public API
+
+- \`header-registry.json\`: the registry, published as data.
+
+## Invariants
+
+- Frameworks are sorted by id, and each has \`displayName\`, \`headers\`, \`queueConventions\` and \`delayPatterns\`.
+- The file is data only; code belongs in a built-in decoder.
+
+## Proof commands
+
+\`\`\`sh
+pnpm nx run-many -t lint typecheck test -p header-registry
+\`\`\`
+",
+  "libs/sdk/header-registry/header-registry.json": "{
+  "version": 1,
+  "frameworks": {
+    "masstransit": {
+      "displayName": "Masstransit",
+      "headers": {},
+      "queueConventions": [],
+      "delayPatterns": []
+    }
+  }
+}
+",
+  "libs/sdk/header-registry/project.json": "{
+  "name": "header-registry",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/sdk/header-registry/src",
+  "projectType": "library",
+  "tags": ["type:sdk", "runtime:isomorphic"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/sdk/header-registry/tsconfig.lib.json --noEmit",
+          "tsc -p libs/sdk/header-registry/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/sdk/header-registry/vitest.config.mts"
+      }
+    }
+  }
+}
+",
+  "libs/sdk/header-registry/src/index.spec.ts": "import { describe, expect, it } from 'vitest';
+
+import * as api from './index';
+
+describe('header-registry public API', () => {
+  it('exports no code', () => {
+    expect(Object.keys(api)).toEqual([]);
+  });
+});
+",
+  "libs/sdk/header-registry/src/index.ts": "// The registry itself is header-registry.json at the project root.
+export {};
+",
+  "libs/sdk/header-registry/tsconfig.json": "{
+  "extends": "../../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
+",
+  "libs/sdk/header-registry/tsconfig.lib.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+",
+  "libs/sdk/header-registry/tsconfig.spec.json": "{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}
+",
+  "libs/sdk/header-registry/vitest.config.mts": "import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  root: import.meta.dirname,
+  // Resolve the @app/* aliases of tsconfig.base.json.
+  resolve: { tsconfigPaths: true },
+  test: {
+    name: 'header-registry',
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
+  },
+});
+",
+  "testing/fixtures/messages/masstransit/README.md": "# masstransit fixtures
+
+Recorded messages from masstransit that the masstransit decoder must handle. One JSON file per
+case, named after the case, holding the \`DecodeInput\` fields (headers, properties, body as base64)
+and an \`expected\` object with the normalised failure.
+
+Record fixtures from a real run; do not write them from memory.
+",
+}
+`;

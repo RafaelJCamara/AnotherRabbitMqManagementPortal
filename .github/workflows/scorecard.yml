@@ -28,6 +28,9 @@ jobs:
     permissions:
       contents: read
       actions: read
+      checks: read # private repositories: the Scorecard GraphQL queries need these read scopes
+      issues: read
+      pull-requests: read
       security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -45,7 +45,8 @@
     "tslib": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "yaml": "catalog:"
   },
   "dependencies": {
     "@angular/common": "catalog:",

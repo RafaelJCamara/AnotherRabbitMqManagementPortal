@@ -1,0 +1,8 @@
+{
+  "name": "fixture-clean",
+  "private": true,
+  "devDependencies": {
+    "tslib": "catalog:",
+    "typescript": "catalog:"
+  }
+}

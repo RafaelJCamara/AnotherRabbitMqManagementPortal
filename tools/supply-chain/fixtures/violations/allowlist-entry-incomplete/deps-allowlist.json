@@ -1,0 +1,6 @@
+{
+  "packages": {
+    "tslib": { "reason": "", "ref": "M0-01" },
+    "typescript": { "reason": "Workspace TypeScript.", "ref": "ADR-032" }
+  }
+}

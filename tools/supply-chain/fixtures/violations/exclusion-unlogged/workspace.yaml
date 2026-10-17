@@ -1,0 +1,14 @@
+minimumReleaseAge: 4320
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+minimumReleaseAgeExclude:
+  - tslib@2.8.1
+  - typescript@6.0.3
+trustPolicy: no-downgrade
+blockExoticSubdeps: true
+strictDepBuilds: true
+allowBuilds:
+  nx: true
+catalog:
+  tslib: 2.8.1
+  typescript: 6.0.3

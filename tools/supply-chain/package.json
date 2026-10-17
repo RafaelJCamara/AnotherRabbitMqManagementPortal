@@ -1,0 +1,6 @@
+{
+  "name": "@app/supply-chain-tools",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0"
+}

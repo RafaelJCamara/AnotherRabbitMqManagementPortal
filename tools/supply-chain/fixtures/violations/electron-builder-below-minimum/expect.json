@@ -1,0 +1,5 @@
+{
+  "rules": [
+    "pin.electron-builder-min"
+  ]
+}

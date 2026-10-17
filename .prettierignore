@@ -10,3 +10,4 @@
 *.md
 /apps/docs/.astro
 /apps/docs/src/content/docs/adr
+/tools/supply-chain/fixtures

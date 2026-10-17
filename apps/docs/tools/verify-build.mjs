@@ -40,7 +40,7 @@ for (const route of ['adr', 'matrix', 'security/outbound-calls']) {
 }
 
 const expected = readdirSync(adrDir).filter((f) =>
-  /^ADR-\d{3}-.*\.md$/.test(f),
+  /^ADR-\d{3}-(?!log\.md$).*\.md$/.test(f),
 );
 const indexPath = join(dist, 'adr', 'index.html');
 if (existsSync(indexPath)) {

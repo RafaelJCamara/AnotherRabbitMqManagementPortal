@@ -1,0 +1,149 @@
+{
+  "$comment": "Direct dependencies approved for this repository (ADR-027). Every catalog entry and every package.json dependency needs an entry here. Adding one needs a reason, the ADR or work item that approved it, and code-owner review.",
+  "packages": {
+    "@angular-devkit/core": {
+      "reason": "Angular CLI toolchain peer, pinned in the catalog.",
+      "ref": "M0-01"
+    },
+    "@angular-devkit/schematics": {
+      "reason": "Angular schematics peer of @nx/angular, pinned in the catalog.",
+      "ref": "M0-01"
+    },
+    "@angular/build": {
+      "reason": "Angular application builder and unit-test runner.",
+      "ref": "ADR-032"
+    },
+    "@angular/cli": {
+      "reason": "Angular CLI used by @nx/angular generators and builders.",
+      "ref": "ADR-032"
+    },
+    "@angular/common": {
+      "reason": "Angular runtime for the web UI.",
+      "ref": "ADR-032"
+    },
+    "@angular/compiler": {
+      "reason": "Angular runtime for the web UI.",
+      "ref": "ADR-032"
+    },
+    "@angular/compiler-cli": {
+      "reason": "Angular ahead-of-time compiler (ngc typecheck of templates).",
+      "ref": "ADR-032"
+    },
+    "@angular/core": {
+      "reason": "Angular runtime for the web UI.",
+      "ref": "ADR-032"
+    },
+    "@angular/forms": {
+      "reason": "Angular runtime for the web UI.",
+      "ref": "ADR-032"
+    },
+    "@angular/language-service": {
+      "reason": "Angular template language service for editors.",
+      "ref": "ADR-032"
+    },
+    "@angular/platform-browser": {
+      "reason": "Angular runtime for the web UI.",
+      "ref": "ADR-032"
+    },
+    "@angular/router": {
+      "reason": "Angular runtime for the web UI.",
+      "ref": "ADR-032"
+    },
+    "@astrojs/starlight": {
+      "reason": "Docs site framework (Starlight).",
+      "ref": "M0-06"
+    },
+    "@eslint/js": {
+      "reason": "ESLint recommended rule set.",
+      "ref": "M0-03"
+    },
+    "@nx/angular": {
+      "reason": "Nx plugin for the Angular web app.",
+      "ref": "M0-01"
+    },
+    "@nx/devkit": {
+      "reason": "Nx devkit for workspace tooling.",
+      "ref": "M0-01"
+    },
+    "@nx/esbuild": {
+      "reason": "Nx esbuild executor that bundles the engine.",
+      "ref": "M0-01"
+    },
+    "@nx/eslint": {
+      "reason": "Nx lint executor and ESLint integration.",
+      "ref": "M0-03"
+    },
+    "@nx/eslint-plugin": {
+      "reason": "enforce-module-boundaries and Nx flat-config presets.",
+      "ref": "M0-03"
+    },
+    "@nx/js": { "reason": "Nx TypeScript library support.", "ref": "M0-01" },
+    "@nx/vitest": { "reason": "Nx Vitest integration.", "ref": "M0-01" },
+    "@nx/web": {
+      "reason": "Nx web support used by @nx/angular.",
+      "ref": "M0-01"
+    },
+    "@schematics/angular": {
+      "reason": "Angular schematics used by the Nx Angular generators.",
+      "ref": "ADR-032"
+    },
+    "@swc/helpers": {
+      "reason": "Runtime helpers required by Nx tooling.",
+      "ref": "M0-01"
+    },
+    "@types/node": {
+      "reason": "Node.js types for the engine and tools.",
+      "ref": "M0-01"
+    },
+    "@typescript-eslint/parser": {
+      "reason": "TypeScript parser for ESLint.",
+      "ref": "M0-03"
+    },
+    "angular-eslint": {
+      "reason": "Angular template and component lint rules.",
+      "ref": "M0-03"
+    },
+    "astro": { "reason": "Docs site build (Astro).", "ref": "M0-06" },
+    "eslint": { "reason": "Linter.", "ref": "M0-03" },
+    "eslint-config-prettier": {
+      "reason": "Turns off ESLint rules that conflict with Prettier.",
+      "ref": "M0-03"
+    },
+    "globals": {
+      "reason": "Global variable sets for ESLint environments.",
+      "ref": "M0-03"
+    },
+    "jsdom": {
+      "reason": "DOM environment for Angular unit tests.",
+      "ref": "M0-01"
+    },
+    "nx": { "reason": "Monorepo task runner.", "ref": "ADR-032" },
+    "prettier": { "reason": "Code formatter.", "ref": "M0-01" },
+    "release-please": {
+      "reason": "Release PRs and changelog from Conventional Commits.",
+      "ref": "M0-06"
+    },
+    "rxjs": { "reason": "Angular peer dependency.", "ref": "ADR-032" },
+    "starlight-openapi": {
+      "reason": "Renders the OpenAPI document in the docs site.",
+      "ref": "M0-06"
+    },
+    "tslib": {
+      "reason": "TypeScript helper library (importHelpers).",
+      "ref": "M0-01"
+    },
+    "typescript": {
+      "reason": "Workspace-wide TypeScript 6.0.3 (DC-49).",
+      "ref": "ADR-032"
+    },
+    "typescript-eslint": {
+      "reason": "typescript-eslint flat-config entry point and strict presets.",
+      "ref": "M0-03"
+    },
+    "vitest": { "reason": "Unit test runner.", "ref": "M0-01" },
+    "yaml": {
+      "reason": "Parses pnpm-workspace.yaml and pnpm-lock.yaml in the supply-chain gates.",
+      "ref": "M0-02"
+    }
+  }
+}

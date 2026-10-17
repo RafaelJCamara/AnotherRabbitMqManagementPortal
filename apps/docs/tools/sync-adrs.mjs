@@ -9,7 +9,8 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
-const ADR_FILE = /^ADR-(\d{3})-.*\.md$/;
+// ADR-027-log.md is the exclusion log for ADR-027, not an ADR.
+const ADR_FILE = /^ADR-(\d{3})-(?!log\.md$).*\.md$/;
 
 /** `ADR-007-foo.md` -> `adr-007` (stable, short URL: /adr/adr-007/). */
 function slugFor(id) {

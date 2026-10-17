@@ -1,0 +1,36 @@
+{
+  "name": "supply-chain",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/supply-chain",
+  "tags": [],
+  "targets": {
+    "gates": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node tools/supply-chain/run-gates.ts"
+      }
+    },
+    "gates-selftest": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/package.json"],
+      "options": {
+        "command": "node --test tools/supply-chain/gates-selftest.ts"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/*.ts",
+        "{projectRoot}/tsconfig.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "options": {
+        "command": "tsc -p tools/supply-chain/tsconfig.json --noEmit"
+      }
+    }
+  }
+}

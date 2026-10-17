@@ -1,5 +1,44 @@
-# Every dependency is declared once here with an exact version and referenced as `catalog:`.
-# Supply-chain keys (minimumReleaseAge, trustPolicy, blockExoticSubdeps, ...) arrive with M0-02.
+# Supply-chain policy (ADR-027, blueprint 14.3). Enforced by `nx run supply-chain:gates`.
+# Every dependency is declared once in the catalog below with an exact version and
+# referenced as `catalog:`.
+
+# Release-age gate: nothing younger than 3 days (4320 minutes) may be resolved.
+minimumReleaseAge: 4320
+minimumReleaseAgeStrict: true
+# A registry that omits publish times must fail the gate, not bypass it.
+minimumReleaseAgeIgnoreMissingTime: false
+# Exact `name@version` entries only, each logged in docs/adr/ADR-027-log.md with CODEOWNERS sign-off.
+minimumReleaseAgeExclude:
+  - '@angular-devkit/architect@0.2202.3'
+  - '@angular-devkit/core@22.2.3'
+  - '@angular-devkit/schematics@22.2.3'
+  - '@angular/build@22.2.3'
+  - '@angular/cli@22.2.3'
+  - '@angular/common@22.2.3'
+  - '@angular/compiler-cli@22.2.3'
+  - '@angular/compiler@22.2.3'
+  - '@angular/core@22.2.3'
+  - '@angular/forms@22.2.3'
+  - '@angular/language-service@22.2.3'
+  - '@angular/platform-browser@22.2.3'
+  - '@angular/router@22.2.3'
+  - '@astrojs/internal-helpers@0.13.0'
+  - '@astrojs/markdown-satteri@0.4.4'
+  - '@astrojs/prism@4.1.0'
+  - '@schematics/angular@22.2.3'
+  - '@vitest/mocker@5.0.5'
+  - '@vitest/spy@5.0.5'
+  - vitest@5.0.5
+
+trustPolicy: no-downgrade
+# Exact `name@version` entries only, each logged in docs/adr/ADR-027-log.md.
+trustPolicyExclude:
+  - '@octokit/endpoint@9.0.6'
+  - semver@5.7.2
+  - semver@6.3.1
+blockExoticSubdeps: true
+strictDepBuilds: true
+
 catalog:
   '@angular-devkit/core': 22.2.3
   '@angular-devkit/schematics': 22.2.3
@@ -42,6 +81,7 @@ catalog:
   typescript: 6.0.3
   typescript-eslint: 8.71.2
   vitest: 5.0.5
+  yaml: 2.9.1
 
 allowBuilds:
   nx: true

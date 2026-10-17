@@ -1,0 +1,7 @@
+[
+  { "name": "tslib", "version": "2.8.1", "license": "0BSD", "kind": "code" },
+  { "name": "typescript", "version": "6.0.3", "license": "Apache-2.0", "kind": "code" },
+  { "name": "dual-mpl", "version": "1.0.0", "license": "(MPL-2.0 OR Apache-2.0)", "kind": "code" },
+  { "name": "elkjs", "version": "0.10.0", "license": "EPL-2.0", "kind": "code" },
+  { "name": "icon-set", "version": "1.0.0", "license": "CC-BY-4.0", "kind": "asset" }
+]

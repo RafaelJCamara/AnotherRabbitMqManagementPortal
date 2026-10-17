@@ -1,0 +1,92 @@
+[
+  {
+    "name": "tslib",
+    "version": "2.8.1",
+    "license": "0BSD"
+  },
+  {
+    "name": "typescript",
+    "version": "6.0.3",
+    "license": "Apache-2.0"
+  },
+  {
+    "name": "dual-licensed",
+    "version": "1.0.0",
+    "license": "(MIT OR GPL-3.0-only)"
+  },
+  {
+    "name": "caniuse-lite",
+    "version": "1.0.0",
+    "license": "CC-BY-4.0"
+  },
+  {
+    "name": "union",
+    "version": "0.5.0",
+    "license": "Unknown"
+  },
+  {
+    "name": "@types/amqplib",
+    "version": "0.10.7",
+    "license": "MIT"
+  },
+  {
+    "name": "primeng",
+    "version": "22.0.0",
+    "license": "MIT"
+  },
+  {
+    "name": "primeng",
+    "version": "21.1.0",
+    "license": "MIT"
+  },
+  {
+    "name": "@primeui/themes",
+    "version": "1.0.0",
+    "license": "MIT"
+  },
+  {
+    "name": "ag-grid-enterprise",
+    "version": "36.2.0",
+    "license": "MIT"
+  },
+  {
+    "name": "apexcharts",
+    "version": "5.0.0",
+    "license": "MIT"
+  },
+  {
+    "name": "oasdiff",
+    "version": "0.0.1-security",
+    "license": "MIT"
+  },
+  {
+    "name": "@nx/nest",
+    "version": "23.3.0",
+    "license": "MIT"
+  },
+  {
+    "name": "electron-builder",
+    "version": "26.15.3",
+    "license": "MIT"
+  },
+  {
+    "name": "fastify",
+    "version": "5.12.6",
+    "license": "MIT"
+  },
+  {
+    "name": "no-integrity",
+    "version": "1.0.0",
+    "license": "MIT"
+  },
+  {
+    "name": "typescript",
+    "version": "7.0.0",
+    "license": "Apache-2.0"
+  },
+  {
+    "name": "typescript",
+    "version": "4.9.5",
+    "license": "Apache-2.0"
+  }
+]

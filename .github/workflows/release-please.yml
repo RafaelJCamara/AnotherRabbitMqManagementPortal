@@ -1,0 +1,32 @@
+# M0-06: one product SemVer via release-please (manifest mode). The release PR is the human gate.
+# Merging it creates the tag and a GitHub (pre-)release; nothing is published outside the private
+# repository until ADR-029 is accepted (amendment A-22). Keep actions pinned by SHA.
+#
+# Repository setting required: Settings > Actions > General > "Allow GitHub Actions to create and
+# approve pull requests". PRs opened with GITHUB_TOKEN do not trigger other workflows; switch to a
+# GitHub App token if CI must run on the release PR.
+name: release-please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

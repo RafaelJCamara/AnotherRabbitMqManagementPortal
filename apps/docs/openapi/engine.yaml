@@ -1,0 +1,16 @@
+openapi: 3.1.0
+info:
+  title: <Product> engine API
+  version: 0.0.0
+  description: >-
+    Placeholder. The engine API is generated from the contract registry
+    (ADR-003); this document is replaced by that output.
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Liveness probe
+      description: Placeholder operation so the API reference renders.
+      responses:
+        '200':
+          description: The engine is alive.

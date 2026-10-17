@@ -1,0 +1,3 @@
+# Generated at build time from /docs/adr by tools/sync-adrs.mjs
+src/content/docs/adr/
+.astro/

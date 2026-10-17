@@ -1,0 +1,35 @@
+name: Semantics RFC
+description: Propose a change to, or report an error in, the RabbitMQ semantics registry.
+title: '[Semantics] '
+labels: ['area:semantics']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Changes to the semantics registry need an RFC issue, lab evidence recorded by CI, and maintainer approval (see GOVERNANCE.md). A wrong cell that could drop messages is treated with security-level priority; if it can, say so in the title.
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Observed or claimed RabbitMQ behaviour
+      description: Exactly what the broker does, per version, in terms a lab cell can assert.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: RabbitMQ versions affected
+      placeholder: '3.13.7, 4.0.9, 4.1.8, 4.2.9, 4.3.6'
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source
+      description: Official documentation, release notes or broker source that supports the claim. Do not paste a lab result; evidence is recorded by CI only.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact on the registry
+      description: Which cells change, and which product behaviour depends on them.

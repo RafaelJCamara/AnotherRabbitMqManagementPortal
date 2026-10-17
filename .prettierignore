@@ -8,3 +8,5 @@
 /docs
 /pnpm-lock.yaml
 *.md
+/apps/docs/.astro
+/apps/docs/src/content/docs/adr

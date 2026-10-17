@@ -1,0 +1,37 @@
+name: ADR proposal
+description: Propose a new or changed architecture decision.
+title: '[ADR] '
+labels: ['type:adr']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Decisions are recorded as ADRs (see docs/adr/README.md). Open this issue first; the ADR file follows in a change that references it.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: The forces at play and the constraint being decided.
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Proposed decision
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences
+  - type: input
+    id: supersedes
+    attributes:
+      label: Supersedes or amends
+      placeholder: ADR-NNN

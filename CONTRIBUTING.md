@@ -7,6 +7,15 @@ Thank you for helping. This project is built mostly by AI coding agents under hu
 - Read the spec with `gh issue view <n>`; branch as `wi/<ID>-<slug>`; open a PR whose body contains `Closes #<n>`.
 - Work discovered mid-task becomes a **new issue**, never silent scope creep.
 
+## Conventional Commits
+Commit messages (and PR titles, which become the squash commit) follow [Conventional Commits 1.0](https://www.conventionalcommits.org/): `<type>(<optional scope>): <summary>`, for example `feat(engine): add capability probe` or `fix!: reject empty vhost names` (a `!` or a `BREAKING CHANGE:` footer marks a breaking change).
+
+- Types that appear in the changelog: `feat`, `fix`, `perf`, `revert`, `deps`, `docs`. Other types (`chore`, `ci`, `build`, `test`, `refactor`, `style`) are hidden.
+- Mention the issue in the body or footer, for example `Closes #6`.
+
+## Releases
+The project has **one product version** (SemVer), managed by [release-please](https://github.com/googleapis/release-please) from the Conventional Commit history. A bot-maintained release PR collects the changelog and version bump; merging it is the human release gate. Until milestone M1 every release is an `alpha` pre-release. Nothing is published outside the private repository until the product name is decided ([ADR-029](docs/adr/ADR-029-product-name.md)). Contributors never edit versions or `CHANGELOG.md` by hand.
+
 ## Definition of Done
 - Every acceptance criterion (Given/When/Then) maps to a named test, and the issue's verification commands pass.
 - Docs in `docs/` are updated in the same PR when behaviour changes; decisions go through an ADR ([docs/adr/README.md](docs/adr/README.md)).

@@ -1,0 +1,9 @@
+# Version holder for the Helm chart. Replaced by the real chart in the container/team-server
+# work packages; release-please bumps the two annotated lines. The directory and chart name
+# become the product codename once it exists (ADR-029); update release-please-config.json then.
+apiVersion: v2
+name: product
+description: Placeholder chart for the product
+type: application
+version: 0.0.0 # x-release-please-version
+appVersion: 0.0.0 # x-release-please-version

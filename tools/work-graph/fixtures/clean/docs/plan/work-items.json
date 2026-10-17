@@ -1,0 +1,271 @@
+{
+  "generated": "2026-10-17",
+  "repo": "example/work-graph-fixture",
+  "milestones": [
+    {
+      "key": "M0",
+      "title": "M0 · Foundations"
+    },
+    {
+      "key": "M1",
+      "title": "M1 · Web 1.0"
+    }
+  ],
+  "labels": [
+    {
+      "name": "type:work-package",
+      "color": "EDEDED"
+    },
+    {
+      "name": "type:chore",
+      "color": "EDEDED"
+    },
+    {
+      "name": "type:lab-cell",
+      "color": "EDEDED"
+    },
+    {
+      "name": "area:engine",
+      "color": "EDEDED"
+    },
+    {
+      "name": "area:ci",
+      "color": "EDEDED"
+    },
+    {
+      "name": "lane:platform",
+      "color": "EDEDED"
+    },
+    {
+      "name": "lane:feature",
+      "color": "EDEDED"
+    },
+    {
+      "name": "lane:evidence",
+      "color": "EDEDED"
+    },
+    {
+      "name": "size:S",
+      "color": "EDEDED"
+    },
+    {
+      "name": "size:M",
+      "color": "EDEDED"
+    },
+    {
+      "name": "size:L",
+      "color": "EDEDED"
+    },
+    {
+      "name": "trust:critical",
+      "color": "EDEDED"
+    },
+    {
+      "name": "amended",
+      "color": "EDEDED"
+    },
+    {
+      "name": "wave:M0-W0",
+      "color": "EDEDED"
+    },
+    {
+      "name": "wave:M0-W1",
+      "color": "EDEDED"
+    },
+    {
+      "name": "wave:M1-W1",
+      "color": "EDEDED"
+    }
+  ],
+  "items": [
+    {
+      "formerly": null,
+      "kind": "work-package",
+      "lane": "feature",
+      "size": "S",
+      "trust": false,
+      "depends": [],
+      "parent": null,
+      "amended": [],
+      "needsSplit": false,
+      "wave": "M0-W0",
+      "areas": [
+        "engine"
+      ],
+      "id": "M0-01",
+      "title": "[M0-01] Workspace scaffold",
+      "milestone": "M0",
+      "body": "**Milestone:** M0 · **Wave:** M0-W0 · **Lane:** feature · **Size:** S\n\n## Goal\n\nCreate the workspace (CON-01).",
+      "labels": [
+        "type:work-package",
+        "lane:feature",
+        "size:S",
+        "area:engine",
+        "wave:M0-W0"
+      ]
+    },
+    {
+      "formerly": null,
+      "kind": "work-package",
+      "lane": "feature",
+      "size": "M",
+      "trust": false,
+      "depends": [
+        "M0-01"
+      ],
+      "parent": null,
+      "amended": [],
+      "needsSplit": false,
+      "wave": "M0-W1",
+      "areas": [
+        "engine"
+      ],
+      "id": "M0-02",
+      "title": "[M0-02] Connection profiles",
+      "milestone": "M0",
+      "body": "**Milestone:** M0 · **Wave:** M0-W1 · **Lane:** feature · **Size:** M\n\n## Goal\n\nProfiles with separate endpoints (CON-01).",
+      "labels": [
+        "type:work-package",
+        "lane:feature",
+        "size:M",
+        "area:engine",
+        "wave:M0-W1"
+      ]
+    },
+    {
+      "formerly": null,
+      "kind": "work-package",
+      "lane": "evidence",
+      "size": "S",
+      "trust": true,
+      "depends": [
+        "M0-02"
+      ],
+      "parent": null,
+      "amended": [
+        "A-9"
+      ],
+      "needsSplit": false,
+      "wave": "M0-W1",
+      "areas": [
+        "ci"
+      ],
+      "id": "M0-03",
+      "title": "[M0-03] Environment chrome (CON-02)",
+      "milestone": "M0",
+      "body": "**Milestone:** M0 · **Wave:** M0-W1 · **Lane:** evidence · **Size:** S · **Trust-critical**\n\n## Goal\n\nProd lock.",
+      "labels": [
+        "type:work-package",
+        "lane:evidence",
+        "size:S",
+        "area:ci",
+        "trust:critical",
+        "amended",
+        "wave:M0-W1"
+      ]
+    },
+    {
+      "formerly": null,
+      "kind": "work-package",
+      "lane": "feature",
+      "size": "L",
+      "trust": false,
+      "depends": [
+        "M0-03"
+      ],
+      "parent": null,
+      "amended": [],
+      "needsSplit": false,
+      "wave": "M1-W1",
+      "areas": [
+        "engine"
+      ],
+      "id": "M1-01",
+      "title": "[M1-01] Live charts (MON-01)",
+      "milestone": "M1",
+      "body": "**Milestone:** M1 · **Wave:** M1-W1 · **Lane:** feature · **Size:** L\n\n## Goal\n\nCharts.",
+      "labels": [
+        "type:work-package",
+        "lane:feature",
+        "size:L",
+        "area:engine",
+        "wave:M1-W1"
+      ]
+    },
+    {
+      "formerly": null,
+      "kind": "lab-cell",
+      "lane": "evidence",
+      "size": "S",
+      "trust": false,
+      "depends": [],
+      "parent": null,
+      "amended": [],
+      "needsSplit": false,
+      "wave": null,
+      "areas": [
+        "engine"
+      ],
+      "id": "U-01",
+      "title": "[U-01] Lab/spike: settle paths",
+      "milestone": "M0",
+      "body": "**Milestone:** M0 · **Lane:** evidence · **Size:** S\n\n## Uncertainty\n\nLab/spike: settle paths\n\n## Work packages\n\nM0-02, M1-01",
+      "labels": [
+        "type:lab-cell",
+        "lane:evidence",
+        "size:S",
+        "area:engine"
+      ]
+    },
+    {
+      "formerly": null,
+      "kind": "chore",
+      "lane": "platform",
+      "size": "S",
+      "trust": false,
+      "depends": [],
+      "parent": null,
+      "amended": [],
+      "needsSplit": false,
+      "wave": null,
+      "areas": [
+        "ci"
+      ],
+      "id": "RC-M0",
+      "title": "[RC-M0] M0 release & exit checklist",
+      "milestone": "M0",
+      "body": "**Milestone:** M0 · **Lane:** platform · **Size:** S\n\n## Goal\n\nClose when exit criteria are met.",
+      "labels": [
+        "type:chore",
+        "lane:platform",
+        "size:S",
+        "area:ci"
+      ]
+    },
+    {
+      "formerly": null,
+      "kind": "chore",
+      "lane": "platform",
+      "size": "S",
+      "trust": false,
+      "depends": [],
+      "parent": null,
+      "amended": [],
+      "needsSplit": false,
+      "wave": null,
+      "areas": [
+        "ci"
+      ],
+      "id": "RC-M1",
+      "title": "[RC-M1] M1 release & exit checklist",
+      "milestone": "M1",
+      "body": "**Milestone:** M1 · **Lane:** platform · **Size:** S\n\n## Goal\n\nClose when exit criteria are met.",
+      "labels": [
+        "type:chore",
+        "lane:platform",
+        "size:S",
+        "area:ci"
+      ]
+    }
+  ]
+}

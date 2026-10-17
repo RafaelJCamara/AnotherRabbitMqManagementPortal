@@ -1,0 +1,45 @@
+{
+  "name": "work-graph",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/work-graph",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "validate": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/docs/product/features.md",
+        "{workspaceRoot}/docs/plan/work-items.json",
+        "{workspaceRoot}/docs/plan/work-items.md",
+        "{workspaceRoot}/docs/open-questions.md",
+        "{projectRoot}/*.ts",
+        "{projectRoot}/known-exceptions.json"
+      ],
+      "options": {
+        "command": "node tools/work-graph/run-validate.ts"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*"],
+      "options": {
+        "command": "node --test tools/work-graph/validate-selftest.ts"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/*.ts",
+        "{projectRoot}/tsconfig.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "options": {
+        "command": "tsc -p tools/work-graph/tsconfig.json --noEmit"
+      }
+    }
+  }
+}

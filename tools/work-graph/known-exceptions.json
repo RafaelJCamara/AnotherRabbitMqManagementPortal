@@ -1,0 +1,52 @@
+{
+  "exceptions": [
+    {
+      "rule": "features.forward-milestone",
+      "subject": "PLAT-16->DIA-01",
+      "oq": "OQ-90",
+      "reason": "PLAT-16 (M4) depends on DIA-01 (M6) after the web-first re-tag; which side moves is a plan decision."
+    },
+    {
+      "rule": "coverage.unmapped-feature",
+      "subject": "PLAT-01",
+      "oq": "OQ-91",
+      "reason": "Delivered by the M0 foundation WPs but no work item names the feature id."
+    },
+    {
+      "rule": "coverage.unmapped-feature",
+      "subject": "PLAT-02",
+      "oq": "OQ-91",
+      "reason": "Delivered by the M0 engine WPs but no work item names the feature id."
+    },
+    {
+      "rule": "coverage.unmapped-feature",
+      "subject": "PLAT-03",
+      "oq": "OQ-91",
+      "reason": "Delivered by the M0 contracts and transport WPs but no work item names the feature id."
+    },
+    {
+      "rule": "coverage.unmapped-feature",
+      "subject": "PLAT-06",
+      "oq": "OQ-91",
+      "reason": "Delivered by the M0 conformance WPs but no work item names the feature id."
+    },
+    {
+      "rule": "coverage.unmapped-feature",
+      "subject": "PLAT-07",
+      "oq": "OQ-91",
+      "reason": "Delivered by the M2 desktop platform WPs (M2-P*) but none names the feature id."
+    },
+    {
+      "rule": "items.area-missing",
+      "subject": "M0-17",
+      "oq": "OQ-92",
+      "reason": "Issue #16 carries no area label; choosing one is a maintainer call."
+    },
+    {
+      "rule": "items.duplicate-title",
+      "subject": "U-11,U-12",
+      "oq": "OQ-93",
+      "reason": "Issues #76 and #77 were seeded with the same title; renaming them also changes the GitHub issues."
+    }
+  ]
+}

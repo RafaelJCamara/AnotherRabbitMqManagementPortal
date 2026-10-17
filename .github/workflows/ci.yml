@@ -42,9 +42,13 @@ jobs:
         run: pnpm nx run supply-chain:gates
       - name: Actions are pinned by full SHA
         run: pnpm nx run supply-chain:actions-pinned
+      - name: Feature and work-item graph (dangling, cyclic, forward dependencies)
+        run: pnpm nx run work-graph:validate
       - name: Gates self-tests (planted violations)
         if: runner.os == 'Linux'
-        run: pnpm nx run-many -t gates-selftest actions-pinned-selftest -p supply-chain
+        run: |
+          pnpm nx run-many -t gates-selftest actions-pinned-selftest -p supply-chain
+          pnpm nx run work-graph:test
 
   affected:
     name: affected

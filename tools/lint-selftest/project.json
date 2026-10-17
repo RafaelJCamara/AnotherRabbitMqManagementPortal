@@ -4,6 +4,7 @@
   "projectType": "library",
   "sourceRoot": "tools/lint-selftest/src",
   "tags": ["type:test", "runtime:node"],
+  "implicitDependencies": ["eslint-rules"],
   "targets": {
     "lint": {},
     "typecheck": {

@@ -6,19 +6,25 @@
 //   3. no-restricted-imports for the third-party confinement table (section 2.4), the banned list,
 //      and node:* builtins in code that must run in a browser or in any runtime.
 //
-// The policy tables below are plain data. `tools/lint-selftest` proves they bite. Project-specific
-// custom rules (M0-04) are not part of this file yet.
+//   4. Project-specific rules from tools/eslint-rules (M0-04), registered as `@app/<rule>` and
+//      scoped by path (section "Project rules" below).
+//
+// The policy tables below are plain data. `tools/lint-selftest` proves they bite.
 import { readdirSync, readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { join, relative, sep } from 'node:path';
 
 import js from '@eslint/js';
+import json from '@eslint/json';
 import nx from '@nx/eslint-plugin';
 import angular from 'angular-eslint';
 import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+
+// Node loads the TypeScript plugin directly (type stripping), so there is no build step.
+import appRules from './tools/eslint-rules/src/index.ts';
 
 const root = import.meta.dirname;
 
@@ -353,9 +359,96 @@ const zoneBlocks = zones.map((zone) => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Config
+// Project rules (tools/eslint-rules, M0-04). Each entry names the invariant it guards, where it
+// applies, and where it deliberately does not. Paths are relative to the workspace root.
 // ---------------------------------------------------------------------------------------------
 const tsFiles = ['**/*.ts', '**/*.mts', '**/*.cts'];
+const tsIn = (...dirs) => dirs.map((dir) => `${dir}/**/*.{ts,mts,cts}`);
+const specs = ['**/*.spec.ts', '**/*.test.ts'];
+const appPlugin = { '@app': appRules };
+
+const projectRules = [
+  {
+    // I-3 / DC-01: broker versions are data. Only the registry and the capability probe may
+    // compare them.
+    name: 'app/broker-versions',
+    files: tsIn('libs', 'apps'),
+    ignores: ['libs/shared/semantics/**', 'libs/engine/svc-capabilities/**'],
+    plugins: appPlugin,
+    rules: { '@app/no-broker-version-compare': 'error' },
+  },
+  {
+    // ADR-001: services never ask which delivery mode they run in. Composition code may.
+    name: 'app/delivery-mode',
+    files: tsIn('libs/engine', 'apps/engine'),
+    ignores: [
+      'apps/engine/src/entry/**',
+      'apps/engine/src/modes/**',
+      'apps/engine/src/modules/**',
+    ],
+    plugins: appPlugin,
+    rules: { '@app/no-mode-branching': 'error' },
+  },
+  {
+    // I-6: engine buffers are BoundedRing or BoundedQueue. The primitives themselves are exempt.
+    name: 'app/bounded-buffers',
+    files: tsIn('libs/engine', 'apps/engine'),
+    ignores: ['libs/engine/kernel/src/bounded/**', ...specs],
+    plugins: appPlugin,
+    rules: { '@app/bounded-buffers-only': 'error' },
+  },
+  {
+    // Contracts are explicit (ADR-003). Applies wherever zod schemas are written or imported.
+    name: 'app/zod-schemas',
+    files: tsIn('libs', 'apps'),
+    plugins: appPlugin,
+    rules: { '@app/explicit-zod-schemas': 'error' },
+  },
+  {
+    // ADR-021: no innerHTML anywhere, in TypeScript or in Angular templates.
+    name: 'app/no-inner-html',
+    files: [...tsIn('libs', 'apps'), 'apps/web/**/*.html', 'libs/ui/**/*.html'],
+    plugins: appPlugin,
+    rules: { '@app/no-inner-html': 'error' },
+  },
+  {
+    // UI traffic goes through EngineApi/HttpClient and the LiveChannel. libs/ui/platform owns the
+    // transports (HttpBackend, LiveChannel), so it is the one place that may open sockets.
+    name: 'app/no-direct-fetch',
+    files: tsIn('apps/web', 'libs/ui'),
+    ignores: ['libs/ui/platform/**'],
+    plugins: appPlugin,
+    rules: { '@app/no-direct-fetch': 'error' },
+  },
+  {
+    // DC-15: UI strings that make claims about message reads. i18n JSON is covered below.
+    name: 'app/honest-wording-code',
+    files: tsIn('apps/web', 'libs/ui'),
+    ignores: specs,
+    plugins: appPlugin,
+    rules: { '@app/honest-wording': 'error' },
+  },
+  {
+    // UI copy lives in the i18n files. index.html is the document shell, not an Angular template.
+    name: 'app/ui-templates',
+    files: ['apps/web/**/*.html', 'libs/ui/**/*.html'],
+    ignores: ['**/index.html'],
+    plugins: appPlugin,
+    rules: { '@app/ui-no-raw-template-text': 'error' },
+  },
+  {
+    // DC-15 over the translation files (Transloco). Every locale is checked.
+    name: 'app/i18n-json',
+    files: ['**/i18n/**/*.json', '**/locales/**/*.json'],
+    plugins: { json, ...appPlugin },
+    language: 'json/json',
+    rules: { '@app/honest-wording': 'error' },
+  },
+];
+
+// ---------------------------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------------------------
 
 export default defineConfig(
   {
@@ -450,6 +543,8 @@ export default defineConfig(
     },
   },
   ...zoneBlocks,
+
+  ...projectRules,
 
   {
     // Planted violations used by tools/lint-selftest. They are real files that must fail lint, so

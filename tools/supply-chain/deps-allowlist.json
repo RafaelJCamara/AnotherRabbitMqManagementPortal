@@ -57,6 +57,10 @@
       "reason": "ESLint recommended rule set.",
       "ref": "M0-03"
     },
+    "@eslint/json": {
+      "reason": "Lints i18n JSON files (honest-wording rule).",
+      "ref": "M0-04"
+    },
     "@nx/angular": {
       "reason": "Nx plugin for the Angular web app.",
       "ref": "M0-01"

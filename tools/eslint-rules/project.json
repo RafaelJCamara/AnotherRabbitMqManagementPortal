@@ -1,0 +1,34 @@
+{
+  "name": "eslint-rules",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/eslint-rules/src",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "options": {
+        "command": "tsc -p tools/eslint-rules/tsconfig.json --noEmit"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "options": {
+        "command": "vitest run --config tools/eslint-rules/vitest.config.mts"
+      }
+    }
+  }
+}

@@ -54,6 +54,7 @@ catalog:
   '@angular/router': 22.2.3
   '@astrojs/starlight': 0.42.6
   '@eslint/js': 10.0.1
+  '@eslint/json': 2.1.1
   '@nx/angular': 23.3.0
   '@nx/devkit': 23.3.0
   '@nx/esbuild': 23.3.0

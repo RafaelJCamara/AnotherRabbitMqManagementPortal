@@ -1,0 +1,83 @@
+# M0-05 CI skeleton: setup -> supply-chain gates -> nx affected -t lint typecheck test build.
+# Replaces the M0-01 toolchain-proof workflow: the `toolchain` job keeps its three-OS
+# build/test/typecheck proof and `pnpm why typescript`.
+#
+# Runners:
+#   - gates   : three OSes (OQ-20: the licence gate only sees packages installed on the current OS).
+#   - affected: Linux only.
+#   - toolchain: three OSes. macOS minutes cost the most, so macOS runs on push to main and manual
+#     runs only; pull requests run Linux and Windows.
+# Every action is pinned by full SHA; the pin is checked by `nx run supply-chain:actions-pinned`.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Never cancel runs on main: nx-set-shas uses the last successful run as the affected base.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gates:
+    name: gates (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-24.04","windows-2025"]' || '["ubuntu-24.04","windows-2025","macos-15"]') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Supply-chain gates (lockfile, pins, allow-list, licences)
+        run: pnpm nx run supply-chain:gates
+      - name: Actions are pinned by full SHA
+        run: pnpm nx run supply-chain:actions-pinned
+      - name: Gates self-tests (planted violations)
+        if: runner.os == 'Linux'
+        run: pnpm nx run-many -t gates-selftest actions-pinned-selftest -p supply-chain
+
+  affected:
+    name: affected
+    needs: gates
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read # nx-set-shas reads the last successful run of this workflow
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - uses: nrwl/nx-set-shas@e602fada7ad5987b0f7b1905e7a99ea1c661514c # v5.1.0
+        with:
+          workflow-id: ci.yml
+      - run: pnpm nx affected -t lint typecheck test build
+
+  toolchain:
+    name: toolchain (${{ matrix.os }})
+    needs: gates
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-24.04","windows-2025"]' || '["ubuntu-24.04","windows-2025","macos-15"]') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm why typescript
+      - run: pnpm nx run-many -t build test typecheck

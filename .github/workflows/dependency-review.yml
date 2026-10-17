@@ -1,0 +1,29 @@
+# M0-05: block pull requests that introduce vulnerable or disallowed dependencies.
+# Pull requests only: the action compares the base and head of a PR, so it has nothing to review on
+# a direct push to main (where OSV-Scanner and the supply-chain gates cover the lockfile instead).
+#
+# The dependency graph API is unavailable on a private repository without GitHub Advanced Security,
+# so the job is skipped until the repository is public or GHAS_ENABLED is 'true' (OQ-41).
+# Licences are not checked here: the supply-chain licence gate owns that (ADR-027, A-19).
+name: dependency-review
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  dependency-review:
+    name: dependency-review
+    if: github.event.repository.private == false || vars.GHAS_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: never

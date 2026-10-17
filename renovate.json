@@ -1,0 +1,52 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "M0-05. Mirrors the ADR-027 supply-chain policy: exact pins, nothing younger than 3 days, GitHub Actions pinned by SHA with a version comment (config:best-practices). Deliberately bad fixtures are never touched (OQ-23).",
+  "extends": ["config:best-practices"],
+  "timezone": "UTC",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rangeStrategy": "pin",
+  "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-required",
+  "internalChecksFilter": "strict",
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "commitBody": "Signed-off-by: renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>",
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "tools/supply-chain/fixtures/**"
+  ],
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "labels": ["dependencies", "security"],
+    "schedule": ["at any time"]
+  },
+  "packageRules": [
+    {
+      "description": "GitHub Actions keep their full SHA pin; the release-age gate still applies.",
+      "matchManagers": ["github-actions"],
+      "semanticCommitType": "ci",
+      "groupName": "github actions"
+    },
+    {
+      "description": "Nx packages move together.",
+      "matchPackageNames": ["nx", "@nx/**"],
+      "groupName": "nx"
+    },
+    {
+      "description": "Angular packages move together.",
+      "matchPackageNames": [
+        "@angular/**",
+        "@angular-devkit/**",
+        "@schematics/angular",
+        "angular-eslint"
+      ],
+      "groupName": "angular"
+    }
+  ]
+}

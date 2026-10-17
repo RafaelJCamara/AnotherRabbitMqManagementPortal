@@ -1,6 +1,6 @@
 # S-11 toolchain proof (M0-01)
 
-Result of the workspace scaffold: Nx 23.3.0, pnpm 12.14.0, TypeScript 6.0.3, Angular 22.2.3 and Vitest 5.0.5 build and test together. Verified locally on Windows; the three-OS matrix runs in `.github/workflows/toolchain-proof.yml` (replaced by the CI skeleton in M0-05).
+Result of the workspace scaffold: Nx 23.3.0, pnpm 12.14.0, TypeScript 6.0.3, Angular 22.2.3 and Vitest 5.0.5 build and test together. Verified locally on Windows; the three-OS matrix runs as the `toolchain` job of `.github/workflows/ci.yml` (M0-05; it replaced `toolchain-proof.yml`).
 
 ## Pins
 

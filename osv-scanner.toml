@@ -1,0 +1,70 @@
+# OSV-Scanner configuration (M0-05, ADR-027). Read by .github/workflows/osv-scanner.yml.
+#
+# Findings accepted for now are time-boxed: each `ignoreUntil` makes the finding fail the scan
+# again on that date. Real handling follows the ADR-027 security lane (pnpm override, exact
+# release-age exclusion, ADR log line, CODEOWNERS approval). Tracked in docs/open-questions.md
+# (OQ-40). The workflow scans with `--x-exclude` for tools/supply-chain/fixtures, which holds
+# deliberately bad lockfile data (OQ-23).
+
+# form-data 4.0.4 (fixed in 4.0.6): reached through starlight-openapi > httpsnippet (docs build).
+[[IgnoredVulns]]
+id = "GHSA-hmw2-7cc7-3qxx"
+ignoreUntil = 2026-11-14
+reason = "Docs-build tooling only. Triage in the security lane, OQ-40."
+
+# postcss-selector-parser 6.1.4 (fixed in 7.1.6): reached through @astrojs/starlight > expressive-code.
+[[IgnoredVulns]]
+id = "GHSA-rj75-hqrm-r3gf"
+ignoreUntil = 2026-11-14
+reason = "Docs-build tooling only. The fix is a major bump; triage in the security lane, OQ-40."
+
+# undici 7.29.0 (fixed in 7.29.1): reached through nx (build tooling, never shipped).
+[[IgnoredVulns]]
+id = "GHSA-2gqq-gqf2-x968"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-2jfj-6hjv-fm6j"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-3wwx-pv8p-q78v"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-3xpg-4rpp-hhhm"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-8436-99hf-9mmv"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-pmjh-fq2x-6v4x"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-r53p-7pc4-xj5r"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-rfgv-xxqx-mfg5"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-rx4f-c7p8-82vq"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."
+
+[[IgnoredVulns]]
+id = "GHSA-w293-vg96-wgc3"
+ignoreUntil = 2026-11-14
+reason = "Build tooling only (nx). Triage in the security lane, OQ-40."

@@ -1,0 +1,33 @@
+# M0-05: Developer Certificate of Origin. Every commit needs a Signed-off-by trailer (CONTRIBUTING.md).
+# On a pull request the range is base..head. On a push to main it is the pushed range, because the
+# maintainer commits straight to main; the check then reports after the fact rather than blocking.
+# A self-contained script is used instead of the DCO GitHub App so no third-party app needs access.
+name: dco
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: dco-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dco:
+    name: dco
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check Signed-off-by trailers
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash .github/scripts/dco-check.sh "$BASE_SHA" "$HEAD_SHA"

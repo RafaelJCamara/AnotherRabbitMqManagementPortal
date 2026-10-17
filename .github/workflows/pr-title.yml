@@ -1,0 +1,32 @@
+# M0-05: the PR title becomes the squash commit that release-please reads, so it must be a
+# Conventional Commit. The check runs only for pull requests; a direct push to main has no title
+# (commit messages are covered by the dco workflow and release-please).
+# The title reaches the script through an environment variable, never through shell interpolation.
+name: pr-title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+concurrency:
+  group: pr-title-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Self-test of the title check
+        run: node --test .github/scripts/check-pr-title.test.mjs
+      - name: Check the pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: node .github/scripts/check-pr-title.mjs

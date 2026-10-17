@@ -1,0 +1,38 @@
+# M0-05: OSV-Scanner over the lockfile (ADR-027 security lane trigger). A finding fails the job.
+# Accepted findings live in osv-scanner.toml, each time-boxed. The scan skips
+# tools/supply-chain/fixtures (deliberately bad lockfile data, OQ-23).
+# The action runs a container, so it needs no code-scanning upload and works on a private
+# repository without GitHub Advanced Security.
+name: osv-scanner
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '23 5 * * *' # new advisories appear daily
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: osv-scanner-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  osv-scanner:
+    name: osv-scanner
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+        with:
+          scan-args: |-
+            --config=osv-scanner.toml
+            --recursive
+            --x-exclude=tools/supply-chain/fixtures
+            ./

@@ -1,0 +1,11 @@
+# zizmor configuration (M0-05). https://docs.zizmor.sh/configuration/
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # Every action, including actions/* and local-organisation ones, pinned by full commit SHA.
+        '*': hash-pin
+  self-repository:
+    # Suggests `uses: $/...` for local actions. actionlint does not parse that syntax yet, so the
+    # workflows keep `./.github/actions/...`. Re-enable when actionlint supports it.
+    disable: true

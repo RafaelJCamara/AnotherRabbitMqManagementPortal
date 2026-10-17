@@ -21,6 +21,29 @@
         "command": "node --test tools/supply-chain/gates-selftest.ts"
       }
     },
+    "actions-pinned": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/.github/**/*.{yml,yaml}",
+        "{projectRoot}/actions-pinned.ts",
+        "{projectRoot}/run-actions-pinned.ts"
+      ],
+      "options": {
+        "command": "node tools/supply-chain/run-actions-pinned.ts"
+      }
+    },
+    "actions-pinned-selftest": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/actions-pinned.ts",
+        "{projectRoot}/actions-pinned-selftest.ts"
+      ],
+      "options": {
+        "command": "node --test tools/supply-chain/actions-pinned-selftest.ts"
+      }
+    },
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,

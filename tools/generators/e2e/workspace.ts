@@ -8,6 +8,7 @@ import {
   existsSync,
   lstatSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   unlinkSync,
@@ -61,7 +62,11 @@ export class TempWorkspace {
   readonly root: string;
 
   constructor() {
-    this.root = mkdtempSync(join(tmpdir(), 'generators-e2e-'));
+    // The real path, not the 8.3 short name (RUNNER~1) that Windows temp directories can have:
+    // Vitest's jsdom environment cannot find spec files below a short path.
+    this.root = realpathSync.native(
+      mkdtempSync(join(tmpdir(), 'generators-e2e-')),
+    );
     for (const path of COPIED) {
       cpSync(join(repoRoot, path), join(this.root, path), {
         recursive: true,

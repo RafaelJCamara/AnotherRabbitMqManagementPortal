@@ -41,7 +41,8 @@ export default defineConfig({
           {
             base: 'api',
             label: 'Engine API',
-            schema: './openapi/engine.yaml',
+            // The committed output of @app/contracts (nx run contracts:api-docs), not a hand-written file.
+            schema: '../../docs/api/openapi.v1.json',
           },
         ]),
       ],

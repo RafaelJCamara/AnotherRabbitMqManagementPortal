@@ -1,0 +1,263 @@
+{
+  "components": {
+    "schemas": {
+      "Problem": {
+        "additionalProperties": false,
+        "properties": {
+          "broker": {
+            "additionalProperties": false,
+            "properties": {
+              "classId": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "code": {
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              "protocol": {
+                "enum": [
+                  "http",
+                  "amqp091",
+                  "amqp10",
+                  "stream"
+                ],
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "protocol"
+            ],
+            "type": "object"
+          },
+          "code": {
+            "enum": [
+              "VALIDATION_FAILED",
+              "UNAUTHENTICATED",
+              "FORBIDDEN_RBAC",
+              "FORBIDDEN_BROKER",
+              "NOT_FOUND",
+              "PLAN_STALE",
+              "PLAN_EXPIRED",
+              "CAPABILITY_MISSING",
+              "GATE_BLOCKED",
+              "PLAN_REQUIRED",
+              "CONSENT_REQUIRED",
+              "APPROVAL_REQUIRED",
+              "CONFIRMATION_MISMATCH",
+              "BUDGET_EXCEEDED",
+              "RATE_LIMITED",
+              "FROZEN",
+              "BROKER_ERROR",
+              "BROKER_RESOURCE_LOCKED",
+              "BROKER_PRECONDITION_FAILED",
+              "BROKER_UNREACHABLE",
+              "ENGINE_SHUTTING_DOWN",
+              "TOKEN_EXPIRED",
+              "TOKEN_TOO_LARGE",
+              "EGRESS_DENIED",
+              "TLS_UNTRUSTED",
+              "SEMANTICS_GAP",
+              "INTERNAL"
+            ],
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "gate": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "fix": {
+                "additionalProperties": false,
+                "properties": {
+                  "actionId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "input": {}
+                },
+                "required": [
+                  "actionId",
+                  "input"
+                ],
+                "type": "object"
+              },
+              "mode": {
+                "enum": [
+                  "full",
+                  "degraded"
+                ],
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "type": "object"
+          },
+          "missingPermission": {
+            "pattern": "^[\\s\\S]{1,}\\.[\\s\\S]{1,}$",
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "status": {
+            "maximum": 599,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "pattern": "^W-[\\s\\S]{1,}$",
+                  "type": "string"
+                },
+                "severity": {
+                  "enum": [
+                    "info",
+                    "warn",
+                    "consent",
+                    "block"
+                  ],
+                  "type": "string"
+                },
+                "textKey": {
+                  "type": "string"
+                },
+                "textVersion": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "severity",
+                "textKey",
+                "textVersion"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "correlationId",
+          "retryable"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Generated from the @app/contracts action registry (ADR-003). Do not edit by hand: run `pnpm nx run contracts:api-docs`.",
+    "title": "<Product> engine API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/meta": {
+      "get": {
+        "operationId": "meta.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "apiVersion": {
+                      "const": "v1",
+                      "type": "string"
+                    },
+                    "engineVersion": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "enum": [
+                        "desktop",
+                        "local",
+                        "team"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "engineVersion",
+                    "apiVersion",
+                    "mode"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Describe the engine: version, API version and delivery mode",
+        "tags": [
+          "meta"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "meta.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "meta"
+    }
+  ]
+}

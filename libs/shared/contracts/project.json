@@ -25,6 +25,26 @@
       "options": {
         "command": "vitest run --config libs/shared/contracts/vitest.config.mts"
       }
+    },
+    "api-docs": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --import ./tools/api-docs/register.mjs tools/api-docs/emit-specs.ts"
+      }
+    },
+    "api-docs-check": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/!(*.spec).ts",
+        "{workspaceRoot}/tools/api-docs/emit-specs.ts",
+        "{workspaceRoot}/docs/api/*.json",
+        { "externalDependencies": ["zod"] }
+      ],
+      "options": {
+        "command": "node --import ./tools/api-docs/register.mjs tools/api-docs/emit-specs.ts --check"
+      }
     }
   }
 }

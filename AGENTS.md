@@ -39,7 +39,7 @@ An agent task may not break one. "Today" means the check exists in this reposito
 
 Nx 23.3 + pnpm 12.14 workspace with `@app/*` path aliases. Layout: [docs/architecture/repo-layout.md](docs/architecture/repo-layout.md).
 
-- Present now: `apps/engine`, `apps/web`, `apps/docs`, `libs/shared/contracts`, and tooling in `tools/{eslint-rules,lint-selftest,supply-chain,agent-hooks}`. Everything else in the blueprint is built by later work packages.
+- Present now: `apps/engine`, `apps/web`, `apps/docs`, `libs/shared/contracts`, and tooling in `tools/{eslint-rules,lint-selftest,supply-chain,agent-hooks,api-docs}`. Everything else in the blueprint is built by later work packages.
 - Every project carries a layer tag `type:*` and a runtime tag `runtime:*` in its `project.json`; `trust:critical` marks paths that need human CODEOWNERS sign-off (blueprint §2.1).
 
 | From | May import |
@@ -114,9 +114,10 @@ Run everything from the repository root.
 | Gate self-tests | `pnpm nx run-many -t gates-selftest actions-pinned-selftest -p supply-chain` |
 | Custom ESLint rules | `pnpm nx test eslint-rules` and `pnpm nx test lint-selftest` |
 | Agent hooks | `pnpm nx test agent-hooks` |
+| Spec emitters (regenerate / drift gate) | `pnpm nx run contracts:api-docs` / `pnpm nx run contracts:api-docs-check` |
 | Docs site | `pnpm nx build docs` |
 | Formatting | `pnpm format:check` / `pnpm format` |
-| Planned | `pnpm nx run contracts:api-docs-check`, `pnpm nx test arch-tests`, `pnpm nx run conformance:test --versions=...`, `pnpm nx e2e e2e-web`, `pnpm nx run perf:smoke` |
+| Planned | `pnpm nx test arch-tests`, `pnpm nx run conformance:test --versions=...`, `pnpm nx e2e e2e-web`, `pnpm nx run perf:smoke` |
 
 ## 8. Engine rules (`libs/engine`, `apps/engine`; details in `.claude/rules/engine.md`)
 

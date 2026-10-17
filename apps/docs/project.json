@@ -14,6 +14,7 @@
         "!{projectRoot}/src/content/docs/adr/**",
         "!{projectRoot}/.astro/**",
         "{workspaceRoot}/docs/adr/**",
+        "{workspaceRoot}/docs/api/openapi.v1.json",
         "{workspaceRoot}/pnpm-workspace.yaml"
       ],
       "options": {

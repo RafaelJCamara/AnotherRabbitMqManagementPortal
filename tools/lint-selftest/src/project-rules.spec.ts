@@ -2,6 +2,7 @@
 // rule in isolation. These tests prove that eslint.config.mjs wires the rules to the right paths:
 // each rule fails where it should and stays quiet where it is exempt.
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { lintAs, lintFile } from './lint-runner';
 
@@ -108,6 +109,63 @@ describe('explicit-zod-schemas', () => {
     );
 
     expect(rulesOf(violations)).toContain('@app/explicit-zod-schemas');
+  });
+
+  // The rule works on names. These fixtures use the real zod, so a rename in zod, or a way to
+  // build a loose schema the rule does not know, shows up here (OQ-34).
+  it.each([
+    ['z.any()', 'z.any()'],
+    ['z.looseObject()', 'z.looseObject({ id: z.string() })'],
+    ['.loose()', 'z.object({ id: z.string() }).loose()'],
+    ['.passthrough()', 'z.object({ id: z.string() }).passthrough()'],
+    [
+      '.catchall(z.string())',
+      'z.object({ id: z.string() }).catchall(z.string())',
+    ],
+  ])('fails %s built with the real zod', async (_name, expression) => {
+    const violations = await lintAs(
+      'libs/shared/contracts/src/loose.ts',
+      `import { z } from 'zod';\nexport const Loose = ${expression};\n`,
+    );
+
+    expect(rulesOf(violations)).toEqual(['@app/explicit-zod-schemas']);
+  });
+
+  it('accepts the explicit schemas the contracts kit uses', async () => {
+    const violations = await lintAs(
+      'libs/shared/contracts/src/explicit.ts',
+      [
+        "import { z } from 'zod';",
+        'export const Strict = z.strictObject({ id: z.string(), extra: z.unknown() });',
+        'export const Closed = z.object({ id: z.string() }).catchall(z.never());',
+        'export const Map = z.record(z.string(), z.number());',
+        "export const Frame = z.discriminatedUnion('t', [z.strictObject({ t: z.literal('a') })]);",
+        '',
+      ].join('\n'),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('knows the escape hatches that zod 4 really has', () => {
+    const object = z.object({ id: z.string() });
+    expect(typeof z.any).toBe('function');
+    expect(typeof z.looseObject).toBe('function');
+    for (const method of ['loose', 'passthrough', 'catchall'] as const) {
+      expect(typeof object[method]).toBe('function');
+    }
+    // `z.object` strips unknown keys and `z.strictObject` rejects them: neither lets them through.
+    expect(object.parse({ id: 'a', extra: 1 })).toEqual({ id: 'a' });
+    expect(
+      z.strictObject({ id: z.string() }).safeParse({ id: 'a', extra: 1 }),
+    ).toMatchObject({
+      success: false,
+    });
+    // ...whereas the flagged forms do keep them.
+    expect(object.loose().parse({ id: 'a', extra: 1 })).toEqual({
+      id: 'a',
+      extra: 1,
+    });
   });
 
   it('fails .passthrough() anywhere', async () => {

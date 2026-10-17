@@ -37,6 +37,7 @@
     "astro": "catalog:",
     "eslint": "catalog:",
     "eslint-config-prettier": "catalog:",
+    "fast-check": "catalog:",
     "globals": "catalog:",
     "jsdom": "catalog:",
     "nx": "catalog:",
@@ -56,6 +57,7 @@
     "@angular/forms": "catalog:",
     "@angular/platform-browser": "catalog:",
     "@angular/router": "catalog:",
-    "rxjs": "catalog:"
+    "rxjs": "catalog:",
+    "zod": "catalog:"
   }
 }

@@ -53,6 +53,36 @@ describe('module boundaries (blueprint 2.2)', () => {
     expect(rulesOf(violations)).toEqual([boundaries]);
     expect(violations[0]?.message).toContain('type:contracts');
   });
+
+  it('allows a contracts library to import zod', async () => {
+    const violations = await lintFile(
+      `${fixtures}/contracts-lib/src/allowed-zod.ts`,
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it('lets a contracts library import zod, and its specs fast-check', async () => {
+    const schema = "import { z } from 'zod';\nexport const Id = z.string();\n";
+    expect(
+      await lintAs(`${fixtures}/contracts-lib/src/virtual-id.ts`, schema),
+    ).toEqual([]);
+
+    const property =
+      "import fc from 'fast-check';\nexport const arbitrary = fc.string();\n";
+    expect(
+      await lintAs(
+        `${fixtures}/contracts-lib/src/virtual-id.spec.ts`,
+        property,
+      ),
+    ).toEqual([]);
+    // fast-check is a test tool, not a contracts dependency
+    expect(
+      rulesOf(
+        await lintAs(`${fixtures}/contracts-lib/src/virtual-id.ts`, property),
+      ),
+    ).toEqual([boundaries]);
+  });
 });
 
 describe('node builtins in runtime-neutral code (blueprint 2.1)', () => {

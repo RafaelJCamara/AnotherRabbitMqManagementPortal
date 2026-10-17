@@ -1,2 +1,19 @@
-// Contract registry arrives with M0-10; this library is intentionally empty until then.
-export {};
+// @app/contracts: the one contract registry (ADR-003). Isomorphic; depends on zod only.
+export * from './brands.ts';
+export * from './bridge.ts';
+export * from './config/env.ts';
+export * from './ctl-frames.ts';
+export * from './emit/index.ts';
+export * from './errors.ts';
+export * from './kit/define-action.ts';
+export * from './kit/define-topic.ts';
+export {
+  assertRegistry,
+  checkRegistry,
+  type Registry,
+  type Violation,
+} from './kit/invariants.ts';
+export * from './live-frames.ts';
+export * from './object-key.ts';
+export * from './port-frames.ts';
+export { registry } from './registry/index.ts';

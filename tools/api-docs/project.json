@@ -1,0 +1,35 @@
+{
+  "name": "api-docs",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/api-docs",
+  "tags": ["type:tooling", "runtime:node"],
+  "implicitDependencies": ["contracts"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/*.ts",
+        "{projectRoot}/tsconfig.json",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{workspaceRoot}/libs/shared/contracts/src/**/*.ts"
+      ],
+      "options": {
+        "command": "tsc -p tools/api-docs/tsconfig.json --noEmit"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/*.ts",
+        "{workspaceRoot}/libs/shared/contracts/src/**/*.ts"
+      ],
+      "options": {
+        "command": "vitest run --config tools/api-docs/vitest.config.mts"
+      }
+    }
+  }
+}

@@ -113,6 +113,10 @@
       "reason": "Turns off ESLint rules that conflict with Prettier.",
       "ref": "M0-03"
     },
+    "fast-check": {
+      "reason": "Property-based tests for pure and contract libraries (ObjectKey round trip).",
+      "ref": "M0-10"
+    },
     "globals": {
       "reason": "Global variable sets for ESLint environments.",
       "ref": "M0-03"
@@ -148,6 +152,10 @@
     "yaml": {
       "reason": "Parses pnpm-workspace.yaml and pnpm-lock.yaml in the supply-chain gates.",
       "ref": "M0-02"
+    },
+    "zod": {
+      "reason": "Schema library of @app/contracts: actions, topics, frames and the generated specs (ADR-003).",
+      "ref": "M0-10"
     }
   }
 }

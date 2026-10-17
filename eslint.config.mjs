@@ -162,7 +162,7 @@ const externalConstraints = [
 const specExternalConstraints = [
   {
     sourceTag: CONTRACTS,
-    allowedExternalImports: ['zod', 'vitest', 'vitest/*'],
+    allowedExternalImports: ['zod', 'vitest', 'vitest/*', 'fast-check'],
   },
 ];
 

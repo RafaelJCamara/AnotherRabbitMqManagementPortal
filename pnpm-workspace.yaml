@@ -71,6 +71,7 @@ catalog:
   astro: 7.3.8
   eslint: 10.12.0
   eslint-config-prettier: 10.1.8
+  fast-check: 4.10.2
   globals: 17.13.0
   jsdom: 27.4.0
   nx: 23.3.0
@@ -83,6 +84,7 @@ catalog:
   typescript-eslint: 8.71.2
   vitest: 5.0.5
   yaml: 2.9.1
+  zod: 4.6.7
 
 allowBuilds:
   nx: true

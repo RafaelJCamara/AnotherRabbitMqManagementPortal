@@ -63,6 +63,8 @@ jobs:
         with:
           workflow-id: ci.yml
       - run: pnpm nx affected -t lint typecheck test build
+      # Drift gate: regenerate the specs from the contract registry and fail on any difference.
+      - run: pnpm nx run contracts:api-docs-check
 
   toolchain:
     name: toolchain (${{ matrix.os }})

@@ -1,0 +1,43 @@
+{
+  "name": "@app/source",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24.15"
+  },
+  "scripts": {},
+  "devDependencies": {
+    "@angular-devkit/core": "catalog:",
+    "@angular-devkit/schematics": "catalog:",
+    "@angular/build": "catalog:",
+    "@angular/cli": "catalog:",
+    "@angular/compiler-cli": "catalog:",
+    "@angular/language-service": "catalog:",
+    "@nx/angular": "catalog:",
+    "@nx/devkit": "catalog:",
+    "@nx/esbuild": "catalog:",
+    "@nx/js": "catalog:",
+    "@nx/vitest": "catalog:",
+    "@nx/web": "catalog:",
+    "@schematics/angular": "catalog:",
+    "@swc/helpers": "catalog:",
+    "@types/node": "catalog:",
+    "jsdom": "catalog:",
+    "nx": "catalog:",
+    "prettier": "catalog:",
+    "tslib": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@angular/common": "catalog:",
+    "@angular/compiler": "catalog:",
+    "@angular/core": "catalog:",
+    "@angular/forms": "catalog:",
+    "@angular/platform-browser": "catalog:",
+    "@angular/router": "catalog:",
+    "rxjs": "catalog:"
+  }
+}

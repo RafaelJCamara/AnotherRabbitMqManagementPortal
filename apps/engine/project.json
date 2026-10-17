@@ -1,0 +1,51 @@
+{
+  "name": "engine",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/engine/src",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "platform": "node",
+        "format": ["esm"],
+        "bundle": true,
+        "thirdParty": false,
+        "outputPath": "dist/apps/engine",
+        "main": "apps/engine/src/main.ts",
+        "tsConfig": "apps/engine/tsconfig.app.json",
+        "outputFileName": "main.mjs",
+        "esbuildOptions": {
+          "outExtension": { ".js": ".mjs" }
+        }
+      },
+      "configurations": {
+        "development": { "minify": false, "sourcemap": true },
+        "production": { "minify": false, "sourcemap": true }
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p apps/engine/tsconfig.app.json --noEmit",
+          "tsc -p apps/engine/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config apps/engine/vitest.config.mts"
+      }
+    }
+  }
+}

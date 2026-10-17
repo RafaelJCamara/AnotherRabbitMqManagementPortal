@@ -1,6 +1,6 @@
 # `<Product>` for RabbitMQ®
 
-> **Status: planning.** No product code yet. The product name is deferred ([ADR-029](docs/adr/ADR-029-product-name.md)); this repository is private until a cleared name is chosen.
+> **Status: early scaffold (M0).** The Nx workspace builds; there is no product functionality yet. The product name is deferred ([ADR-029](docs/adr/ADR-029-product-name.md)); this repository is private until a cleared name is chosen.
 
 An open-source (Apache-2.0) workbench and control plane for RabbitMQ: one TypeScript engine and one Angular UI, shipped **web-first** as a single-user Docker web app, then as desktop apps for Windows, Linux and macOS, then as a free self-hosted team server ([ADR-030](docs/adr/ADR-030-web-first-delivery-order.md)).
 
@@ -19,3 +19,10 @@ GitHub is the system of record ([ADR-033](docs/adr/ADR-033-github-as-system-of-r
 
 ## License and trademarks
 Apache-2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)). RabbitMQ is a trademark of Broadcom, Inc. in the U.S. and other countries. This project is not affiliated with or endorsed by Broadcom. See [TRADEMARKS.md](TRADEMARKS.md).
+
+## Develop
+Requires Node >= 24.15 (`.nvmrc` pins 24.22.0) and pnpm 12.14 (`packageManager` selects it automatically).
+```sh
+pnpm install --frozen-lockfile
+pnpm nx run-many -t build test typecheck
+```

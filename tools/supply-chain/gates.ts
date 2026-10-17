@@ -3,6 +3,7 @@
 import { checkAllowlist } from './allowlist-gate.ts';
 import {
   checkDevLicences,
+  checkExceptionLog,
   checkLicenceCoverage,
   checkShippedLicences,
 } from './licence-gate.ts';
@@ -14,8 +15,10 @@ import type { Licence, Violation, Workspace } from './shared.ts';
 export interface GateInputs {
   /** Installed packages and their licences (`pnpm licenses list --json`, flattened). */
   licences: Licence[];
-  /** Bundled packages of a release artefact; omitted until a build produces them. */
+  /** Bundled packages of the release artefacts (see bundled-packages.ts). Omitted means "dev/build gate only". */
   shipped?: Licence[];
+  /** Problems found while deriving `shipped` (unreadable metafile, unresolvable package). */
+  shippedProblems?: Violation[];
 }
 
 export function runAllGates(ws: Workspace, inputs: GateInputs): Violation[] {
@@ -25,12 +28,14 @@ export function runAllGates(ws: Workspace, inputs: GateInputs): Violation[] {
     ...checkPins(ws),
     ...checkAllowlist(ws),
     ...checkDevLicences(inputs.licences),
+    ...checkExceptionLog(ws.exclusionLog),
     ...(lock === undefined
       ? []
       : checkLicenceCoverage(lock.packages, inputs.licences)),
     ...(inputs.shipped === undefined
       ? []
       : checkShippedLicences(inputs.shipped)),
+    ...(inputs.shippedProblems ?? []),
   ]);
 }
 

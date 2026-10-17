@@ -18,6 +18,7 @@
         "main": "apps/engine/src/main.ts",
         "tsConfig": "apps/engine/tsconfig.app.json",
         "outputFileName": "main.mjs",
+        "metafile": true,
         "esbuildOptions": {
           "outExtension": { ".js": ".mjs" }
         }

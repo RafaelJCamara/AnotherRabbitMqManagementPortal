@@ -1,0 +1,14 @@
+[
+  {
+    "name": "tslib",
+    "version": "2.8.1",
+    "license": "0BSD",
+    "kind": "code"
+  },
+  {
+    "name": "@img/sharp-win32-x64",
+    "version": "0.35.5",
+    "license": "LGPL-3.0-or-later",
+    "kind": "code"
+  }
+]

@@ -1,0 +1,50 @@
+{
+  "inputs": {
+    "apps/engine/src/main.ts": {
+      "bytes": 60,
+      "imports": []
+    },
+    "node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs": {
+      "bytes": 1200,
+      "imports": []
+    },
+    "angular:styles/global:styles": {
+      "bytes": 0,
+      "imports": []
+    }
+  },
+  "outputs": {
+    "dist/main.mjs": {
+      "bytes": 900,
+      "inputs": {
+        "apps/engine/src/main.ts": {
+          "bytesInOutput": 50
+        },
+        "node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs": {
+          "bytesInOutput": 400
+        }
+      },
+      "imports": [
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "dual-mpl/sub/path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "./chunk-ABC.mjs",
+          "kind": "import-statement"
+        }
+      ]
+    }
+  }
+}

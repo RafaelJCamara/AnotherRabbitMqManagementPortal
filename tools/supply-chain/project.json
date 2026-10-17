@@ -8,8 +8,9 @@
     "gates": {
       "executor": "nx:run-commands",
       "cache": false,
+      "dependsOn": [{ "projects": ["engine", "web"], "target": "build" }],
       "options": {
-        "command": "node tools/supply-chain/run-gates.ts"
+        "command": "node tools/supply-chain/run-gates.ts --metafile=dist/apps/engine/meta.json --metafile=dist/apps/web/browser-stats.json"
       }
     },
     "gates-selftest": {

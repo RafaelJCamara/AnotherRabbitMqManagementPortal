@@ -2,7 +2,7 @@
 
 Decisions and gaps that are not settled yet. Each row names what is unresolved, why it matters and what closes it. Remove a row (and note the outcome in the ADR or issue that settles it) once it is resolved. GitHub issues stay the system of record for work ([ADR-033](adr/ADR-033-github-as-system-of-record.md)); this file is for questions that are not work items yet.
 
-Last updated: 2026-10-17, after M0-01, M0-02, M0-03 and M0-06 landed.
+Last updated: 2026-10-17, after M0-01, M0-02, M0-03, M0-06 and M0-73 landed.
 
 ## Release and CI
 
@@ -43,9 +43,11 @@ Last updated: 2026-10-17, after M0-01, M0-02, M0-03 and M0-06 landed.
 | OQ-18 | Does pnpm 12.14 support `minimumReleaseAgeExcludePrune` (blueprint §14.3)?   | Not added because support could not be confirmed.                                                                                                                                             | Checked against pnpm docs or behaviour; key added or the blueprint amended.          |
 | OQ-19 | Who approves release-age and trust exclusions?                               | `ADR-027-log.md` records "maintainer" because CODEOWNERS does not exist yet. 20 release-age and 3 trust-downgrade exclusions are in place (Angular 22.2.3, Vitest 5.0.5, three Astro packages, legacy `semver` and `@octokit/endpoint`). | M0-07 adds CODEOWNERS; update the approver column. Prune exclusions as versions age past 3 days. |
 | OQ-20 | Where does the licence gate get full coverage?                               | It reads `pnpm licenses list`, which only sees packages installed on the current OS. Platform-specific optional packages are only covered by the three-OS matrix.                             | M0-05 runs the gate in CI on all three OSes.                                         |
-| OQ-21 | What feeds the shipped-artefact licence gate?                                | The DC-50 gate is implemented and self-tested but has no real input until a build emits the bundled-package list (`--shipped=<json>`).                                                         | The engine bundle metafile feeds it (M0-36 / release workflow).                      |
+| OQ-21 | What else must feed the shipped-artefact licence gate? | M0-73 feeds it from the esbuild metafile of `apps/engine` and the Angular `browser-stats.json` of `apps/web`. Still missing: the electron-builder file list (M2) and any assets with their own licence (for example CC-BY-4.0), which a metafile cannot show. | M2 adds the desktop file list; an asset inventory (or the notices work, M0-36) lists non-code assets. |
 | OQ-22 | Are the named licence exceptions acceptable?                                 | `elkjs` (EPL-2.0), `union@0.5.0` (no declared licence, MIT text in the file), `@img/sharp-*` (LGPL binaries, docs build only), `spdx-exceptions` (CC-BY-3.0), `typescript@4.9.5` (transitive via `release-please`). | Maintainer reviews the list in `ADR-027-log.md`.                                     |
 | OQ-23 | Should scanners ignore `tools/supply-chain/fixtures`?                        | The fixtures contain deliberately bad lockfile data.                                                                                                                                          | M0-05 configures OSV-Scanner and Renovate to skip that path.                          |
+| OQ-28 | Should `supply-chain:gates` build the engine and web apps? | M0-73 made `gates` depend on `engine:build` and `web:build` so the shipped gate always sees fresh metafiles (Nx caches the builds; a cold Angular build adds about 30 s). Keeping one target name keeps M0-05 simple. | M0-05 measures the CI cost; split into a `gates-shipped` job only if it hurts. |
+| OQ-29 | Is the declared `license` field enough for the shipped gate? | The gate trusts each bundled package's `package.json` `license` (or `licenses`). A package with no field fails as `Unknown`; one whose real licence differs from its field would pass. Same trust level as the dev/build gate. | The notices generator (M0-36) reads licence files; compare it with the declared values. |
 
 ## Toolchain (M0-01)
 

@@ -1,9 +1,13 @@
-// Licence gates (DC-50, amendment A-19). Two gates with different strictness:
+// Licence gates (DC-50, amendment A-19, M0-73). Two gates with different strictness:
 //   1. Dev/build lockfile gate: every package in the install graph. Broader permissive allow-list
-//      plus a hard deny list. Runs against `pnpm licenses list --json`.
-//   2. Shipped-artefact gate: only what is bundled into a release. Exactly DC-50.
-//      It runs on a list of bundled packages (esbuild metafile, Angular stats, electron-builder
-//      file list), which later work packages produce.
+//      plus a hard deny list (GPL, AGPL, SSPL, BUSL, proprietary). Tooling-only licences pass only
+//      through named exceptions, each logged in docs/adr/ADR-027-log.md (`checkExceptionLog`).
+//      Runs against `pnpm licenses list --json`.
+//   2. Shipped-artefact gate: only what is bundled into a release. Exactly DC-50, with its own
+//      (much shorter) exception list. Input is the bundled-package list that bundled-packages.ts
+//      derives from the esbuild metafile / Angular stats (electron-builder file list from M2).
+//      A dev/build exception never applies here: a package that is fine in the toolchain is still
+//      rejected when it reaches a shipped artefact.
 import { dedupe, violation } from './shared.ts';
 import type { Licence, LockPackage, Violation } from './shared.ts';
 
@@ -13,6 +17,7 @@ export const LICENCE_RULES = [
   'licence.unknown',
   'licence.unverified',
   'licence.shipped-not-allowed',
+  'licence.exception-unlogged',
 ] as const;
 
 /** Dev/build allow-list. Permissive licences only; build-time data (caniuse-lite) is CC-BY-4.0. */
@@ -198,13 +203,79 @@ export function identifiers(expr: Expr): string[] {
     : [...identifiers(expr.left), ...identifiers(expr.right)];
 }
 
-function hasException(exceptions: NamedException[], lic: Licence): boolean {
-  return exceptions.some(
-    (e) =>
-      (e.prefix === true ? lic.name.startsWith(e.name) : e.name === lic.name) &&
-      (e.version === undefined || e.version === lic.version) &&
-      e.license === lic.license,
+function matches(e: NamedException, lic: Licence): boolean {
+  return (
+    (e.prefix === true ? lic.name.startsWith(e.name) : e.name === lic.name) &&
+    (e.version === undefined || e.version === lic.version) &&
+    e.license === lic.license
   );
+}
+
+function hasException(exceptions: NamedException[], lic: Licence): boolean {
+  return exceptions.some((e) => matches(e, lic));
+}
+
+/** Which gate an exception belongs to. The log row names this scope. */
+export type ExceptionScope = 'dev/build' | 'shipped';
+
+function exceptionLabel(e: NamedException): string {
+  return `${e.name}${e.version === undefined ? '' : `@${e.version}`}${e.prefix === true ? '*' : ''}`;
+}
+
+/**
+ * Every named exception is explicit and logged: it needs a row in the "Named gate exceptions"
+ * table of docs/adr/ADR-027-log.md that names the package (backticked), the declared licence and
+ * the gate scope. An exception nobody reviewed fails the gate.
+ */
+export function checkExceptionLog(log: string): Violation[] {
+  const heading = log.search(/^## Named gate exceptions\s*$/m);
+  const rest = heading === -1 ? '' : log.slice(heading + 3);
+  const next = rest.search(/^## /m);
+  const rows = (next === -1 ? rest : rest.slice(0, next))
+    .split(/\r?\n/)
+    .filter((line) => line.trimStart().startsWith('|'));
+  const out: Violation[] = [];
+  const scoped: [ExceptionScope, NamedException[]][] = [
+    ['dev/build', DEV_EXCEPTIONS],
+    ['shipped', SHIPPED_EXCEPTIONS],
+  ];
+  for (const [scope, exceptions] of scoped) {
+    for (const e of exceptions) {
+      const label = exceptionLabel(e);
+      const logged = rows.some(
+        (row) =>
+          row.includes(`\`${label}\``) &&
+          row.includes(e.license) &&
+          row.includes(scope),
+      );
+      if (!logged) {
+        out.push(
+          violation(
+            'licence',
+            'licence.exception-unlogged',
+            `${scope}: ${label} ${e.license}`,
+            `The ${scope} licence exception for ${label} (${e.license}) has no row in the "Named gate exceptions" table of docs/adr/ADR-027-log.md.`,
+          ),
+        );
+      }
+    }
+  }
+  return dedupe(out);
+}
+
+/** Exceptions that let a package through, for the gate output: no exception stays silent. */
+export function appliedExceptions(
+  licences: Licence[],
+  scope: ExceptionScope,
+): string[] {
+  const exceptions = scope === 'shipped' ? SHIPPED_EXCEPTIONS : DEV_EXCEPTIONS;
+  const applied = new Set<string>();
+  for (const lic of licences) {
+    const hit = exceptions.find((e) => matches(e, lic));
+    if (hit !== undefined)
+      applied.add(`${lic.name}@${lic.version} (${lic.license}): ${hit.reason}`);
+  }
+  return [...applied].sort();
 }
 
 // ---- Gates -----------------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 # again on that date. Real handling follows the ADR-027 security lane (pnpm override, exact
 # release-age exclusion, ADR log line, CODEOWNERS approval). Tracked in docs/open-questions.md
 # (OQ-40). The workflow scans with `--x-exclude` for tools/supply-chain/fixtures, which holds
-# deliberately bad lockfile data (OQ-23).
+# deliberately bad lockfile data.
 
 # form-data 4.0.4 (fixed in 4.0.6): reached through starlight-openapi > httpsnippet (docs build).
 [[IgnoredVulns]]

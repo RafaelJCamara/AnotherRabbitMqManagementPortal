@@ -1,6 +1,6 @@
 # M0-05: OSV-Scanner over the lockfile (ADR-027 security lane trigger). A finding fails the job.
 # Accepted findings live in osv-scanner.toml, each time-boxed. The scan skips
-# tools/supply-chain/fixtures (deliberately bad lockfile data, OQ-23).
+# tools/supply-chain/fixtures (deliberately bad lockfile data).
 # The action runs a container, so it needs no code-scanning upload and works on a private
 # repository without GitHub Advanced Security.
 name: osv-scanner

@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "M0-05. Mirrors the ADR-027 supply-chain policy: exact pins, nothing younger than 3 days, GitHub Actions pinned by SHA with a version comment (config:best-practices). Deliberately bad fixtures are never touched (OQ-23).",
+  "description": "M0-05. Mirrors the ADR-027 supply-chain policy: exact pins, nothing younger than 3 days, GitHub Actions pinned by SHA with a version comment (config:best-practices). Deliberately bad fixtures are never touched.",
   "extends": ["config:best-practices"],
   "timezone": "UTC",
   "schedule": ["before 6am on monday"],

@@ -3,7 +3,7 @@
 # build/test/typecheck proof and `pnpm why typescript`.
 #
 # Runners:
-#   - gates   : three OSes (OQ-20: the licence gate only sees packages installed on the current OS).
+#   - gates   : three OSes (the licence gate only sees packages installed on the current OS).
 #   - affected: Linux only.
 #   - toolchain: three OSes. macOS minutes cost the most, so macOS runs on push to main and manual
 #     runs only; pull requests run Linux and Windows.

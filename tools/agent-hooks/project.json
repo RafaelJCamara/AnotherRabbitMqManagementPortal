@@ -1,0 +1,35 @@
+{
+  "name": "agent-hooks",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/agent-hooks",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {
+      "options": {
+        "command": "eslint --max-warnings=0 tools/agent-hooks --ignore-pattern \"tools/agent-hooks/fixtures/**\""
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/tools/eslint-rules/src/**/*",
+        "{workspaceRoot}/.prettierrc",
+        "{workspaceRoot}/.prettierignore",
+        "{workspaceRoot}/pnpm-lock.yaml",
+        "{workspaceRoot}/AGENTS.md",
+        "{workspaceRoot}/CLAUDE.md",
+        "{workspaceRoot}/CODEOWNERS",
+        "{workspaceRoot}/.claude/**/*",
+        "{workspaceRoot}/docs/specs/_TEMPLATE.md",
+        "{workspaceRoot}/tools/supply-chain/deps-allowlist.json"
+      ],
+      "options": {
+        "command": "node --test tools/agent-hooks/*.test.mjs"
+      }
+    }
+  }
+}

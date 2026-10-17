@@ -26,7 +26,7 @@ The project has **one product version** (SemVer), managed by [release-please](ht
 Every commit needs a `Signed-off-by:` line ([Developer Certificate of Origin](https://developercertificate.org/)); we do not use a CLA. Agent-authored commits carry a `Co-Authored-By` trailer; the accountable human adds `Signed-off-by` when approving.
 
 ## AI-assisted contributions
-Allowed and expected. A human reviews every agent PR; specs must be explicit; agents never write lab evidence (it is recorded by CI only).
+Allowed and expected. A human reviews every agent PR; specs must be explicit; agents never write lab evidence (it is recorded by CI only). Agents follow [AGENTS.md](AGENTS.md); Claude Code sessions also run the hooks in `tools/agent-hooks`, which block edits to human-only paths. Specs use [docs/specs/_TEMPLATE.md](docs/specs/_TEMPLATE.md).
 
 ## Docs policy
 Documentation must not reference the third-party products on the project's banned-terms list ([ADR-034](docs/adr/ADR-034-docs-policy.md)).

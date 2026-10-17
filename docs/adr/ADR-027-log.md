@@ -8,7 +8,7 @@ Every exact-version entry in `minimumReleaseAgeExclude` and `trustPolicyExclude`
 2. Add one row here: the setting, the entry in backticks, when it was published, why it is needed, and the approver.
 3. Once the version is older than the cutoff (3 days) or no longer resolved, remove both the entry and, if you like, mark the row as pruned. A monthly hygiene job flags `minimumReleaseAgeExclude` entries older than 30 days.
 
-Approval is by the maintainer until CODEOWNERS lands (M0-07); after that the manifest files require code-owner review.
+Approval is by the maintainer (@RafaelJCamara). CODEOWNERS (M0-07) now makes `pnpm-workspace.yaml`, `tools/supply-chain/` and this log code-owner paths, and the agent hooks block agent edits to the supply-chain keys, the allow-list and this file, so a maintainer makes these changes.
 
 Dates are UTC. `Published` comes from the npm registry `time` field.
 

@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "tools/agent-hooks/fixtures/sample.ts",
+    "old_string": "export const parsed = 1;",
+    "new_string": "export const parsed: any = JSON.parse('{}');"
+  },
+  "tool_response": { "success": true }
+}

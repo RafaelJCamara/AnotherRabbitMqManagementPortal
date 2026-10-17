@@ -1,0 +1,55 @@
+# CODEOWNERS (M0-07). The last matching pattern wins.
+#
+# Trust-critical paths (docs/architecture/blueprint.md section 2.1) need a human code-owner approval.
+# Owners are named people, not teams (amendment A-21): the maintainer is the only owner today, so
+# every path maps to @RafaelJCamara. The grouping below is the intended split for when more
+# maintainers exist (docs/plan/execution-plan.md section 2.8); see OQ-50 in docs/open-questions.md.
+# Edits to this file are blocked for agents (tools/agent-hooks/protected-paths.mjs).
+
+# There is deliberately no catch-all (`*`) entry: code-owner review is required for trust-critical
+# paths only. Other changes need a human review under the AI-assisted contribution policy.
+
+# Security: secrets, identity, access, audit, networking, transport, MCP
+/libs/engine/secrets/                                   @RafaelJCamara
+/libs/engine/svc-identity/                              @RafaelJCamara
+/libs/engine/svc-access/                                @RafaelJCamara
+/libs/engine/svc-audit/                                 @RafaelJCamara
+/libs/engine/net-dialer/                                @RafaelJCamara
+/libs/engine/net-truststore/                            @RafaelJCamara
+/libs/engine/transport/                                 @RafaelJCamara
+/libs/engine/svc-mcp/                                   @RafaelJCamara
+
+# Desktop main and preload (Electron)
+/apps/desktop/src/main/                                 @RafaelJCamara
+/apps/desktop/src/preload/                              @RafaelJCamara
+
+# Semantics: registry, planners, executors, actions
+/libs/shared/semantics/                                 @RafaelJCamara
+/libs/shared/peek-planner/                              @RafaelJCamara
+/libs/shared/tap-planner/                               @RafaelJCamara
+/libs/shared/replay-planner/                            @RafaelJCamara
+/libs/engine/svc-peek/                                  @RafaelJCamara
+/libs/engine/svc-tap/                                   @RafaelJCamara
+/libs/engine/svc-dlq/                                   @RafaelJCamara
+/libs/engine/kernel/src/actions/                        @RafaelJCamara
+/tools/semantics-evidence/                              @RafaelJCamara
+
+# Lab evidence: recorded by CI, approved by a human (invariant I-14, amendment A-20).
+# Bot PRs carry the `lab-evidence` label.
+/testing/lab-evidence/**                                @RafaelJCamara
+/apps/conformance/                                      @RafaelJCamara
+
+# Release, packaging and supply chain
+/.github/workflows/                                     @RafaelJCamara
+/packaging/                                             @RafaelJCamara
+/pnpm-workspace.yaml                                    @RafaelJCamara
+/tools/supply-chain/                                    @RafaelJCamara
+/docs/adr/ADR-027-log.md                                @RafaelJCamara
+/release-please-config.json                             @RafaelJCamara
+
+# Governance and the agent toolchain
+/CODEOWNERS                                             @RafaelJCamara
+/AGENTS.md                                              @RafaelJCamara
+/CLAUDE.md                                              @RafaelJCamara
+/.claude/                                               @RafaelJCamara
+/tools/agent-hooks/                                     @RafaelJCamara

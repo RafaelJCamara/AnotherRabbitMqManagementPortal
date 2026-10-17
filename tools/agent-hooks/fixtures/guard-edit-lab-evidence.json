@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "testing/lab-evidence/4.3.6/CF-SETTLE-001.json",
+    "old_string": "\"survived\": false",
+    "new_string": "\"survived\": true"
+  }
+}

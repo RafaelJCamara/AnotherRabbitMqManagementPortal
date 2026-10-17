@@ -1,0 +1,30 @@
+{
+  "$comment": "Pinned base images of the broker lab. `digest` is the multi-architecture index digest of rabbitmq:<version>-management on Docker Hub, read from the registry on 2026-10-17. Bump a digest only with a reviewed change; Renovate does not touch this file. Lab evidence (A-20) records these digests.",
+  "brokers": [
+    {
+      "version": "3.13.7",
+      "digest": "sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69",
+      "support": "tier-2"
+    },
+    {
+      "version": "4.0.9",
+      "digest": "sha256:32f058dc1323eed60dc47e84bab5726b88c6ad4e2f2c81a459d6d75b2876efc4",
+      "support": "end-of-life, best effort"
+    },
+    {
+      "version": "4.1.8",
+      "digest": "sha256:6065a985f39b10eadaa77791820fa730ab1f417b03687cb5ea9fa5e397893cf3",
+      "support": "tier-2"
+    },
+    {
+      "version": "4.2.9",
+      "digest": "sha256:d97a3128016b9020564b920cf0a663f3b67beb2c21ef91745ee3ce219a1aa394",
+      "support": "tier-1"
+    },
+    {
+      "version": "4.3.6",
+      "digest": "sha256:ca5d088daf64c9de02c923c1c57c724bf4884c5c69bfa8172c68b214c0057cea",
+      "support": "tier-1"
+    }
+  ]
+}

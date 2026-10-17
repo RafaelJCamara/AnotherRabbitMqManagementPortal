@@ -1,0 +1,61 @@
+{
+  "name": "broker-lab",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "testing/broker-lab/src",
+  "projectType": "library",
+  "tags": ["type:test", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p testing/broker-lab/tsconfig.lib.json --noEmit",
+          "tsc -p testing/broker-lab/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/libs/testkit/src/**/*"
+      ],
+      "options": {
+        "command": "vitest run --config testing/broker-lab/vitest.config.mts"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/versions.json",
+        "{workspaceRoot}/libs/testkit/src/**/*"
+      ],
+      "outputs": ["{workspaceRoot}/dist/testing/broker-lab"],
+      "options": {
+        "command": "node libs/testkit/src/broker-lab-cli.ts build",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "images": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/testkit/src/broker-lab-cli.ts images",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "verify": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/testkit/src/broker-lab-cli.ts verify",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

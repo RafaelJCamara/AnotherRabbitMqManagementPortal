@@ -1,0 +1,10 @@
+{
+  "name": "@app/testkit",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

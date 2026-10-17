@@ -1,0 +1,94 @@
+# Three-node broker lab (M0-14): a cluster of the broker-lab image, HAProxy in front of it and
+# Toxiproxy for fault injection. Start it through startBroker({ nodes: 3 }), which builds the image,
+# picks free ports and sets the variables below; to run it by hand:
+#
+#   BROKER_IMAGE=broker-lab/rabbitmq:4.3.6 STREAM_PORT_1=25521 STREAM_PORT_2=25522 STREAM_PORT_3=25523 \
+#     docker compose -p broker-lab-3node -f testing/broker-lab/compose.3node.yaml up -d
+#
+# Clients use HAProxy (amqp 5672, management 15672, Prometheus 15692; the host ports are random).
+# Toxiproxy proxies HAProxy: amqp on 25672 and management on 25673, control API on 8474.
+# Stream clients are told the advertised host and port of the node that owns the stream, so each
+# node publishes its stream port on the same host port it advertises (the `stream-N` configs).
+# The nodes start together: a node that is not started yet has no DNS name, and 4.0 (Mnesia) stalls
+# in peer discovery while it cannot resolve its peers.
+name: broker-lab-3node
+
+x-rabbit: &rabbit
+  image: ${BROKER_IMAGE:?set BROKER_IMAGE to a broker-lab/rabbitmq image}
+  environment:
+    RABBITMQ_ERLANG_COOKIE: broker-lab-cookie
+  volumes:
+    - ./rabbitmq.cluster.conf:/etc/rabbitmq/conf.d/30-cluster.conf:ro
+  healthcheck:
+    test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_running']
+    interval: 5s
+    timeout: 10s
+    retries: 30
+    start_period: 10s
+
+configs:
+  stream-1:
+    content: |
+      stream.advertised_host = 127.0.0.1
+      stream.advertised_port = ${STREAM_PORT_1:?}
+  stream-2:
+    content: |
+      stream.advertised_host = 127.0.0.1
+      stream.advertised_port = ${STREAM_PORT_2:?}
+  stream-3:
+    content: |
+      stream.advertised_host = 127.0.0.1
+      stream.advertised_port = ${STREAM_PORT_3:?}
+
+services:
+  rmq1:
+    <<: *rabbit
+    hostname: rmq1
+    configs:
+      - source: stream-1
+        target: /etc/rabbitmq/conf.d/40-stream.conf
+    ports:
+      - '127.0.0.1:${STREAM_PORT_1:?}:5552'
+
+  rmq2:
+    <<: *rabbit
+    hostname: rmq2
+    configs:
+      - source: stream-2
+        target: /etc/rabbitmq/conf.d/40-stream.conf
+    ports:
+      - '127.0.0.1:${STREAM_PORT_2:?}:5552'
+
+  rmq3:
+    <<: *rabbit
+    hostname: rmq3
+    configs:
+      - source: stream-3
+        target: /etc/rabbitmq/conf.d/40-stream.conf
+    ports:
+      - '127.0.0.1:${STREAM_PORT_3:?}:5552'
+
+  haproxy:
+    image: haproxy:3.4.7-alpine@sha256:251da69821897ec8c4819f12b1babbc4b71f562943addc9b9eb14bb6ece40dc6
+    depends_on:
+      - rmq1
+      - rmq2
+      - rmq3
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - '127.0.0.1::5672'
+      - '127.0.0.1::15672'
+      - '127.0.0.1::15692'
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    command: ['-host=0.0.0.0', '-config=/config/toxiproxy.json']
+    depends_on:
+      - haproxy
+    volumes:
+      - ./toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - '127.0.0.1::8474'
+      - '127.0.0.1::25672'
+      - '127.0.0.1::25673'

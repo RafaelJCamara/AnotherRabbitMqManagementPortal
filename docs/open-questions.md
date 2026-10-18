@@ -2,7 +2,7 @@
 
 Decisions and gaps that are not settled yet. Each row names what is unresolved, why it matters and what closes it. Remove a row (and note the outcome in the ADR or issue that settles it) once it is resolved. GitHub issues stay the system of record for work ([ADR-033](adr/ADR-033-github-as-system-of-record.md)); this file is for questions that are not work items yet.
 
-Last updated: 2026-10-18, after M0-01 to M0-08, M0-10, M0-11, M0-14, M0-16, M0-17, M0-73, M0-76 and M0-77 landed on local main.
+Last updated: 2026-10-18, after M0-01 to M0-08, M0-10, M0-11, M0-14, M0-16, M0-17, M0-73, M0-76 and M0-77 landed on main.
 
 ## Release and CI
 
@@ -183,9 +183,7 @@ OQ-19 (who approves release-age and trust exclusions) is settled by CODEOWNERS: 
 
 | ID     | Question | Context | Closes when |
 | ------ | -------- | ------- | ----------- |
-| OQ-150 | `guard-bash` blocks `git push` to main, but the maintainer commits straight to main and uses no pull requests. Which wins? | M0-07 followed the execution plan, where agents push work branches and open PRs. The maintainer decided on 2026-10-17 that there are no PRs. Agents from M0-10, M0-14 and M0-77 could not push and left `wi/*` branches; the maintainer landed them by hand. The decided change: drop only the main/master push block in `tools/agent-hooks/guard-bash.mjs`, keep the blocks on force-push, `--all`, `--mirror` and deleting main/master, update `guard-bash.test.mjs`, `tools/agent-hooks/README.md` and the AGENTS.md workflow (step 6 "Land", step 7 "Blocked?", forbidden list, commit/PR line). The hooks are protected paths, so a maintainer applies it. | The guard is changed (or the decision is reversed and PRs return), and AGENTS.md matches. |
 | OQ-151 | Which paths may agents edit: is `tools/supply-chain/deps-allowlist.json` human-only or not? | M0-10 edited the allow-list for zod and fast-check without being blocked. M0-14 reported the allow-list and `allowBuilds` as hook-blocked and so avoided a new dependency. The two agents saw different behaviour. The two M0-10 entries (zod 4.6.7, fast-check 4.10.2) have not had a maintainer review. | The protected-path list and AGENTS.md agree on the allow-list, and the two entries are reviewed. |
-| OQ-152 | Delete the merged `wi/*` branches on the remote: `wi/M0-10-contracts-kit`, `wi/M0-14-broker-lab`, `wi/M0-77-work-graph-validator`, `wi/M0-11-domain-model-semantics-core`, `wi/M0-16-kernel-primitives`, `wi/M0-17-live-protocol-state-machines`, `wi/M0-76-platform-upgrade-lane`. | Each was integrated into main by cherry-pick or fast-forward (new SHAs for all but M0-10). Deleting a remote branch is blocked for agents. | After the maintainer pushes main. |
 
 ## Live protocol (M0-17)
 

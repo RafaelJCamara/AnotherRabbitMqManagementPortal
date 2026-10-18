@@ -200,7 +200,7 @@ const confinement = [
     ],
   },
   {
-    names: ['node:sqlite', 'better-sqlite3', 'pg'],
+    names: ['node:sqlite', 'better-sqlite3', 'pg', 'kysely'],
     only: ['libs/engine/persistence'],
   },
   { names: ['ssh2', 'socks'], only: ['libs/engine/net-dialer'] },

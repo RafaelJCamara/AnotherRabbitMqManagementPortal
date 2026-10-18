@@ -99,6 +99,10 @@
       "reason": "Node.js types for the engine and tools.",
       "ref": "M0-01"
     },
+    "@types/pg": {
+      "reason": "Type declarations for pg, used by the persistence Postgres dialect.",
+      "ref": "M0-21"
+    },
     "@typescript-eslint/parser": {
       "reason": "TypeScript parser for ESLint.",
       "ref": "M0-03"
@@ -125,7 +129,15 @@
       "reason": "DOM environment for Angular unit tests.",
       "ref": "M0-01"
     },
+    "kysely": {
+      "reason": "Type-safe SQL query builder over the in-repo node:sqlite dialect and pg; one migration set for both (ADR-013).",
+      "ref": "ADR-013"
+    },
     "nx": { "reason": "Monorepo task runner.", "ref": "ADR-032" },
+    "pg": {
+      "reason": "Postgres driver of the team-server persistence dialect (ADR-013); confined to libs/engine/persistence.",
+      "ref": "ADR-013"
+    },
     "pino": {
       "reason": "Structured JSON logger of the engine kernel, with path and value redaction (blueprint 13).",
       "ref": "M0-16"

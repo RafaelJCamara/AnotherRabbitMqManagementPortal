@@ -66,6 +66,7 @@ catalog:
   '@schematics/angular': 22.2.3
   '@swc/helpers': 0.5.23
   '@types/node': 24.19.2
+  '@types/pg': 8.23.1
   '@typescript-eslint/parser': 8.71.2
   angular-eslint: 22.6.0
   astro: 7.3.8
@@ -74,7 +75,9 @@ catalog:
   fast-check: 4.10.2
   globals: 17.13.0
   jsdom: 27.4.0
+  kysely: 0.29.6
   nx: 23.3.0
+  pg: 8.23.1
   pino: 10.4.0
   prettier: 3.8.1
   release-please: 17.11.2

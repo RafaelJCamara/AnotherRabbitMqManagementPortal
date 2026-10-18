@@ -32,6 +32,7 @@
     "@schematics/angular": "catalog:",
     "@swc/helpers": "catalog:",
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "angular-eslint": "catalog:",
     "astro": "catalog:",
@@ -57,6 +58,8 @@
     "@angular/forms": "catalog:",
     "@angular/platform-browser": "catalog:",
     "@angular/router": "catalog:",
+    "kysely": "catalog:",
+    "pg": "catalog:",
     "pino": "catalog:",
     "rxjs": "catalog:",
     "zod": "catalog:"

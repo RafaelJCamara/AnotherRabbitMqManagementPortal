@@ -70,6 +70,21 @@ jobs:
       # Drift gate: regenerate the specs from the contract registry and fail on any difference.
       - run: pnpm nx run contracts:api-docs-check
 
+  # M0-21: the same migrations and repository tests on SQLite and on Postgres 16 and 18. The
+  # Postgres containers are started with the Docker daemon of the hosted Linux runner.
+  persistence-it:
+    name: persistence integration (sqlite, postgres 16 and 18)
+    needs: gates
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm nx run persistence:it --dialects=sqlite,pg
+
   toolchain:
     name: toolchain (${{ matrix.os }})
     needs: gates

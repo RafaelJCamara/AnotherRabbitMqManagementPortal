@@ -55,7 +55,7 @@ Add `--dry-run` to any command to see the files without writing them.
 | `decoder`          | `libs/engine/decoders` (`type:adapter`), `libs/sdk/header-registry` (`type:sdk`) |
 | `semantics-cell`   | `libs/shared/semantics` (`type:pure`, `trust:critical`)                         |
 | `conformance-cell` | `apps/conformance` (`type:test`)                                                |
-| `migration`        | `libs/engine/persistence` (`type:adapter`)                                      |
+| `migration`        | `libs/engine/persistence` (`type:adapter`, adopted by M0-21: the generator now only appends migrations) |
 
 ## Gotchas
 

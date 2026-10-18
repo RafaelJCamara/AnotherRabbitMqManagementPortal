@@ -41,8 +41,32 @@ function hostLibrary(): LibrarySpec {
       'src/index.ts': `export type { Migration, SqlExecutor } from './migrate/types';
 export { migrations } from './migrations';
 `,
-      'src/migrate/types.ts': `/** The statement runner a migration receives; the dialect adapters implement it. */
+      'src/migrate/helpers.ts': `/** The storage dialects: desktop and local (sqlite), team server (pg). */
+export type DialectName = 'sqlite' | 'pg';
+
+/** Column types for DDL, one method per helper (\`db.t.id()\`, \`db.t.bytes()\`, ...). */
+export interface ColumnTypes {
+  id(): string;
+  json(): string;
+  epochMs(): string;
+  bytes(): string;
+}
+
+export function columnTypes(dialect: DialectName): ColumnTypes {
+  return {
+    id: () => 'TEXT',
+    json: () => 'TEXT',
+    epochMs: () => 'BIGINT',
+    bytes: () => (dialect === 'pg' ? 'BYTEA' : 'BLOB'),
+  };
+}
+`,
+      'src/migrate/types.ts': `import type { ColumnTypes, DialectName } from './helpers';
+
+/** The statement runner a migration receives; the migration runner implements it. */
 export interface SqlExecutor {
+  readonly dialect: DialectName;
+  readonly t: ColumnTypes;
   execute(sql: string): Promise<void>;
 }
 
@@ -110,12 +134,13 @@ export function migrationFiles(
 export const ${constant}: Migration = {
   id: ${quote(id)},
   // Replace with the DDL, one db.execute call per statement. Write SQL both SQLite and Postgres
-  // accept, or put the difference in the migrate helpers.
+  // accept, and use db.t.id(), db.t.json(), db.t.epochMs() and db.t.bytes() where they differ.
   up: () => Promise.resolve(),
 };
 `,
     [`${id}.spec.ts`]: `import { describe, expect, it } from 'vitest';
 
+import { columnTypes } from '../migrate/helpers';
 import { ${constant} } from './${id}';
 
 describe(${quote(id)}, () => {
@@ -127,6 +152,8 @@ describe(${quote(id)}, () => {
     const statements: string[] = [];
 
     await ${constant}.up({
+      dialect: 'sqlite',
+      t: columnTypes('sqlite'),
       execute: (sql) => {
         statements.push(sql);
         return Promise.resolve();

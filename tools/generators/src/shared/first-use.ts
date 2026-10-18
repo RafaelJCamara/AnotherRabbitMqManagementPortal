@@ -2,7 +2,7 @@
 // package has since adopted. The generator tests copy the repository's tsconfig.base.json to start
 // from a real workspace, but a copy that already registers one of these aliases would make the
 // generator refuse to create the library, so the copy drops them.
-const ADOPTED_ALIASES = ['@app/semantics'] as const;
+const ADOPTED_ALIASES = ['@app/persistence', '@app/semantics'] as const;
 
 interface TsConfigBase {
   compilerOptions?: { paths?: Record<string, string[]> };

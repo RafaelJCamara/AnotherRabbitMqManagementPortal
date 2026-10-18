@@ -88,6 +88,10 @@ describe('startBroker', () => {
     expect(broker.stream).toMatch(/^rabbitmq-stream:\/\/127\.0\.0\.1:\d+$/);
     expect(broker.amqps).toBeUndefined();
     expect(broker.tls).toBeUndefined();
+    // the container to `docker exec rabbitmqctl` in, the one that `create` made
+    const created = calls.find((call) => call.args[0] === 'create')?.args ?? [];
+    expect(broker.container).toBeDefined();
+    expect(created).toContain(broker.container);
     expect(verbs(calls)).toEqual(
       expect.arrayContaining(['build', 'create', 'start']),
     );

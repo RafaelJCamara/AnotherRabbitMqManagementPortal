@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     name: 'adapter-amqp091',
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    // The broker-backed contract specs (`*.contract.spec.ts`) run through vitest.contract.config.mts.
+    include: ['src/**/*.spec.ts', 'contract/**/*.unit.spec.ts'],
   },
 });

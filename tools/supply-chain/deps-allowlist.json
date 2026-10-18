@@ -53,6 +53,10 @@
       "reason": "Docs site framework (Starlight).",
       "ref": "M0-06"
     },
+    "@cloudamqp/amqp-client": {
+      "reason": "Second AMQP 0-9-1 client of the dual-library contract suite (DC-48); test-only shim in libs/engine/adapter-amqp091/contract, never shipped; exact pin; confined to adapter-amqp091 and apps/conformance.",
+      "ref": "M0-28"
+    },
     "@eslint/js": {
       "reason": "ESLint recommended rule set.",
       "ref": "M0-03"

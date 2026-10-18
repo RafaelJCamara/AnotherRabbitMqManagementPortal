@@ -203,6 +203,9 @@ catalogs:
     '@astrojs/starlight':
       specifier: 0.42.6
       version: 0.42.6
+    '@cloudamqp/amqp-client':
+      specifier: 4.1.1
+      version: 4.1.1
     '@eslint/js':
       specifier: 10.0.1
       version: 10.0.1
@@ -377,6 +380,9 @@ importers:
       '@astrojs/starlight':
         specifier: 'catalog:'
         version: 0.42.6(astro@7.3.8(@types/node@24.19.2)(esbuild@0.28.2)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1))(supports-color@7.2.0)(typescript@6.0.3)
+      '@cloudamqp/amqp-client':
+        specifier: 'catalog:'
+        version: 4.1.1
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.12.0(supports-color@7.2.0))
@@ -1476,6 +1482,10 @@ packages:
   '@clack/prompts@1.8.1':
     resolution: {integrity: sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ==}
     engines: {node: '>= 20.12.0'}
+
+  '@cloudamqp/amqp-client@4.1.1':
+    resolution: {integrity: sha512-zbY31ErcOTnpbllb24gZ6PnteNCaFfpmxKAQErOtTJavwZSFXTBd+CLFkCno1IjGTR8r0hcsRH8XbsCcMhxkiQ==}
+    engines: {node: '>=18.0.0'}
 
   '@conventional-commits/parser@0.4.1':
     resolution: {integrity: sha512-H2ZmUVt6q+KBccXfMBhbBF14NlANeqHTXL4qCL6QGbMzrc4HDXyzWuxPxPNbz71f/5UkR5DrycP5VO9u7crahg==}
@@ -7651,6 +7661,8 @@ snapshots:
       fast-string-width: 3.0.2
       fast-wrap-ansi: 0.2.0
       sisteransi: 1.0.5
+
+  '@cloudamqp/amqp-client@4.1.1': {}
 
   '@conventional-commits/parser@0.4.1':
     dependencies:

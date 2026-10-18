@@ -24,6 +24,11 @@ export interface BrokerHandle {
   readonly nodes: 1 | 3;
   /** Pinned digest of the official image the lab image is built on (recorded as evidence). */
   readonly digest: string;
+  /**
+   * The docker container of the broker, single node only. For tests that must run `rabbitmqctl`
+   * inside it (a memory alarm, closing connections): `docker exec <container> rabbitmqctl ...`.
+   */
+  readonly container?: string;
   /** `amqp://127.0.0.1:<port>` */
   readonly amqp: string;
   /** `amqps://127.0.0.1:<port>`, TLS variant only. */

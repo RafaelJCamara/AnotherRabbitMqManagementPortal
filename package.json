@@ -19,6 +19,7 @@
     "@angular/compiler-cli": "catalog:",
     "@angular/language-service": "catalog:",
     "@astrojs/starlight": "catalog:",
+    "@cloudamqp/amqp-client": "catalog:",
     "@eslint/js": "catalog:",
     "@eslint/json": "catalog:",
     "@nx/angular": "catalog:",

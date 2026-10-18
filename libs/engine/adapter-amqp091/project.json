@@ -32,6 +32,13 @@
         "command": "node libs/testkit/src/it/run-it.ts adapter-amqp091",
         "cwd": "{workspaceRoot}"
       }
+    },
+    "contract": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/testkit/src/it/run-contract.ts",
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }

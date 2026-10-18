@@ -233,6 +233,7 @@ async function startSingle(
       variant,
       nodes: 1,
       digest: broker.digest,
+      container: name,
       amqp,
       http,
       stream: url('rabbitmq-stream', streamPort),

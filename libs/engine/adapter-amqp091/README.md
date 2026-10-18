@@ -26,13 +26,29 @@ Tags: `type:adapter`, `runtime:node`, `trust:critical` (CODEOWNERS sign-off). Im
 - **DC-11.** `get` is sequential and throws before sending when the queue is a stream or its type is unknown. Passive declares run on throwaway channels. Observe works only on the tap queues it declared (exclusive, auto-delete, bounded).
 - **I-6, I-10.** Ledgers, tap queues, subscribers and prefetch are bounded; the broker's text is shortened and cleaned; credentials are not kept, logged or put in a URL.
 
-Open questions: OQ-210 to OQ-219 and OQ-250 in [docs/open-questions.md](../../../docs/open-questions.md).
+Open questions: OQ-210 to OQ-219, OQ-250 and OQ-260 to OQ-263 in [docs/open-questions.md](../../../docs/open-questions.md).
+
+## Contract suite (M0-28, DC-48)
+
+amqplib has a bus factor of about one, so the same suite runs against a second client, `@cloudamqp/amqp-client` 4.1.1, to keep the library replaceable. `contract/cloudamqp-driver.ts` wraps it as an `Amqp091Driver` (test-only; a dev dependency that nothing under `src/` imports) and `contract/*.contract.spec.ts` run every case once per library, through the adapter's own leases and `ConnectOptions.driver`, on each lab broker:
+
+| Spec                                 | Proves                                                                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `get-nack-barrier.contract.spec.ts`  | `get`, `nack(multiple)` plus the qos barrier (classic and quorum), ack, passive declares, properties and typed headers        |
+| `confirms.contract.spec.ts`          | confirms, mandatory returns and negative confirms (a proof only for a confirmed, not returned, copy)                          |
+| `blocked.contract.spec.ts`           | `connection.blocked` and `unblocked` under a memory alarm                                                                     |
+| `server-cancel.contract.spec.ts`     | a server-initiated cancel is an event; whether a held delivery can still be nacked or acked is recorded and equal for both    |
+| `connection.contract.spec.ts`        | login (PLAIN; EXTERNAL is an expected skip for `@cloudamqp/amqp-client`), the connection name, a broker-closed connection     |
+| `cloudamqp-driver.unit.spec.ts`      | the shim's error and value translations, without a broker (part of `nx test`)                                                 |
+
+The observation of the server-cancel case is written to `dist/contract-evidence/<broker>/server-cancel.json` (CI keeps it as an artifact). It is a candidate for the lab evidence of its cell, not evidence: evidence is recorded by CI and committed by a human (I-14). The known differences between the two libraries are listed at the top of `contract/cloudamqp-driver.ts` and in OQ-260 to OQ-263.
 
 ## Proof commands
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p adapter-amqp091
 pnpm nx run adapter-amqp091:it --versions=4.2.9,4.3.6   # lab brokers; needs Docker (and openssl for the TLS variant)
+pnpm nx run adapter-amqp091:contract --broker=all       # both libraries on the five lab brokers; needs Docker (or --broker=4.3.6)
 ```
 
-The integration test lives in `libs/testkit/src/it/adapter-amqp091.it.ts` because a `type:adapter` project may not import `type:test` code (OQ-187). It fails, rather than skips, when no Docker daemon runs.
+The integration test lives in `libs/testkit/src/it/adapter-amqp091.it.ts` because a `type:adapter` project may not import `type:test` code (OQ-187). The contract specs live here instead, as the work package says: they do not import the testkit, and the lab broker reaches them as data (`libs/testkit/src/it/contract-broker.setup.ts` starts it, `run-contract.ts` loops over the versions). Both fail, rather than skip, when no Docker daemon runs.

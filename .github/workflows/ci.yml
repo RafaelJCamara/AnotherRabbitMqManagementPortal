@@ -85,6 +85,31 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm nx run persistence:it --dialects=sqlite,pg
 
+  # M0-28: the AMQP 0-9-1 contract suite, once per client library (amqplib and
+  # @cloudamqp/amqp-client), against each of the five lab brokers. The brokers are started with the
+  # Docker daemon of the hosted Linux runner; the recorded observations (for example the nack after
+  # a server-initiated cancel) are kept as an artifact for the lab-evidence review (I-14).
+  amqp091-contract:
+    name: AMQP 0-9-1 contract (two client libraries, five brokers)
+    needs: gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm nx run adapter-amqp091:contract --broker=all
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: contract-evidence
+          path: dist/contract-evidence
+          if-no-files-found: ignore
+          retention-days: 30
+
   toolchain:
     name: toolchain (${{ matrix.os }})
     needs: gates

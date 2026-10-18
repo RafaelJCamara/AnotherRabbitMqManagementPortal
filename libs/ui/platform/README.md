@@ -28,7 +28,7 @@ Test support is a separate entry point, `@app/ui-platform/testing` (not part of 
 
 ## Not here yet
 
-The desktop reconnect after an engine restart (a new port) and the preload that offers `__APP_PLATFORM__` belong to the desktop app (M2, ADR-030). The `ui-platform` project has a hand-written `tsconfig.json` that allows `.ts` import extensions and index-signature property access, because it compiles `@app/contracts` and `@app/live-protocol` from source (OQ-190).
+The desktop reconnect after an engine restart (a new port) and the preload that offers `__APP_PLATFORM__` belong to the desktop app (M2, ADR-030). The `ui-platform` project has a hand-written `tsconfig.json` that allows `.ts` import extensions and index-signature property access, because it compiles `@app/contracts` and `@app/live-protocol` from source (OQ-264).
 
 ## Proof commands
 

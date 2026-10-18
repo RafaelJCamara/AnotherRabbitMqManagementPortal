@@ -4,7 +4,9 @@ export type {
   BlobsTable,
   ConnectionProfilesTable,
   Database,
+  IdempotencyKeysTable,
   PersistenceHandle,
+  PlansTable,
   SchemaMigrationsTable,
   SettingsTable,
 } from './database';

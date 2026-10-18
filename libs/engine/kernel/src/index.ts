@@ -9,6 +9,7 @@ export {
   type DropReason,
   type SizeOf,
 } from './bounded/index.ts';
+export * from './actions/index.ts';
 export {
   createManualClock,
   systemClock,

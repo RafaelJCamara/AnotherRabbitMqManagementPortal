@@ -40,12 +40,51 @@ export interface BlobsTable {
   created_at: number;
 }
 
+/** plans (M0-29): the ActionExecutor's plans; see 0002_plans for what each column holds. */
+export interface PlansTable {
+  id: string;
+  action_id: string;
+  input_hash: string;
+  digest: string;
+  principal_id: string;
+  on_behalf_of_id: string | null;
+  profile_fingerprint: string | null;
+  env: string;
+  risk: string;
+  state: string;
+  approvals_required: number;
+  /** JSON text. */
+  approvals: string;
+  gates: string;
+  warnings: string;
+  consents_required: string;
+  confirmation_phrase: string | null;
+  preview: string;
+  /** Ciphertext; null once purged. */
+  payload: Uint8Array | null;
+  expires_at: number;
+  created_at: number;
+  updated_at: number;
+  version: number;
+}
+
+/** idempotency_keys (M0-29): one row per key a principal has used. */
+export interface IdempotencyKeysTable {
+  principal_id: string;
+  key: string;
+  action_id: string;
+  plan_id: string | null;
+  created_at: number;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
   settings: SettingsTable;
   connection_profiles: ConnectionProfilesTable;
   blobs: BlobsTable;
+  plans: PlansTable;
+  idempotency_keys: IdempotencyKeysTable;
 }
 
 /** An open database: a Kysely instance plus what the runner needs to know about it. */

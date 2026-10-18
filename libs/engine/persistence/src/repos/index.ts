@@ -1,6 +1,7 @@
 import type { PersistenceHandle } from '../database';
 import { createBlobRepository } from './blobs';
 import { createConnectionProfileRepository } from './connection-profiles';
+import { createIdempotencyRepository, createPlanRepository } from './plans';
 import type { Repositories } from './ports';
 import { createSettingsRepository } from './settings';
 
@@ -19,5 +20,7 @@ export function createRepositories(
     settings: createSettingsRepository(handle.db, now),
     connectionProfiles: createConnectionProfileRepository(handle.db, now),
     blobs: createBlobRepository(handle.db, now),
+    plans: createPlanRepository(handle.db),
+    idempotency: createIdempotencyRepository(handle.db),
   };
 }

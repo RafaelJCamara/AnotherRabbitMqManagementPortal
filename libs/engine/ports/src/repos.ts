@@ -1,7 +1,7 @@
 // Repository ports. Every method is async from day one (blueprint I-5), so SQLite can move to a
 // storage worker without touching a caller, and no method returns an unbounded collection (I-7):
 // lists are windows.
-import type { JobId } from '@app/contracts';
+import type { ActionId, EnvClass, JobId, PlanId, Risk } from '@app/contracts';
 
 import type { Principal } from './connection-manager.ts';
 
@@ -92,4 +92,110 @@ export interface ReplayJournal {
     key: string,
     headers: Record<string, unknown>,
   ): Promise<'ack-without-republish' | 'republish'>;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Plans and idempotency keys (M0-29). The ActionExecutor's PlanStore (kernel) holds the policy
+// (TTLs, states, approvals, digests); these ports only store and compare-and-set rows. An adapter
+// (persistence) implements them; the kernel never imports an adapter.
+// ---------------------------------------------------------------------------------------------
+
+export type PlanState =
+  | 'open'
+  | 'awaiting-approval'
+  | 'approved'
+  | 'executing'
+  | 'executed'
+  | 'failed'
+  | 'expired'
+  | 'rejected';
+
+export interface PlanApprovalRecord {
+  readonly by: string;
+  readonly at: number;
+  readonly decision: 'approve' | 'reject';
+  /** The plan digest the approver saw: an approval of another digest does not count. */
+  readonly digest: string;
+  /**
+   * Authenticated ciphertext (base64) over this approval, made by the kernel. A row edited in the
+   * database by someone without the key cannot carry a valid one.
+   */
+  readonly seal: string;
+  readonly note?: string;
+}
+
+/** One stored plan. `payload` is ciphertext (or null once purged); everything else is plain. */
+export interface PlanRecord {
+  readonly id: PlanId;
+  readonly actionId: ActionId;
+  readonly inputHash: string;
+  /** sha256 over every field the plan is bound to; kept after the payload is purged. */
+  readonly digest: string;
+  readonly principalId: string;
+  readonly onBehalfOfId: string | null;
+  readonly profileFingerprint: string | null;
+  readonly env: EnvClass;
+  readonly risk: Risk;
+  readonly state: PlanState;
+  readonly approvalsRequired: number;
+  readonly approvals: readonly PlanApprovalRecord[];
+  /** Canonical JSON text, written and validated by the kernel: the store never interprets it. */
+  readonly gatesJson: string;
+  readonly warningsJson: string;
+  readonly previewJson: string;
+  readonly consentsRequired: readonly string[];
+  readonly confirmationPhrase: string | null;
+  readonly payload: Uint8Array | null;
+  readonly expiresAt: number;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+  /** Starts at 1; every successful `update` adds 1. The compare-and-set token. */
+  readonly version: number;
+}
+
+/** The fields a state change may touch. */
+export interface PlanPatch {
+  readonly state?: PlanState;
+  readonly approvals?: readonly PlanApprovalRecord[];
+  readonly payload?: Uint8Array | null;
+  readonly expiresAt?: number;
+}
+
+export interface PlanRepository {
+  /** Stores a new plan. Rejects when the id exists. */
+  insert(record: PlanRecord): Promise<void>;
+  get(id: PlanId): Promise<PlanRecord | undefined>;
+  /**
+   * Applies `patch` only when the stored version is `expectedVersion` (compare-and-set), stamps
+   * `updatedAt` and adds 1 to the version. Returns the new row, or undefined when the row is gone
+   * or someone else changed it first.
+   */
+  update(
+    id: PlanId,
+    expectedVersion: number,
+    patch: PlanPatch,
+    now: number,
+  ): Promise<PlanRecord | undefined>;
+  /** Plans of a principal that are open, awaiting approval, approved or executing and not yet due. */
+  countActive(principalId: string, now: number): Promise<number>;
+  /**
+   * Marks at most `limit` open, awaiting-approval or approved plans whose `expiresAt` has passed as
+   * expired and drops their payload. Returns how many it changed.
+   */
+  expireDue(now: number, limit: number): Promise<number>;
+  /** Deletes at most `limit` finished plans last touched before `cutoff` (retention). */
+  purgeBefore(cutoff: number, limit: number): Promise<number>;
+}
+
+/** Idempotency keys are scoped to the principal that sent them: nobody can burn another's key. */
+export interface IdempotencyRepository {
+  /** True when the key was new and is now taken; false when it was already used. Atomic. */
+  claim(
+    principalId: string,
+    key: string,
+    info: { actionId: ActionId; planId: PlanId | null; at: number },
+  ): Promise<boolean>;
+  has(principalId: string, key: string): Promise<boolean>;
+  /** Deletes the keys taken before `cutoff` (retention). Returns how many. */
+  purgeBefore(cutoff: number): Promise<number>;
 }

@@ -1,0 +1,30 @@
+{
+  "name": "arch-tests",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/arch-tests/src",
+  "projectType": "library",
+  "tags": ["type:test", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p tools/arch-tests/tsconfig.lib.json --noEmit",
+          "tsc -p tools/arch-tests/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config tools/arch-tests/vitest.config.mts"
+      }
+    }
+  }
+}

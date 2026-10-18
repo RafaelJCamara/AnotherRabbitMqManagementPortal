@@ -248,6 +248,9 @@ catalogs:
     '@typescript-eslint/parser':
       specifier: 8.71.2
       version: 8.71.2
+    amqplib:
+      specifier: 2.2.0
+      version: 2.2.0
     angular-eslint:
       specifier: 22.6.0
       version: 22.6.0
@@ -334,6 +337,9 @@ importers:
       '@angular/router':
         specifier: 'catalog:'
         version: 22.2.3(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(@angular/platform-browser@22.2.3(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      amqplib:
+        specifier: 'catalog:'
+        version: 2.2.0
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
@@ -3316,6 +3322,10 @@ packages:
   am-i-vibing@0.5.0:
     resolution: {integrity: sha512-KLcsDhqf1XRrJmJr+9I/C0EX2K+sGrAGZFgkmd84c8TJO9zJBu+/kFInjazu1KfJWFhWDKdRWkpBzEs7s35DVA==}
     hasBin: true
+
+  amqplib@2.2.0:
+    resolution: {integrity: sha512-VifzN9aHs/Q3zTruVHXh2yCisQyXexBN91CQ2E5iSyUKyNjH6ilYhJGte5AXZH/Bj1PaH7SwPhyuSf6Msd2udw==}
+    engines: {node: '>=18'}
 
   angular-eslint@22.6.0:
     resolution: {integrity: sha512-nHjnadgrM54bz6tq/1EJqAg1mZCjJLyunitINdpPk+07Iz5MkJc4F1smeYshqfhH0i9+HOyJ4c7eA419O970Pw==}
@@ -9171,6 +9181,8 @@ snapshots:
   am-i-vibing@0.5.0:
     dependencies:
       process-ancestry: 0.1.0
+
+  amqplib@2.2.0: {}
 
   angular-eslint@22.6.0(chokidar@5.0.0)(eslint@10.12.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript-eslint@8.71.2(eslint@10.12.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3))(typescript@6.0.3):
     dependencies:

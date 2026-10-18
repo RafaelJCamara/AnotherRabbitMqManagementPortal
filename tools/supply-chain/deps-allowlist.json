@@ -107,6 +107,10 @@
       "reason": "TypeScript parser for ESLint.",
       "ref": "M0-03"
     },
+    "amqplib": {
+      "reason": "AMQP 0-9-1 client of libs/engine/adapter-amqp091 behind the role-typed lease ports (ADR-012); exact pin, no @types/amqplib; confined to adapter-amqp091 and apps/conformance.",
+      "ref": "M0-27"
+    },
     "angular-eslint": {
       "reason": "Angular template and component lint rules.",
       "ref": "M0-03"

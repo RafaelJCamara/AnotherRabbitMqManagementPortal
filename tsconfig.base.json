@@ -19,6 +19,7 @@
     "sourceMap": true,
     "declaration": false,
     "paths": {
+      "@app/adapter-amqp091": ["./libs/engine/adapter-amqp091/src/index.ts"],
       "@app/arch-tests": ["./tools/arch-tests/src/index.ts"],
       "@app/broker-lab": ["./testing/broker-lab/src/index.ts"],
       "@app/contracts": ["./libs/shared/contracts/src/index.ts"],

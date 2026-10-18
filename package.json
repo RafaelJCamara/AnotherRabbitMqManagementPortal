@@ -58,6 +58,7 @@
     "@angular/forms": "catalog:",
     "@angular/platform-browser": "catalog:",
     "@angular/router": "catalog:",
+    "amqplib": "catalog:",
     "kysely": "catalog:",
     "pg": "catalog:",
     "pino": "catalog:",

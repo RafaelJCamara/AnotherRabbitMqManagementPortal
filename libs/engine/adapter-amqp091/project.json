@@ -1,0 +1,37 @@
+{
+  "name": "adapter-amqp091",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/adapter-amqp091/src",
+  "projectType": "library",
+  "tags": ["type:adapter", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/adapter-amqp091/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/adapter-amqp091/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/adapter-amqp091/vitest.config.mts"
+      }
+    },
+    "it": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/testkit/src/it/run-it.ts adapter-amqp091",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

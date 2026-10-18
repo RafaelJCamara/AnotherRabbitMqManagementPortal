@@ -2,7 +2,7 @@
 
 The single outbound socket path (M0-26, I-9, DC-43): direct TCP and TLS dialing, a connect-time egress policy hook, a one-client local forwarder and a connector for undici. SSH, SOCKS5 and HTTP CONNECT routes and the SSRF policy come later (M1-22, M3-09).
 
-Tags: `type:net`, `runtime:node`, `trust:critical` (CODEOWNERS sign-off). Imports `@app/net-truststore` and Node's `node:net`. No third-party package: the undici connector follows undici's `connect` contract with local types (OQ-185).
+Tags: `type:net`, `runtime:node`, `trust:critical` (CODEOWNERS sign-off). Imports `@app/net-truststore`, the `DialerPort` type from `@app/ports` (which `Dialer` extends) and Node's `node:net`. No third-party package: the undici connector follows undici's `connect` contract with local types (OQ-185).
 
 ## Public API
 
@@ -10,7 +10,7 @@ Tags: `type:net`, `runtime:node`, `trust:critical` (CODEOWNERS sign-off). Import
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `createDialer({policy?, resolver?, connectTimeoutMs?, log?})` | A `Dialer`: `check(target)`, `connect(target, route, signal?)`, `dial(target, route, signal?)` and `forwarder(target, route, signal?)`. The route must be `{kind: 'direct'}`; any other route is `VALIDATION_FAILED` until M1-22.                                          |
 | `DialTarget`                               | `{host, port, purpose, servername?, tls?}`. With `tls` (a `TlsTrust` from `TrustStore.forProfile`) the socket is a verified `TLSSocket`; without it, plain TCP. `purpose` is a short identifier (`mgmt-http`, `amqp`) that the policy and the logs see.                       |
-| `dial()` result                            | `{socket, tls?}`; `tls` is the handshake outcome (`CertDiagnostics`). Record `toProfileTls(tls)` on the BrokerProfile (`verified`, `notAfter`, `insecureOverride`). `connect()` returns the socket only (the `DialerPort` shape).                                              |
+| `dial()` result                            | `{socket, tls?}`; `tls` is the handshake outcome (`CertDiagnostics`). Record `toProfileTls(tls)` on the BrokerProfile (`verified`, `notAfter`, `insecureOverride`). `connect()` returns the socket only (the `DialerPort` shape; a `Socket` is a `Duplex`).                                              |
 | `check(target)`                            | Resolves and evaluates the policy without connecting: `{allowed, reason?, resolved}`.                                                                                                                                                                                              |
 | `forwarder(target, route)`                 | Opens the upstream, then listens on a private Unix socket (Windows named pipe) for exactly one client and pipes it through. For libraries that cannot take a socket. Plain bytes only: a target with `tls` is refused. Closes after the client or 30 seconds.                |
 | `EgressPolicy`, `allowAllPolicy`           | The hook: `evaluate({host, port, purpose, addresses})`. Only an answer with `allowed === true` allows; a throw, a rejection or any other answer denies (`EGRESS_DENIED`). The default allows everything until M3-09 (OQ-182).                                                |
@@ -25,7 +25,7 @@ Tags: `type:net`, `runtime:node`, `trust:critical` (CODEOWNERS sign-off). Import
 - **No new listeners.** The forwarder uses a Unix socket or named pipe only, never a TCP port (OQ-186).
 - Errors are `NetworkError` with a contract code and a safe detail (OQ-180); the connect timeout covers resolution, TCP and the handshake, and a caller's `AbortSignal` rejects with the caller's own reason.
 
-Open questions: OQ-180 to OQ-190 in [docs/open-questions.md](../../../docs/open-questions.md).
+Open questions: OQ-180 to OQ-190 (OQ-181: the port does not carry `tls` yet) in [docs/open-questions.md](../../../docs/open-questions.md).
 
 ## Proof commands
 

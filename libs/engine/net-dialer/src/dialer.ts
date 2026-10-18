@@ -2,10 +2,15 @@
 // direct route, with and without TLS. SSH, SOCKS5 and HTTP CONNECT routes arrive with M1-22 and
 // plug into `openTransport`; the policy check before it, and the TLS handshake after it, stay.
 //
-// The methods match `DialerPort` (core-interfaces). The port type itself is owned by the ports
-// library (M0-23); until it lands this interface is structurally the same (OQ-181).
+// `Dialer` extends `DialerPort` (M0-23): the port's three methods, plus `dial` and a `tls` member
+// on the target, which the port does not know about yet (OQ-181).
 import { createConnection, isIP, type Socket } from 'node:net';
 
+import type {
+  DialCheck,
+  DialerPort,
+  DialTarget as PortDialTarget,
+} from '@app/ports';
 import {
   NetworkError,
   secureSocket,
@@ -31,19 +36,10 @@ export interface DirectRoute {
   readonly kind: 'direct';
 }
 
-export interface CheckTarget {
-  readonly host: string;
-  readonly port: number;
-  /** Why the connection is made, for example `mgmt-http`. Shown in policy decisions and logs. */
-  readonly purpose: string;
-}
+/** What check and orwarder take: the port's target (host, port, purpose). */
+export type CheckTarget = PortDialTarget;
 
-export interface CheckResult {
-  readonly allowed: boolean;
-  readonly reason?: string;
-  /** The addresses the host resolved to. */
-  readonly resolved: string[];
-}
+export type CheckResult = DialCheck;
 
 export interface DialTarget extends CheckTarget {
   /** Name to verify and send as SNI when the profile has no override. */
@@ -59,7 +55,7 @@ export interface DialResult {
   readonly tls?: CertDiagnostics;
 }
 
-export interface Dialer {
+export interface Dialer extends DialerPort {
   check(target: CheckTarget): Promise<CheckResult>;
   connect(
     target: DialTarget,

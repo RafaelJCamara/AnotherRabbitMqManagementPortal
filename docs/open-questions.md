@@ -2,7 +2,7 @@
 
 Decisions and gaps that are not settled yet. Each row names what is unresolved, why it matters and what closes it. Remove a row (and note the outcome in the ADR or issue that settles it) once it is resolved. GitHub issues stay the system of record for work ([ADR-033](adr/ADR-033-github-as-system-of-record.md)); this file is for questions that are not work items yet.
 
-Last updated: 2026-10-17, after M0-01 to M0-08, M0-10, M0-14, M0-73 and M0-77 landed.
+Last updated: 2026-10-18, after M0-01 to M0-08, M0-10, M0-11, M0-14, M0-16, M0-17, M0-73, M0-76 and M0-77 landed on local main.
 
 ## Release and CI
 

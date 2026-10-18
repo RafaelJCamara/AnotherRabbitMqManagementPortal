@@ -13,7 +13,7 @@ Claude Code runs a hook with one JSON object on stdin (`tool_name`, `tool_input.
 | Hook | Event and matcher | Behaviour |
 | --- | --- | --- |
 | `guard-paths.mjs` | `PreToolUse` `Edit\|Write\|MultiEdit\|NotebookEdit` | Exits 2 with `human-only path` for protected paths. Fails closed on an unparsable payload. |
-| `guard-bash.mjs` | `PreToolUse` `Bash` | Exits 2 for unlisted or unpinned `pnpm add/up`, bulk updates and `--latest`, `--no-verify`, `git push` to main or any force push, global installs. Sees through `bash -c`, `env`, `sudo`, `&&`, `;`. |
+| `guard-bash.mjs` | `PreToolUse` `Bash` | Exits 2 for unlisted or unpinned `pnpm add/up`, bulk updates and `--latest`, `--no-verify`, any force push, `--all`/`--mirror`, deleting main, global installs. Sees through `bash -c`, `env`, `sudo`, `&&`, `;`. |
 | `post-edit.mjs` | `PostToolUse` `Edit\|Write\|MultiEdit` | `prettier --write`, then `eslint --fix --max-warnings=0` on the edited file; exits 2 with what is left. |
 | `on-stop.mjs` | `Stop` (timeout 900 s) | Exits 0 when `stop_hook_active` is set or nothing changed. Otherwise runs `nx affected -t lint typecheck test --base=origin/main --parallel=3` (plus `contracts:api-docs-check` when contracts changed and the target exists); exits 2 with a summary on failure. |
 

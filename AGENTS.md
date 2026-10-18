@@ -67,15 +67,15 @@ Pins: Node 24.22 (`.nvmrc`; `engines` >=24.15), pnpm 12.14, TypeScript 6.0.3, Nx
 
 ## 5. Working a work package (WP)
 
-A WP is one GitHub issue, one spec, one git worktree and one PR (ADR-033: no work without an issue). Size: 0.5-3 agent-days, ideally at most 800 changed lines (not counting generated files, fixtures and lab evidence) unless a maintainer adds `oversize-approved`.
+A WP is one GitHub issue, one spec, one git worktree and one commit landed on `main` (the maintainer uses no pull requests; ADR-033: no work without an issue). Size: 0.5-3 agent-days, ideally at most 800 changed lines (not counting generated files, fixtures and lab evidence) unless a maintainer adds `oversize-approved`.
 
 1. **Read the spec.** `gh issue view <n>` carries scope, interfaces, Given/When/Then and verification. If a working spec exists at `docs/specs/<WP-id>.md`, read it too. If neither has acceptance criteria and exact verification commands, run `/wp-spec` and **stop for human approval**.
 2. **Worktree.** `git worktree add ../wt/<WP-id> -b wi/<WP-id>-<slug> origin/main`, then `pnpm install --frozen-lockfile`. Never commit to `main`.
 3. **Scaffold, do not hand-roll.** Use the generator behind the matching skill (section 6). Then code.
 4. **Stay in scope.** Follow the spec's out-of-scope list. Work discovered mid-task becomes a **new issue**, never silent scope creep.
 5. **Verify.** Run the spec's verification commands and the checks in section 7. Fix causes; never bypass.
-6. **PR.** Conventional Commits title, body from the PR template with `Closes #<n>`, the AC-to-test map and the pasted verification output.
-7. **Blocked?** Open a draft PR labelled `blocked` that lists the questions. Do not guess.
+6. **Land.** Conventional Commits message with `Closes #<n>`, the AC-to-test map and the verification output in the body or spec. Rebase on `origin/main`, re-verify, push to `main`, then check CI with `gh run list --branch main`. Outside contributors may still open PRs.
+7. **Blocked?** Stop and report the questions to the maintainer (or in the issue). Do not guess.
 8. **Review** happens in a fresh session with `/review-wp`. Agents never approve their own PRs; humans merge.
 
 Test names quote the AC id they prove (for example `AC-2 ...`). Every AC maps to exactly one named test.
@@ -161,15 +161,15 @@ Run everything from the repository root.
 **Hooks** (`.claude/settings.json`, scripts in `tools/agent-hooks`) run for Claude Code sessions:
 
 - **Edit/Write/MultiEdit:** `guard-paths` blocks protected paths (below); afterwards `post-edit` runs `prettier --write` and `eslint --fix --max-warnings=0` and reports what is left (exit 2). Fix the cause.
-- **Bash:** `guard-bash` blocks unlisted or unpinned `pnpm add/up`, `--no-verify`, `git push` to main or any force push, and global installs.
+- **Bash:** `guard-bash` blocks unlisted or unpinned `pnpm add/up`, `--no-verify`, any force push, `git push --all`/`--mirror`, deleting main, and global installs.
 - **Stop:** `on-stop` runs `nx affected -t lint typecheck test` and keeps you working until it passes.
 
 **Protected paths (human-only):** `testing/lab-evidence/**`; `.github/workflows/release*.yml`; `CODEOWNERS`; the supply-chain keys of `pnpm-workspace.yaml` (release-age, trust policy, build allow-list, overrides); `tools/supply-chain/deps-allowlist.json`; `docs/adr/ADR-027-log.md`; `.claude/settings.json` and the hook scripts. The list is [tools/agent-hooks/protected-paths.mjs](tools/agent-hooks/protected-paths.mjs).
 
-**Forbidden:** `--no-verify`; force-push; pushing to `main`; disabling or loosening lint rules, hooks or gates; `eslint-disable` without a linked issue; editing protected paths; adding dependencies outside the policy; approving your own PR.
+**Forbidden:** `--no-verify`; force-push; disabling or loosening lint rules, hooks or gates; `eslint-disable` without a linked issue; editing protected paths; adding dependencies outside the policy; approving your own PR.
 
 **Definition of Done** (execution plan section 4): the spec is linked and every AC has a named passing test; `nx affected -t lint typecheck test build` and the supply-chain gates are green; boundaries, confinement and custom rules pass; the project README is updated and decisions have an ADR; UI strings come from i18n keys and engine errors are Problems; trust-critical work has the extra review and approval; at most 800 changed lines; Conventional Commits title and DCO sign-off.
 
-**Commits and PRs:** Conventional Commits (`feat(scope): summary`); every commit carries `Signed-off-by:` (the accountable human adds it) and, for agent-authored work, a `Co-Authored-By:` trailer; the PR body contains `Closes #<n>`. Contributors never edit versions or `CHANGELOG.md` (release-please owns them).
+**Commits and PRs:** Conventional Commits (`feat(scope): summary`); every commit carries `Signed-off-by:` (the accountable human adds it) and, for agent-authored work, a `Co-Authored-By:` trailer; the commit message (or PR body, for outside contributors) contains `Closes #<n>`. Contributors never edit versions or `CHANGELOG.md` (release-please owns them).
 
 **Review protocol:** a fresh session runs `/review-wp`: re-run the verification commands, check the DoD, invariants, boundaries and honest wording, and judge test strength. Findings are marked blocking or non-blocking. CODEOWNERS ([CODEOWNERS](CODEOWNERS)) maps trust-critical paths to named maintainers.

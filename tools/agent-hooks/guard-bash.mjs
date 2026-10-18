@@ -9,7 +9,8 @@
 //     that has no exact version, or that comes from a git, tarball or local source; bulk updates;
 //     `--latest`
 //   - --no-verify (and `git commit -n`)
-//   - git push to main or master, any force push, --all and --mirror
+//   - any force push, --all and --mirror, deleting main or master (plain pushes to main are allowed:
+//     the maintainer commits straight to main and uses no pull requests)
 //   - global installs (`npm i -g`, `pnpm add -g`, `yarn global add`) and npm/yarn/bun package adds
 //
 // The command line is split into simple commands with a small quote-aware tokenizer. It sees
@@ -249,7 +250,7 @@ function checkGit(words, deps) {
     }
     if (flags.includes('--all') || flags.includes('--mirror')) {
       reasons.push(
-        '`git push --all` and `--mirror` push main; push the work branch by name',
+        '`git push --all` and `--mirror` push every branch; push the branch by name',
       );
     }
     const refspecs = positionals.slice(1);
@@ -262,12 +263,15 @@ function checkGit(words, deps) {
             const name = dest.replace(/^refs\/heads\//, '');
             return name === 'HEAD' ? branch() : name;
           });
+    const deleting =
+      flags.includes('--delete') ||
+      hasShortFlag(flags, 'd') ||
+      refspecs.some((spec) => spec.startsWith(':'));
     if (
+      deleting &&
       targets.some((name) => name !== undefined && PROTECTED_BRANCHES.has(name))
     ) {
-      reasons.push(
-        'pushing to main is not allowed; push a work branch and open a PR',
-      );
+      reasons.push('deleting main or master is not allowed');
     }
   }
   return reasons;

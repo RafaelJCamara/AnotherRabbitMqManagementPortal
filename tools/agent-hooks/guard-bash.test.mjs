@@ -53,27 +53,24 @@ const blocked = [
   ['git push --force-with-lease origin wi/x', 'force'],
   ['git push --force-with-lease=wi/x:abc origin wi/x', 'force'],
   ['git push origin +wi/x', 'force'],
-  ['git push origin main', 'main'],
-  ['git push origin master', 'main'],
-  ['git push origin HEAD:main', 'main'],
-  ['git push origin HEAD:refs/heads/main', 'main'],
-  ['git push origin wi/x:main', 'main'],
-  ['git push origin :main', 'main'],
-  ['git push origin --delete main', 'main'],
-  ['git push --all', 'main'],
-  ['git push --mirror origin', 'main'],
-  ['git push -u origin main', 'main'],
+  ['git push origin :main', 'deleting main'],
+  ['git push origin :refs/heads/master', 'deleting main'],
+  ['git push origin --delete main', 'deleting main'],
+  ['git push -d origin main', 'deleting main'],
+  ['git push --all', 'every branch'],
+  ['git push --mirror origin', 'every branch'],
+  ['git push --force origin main', 'force'],
   // wrappers and compound commands
-  ['cd /tmp && git push origin main', 'main'],
+  ['cd /tmp && git push --force origin main', 'force'],
   ['pnpm install; git push -f', 'force'],
   ['FOO=1 git push -f origin wi/x', 'force'],
   ['env GIT_TRACE=1 git push --force', 'force'],
   ['sudo npm i -g x', 'global'],
   ['bash -c "git push --force"', 'force'],
   ["sh -c 'pnpm add left-pad@1.3.0'", 'allow-list'],
-  ['bash -lc "cd x && git push origin main"', 'main'],
+  ['bash -lc "cd x && git push --delete origin main"', 'deleting main'],
   ['pwsh -Command "git push -f"', 'force'],
-  ['git -C ../other push origin main', 'main'],
+  ['git -C ../other push --delete origin main', 'deleting main'],
   ['git -c core.editor=true push --force', 'force'],
   ['echo $(git push --force)', 'force'],
   ['(git push --no-verify)', '--no-verify'],
@@ -92,17 +89,20 @@ for (const [command, text] of blocked) {
   });
 }
 
-test('a bare push on main is blocked, a bare push on a work branch is not', () => {
+test('plain pushes to main are allowed (the maintainer uses no pull requests)', () => {
   for (const command of [
     'git push',
     'git push origin',
     'git push origin HEAD',
     'git push -u origin HEAD',
+    'git push origin main',
+    'git push origin master',
+    'git push origin HEAD:main',
+    'git push origin HEAD:refs/heads/main',
+    'git push origin wi/x:main',
+    'git push -u origin main',
   ]) {
-    assert.ok(
-      check(command, onMain).some((reason) => reason.includes('main')),
-      command,
-    );
+    assert.deepEqual(check(command, onMain), [], command);
     assert.deepEqual(check(command, onFeatureBranch), [], command);
   }
 });

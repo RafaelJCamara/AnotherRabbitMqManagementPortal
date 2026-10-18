@@ -1,0 +1,41 @@
+{
+  "name": "transport",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/transport/src",
+  "projectType": "library",
+  "tags": ["type:transport", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/transport/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/transport/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "kit-loc": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/scripts/kit-loc.mjs"
+      ],
+      "options": {
+        "command": "node libs/engine/transport/scripts/kit-loc.mjs"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/transport/vitest.config.mts"
+      }
+    }
+  }
+}

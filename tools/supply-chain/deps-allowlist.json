@@ -129,6 +129,10 @@
       "reason": "Property-based tests for pure and contract libraries (ObjectKey round trip).",
       "ref": "M0-10"
     },
+    "fastify": {
+      "reason": "HTTP framework of the engine transport kit (ADR-004); exact pin 5.12.7 (GHSA-389g-gv7q-r4x8 fixed in 5.12.6); confined to libs/engine/transport and apps/engine.",
+      "ref": "M0-32"
+    },
     "globals": {
       "reason": "Global variable sets for ESLint environments.",
       "ref": "M0-03"

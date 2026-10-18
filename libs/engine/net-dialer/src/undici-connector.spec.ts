@@ -11,6 +11,7 @@ import {
 
 import { createDialer } from './dialer.ts';
 import {
+  acceptedAfterSettling,
   emptyTrustStore,
   readAll,
   startPlainServer,
@@ -189,7 +190,7 @@ describe('undici connector', () => {
     expect(evaluate).toHaveBeenCalledWith(
       expect.objectContaining({ purpose: 'oidc-discovery', port: server.port }),
     );
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 
   it('refuses a Unix socket path: only hosts are dialled', async () => {
@@ -229,7 +230,7 @@ describe('undici connector', () => {
 
       expect((error as NetworkError).code).toBe('VALIDATION_FAILED');
       expect(socket).toBeNull();
-      expect(server.accepted()).toBe(0);
+      expect(await acceptedAfterSettling(server)).toBe(0);
     },
   );
 

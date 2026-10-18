@@ -59,6 +59,20 @@ export async function startPlainServer(
   };
 }
 
+/**
+ * The number of connections a server saw once in-flight ones have been noticed. A client can
+ * report "connected" before the server's accept callback runs, so a plain read of `accepted()`
+ * right after a connect can say 0 for a connection that did happen. Use this for "no connection
+ * was made" assertions, and `vi.waitFor` for "exactly one was made".
+ */
+export async function acceptedAfterSettling(
+  server: { accepted(): number },
+  settleMs = 100,
+): Promise<number> {
+  await new Promise((resolve) => setTimeout(resolve, settleMs));
+  return server.accepted();
+}
+
 /** Reads until the peer ends the stream or `length` bytes arrived. */
 export function readAll(socket: Socket, length = Infinity): Promise<string> {
   return new Promise((resolve, reject) => {

@@ -15,6 +15,7 @@ import {
 import { createDialer, type DialResult } from './dialer.ts';
 import type { EgressPolicy, EgressRequest, Resolver } from './policy-hook.ts';
 import {
+  acceptedAfterSettling,
   emptyTrustStore,
   readAll,
   startPlainServer,
@@ -92,7 +93,9 @@ describe('direct TCP', () => {
     );
     socket.destroy();
 
-    expect(server.accepted()).toBe(1);
+    await vi.waitFor(() => {
+      expect(server.accepted()).toBe(1);
+    });
   });
 
   it('reports a refused connection as BROKER_UNREACHABLE, retryable', async () => {
@@ -198,7 +201,7 @@ describe('direct TCP', () => {
         AbortSignal.abort(new Error('gone')),
       ),
     ).rejects.toThrow('gone');
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 });
 
@@ -217,7 +220,7 @@ describe('route and input validation', () => {
 
     expect(error.code).toBe('VALIDATION_FAILED');
     expect(error.detail).toContain('M1-22');
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 
   it.each([
@@ -278,7 +281,7 @@ describe('egress policy hook (DC-43)', () => {
 
     expect(error.code).toBe('EGRESS_DENIED');
     expect(error.detail).toContain('loopback is not allowed');
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 
   it('is asked about every address a name resolved to, with host, port and purpose', async () => {
@@ -366,7 +369,9 @@ describe('egress policy hook (DC-43)', () => {
 
     expect(lookups).toBe(1);
     expect(approved).toEqual([['127.0.0.1']]);
-    expect(server.accepted()).toBe(1);
+    await vi.waitFor(() => {
+      expect(server.accepted()).toBe(1);
+    });
   });
 
   it('fails closed when the policy throws or answers something that is not an allow', async () => {
@@ -389,7 +394,7 @@ describe('egress policy hook (DC-43)', () => {
       );
       expect(error.code).toBe('EGRESS_DENIED');
     }
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 
   it('check() resolves and evaluates without connecting', async () => {
@@ -416,7 +421,7 @@ describe('egress policy hook (DC-43)', () => {
       reason: 'private range',
       resolved: ['127.0.0.1', '::1'],
     });
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 
   it('check() answers "not allowed" for a name that does not resolve, and rejects bad input', async () => {
@@ -614,6 +619,6 @@ describe('TLS through the Dialer', () => {
     );
 
     expect(error.code).toBe('EGRESS_DENIED');
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 });

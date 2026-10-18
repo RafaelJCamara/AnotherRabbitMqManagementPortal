@@ -1,12 +1,17 @@
 import { existsSync, statSync } from 'node:fs';
 import { connect, type Socket } from 'node:net';
 import { dirname } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { NetworkError } from '@app/net-truststore';
 
 import { createDialer } from './dialer.ts';
-import { readAll, startPlainServer, type PlainServer } from './test-support.ts';
+import {
+  acceptedAfterSettling,
+  readAll,
+  startPlainServer,
+  type PlainServer,
+} from './test-support.ts';
 
 const DIRECT = { kind: 'direct' } as const;
 const closers: (() => Promise<void>)[] = [];
@@ -44,7 +49,9 @@ describe('forwarder (route direct)', () => {
     client.destroy();
 
     expect(echoed).toBe('hello');
-    expect(server.accepted()).toBe(1);
+    await vi.waitFor(() => {
+      expect(server.accepted()).toBe(1);
+    });
   });
 
   it('serves exactly one client: a second one is dropped before it reaches the target', async () => {
@@ -83,7 +90,9 @@ describe('forwarder (route direct)', () => {
 
     expect(reply).toBe('');
     expect(received.join('')).toBe('one');
-    expect(server.accepted()).toBe(1);
+    await vi.waitFor(() => {
+      expect(server.accepted()).toBe(1);
+    });
   });
   it('uses no TCP port and, on Unix, a private directory and a 0600 socket', async () => {
     const server = await upstream();
@@ -153,7 +162,7 @@ describe('forwarder (route direct)', () => {
 
     expect(error).toBeInstanceOf(NetworkError);
     expect((error as NetworkError).code).toBe('EGRESS_DENIED');
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 
   it('refuses a target with TLS settings: a forwarder carries raw bytes', async () => {
@@ -165,7 +174,7 @@ describe('forwarder (route direct)', () => {
 
     expect(error).toBeInstanceOf(NetworkError);
     expect((error as NetworkError).code).toBe('VALIDATION_FAILED');
-    expect(server.accepted()).toBe(0);
+    expect(await acceptedAfterSettling(server)).toBe(0);
   });
 
   it('only the direct route exists', async () => {

@@ -1,0 +1,30 @@
+{
+  "name": "ui-platform",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/platform/src",
+  "projectType": "library",
+  "tags": ["type:ui-platform", "runtime:browser"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "ngc -p libs/ui/platform/tsconfig.lib.json --noEmit",
+          "ngc -p libs/ui/platform/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/ui/platform/vitest.config.mts"
+      }
+    }
+  }
+}

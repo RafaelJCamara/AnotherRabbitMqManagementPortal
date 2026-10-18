@@ -34,6 +34,9 @@
       "@app/ports": ["./libs/engine/ports/src/index.ts"],
       "@app/semantics": ["./libs/shared/semantics/src/index.ts"],
       "@app/testkit": ["./libs/testkit/src/index.ts"],
+      "@app/ui-data": ["./libs/ui/data/src/index.ts"],
+      "@app/ui-platform": ["./libs/ui/platform/src/index.ts"],
+      "@app/ui-platform/testing": ["./libs/ui/platform/src/testing/index.ts"],
       "@lint-fixtures/contracts-lib": [
         "./tools/lint-selftest/fixtures/contracts-lib/src/index.ts"
       ],

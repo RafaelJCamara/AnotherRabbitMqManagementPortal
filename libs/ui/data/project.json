@@ -1,0 +1,30 @@
+{
+  "name": "ui-data",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/data/src",
+  "projectType": "library",
+  "tags": ["type:ui-data", "runtime:browser"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "ngc -p libs/ui/data/tsconfig.lib.json --noEmit",
+          "ngc -p libs/ui/data/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/ui/data/vitest.config.mts"
+      }
+    }
+  }
+}

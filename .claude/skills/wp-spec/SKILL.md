@@ -22,7 +22,7 @@ Turns a work package into a reviewable spec. You write the spec; you do **not** 
 7. **Verification.** Exact, copy-paste-runnable commands. Only reference Nx targets that exist: check with `pnpm nx show project <name>`. Mark targets that a later WP adds as planned and give the interim check.
 8. **Size and risk.** Estimate changed lines (limit 800 excluding generated files, fixtures, evidence). If larger, propose a split. State whether the WP is `trust:critical` and which protected paths it needs a human to change.
 9. **Risks / questions** and the **DoD checklist** (execution plan section 4).
-10. **Stop.** Show the spec path and the open questions, and wait for human approval. Do not start coding, do not open a PR for code.
+10. **Stop.** Show the spec path and the open questions, and wait for human approval. Do not start coding, do not land any code.
 
 ## Rules
 

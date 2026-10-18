@@ -16,7 +16,7 @@ The `adapter` generator ships with **M0-08** (issue #8, "Base Nx generators", `t
 pnpm nx g @app/generators:adapter --help
 ```
 
-If the command is unknown on your base, stop and say so in the PR.
+If the command is unknown on your base, stop and say so in your report.
 
 ## Documented command form (execution plan 2.5)
 

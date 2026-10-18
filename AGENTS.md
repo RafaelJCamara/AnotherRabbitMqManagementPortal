@@ -70,7 +70,7 @@ Pins: Node 24.22 (`.nvmrc`; `engines` >=24.15), pnpm 12.14, TypeScript 6.0.3, Nx
 A WP is one GitHub issue, one spec, one git worktree and one commit landed on `main` (the maintainer uses no pull requests; ADR-033: no work without an issue). Size: 0.5-3 agent-days, ideally at most 800 changed lines (not counting generated files, fixtures and lab evidence) unless a maintainer adds `oversize-approved`.
 
 1. **Read the spec.** `gh issue view <n>` carries scope, interfaces, Given/When/Then and verification. If a working spec exists at `docs/specs/<WP-id>.md`, read it too. If neither has acceptance criteria and exact verification commands, run `/wp-spec` and **stop for human approval**.
-2. **Worktree.** `git worktree add ../wt/<WP-id> -b wi/<WP-id>-<slug> origin/main`, then `pnpm install --frozen-lockfile`. Never commit to `main`.
+2. **Worktree.** `git worktree add ../wt/<WP-id> -b wi/<WP-id>-<slug> origin/main`, then `pnpm install --frozen-lockfile`. Commit on the work branch and land it as in step 6.
 3. **Scaffold, do not hand-roll.** Use the generator behind the matching skill (section 6). Then code.
 4. **Stay in scope.** Follow the spec's out-of-scope list. Work discovered mid-task becomes a **new issue**, never silent scope creep.
 5. **Verify.** Run the spec's verification commands and the checks in section 7. Fix causes; never bypass.

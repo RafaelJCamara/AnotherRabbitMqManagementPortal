@@ -17,7 +17,7 @@ pnpm nx g @app/generators:semantics-cell --help
 ls libs/shared/semantics
 ```
 
-If either is missing on your base, stop and say so in the PR.
+If either is missing on your base, stop and say so in your report.
 
 ## Documented command form (execution plan 2.5)
 
@@ -36,4 +36,4 @@ Effect: a code-derived cell plus a linked lab-cell stub. Flag values (era, queue
 4. Check the neighbouring cells for contradictions; a missing cell must remain a `SemanticsGapError`, never a default.
 5. Wording in warnings and docs is honest: "side-effect-aware peek".
 6. Verify: `pnpm nx test semantics`, `pnpm nx run semantics:audit-cells --require=citations,conformance`, then `pnpm nx affected -t lint typecheck test`.
-7. In the PR, state that evidence will be recorded by CI (`conformance:record`, amendment A-20) and approved by a human, and request the `lab-evidence` / semantics code owner review.
+7. In the commit message, state that evidence will be recorded by CI (`conformance:record`, amendment A-20) and approved by a human, and request the `lab-evidence` / semantics code owner review.

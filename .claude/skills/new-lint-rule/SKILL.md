@@ -16,7 +16,7 @@ The `lint-rule` generator ships with **M0-08** (issue #8, "Base Nx generators"):
 pnpm nx g @app/generators:lint-rule <id> --severity --since=<ver>
 ```
 
-Documented effect (execution plan 2.5): a rule in `libs/shared/lint-rules` with fixtures per version. The `lint-rules` library and the lint service that runs the rules arrive with later work packages (the linter feature is an M4 milestone item), so check `pnpm nx g @app/generators:lint-rule --help` and `ls libs/shared` first. If either is missing on your base, stop and say so in the PR.
+Documented effect (execution plan 2.5): a rule in `libs/shared/lint-rules` with fixtures per version. The `lint-rules` library and the lint service that runs the rules arrive with later work packages (the linter feature is an M4 milestone item), so check `pnpm nx g @app/generators:lint-rule --help` and `ls libs/shared` first. If either is missing on your base, stop and say so in your report.
 
 ## Steps
 

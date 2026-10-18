@@ -28,4 +28,4 @@ Documented effect (execution plan 2.5): the rule, a `RuleTester` spec and the re
 6. Document it in the table in `tools/eslint-rules/README.md`. If you made a name-based heuristic, record the open question in `docs/open-questions.md`.
 7. Verify: `pnpm nx test eslint-rules`, `pnpm nx test lint-selftest`, and `pnpm nx run-many -t lint` (the whole repository must stay lint-clean; fix real findings, do not add `eslint-disable`).
 
-`eslint.config.mjs` is shared policy: keep the change minimal and call it out in the PR.
+`eslint.config.mjs` is shared policy: keep the change minimal and call it out in the commit message.

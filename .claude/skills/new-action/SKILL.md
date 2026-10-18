@@ -16,7 +16,7 @@ The `action` generator ships with **M0-35** ("Action, topic and job generators w
 pnpm nx g @app/generators:action --help
 ```
 
-If the command is unknown on your base, stop and say so in the PR. Do not write the files by hand and do not guess the generator's behaviour.
+If the command is unknown on your base, stop and say so in your report. Do not write the files by hand and do not guess the generator's behaviour.
 
 ## Documented command form (execution plan 2.5; the generator's `--help` is authoritative once it exists)
 
@@ -47,4 +47,4 @@ The generated tests fail until the action is implemented. That is intended.
 3. Implement `plan` (reads only; the unit spec enforces it with throwing `WritePort` fakes), `revalidate` (cheap TOCTOU preflight) and `execute` (with the abort signal, deadline and role-typed leases). Errors are Problem objects.
 4. Make every generated test pass without weakening it. Add the failure-path cases the spec lists.
 5. Verify: `pnpm nx affected -t lint typecheck test` and `pnpm nx run contracts:api-docs-check` (the latter once the contracts kit lands). Paste the output in the PR.
-6. A new permission or a mutating MCP exposure makes the WP trust-critical: say so in the PR.
+6. A new permission or a mutating MCP exposure makes the WP trust-critical: say so in your report.

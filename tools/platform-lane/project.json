@@ -1,0 +1,38 @@
+{
+  "name": "platform-lane",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/platform-lane",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{workspaceRoot}/renovate.json",
+        "{workspaceRoot}/pnpm-workspace.yaml",
+        "{workspaceRoot}/.nvmrc",
+        "{workspaceRoot}/.github/ISSUE_TEMPLATE/platform_upgrade.yml",
+        "{workspaceRoot}/.github/workflows/platform-upgrade-lane.yml",
+        "{workspaceRoot}/docs/runbooks/platform-upgrade-lane.md"
+      ],
+      "options": {
+        "command": "node --test tools/platform-lane/platform-lane-selftest.ts"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/*.ts",
+        "{projectRoot}/tsconfig.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "options": {
+        "command": "tsc -p tools/platform-lane/tsconfig.json --noEmit"
+      }
+    }
+  }
+}

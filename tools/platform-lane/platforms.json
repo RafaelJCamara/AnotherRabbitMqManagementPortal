@@ -1,0 +1,320 @@
+{
+  "description": "The pinned platform set of the platform upgrade lane (A-25, docs/runbooks/platform-upgrade-lane.md). Each entry says where its pin lives, which majors count, the runbook target, and the registry-metadata checks run before an upgrade issue is opened. A pin read from the catalog, .nvmrc or packageManager is never copied here; `fallback` is the planned pin of a platform the repository has not installed yet and stops being used once the catalog has it.",
+  "platforms": [
+    {
+      "id": "node",
+      "name": "Node",
+      "source": "node",
+      "pin": { "kind": "nvmrc" },
+      "majors": "even",
+      "cadence": "Move the container and team images to Node 26 well before Node 24 reaches EOL (2028-04-30).",
+      "windowDays": null,
+      "adrGated": false,
+      "renovate": { "groupName": "node", "packages": ["node", "@types/node"] },
+      "checks": [
+        {
+          "id": "node-angular",
+          "label": "Pinned @angular/core accepts the new Node",
+          "kind": "engines-node",
+          "package": "@angular/core",
+          "at": "pinned",
+          "subject": { "platform": "node", "version": "target" }
+        },
+        {
+          "id": "node-vitest",
+          "label": "Pinned vitest accepts the new Node",
+          "kind": "engines-node",
+          "package": "vitest",
+          "at": "pinned",
+          "subject": { "platform": "node", "version": "target" }
+        },
+        {
+          "id": "node-eslint",
+          "label": "Pinned eslint accepts the new Node",
+          "kind": "engines-node",
+          "package": "eslint",
+          "at": "pinned",
+          "subject": { "platform": "node", "version": "target" }
+        },
+        {
+          "id": "node-pnpm",
+          "label": "Pinned pnpm accepts the new Node",
+          "kind": "engines-node",
+          "package": "pnpm",
+          "at": "pinned",
+          "subject": { "platform": "node", "version": "target" }
+        }
+      ]
+    },
+    {
+      "id": "pnpm",
+      "name": "pnpm",
+      "source": "npm",
+      "package": "pnpm",
+      "pin": { "kind": "package-manager", "name": "pnpm" },
+      "majors": "all",
+      "cadence": "Maintainer applies the bump: the supply-chain keys of pnpm-workspace.yaml are protected paths.",
+      "windowDays": null,
+      "adrGated": false,
+      "renovate": { "groupName": "pnpm", "packages": ["pnpm"] },
+      "checks": [
+        {
+          "id": "pnpm-node",
+          "label": "New pnpm accepts the pinned Node",
+          "kind": "engines-node",
+          "package": "pnpm",
+          "at": "target",
+          "subject": { "platform": "node", "version": "pinned" }
+        }
+      ]
+    },
+    {
+      "id": "nx",
+      "name": "Nx",
+      "source": "npm",
+      "package": "nx",
+      "pin": { "kind": "catalog", "name": "nx" },
+      "majors": "all",
+      "cadence": "Nx 24 as it lands, through an ADR-gated issue.",
+      "windowDays": null,
+      "adrGated": true,
+      "renovate": { "groupName": "nx", "packages": ["nx", "@nx/**"] },
+      "checks": [
+        {
+          "id": "nx-angular",
+          "label": "New @nx/angular accepts the pinned Angular",
+          "kind": "peer",
+          "package": "@nx/angular",
+          "at": "target",
+          "peer": "@angular/build",
+          "subject": { "platform": "angular", "version": "pinned" }
+        },
+        {
+          "id": "nx-vitest",
+          "label": "New @nx/vitest accepts the pinned vitest",
+          "kind": "peer",
+          "package": "@nx/vitest",
+          "at": "target",
+          "peer": "vitest",
+          "subject": { "platform": "vitest", "version": "pinned" }
+        },
+        {
+          "id": "nx-eslint",
+          "label": "New @nx/eslint accepts the pinned eslint",
+          "kind": "peer",
+          "package": "@nx/eslint",
+          "at": "target",
+          "peer": "eslint",
+          "subject": { "platform": "eslint", "version": "pinned" }
+        }
+      ]
+    },
+    {
+      "id": "angular",
+      "name": "Angular",
+      "source": "npm",
+      "package": "@angular/core",
+      "pin": { "kind": "catalog", "name": "@angular/core" },
+      "majors": "all",
+      "cadence": "Within one month of GA. Angular 23 is expected around June 2027.",
+      "windowDays": 30,
+      "adrGated": false,
+      "renovate": {
+        "groupName": "angular",
+        "packages": [
+          "@angular/**",
+          "@angular-devkit/**",
+          "@schematics/angular",
+          "angular-eslint"
+        ]
+      },
+      "checks": [
+        {
+          "id": "angular-node",
+          "label": "New @angular/core accepts the pinned Node",
+          "kind": "engines-node",
+          "package": "@angular/core",
+          "at": "target",
+          "subject": { "platform": "node", "version": "pinned" }
+        },
+        {
+          "id": "angular-typescript",
+          "label": "New @angular/compiler-cli accepts the pinned TypeScript",
+          "kind": "peer",
+          "package": "@angular/compiler-cli",
+          "at": "target",
+          "peer": "typescript",
+          "subject": { "platform": "typescript", "version": "pinned" }
+        },
+        {
+          "id": "angular-nx",
+          "label": "Latest @nx/angular accepts the new Angular",
+          "kind": "peer",
+          "package": "@nx/angular",
+          "at": "latest",
+          "peer": "@angular/build",
+          "subject": { "platform": "angular", "version": "target" }
+        }
+      ]
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "source": "npm",
+      "package": "typescript",
+      "pin": { "kind": "catalog", "name": "typescript" },
+      "majors": "all",
+      "cadence": "Within one month of GA, and TypeScript 7 only once Angular supports it.",
+      "windowDays": 30,
+      "adrGated": false,
+      "renovate": {
+        "groupName": "typescript",
+        "packages": ["typescript", "typescript-eslint", "@typescript-eslint/**"]
+      },
+      "checks": [
+        {
+          "id": "typescript-angular",
+          "label": "Latest @angular/compiler-cli accepts the new TypeScript",
+          "kind": "peer",
+          "package": "@angular/compiler-cli",
+          "at": "latest",
+          "peer": "typescript",
+          "subject": { "platform": "typescript", "version": "target" },
+          "blocking": true
+        },
+        {
+          "id": "typescript-eslint",
+          "label": "Latest typescript-eslint accepts the new TypeScript",
+          "kind": "peer",
+          "package": "typescript-eslint",
+          "at": "latest",
+          "peer": "typescript",
+          "subject": { "platform": "typescript", "version": "target" }
+        }
+      ]
+    },
+    {
+      "id": "vitest",
+      "name": "Vitest",
+      "source": "npm",
+      "package": "vitest",
+      "pin": { "kind": "catalog", "name": "vitest" },
+      "majors": "all",
+      "cadence": "As it lands, after the Nx Vitest plugin supports it (OQ-24).",
+      "windowDays": null,
+      "adrGated": false,
+      "renovate": {
+        "groupName": "vitest",
+        "packages": ["vitest", "@vitest/**"]
+      },
+      "checks": [
+        {
+          "id": "vitest-node",
+          "label": "New vitest accepts the pinned Node",
+          "kind": "engines-node",
+          "package": "vitest",
+          "at": "target",
+          "subject": { "platform": "node", "version": "pinned" }
+        },
+        {
+          "id": "vitest-nx",
+          "label": "Latest @nx/vitest accepts the new vitest",
+          "kind": "peer",
+          "package": "@nx/vitest",
+          "at": "latest",
+          "peer": "vitest",
+          "subject": { "platform": "vitest", "version": "target" }
+        }
+      ]
+    },
+    {
+      "id": "eslint",
+      "name": "ESLint",
+      "source": "npm",
+      "package": "eslint",
+      "pin": { "kind": "catalog", "name": "eslint" },
+      "majors": "all",
+      "cadence": "As it lands, after the plugins in use support it.",
+      "windowDays": null,
+      "adrGated": false,
+      "renovate": {
+        "groupName": "eslint",
+        "packages": ["eslint", "@eslint/**"]
+      },
+      "checks": [
+        {
+          "id": "eslint-node",
+          "label": "New eslint accepts the pinned Node",
+          "kind": "engines-node",
+          "package": "eslint",
+          "at": "target",
+          "subject": { "platform": "node", "version": "pinned" }
+        },
+        {
+          "id": "eslint-typescript-eslint",
+          "label": "Latest typescript-eslint accepts the new eslint",
+          "kind": "peer",
+          "package": "typescript-eslint",
+          "at": "latest",
+          "peer": "eslint",
+          "subject": { "platform": "eslint", "version": "target" }
+        },
+        {
+          "id": "eslint-nx",
+          "label": "Latest @nx/eslint accepts the new eslint",
+          "kind": "peer",
+          "package": "@nx/eslint",
+          "at": "latest",
+          "peer": "eslint",
+          "subject": { "platform": "eslint", "version": "target" }
+        },
+        {
+          "id": "eslint-angular",
+          "label": "Latest angular-eslint accepts the new eslint",
+          "kind": "peer",
+          "package": "angular-eslint",
+          "at": "latest",
+          "peer": "eslint",
+          "subject": { "platform": "eslint", "version": "target" }
+        }
+      ]
+    },
+    {
+      "id": "electron",
+      "name": "Electron",
+      "source": "npm",
+      "package": "electron",
+      "pin": { "kind": "catalog", "name": "electron", "fallback": "44.8.0" },
+      "majors": "all",
+      "cadence": "Within 4 weeks of each stable major (from M2). Only the latest 3 majors are supported.",
+      "windowDays": 28,
+      "adrGated": false,
+      "renovate": {
+        "groupName": "electron",
+        "packages": [
+          "electron",
+          "electron-builder",
+          "electron-updater",
+          "@electron/**"
+        ]
+      },
+      "checks": []
+    },
+    {
+      "id": "fastify",
+      "name": "fastify",
+      "source": "npm",
+      "package": "fastify",
+      "pin": { "kind": "catalog", "name": "fastify", "fallback": "5.12.7" },
+      "majors": "all",
+      "cadence": "fastify 6 as it lands, through an ADR-gated issue (ADR-004).",
+      "windowDays": null,
+      "adrGated": true,
+      "renovate": {
+        "groupName": "fastify",
+        "packages": ["fastify", "@fastify/**"]
+      },
+      "checks": []
+    }
+  ]
+}

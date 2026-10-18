@@ -1,0 +1,56 @@
+name: Platform upgrade
+description: Track a bump of a pinned platform (Node, Angular, TypeScript, Nx, Electron, fastify, pnpm, Vitest, ESLint). The platform upgrade lane opens these automatically for a new major.
+title: '[Platform] '
+labels: ['lane:platform', 'type:chore']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The platform upgrade lane (amendment A-25, docs/runbooks/platform-upgrade-lane.md) opens one of these automatically when a pinned platform publishes a new stable major that is older than the release-age gate. Use this form for a bump the lane does not cover, such as a minor that needs the same checks. Never weaken the 3-day release-age gate for a bump.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Node
+        - Angular
+        - TypeScript
+        - Nx
+        - Electron
+        - fastify
+        - pnpm
+        - Vitest
+        - ESLint
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: current
+    attributes:
+      label: Pinned version
+      placeholder: '24.22.0'
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target version
+      placeholder: '26.12.0'
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility notes
+      description: What the release notes, engines and peer ranges of the rest of the pinned set say about this version.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: From docs/runbooks/platform-upgrade-lane.md. The conformance suite and the egress E2E are planned work packages; until they exist, record which check you ran by hand.
+      options:
+        - label: ADR accepted before the bump (open an ADR proposal issue; required for Nx and fastify).
+        - label: Conformance suite passes on the new version.
+        - label: Deny-all egress E2E passes on the new version (I-12).
+        - label: Bundle budgets are respected.
+        - label: Pins and docs are updated (catalog, .nvmrc or packageManager, and the toolchain pins in AGENTS.md).

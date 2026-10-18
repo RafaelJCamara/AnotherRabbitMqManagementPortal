@@ -1,0 +1,79 @@
+# M0-76 (amendment A-25): the platform upgrade lane. Once a week it compares the pinned platform
+# set (Node, pnpm, Nx, Angular, TypeScript, Vitest, ESLint, Electron, fastify; see
+# tools/platform-lane/platforms.json) with the registries and opens one `lane:platform` issue for
+# each new stable major, so a bump never depends on someone noticing the release.
+#
+#   - Only versions older than pnpm's `minimumReleaseAge` (3 days) are proposed. The gate is read
+#     from pnpm-workspace.yaml, never copied.
+#   - The compatibility checks (engines and peer ranges from the registry) go into the issue. A
+#     failing blocking check defers the issue: TypeScript 7 waits until Angular supports it.
+#   - An issue is never opened twice for the same platform and major, open or closed.
+#   - It needs no GitHub App and no secret. The Renovate rules for the same platforms are in
+#     renovate.json and stay inactive until the app is installed (OQ-43).
+#
+# Two jobs keep the write token away from the code that talks to the registries: `detect` has
+# read access only and hands a validated plan to `open`, which is the only job with `issues: write`.
+# Manual runs default to a dry run; a run on any branch but the default one is always a dry run.
+name: platform-upgrade-lane
+
+on:
+  schedule:
+    - cron: '17 7 * * 1' # Mondays, 07:17 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print the issues that would be opened instead of opening them
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: platform-upgrade-lane
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: detect
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read # checkout; the registries are public and need no token
+    outputs:
+      plan: ${{ steps.detect.outputs.plan }}
+      count: ${{ steps.detect.outputs.count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Self-test of the lane
+        run: node --test tools/platform-lane/platform-lane-selftest.ts
+      - name: Detect new platform majors
+        id: detect
+        run: node tools/platform-lane/run-platform-lane.ts detect --summary="$GITHUB_STEP_SUMMARY" --github-output="$GITHUB_OUTPUT"
+
+  open:
+    name: open issues
+    needs: detect
+    if: needs.detect.outputs.count != '0'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout of the lane's own scripts
+      issues: write # lists and creates the lane:platform issues; the only write in the workflow
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Open the platform-lane issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PLAN: ${{ needs.detect.outputs.plan }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          node tools/platform-lane/run-platform-lane.ts open --plan-env=PLAN --summary="$GITHUB_STEP_SUMMARY" "${args[@]}"

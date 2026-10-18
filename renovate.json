@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "M0-05. Mirrors the ADR-027 supply-chain policy: exact pins, nothing younger than 3 days, GitHub Actions pinned by SHA with a version comment (config:best-practices). Deliberately bad fixtures are never touched.",
+  "description": "M0-05 + M0-76. Mirrors the ADR-027 supply-chain policy: exact pins, nothing younger than 3 days, GitHub Actions pinned by SHA with a version comment (config:best-practices). Deliberately bad fixtures are never touched. INACTIVE until the Renovate GitHub App is installed on the repository (OQ-43); the platform majors are covered meanwhile by the platform-upgrade-lane workflow.",
   "extends": ["config:best-practices"],
   "timezone": "UTC",
   "schedule": ["before 6am on monday"],
@@ -34,19 +34,101 @@
       "groupName": "github actions"
     },
     {
-      "description": "Nx packages move together.",
-      "matchPackageNames": ["nx", "@nx/**"],
-      "groupName": "nx"
+      "description": "Platform lane (A-25): Node and its types move together.",
+      "matchPackageNames": ["node", "@types/node"],
+      "groupName": "node",
+      "addLabels": ["lane:platform"]
     },
     {
-      "description": "Angular packages move together.",
+      "description": "Platform lane (A-25): the pnpm version in packageManager. Maintainers apply it: the supply-chain keys of pnpm-workspace.yaml are protected paths.",
+      "matchPackageNames": ["pnpm"],
+      "groupName": "pnpm",
+      "addLabels": ["lane:platform"]
+    },
+    {
+      "description": "Platform lane (A-25): Nx packages move together.",
+      "matchPackageNames": ["nx", "@nx/**"],
+      "groupName": "nx",
+      "addLabels": ["lane:platform"]
+    },
+    {
+      "description": "Platform lane (A-25): Angular packages move together.",
       "matchPackageNames": [
         "@angular/**",
         "@angular-devkit/**",
         "@schematics/angular",
         "angular-eslint"
       ],
-      "groupName": "angular"
+      "groupName": "angular",
+      "addLabels": ["lane:platform"]
+    },
+    {
+      "description": "Platform lane (A-25): TypeScript and its ESLint parser move together.",
+      "matchPackageNames": [
+        "typescript",
+        "typescript-eslint",
+        "@typescript-eslint/**"
+      ],
+      "groupName": "typescript",
+      "addLabels": ["lane:platform"]
+    },
+    {
+      "description": "Platform lane (A-25): Vitest packages move together.",
+      "matchPackageNames": ["vitest", "@vitest/**"],
+      "groupName": "vitest",
+      "addLabels": ["lane:platform"]
+    },
+    {
+      "description": "Platform lane (A-25): ESLint core and its first-party packages.",
+      "matchPackageNames": ["eslint", "@eslint/**"],
+      "groupName": "eslint",
+      "addLabels": ["lane:platform"]
+    },
+    {
+      "description": "Platform lane (A-25), from M2: Electron and its tooling. Matches nothing until Electron is installed.",
+      "matchPackageNames": [
+        "electron",
+        "electron-builder",
+        "electron-updater",
+        "@electron/**"
+      ],
+      "groupName": "electron",
+      "addLabels": ["lane:platform"]
+    },
+    {
+      "description": "Platform lane (A-25): fastify and its plugins (ADR-004). Matches nothing until fastify is installed.",
+      "matchPackageNames": ["fastify", "@fastify/**"],
+      "groupName": "fastify",
+      "addLabels": ["lane:platform"]
+    },
+    {
+      "description": "Platform majors are adopted through a platform-lane issue (the platform-upgrade-lane workflow), which carries the conformance, egress and bundle-budget checklist. Renovate lists them on the dependency dashboard and opens a pull request only on approval. Minor and patch updates are unaffected.",
+      "matchUpdateTypes": ["major"],
+      "matchPackageNames": [
+        "node",
+        "@types/node",
+        "pnpm",
+        "nx",
+        "@nx/**",
+        "@angular/**",
+        "@angular-devkit/**",
+        "@schematics/angular",
+        "angular-eslint",
+        "typescript",
+        "typescript-eslint",
+        "@typescript-eslint/**",
+        "vitest",
+        "@vitest/**",
+        "eslint",
+        "@eslint/**",
+        "electron",
+        "electron-builder",
+        "electron-updater",
+        "@electron/**",
+        "fastify",
+        "@fastify/**"
+      ],
+      "dependencyDashboardApproval": true
     }
   ]
 }

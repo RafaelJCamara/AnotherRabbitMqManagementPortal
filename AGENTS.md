@@ -116,6 +116,7 @@ Run everything from the repository root.
 | Agent hooks | `pnpm nx test agent-hooks` |
 | Spec emitters (regenerate / drift gate) | `pnpm nx run contracts:api-docs` / `pnpm nx run contracts:api-docs-check` |
 | Plan graph (features, work items, dependencies) | `pnpm nx run work-graph:validate` and `pnpm nx run work-graph:test` |
+| Platform upgrade lane (self-test; the workflow opens `lane:platform` issues) | `pnpm nx run platform-lane:test` |
 | Docs site | `pnpm nx build docs` |
 | Broker lab (needs a Docker daemon, Linux for CI) | `pnpm nx run broker-lab:verify --versions=3.13.7,4.0.9,4.1.8,4.2.9,4.3.6` (`--variants=plain,tls,oauth --nodes=1,3` for the variants) |
 | Formatting | `pnpm format:check` / `pnpm format` |

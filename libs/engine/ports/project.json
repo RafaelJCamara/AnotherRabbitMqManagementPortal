@@ -1,0 +1,30 @@
+{
+  "name": "ports",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/ports/src",
+  "projectType": "library",
+  "tags": ["type:port", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/ports/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/ports/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/ports/vitest.config.mts"
+      }
+    }
+  }
+}

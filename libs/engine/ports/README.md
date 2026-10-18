@@ -1,0 +1,34 @@
+# ports
+
+Read/Write-split ports, role-typed connection leases and nominal settlement proofs (ADR-009, M0-23). Types, plus the small runtime that makes the proofs nominal. Adapters implement the ports; the `BrokerScheduler` in `@app/kernel` is the only way to reach the management and Prometheus ports (I-8).
+
+Tags: `type:port`, `runtime:node`, `trust:critical`. Imports `@app/contracts` and `zod` (types only).
+
+## Public API
+
+| File                 | Exports                                                                                                                                                     | Notes                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mgmt.ts`            | `LANES`, `Lane`, `MgmtReadPort`, `MgmtWritePort`, `PromScrapePort`, request types                                                                           | Reads (`get`, `stream`) and writes (`send`) are separate ports. Every read names a lane.                                                                |
+| `amqp091.ts`         | `PeekLease`, `SourceLease`, `PublishLease`, `ObserveLease`, `Delivery`, `PublishOutcome`, `TypedHeaderValue`, `TapQueueSpec`                                | A lease exposes only its role's methods. A peek never publishes; a publisher never consumes; nothing acks without a proof.                              |
+| `amqp10.ts`          | `Amqp10Receiver`                                                                                                                                            | `accept` needs a proof; `detach` throws while deliveries are unsettled.                                                                                 |
+| `dialer.ts`          | `DialerPort`, `DialTarget`, `DialCheck`                                                                                                                     | I-9: the one way to open a socket. Implemented by `net-dialer`.                                                                                         |
+| `connection-manager.ts` | `ConnectionManager`, `ConnectionRole`, `RoleBudget`, `Principal`                                                                                         | One method per role; each returns exactly that role's lease.                                                                                            |
+| `repos.ts`           | `JobStore`, `JobRecord`, `ReplayJournal`, `ReplayJournalEntry`, `JournalState`, `Window`, `WindowQuery`                                                     | Async from day one; lists are windows (I-7).                                                                                                            |
+| `proofs.ts`          | `ConfirmedCopyProof`, `DestructiveConsentProof`, `SafeReturnProof`, `StreamCreditProof`, `mint*`, `is*Proof`, `assert*Proof`, `ForgedProofError`           | Nominal proofs (A-9). See below.                                                                                                                        |
+
+## Invariants
+
+- **Compile time (ADR-009).** `ack` takes `ConfirmedCopyProof | DestructiveConsentProof`; `nackRequeue` takes `requeue: true` only, and a source's `nackRequeue` takes a `SafeReturnProof`; `publish` takes `mandatory: true`. The proof interfaces are keyed by `unique symbol`s that this package does not export, so an object literal (or a copy of a proof's fields) is not assignable. `src/leases.types.spec.ts` holds the attempts that must fail to compile.
+- **Run time (A-9).** `mint*` records each proof in a module-private `WeakMap`; lease implementations call `assertAckProof`, `assertSafeReturnProof` or `assertAcceptProof` before settling. A literal cast with `as`, a spread copy, a structured clone, a JSON round trip, an inheriting object and a `Proxy` are all refused with `ForgedProofError`.
+- **Who mints.** `mintConfirmedCopyProof`: `PublishLease` implementations, from a broker confirm. `mintDestructiveConsentProof` and `mintSafeReturnProof`: the planners. `mintStreamCreditProof`: the stream consumer of an observe lease. The architecture test that bans any other import of `mint*` (OQ-35, `tools/arch-tests`) has not landed; until it does, reviewers check this by hand.
+- **I-8.** The `lane` on `MgmtReadPort.get/stream` and `PromScrapePort.scrape` is how the scheduler orders work. Services are given the scheduled wrappers (`scheduleMgmtRead`, `scheduleMgmtWrite`, `schedulePromScrape` in `@app/kernel`), never the adapter.
+- **I-2.** `MgmtWritePort` and the leases are write-capable ports. Injecting them only into `implementAction` modules is checked by the architecture test (planned).
+
+Open questions: OQ-170 to OQ-178 in [docs/open-questions.md](../../../docs/open-questions.md).
+
+## Proof commands
+
+```sh
+pnpm nx test ports
+pnpm nx run-many -t lint typecheck test -p ports
+```

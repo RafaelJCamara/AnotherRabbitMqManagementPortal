@@ -45,6 +45,26 @@ export {
   redactValue,
 } from './log/redact.ts';
 export {
+  BrokerScheduler,
+  createManualTimers,
+  DEFAULT_AIMD,
+  isOverloadError,
+  scheduleMgmtRead,
+  scheduleMgmtWrite,
+  schedulePromScrape,
+  systemTimers,
+  type AimdOptions,
+  type BrokerSchedulerOptions,
+  type BrokerStats,
+  type HeldSlot,
+  type ManualTimers,
+  type ScheduledWriteOptions,
+  type SchedulerDrop,
+  type SchedulerRequest,
+  type SchedulerStats,
+  type Timers,
+} from './scheduler/index.ts';
+export {
   AppError,
   PROBLEM_STATUS,
   problemType,

@@ -31,6 +31,7 @@
         "./libs/engine/net-truststore/src/testing/index.ts"
       ],
       "@app/persistence": ["./libs/engine/persistence/src/index.ts"],
+      "@app/ports": ["./libs/engine/ports/src/index.ts"],
       "@app/semantics": ["./libs/shared/semantics/src/index.ts"],
       "@app/testkit": ["./libs/testkit/src/index.ts"],
       "@lint-fixtures/contracts-lib": [

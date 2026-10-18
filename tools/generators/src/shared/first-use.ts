@@ -2,7 +2,15 @@
 // package has since adopted. The generator tests copy the repository's tsconfig.base.json to start
 // from a real workspace, but a copy that already registers one of these aliases would make the
 // generator refuse to create the library, so the copy drops them.
-const ADOPTED_ALIASES = ['@app/persistence', '@app/semantics'] as const;
+//
+// `@app/ports` is in the list for the adapter generator: it imports the port from the alias when the
+// alias exists, and the tests use made-up port names (`DemoPort`) that the real package does not
+// export. Dropping it keeps them on the stand-in port file (OQ-61).
+const ADOPTED_ALIASES = [
+  '@app/persistence',
+  '@app/ports',
+  '@app/semantics',
+] as const;
 
 interface TsConfigBase {
   compilerOptions?: { paths?: Record<string, string[]> };

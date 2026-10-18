@@ -126,6 +126,10 @@
       "ref": "M0-01"
     },
     "nx": { "reason": "Monorepo task runner.", "ref": "ADR-032" },
+    "pino": {
+      "reason": "Structured JSON logger of the engine kernel, with path and value redaction (blueprint 13).",
+      "ref": "M0-16"
+    },
     "prettier": { "reason": "Code formatter.", "ref": "M0-01" },
     "release-please": {
       "reason": "Release PRs and changelog from Conventional Commits.",

@@ -1,0 +1,54 @@
+// @app/kernel: primitives shared by every engine module (M0-16): configuration loading, the
+// redacting logger, the clock and ids, Problem mapping, and the bounded buffers of I-6.
+export {
+  BoundedQueue,
+  BoundedRing,
+  type BoundedOptions,
+  type BoundedStats,
+  type DropEvent,
+  type DropReason,
+  type SizeOf,
+} from './bounded/index.ts';
+export {
+  createManualClock,
+  systemClock,
+  type Clock,
+  type ManualClock,
+} from './clock/clock.ts';
+export { ConfigError, type ConfigIssue } from './config/errors.ts';
+export { envVarName } from './config/layers.ts';
+export { loadConfig, type LoadConfigOptions } from './config/load-config.ts';
+export {
+  createIdGenerator,
+  isUlid,
+  ulidTimestamp,
+  type IdGenerator,
+  type IdGeneratorOptions,
+  type RandomBytes,
+} from './ids/ids.ts';
+export {
+  createLogger,
+  withCorrelation,
+  type CorrelationFields,
+  type Level,
+  type LogFields,
+  type LogLevel,
+  type LogMethod,
+  type Logger,
+  type LoggerOptions,
+  type LogSink,
+} from './log/logger.ts';
+export {
+  isSensitiveKey,
+  REDACTED,
+  redactText,
+  redactValue,
+} from './log/redact.ts';
+export {
+  AppError,
+  PROBLEM_STATUS,
+  problemType,
+  toProblem,
+  type AppErrorOptions,
+  type ToProblemOptions,
+} from './problem/problem.ts';

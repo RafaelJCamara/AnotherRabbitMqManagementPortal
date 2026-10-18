@@ -57,6 +57,7 @@
     "@angular/forms": "catalog:",
     "@angular/platform-browser": "catalog:",
     "@angular/router": "catalog:",
+    "pino": "catalog:",
     "rxjs": "catalog:",
     "zod": "catalog:"
   }

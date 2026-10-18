@@ -212,6 +212,7 @@ const confinement = [
     names: ['openid-client'],
     only: ['libs/engine/svc-identity/src/**/oidc', 'libs/engine/svc-access'],
   },
+  { names: ['pino', 'pino-*'], only: ['libs/engine/kernel'] },
   { names: ['quickjs-emscripten'], only: ['libs/engine/plugin-host'] },
   { names: ['fastify', 'ws'], only: ['libs/engine/transport', 'apps/engine'] },
   { names: ['electron'], only: ['apps/desktop'] },

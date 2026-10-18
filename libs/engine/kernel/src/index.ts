@@ -11,6 +11,36 @@ export {
 } from './bounded/index.ts';
 export * from './actions/index.ts';
 export {
+  AUDIT_GENESIS_HASH,
+  createAuditChain,
+  type AuditBreak,
+  type AuditChain,
+  type AuditChainOptions,
+  type AuditChainStats,
+  type AuditVerification,
+  type VerifyOptions,
+} from './audit/index.ts';
+export {
+  ARM_ACTION_ID,
+  ARM_WINDOW_MS,
+  canArm,
+  createArmActions,
+  createGuardrails,
+  DISARM_ACTION_ID,
+  PROD_LOCK_GATE,
+  type ArmingControl,
+  type ArmStatus,
+  type Guardrails,
+  type GuardrailsOptions,
+} from './guardrails/index.ts';
+export {
+  createReceiptStore,
+  MAX_RECEIPT_DETAIL_BYTES,
+  type ReceiptStore,
+  type ReceiptStoreOptions,
+  type ReceiptView,
+} from './receipts/index.ts';
+export {
   createManualClock,
   systemClock,
   type Clock,

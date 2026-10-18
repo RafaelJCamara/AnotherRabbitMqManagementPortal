@@ -152,6 +152,42 @@ export function pingImpl(probe: Probe) {
   });
 }
 
+/** A side-effect-aware peek: it counts as a mutation (blueprint 5.1), so it is planned and locked. */
+export const peekDef = defineAction({
+  id: 'messages.peek',
+  kind: 'peek',
+  summary: 'Peek at messages in a queue',
+  input: z.strictObject({ connectionId: z.string(), name: z.string() }),
+  output: z.strictObject({ count: z.number() }),
+  permission: 'messages.peek',
+  risk: 'medium',
+  planning: 'required',
+  audit: 'attempt+outcome',
+  target: (input) => ({
+    connectionId: input.connectionId as never,
+    kind: 'queue',
+    name: input.name,
+  }),
+  since: '1.0',
+});
+
+export function peekImpl(probe: Probe) {
+  return implementAction(peekDef, {
+    plan: () =>
+      Promise.resolve({
+        preview: {},
+        gates: [],
+        warnings: [],
+        consentsRequired: [],
+      }),
+    revalidate: () => Promise.resolve('valid'),
+    execute: () => {
+      probe.executed += 1;
+      return Promise.resolve({ count: 1 });
+    },
+  });
+}
+
 export const statDef = defineAction({
   id: 'queues.stat',
   kind: 'query',

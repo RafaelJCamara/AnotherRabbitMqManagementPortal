@@ -1,4 +1,5 @@
 import type { PersistenceHandle } from '../database';
+import { createAuditRepository, createReceiptRepository } from './audit';
 import { createBlobRepository } from './blobs';
 import { createConnectionProfileRepository } from './connection-profiles';
 import { createIdempotencyRepository, createPlanRepository } from './plans';
@@ -22,5 +23,7 @@ export function createRepositories(
     blobs: createBlobRepository(handle.db, now),
     plans: createPlanRepository(handle.db),
     idempotency: createIdempotencyRepository(handle.db),
+    audit: createAuditRepository(handle.db),
+    receipts: createReceiptRepository(handle.db),
   };
 }

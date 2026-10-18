@@ -12,6 +12,7 @@ describe('persistence public API', () => {
       'columnTypes',
       'createMigrationRunner',
       'createRepositories',
+      'executeRawStatement',
       'migrations',
       'openPg',
       'openSqlite',

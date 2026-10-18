@@ -17,3 +17,10 @@ export * from './live-frames.ts';
 export * from './object-key.ts';
 export * from './port-frames.ts';
 export { registry } from './registry/index.ts';
+export {
+  OpsArmInputSchema,
+  OpsArmOutputSchema,
+  OpsDisarmOutputSchema,
+  opsArm,
+  opsDisarm,
+} from './registry/ops.ts';

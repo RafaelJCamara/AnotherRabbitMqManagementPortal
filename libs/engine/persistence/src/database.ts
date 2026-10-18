@@ -1,4 +1,4 @@
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 
 import type { DialectName } from './migrate/helpers';
 
@@ -77,6 +77,57 @@ export interface IdempotencyKeysTable {
   created_at: number;
 }
 
+/** audit_events (M0-30): the hash-chained audit; see 0003_audit_receipts for what each column holds. */
+export interface AuditEventsTable {
+  seq: number;
+  at: number;
+  phase: string;
+  correlation_id: string;
+  action_id: string;
+  kind: string;
+  actor_id: string;
+  surface: string;
+  on_behalf_of_id: string | null;
+  /** JSON text. */
+  actor: string;
+  target: string;
+  env: string;
+  risk: string;
+  plan_id: string | null;
+  plan_digest: string | null;
+  approved_by: string;
+  attempt_seq: number | null;
+  result: string | null;
+  code: string | null;
+  job_id: string | null;
+  receipt_id: string | null;
+  detail: string;
+  prev_hash: string;
+  hash: string;
+}
+
+/** receipts (M0-30): one row per message-touching or mutating execution. */
+export interface ReceiptsTable {
+  id: string;
+  action_id: string;
+  plan_id: string | null;
+  plan_digest: string | null;
+  principal_id: string;
+  on_behalf_of_id: string | null;
+  correlation_id: string;
+  env: string;
+  risk: string;
+  started_at: number;
+  finished_at: number;
+  result: string;
+  code: string | null;
+  job_id: string | null;
+  audit_seq: number | null;
+  /** JSON text. */
+  detail: string;
+  created_at: number;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -85,6 +136,16 @@ export interface Database {
   blobs: BlobsTable;
   plans: PlansTable;
   idempotency_keys: IdempotencyKeysTable;
+  audit_events: AuditEventsTable;
+  receipts: ReceiptsTable;
+}
+
+/** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */
+export async function executeRawStatement(
+  handle: PersistenceHandle,
+  statement: string,
+): Promise<void> {
+  await sql.raw(statement).execute(handle.db);
 }
 
 /** An open database: a Kysely instance plus what the runner needs to know about it. */

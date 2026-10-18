@@ -1,15 +1,18 @@
 // @app/persistence: Kysely over an in-repo node:sqlite dialect and over pg, one migration set,
 // backup before migrating and refusal of a newer schema (M0-21, ADR-013).
 export type {
+  AuditEventsTable,
   BlobsTable,
   ConnectionProfilesTable,
   Database,
   IdempotencyKeysTable,
   PersistenceHandle,
   PlansTable,
+  ReceiptsTable,
   SchemaMigrationsTable,
   SettingsTable,
 } from './database';
+export { executeRawStatement } from './database';
 export { openSqlite, type NodeSqliteOptions } from './dialects/node-sqlite';
 export { openPg, type PgOptions } from './dialects/pg';
 export {

@@ -189,6 +189,148 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
+    "/connections/{connectionId}/arm": {
+      "post": {
+        "operationId": "ops.arm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connectionId",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "armed": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "armedAt": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "connectionId": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "armed",
+                    "connectionId",
+                    "armedAt",
+                    "expiresAt"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Arm a production connection for 15 minutes so that changes are allowed on it",
+        "tags": [
+          "ops"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "ops.arm",
+        "x-planning": "none",
+        "x-risk": "low",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/{connectionId}/disarm": {
+      "post": {
+        "operationId": "ops.disarm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connectionId",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "armed": {
+                      "const": false,
+                      "type": "boolean"
+                    },
+                    "connectionId": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "wasArmed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "armed",
+                    "connectionId",
+                    "wasArmed"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Lock a production connection again before its arming runs out",
+        "tags": [
+          "ops"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "ops.arm",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/meta": {
       "get": {
         "operationId": "meta.get",
@@ -258,6 +400,9 @@
   "tags": [
     {
       "name": "meta"
+    },
+    {
+      "name": "ops"
     }
   ]
 }

@@ -1,6 +1,7 @@
 // The repository contract: the same tests run against every dialect (SQLite unit tests, SQLite and
 // Postgres 16 and 18 integration tests). Test-only; excluded from the library build.
-import type { PlanRecord } from '@app/ports';
+import type { AuditRow, PlanRecord, ReceiptRecord } from '@app/ports';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { PersistenceHandle } from '../database';
@@ -36,6 +37,7 @@ export function repositoryContract(options: RepositoryContractOptions): void {
       await handle.db.deleteFrom('blobs').execute();
       await handle.db.deleteFrom('plans').execute();
       await handle.db.deleteFrom('idempotency_keys').execute();
+      await handle.db.deleteFrom('receipts').execute();
     });
 
     describe('plans', () => {
@@ -412,6 +414,229 @@ export function repositoryContract(options: RepositoryContractOptions): void {
 
         expect(first.map((profile) => profile.id)).toEqual(['a', 'b']);
         expect(second.map((profile) => profile.id)).toEqual(['c']);
+      });
+    });
+
+    describe('audit events (append-only)', () => {
+      const row = (seq: number, over: Partial<AuditRow> = {}): AuditRow => ({
+        seq,
+        at: 1_700_000_000_000 + seq,
+        phase: 'attempt',
+        correlationId: `corr-${String(seq)}`,
+        actionId: 'queues.purge',
+        kind: 'command',
+        actorId: 'user-1',
+        surface: 'ui',
+        onBehalfOfId: null,
+        actorJson: '{"id":"user-1"}',
+        targetJson: '{"name":"orders"}',
+        env: 'prod',
+        risk: 'critical',
+        planId: null,
+        planDigest: null,
+        approvedByJson: '[]',
+        attemptSeq: null,
+        result: null,
+        code: null,
+        jobId: null,
+        receiptId: null,
+        detailJson: '{}',
+        prevHash: String(seq - 1).padStart(64, '0'),
+        hash: String(seq).padStart(64, 'a'),
+        ...over,
+      });
+      /** A database of its own: audit rows cannot be deleted between tests. */
+      const own = async (): Promise<PersistenceHandle> => options.open();
+
+      it('AC-1 audit: stores a row with every column and reads it back, nulls included', async () => {
+        const handle = await own();
+        const audit = createRepositories(handle).audit;
+        const full = row(1, {
+          phase: 'outcome',
+          onBehalfOfId: 'boss',
+          planId: 'plan-1',
+          planDigest: 'd'.repeat(64),
+          approvedByJson: '["approver-1"]',
+          attemptSeq: 1,
+          result: 'error',
+          code: 'INTERNAL',
+          jobId: 'job-1',
+          receiptId: 'rcpt-1',
+          detailJson: '{"receiptFailed":true}',
+        });
+
+        expect(await audit.append(full)).toBe(true);
+        expect(await audit.append(row(2))).toBe(true);
+
+        expect(await audit.window(0, 10)).toEqual([full, row(2)]);
+        expect(await audit.head()).toEqual({ seq: 2, hash: row(2).hash });
+        await handle.close();
+      });
+
+      it('AC-1 audit: an empty chain has no head', async () => {
+        const handle = await own();
+
+        expect(await createRepositories(handle).audit.head()).toBeUndefined();
+        expect(await createRepositories(handle).audit.window(0, 10)).toEqual(
+          [],
+        );
+        await handle.close();
+      });
+
+      it('AC-1 audit: a second row with the same seq, or the same prevHash, is refused and not stored', async () => {
+        const handle = await own();
+        const audit = createRepositories(handle).audit;
+        await audit.append(row(1));
+
+        expect(await audit.append(row(1, { correlationId: 'other' }))).toBe(
+          false,
+        );
+        expect(await audit.append(row(2, { prevHash: row(1).prevHash }))).toBe(
+          false,
+        );
+
+        expect(await audit.window(0, 10)).toEqual([row(1)]);
+        await handle.close();
+      });
+
+      it('AC-1 audit: of many writers racing for one seq exactly one wins', async () => {
+        const handle = await own();
+        const audit = createRepositories(handle).audit;
+
+        const results = await Promise.all(
+          Array.from({ length: 12 }, (_, i) =>
+            audit.append(
+              row(1, {
+                correlationId: `racer-${String(i)}`,
+                prevHash: String(i).padStart(64, '0'),
+              }),
+            ),
+          ),
+        );
+
+        expect(results.filter(Boolean)).toHaveLength(1);
+        expect(await audit.window(0, 100)).toHaveLength(1);
+        await handle.close();
+      });
+
+      it('AC-1 audit: windows are ordered by seq, start after a seq and are bounded', async () => {
+        const handle = await own();
+        const audit = createRepositories(handle).audit;
+        for (const seq of [3, 1, 2, 4]) await audit.append(row(seq));
+
+        expect((await audit.window(0, 10)).map((r) => r.seq)).toEqual([
+          1, 2, 3, 4,
+        ]);
+        expect((await audit.window(1, 2)).map((r) => r.seq)).toEqual([2, 3]);
+        expect(await audit.window(4, 10)).toEqual([]);
+        expect(await audit.window(0, 0)).toHaveLength(1);
+        expect(await audit.window(0, 5_000_000)).toHaveLength(4);
+        await handle.close();
+      });
+
+      it('AC-1 audit: the database itself refuses to update or delete an audit row', async () => {
+        const handle = await own();
+        const audit = createRepositories(handle).audit;
+        await audit.append(row(1));
+
+        await expect(
+          handle.db
+            .updateTable('audit_events')
+            .set({ risk: 'none' })
+            .where('seq', '=', 1)
+            .execute(),
+        ).rejects.toThrow(/append-only/);
+        await expect(
+          handle.db.deleteFrom('audit_events').where('seq', '=', 1).execute(),
+        ).rejects.toThrow(/append-only/);
+        await expect(
+          handle.db.deleteFrom('audit_events').execute(),
+        ).rejects.toThrow(/append-only/);
+
+        expect(await audit.window(0, 10)).toEqual([row(1)]);
+        await handle.close();
+      });
+
+      it('AC-1 audit: Postgres also refuses TRUNCATE', async ({ skip }) => {
+        const handle = await own();
+        if (handle.dialect !== 'pg') {
+          await handle.close();
+          skip();
+          return;
+        }
+
+        await expect(
+          sql`TRUNCATE audit_events`.execute(handle.db),
+        ).rejects.toThrow(/append-only/);
+        await handle.close();
+      });
+    });
+
+    describe('receipts', () => {
+      const receipt = (
+        id: string,
+        over: Partial<ReceiptRecord> = {},
+      ): ReceiptRecord => ({
+        id: id as ReceiptRecord['id'],
+        actionId: 'queues.purge' as ReceiptRecord['actionId'],
+        planId: null,
+        planDigest: null,
+        principalId: 'user-1',
+        onBehalfOfId: null,
+        correlationId: 'corr-1',
+        env: 'prod',
+        risk: 'critical',
+        startedAt: 1_000,
+        finishedAt: 1_250,
+        result: 'ok',
+        code: null,
+        jobId: null,
+        auditSeq: null,
+        detailJson: '{}',
+        createdAt: 1_300,
+        ...over,
+      });
+
+      it('AC-1 receipt: stores a receipt and reads every column back, nulls included', async () => {
+        const full = receipt('rcpt-1', {
+          planId: 'plan-1' as ReceiptRecord['planId'],
+          planDigest: 'd'.repeat(64),
+          onBehalfOfId: 'boss',
+          result: 'error',
+          code: 'BROKER_UNREACHABLE',
+          jobId: 'job-1' as ReceiptRecord['jobId'],
+          auditSeq: 12,
+          detailJson: '{"perMessage":[{"position":1}]}',
+        });
+
+        await repos.receipts.insert(full);
+        await repos.receipts.insert(receipt('rcpt-2'));
+
+        expect(await repos.receipts.get(full.id)).toEqual(full);
+        expect(await repos.receipts.get('rcpt-2' as never)).toEqual(
+          receipt('rcpt-2'),
+        );
+        expect(await repos.receipts.get('missing' as never)).toBeUndefined();
+      });
+
+      it('AC-1 receipt: a repeated id is refused', async () => {
+        await repos.receipts.insert(receipt('rcpt-1'));
+
+        await expect(
+          repos.receipts.insert(receipt('rcpt-1')),
+        ).rejects.toThrow();
+      });
+
+      it('AC-1 receipt: retention deletes old receipts only, at most the limit at a time', async () => {
+        await repos.receipts.insert(receipt('old-1', { createdAt: 100 }));
+        await repos.receipts.insert(receipt('old-2', { createdAt: 200 }));
+        await repos.receipts.insert(receipt('new-1', { createdAt: 900 }));
+
+        expect(await repos.receipts.purgeBefore(500, 1)).toBe(1);
+        expect(await repos.receipts.purgeBefore(500, 10)).toBe(1);
+        expect(await repos.receipts.purgeBefore(500, 10)).toBe(0);
+
+        expect(await repos.receipts.get('new-1' as never)).toBeDefined();
       });
     });
 

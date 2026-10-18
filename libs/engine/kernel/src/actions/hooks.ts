@@ -1,12 +1,13 @@
-// The seams of the executor that other work packages fill (blueprint 5.1). Each one is an
-// interface with a conservative stand-in, so the pipeline is complete and testable now:
+// The seams of the executor that other parts fill (blueprint 5.1). Each one is an interface; the
+// real parts live beside the executor and are wired by the composition root:
 //
-//   GuardrailPolicy  steps 7: environment class, prod lock, freeze, quotas   -> M0-30 (policy.ts)
-//   AuditSink        steps 10 and 12: hash-chained attempt and outcome rows  -> M0-30 (audit/chain.ts)
-//   ProfileResolver  steps 4 and 5: BrokerProfile fingerprint and gates      -> svc-capabilities
-//   ReceiptSink      step 12: the side-effect receipt                        -> M0-30 (receipts/store.ts)
+//   GuardrailPolicy  step 7: environment class, prod lock, unattended rules   guardrails/policy.ts
+//   AuditSink        steps 10 and 12: hash-chained attempt and outcome rows   audit/chain.ts
+//   ReceiptSink      step 12: the side-effect receipt                         receipts/store.ts
+//   ProfileResolver  steps 4 and 5: BrokerProfile fingerprint and gates       svc-capabilities
 //
-// The executor has no default audit sink: wiring none is a start-up error, not a silent skip.
+// The executor has no default for the first three: wiring none is a start-up error, not a silent
+// skip (a default that lets a production call through is how a lock gets forgotten).
 import type {
   ActionDef,
   ActionId,
@@ -39,53 +40,12 @@ export interface GuardrailInput {
 }
 
 export interface GuardrailPolicy {
+  /**
+   * Called when a call is prepared (run, plan) and again when a plan is executed, so a lock that
+   * closed in between wins. A rejection is a denial.
+   */
   decide(input: GuardrailInput): Promise<GuardrailDecision>;
 }
-
-const PLANNING_ORDER = ['none', 'optional', 'required'] as const;
-
-function stricter(
-  a: GuardrailDecision['planning'],
-  b: GuardrailDecision['planning'],
-): GuardrailDecision['planning'] {
-  return PLANNING_ORDER.indexOf(a) >= PLANNING_ORDER.indexOf(b) ? a : b;
-}
-
-/**
- * The stand-in policy until M0-30 lands the real one (prod lock, arming, freeze, quotas):
- *
- * - an action's own `confirm` rule fixes the typed phrase, and a phrase forces a plan;
- * - a mutating action of high or critical risk needs a plan in `prod` and `staging`;
- * - an unattended principal (MCP, a job, an automation) only ever plans a mutation;
- * - no approvals are required (team approvals arrive with M3).
- */
-export const defaultGuardrails: GuardrailPolicy = {
-  decide({ def, input, risk, env, principal, mutating }) {
-    let planning = def.planning;
-    const phrase = def.confirm?.requiredWhen(env, risk)
-      ? def.confirm.phrase(input)
-      : undefined;
-    if (phrase !== undefined) planning = stricter(planning, 'required');
-    if (
-      mutating &&
-      (env === 'prod' || env === 'staging') &&
-      (risk === 'high' || risk === 'critical')
-    ) {
-      planning = stricter(planning, 'required');
-    }
-    if (mutating && principal.unattended) {
-      planning = stricter(planning, 'required');
-    }
-    return Promise.resolve({
-      risk,
-      planning,
-      approvalsRequired: 0,
-      ...(phrase === undefined ? {} : { confirmationPhrase: phrase }),
-      forbidLetBrokerHandle: false,
-      extraConsents: [],
-    });
-  },
-};
 
 // ---------------------------------------------------------------------------------------------
 // Audit
@@ -103,17 +63,24 @@ export interface AuditEntry {
   risk: Risk;
   planId?: PlanId;
   planDigest?: string;
+  /** The principals whose approval the plan carried. */
+  approvedBy?: readonly string[];
 }
 
 export interface AuditOutcome extends AuditEntry {
   result: 'ok' | 'error';
   code?: ErrorCode;
   jobId?: JobId;
+  /** The `seq` that `attempt` returned for the same execution. */
+  attemptSeq?: number;
+  receiptId?: ReceiptId;
+  /** The receipt could not be recorded; the outcome row says so. */
+  receiptFailed?: boolean;
 }
 
 export interface AuditSink {
-  /** If this rejects, the action is not run (ADR-006). */
-  attempt(entry: AuditEntry): Promise<void>;
+  /** Returns the sequence number of the row. If this rejects, the action is not run (ADR-006). */
+  attempt(entry: AuditEntry): Promise<number>;
   /** Written after the action ran; a failure here is logged and surfaced, never undone. */
   outcome(entry: AuditOutcome): Promise<void>;
 }
@@ -159,9 +126,16 @@ export interface ExecutionRecord {
   result: 'ok' | 'error';
   code?: ErrorCode;
   jobId?: JobId;
+  /** The `seq` of the audit attempt row of this execution. */
+  auditSeq?: number;
+  /**
+   * The structured part of the receipt (per-message results, anomalies, warnings; blueprint 5.10),
+   * filled by the actions that have one. Masked and bounded by the store.
+   */
+  detail?: unknown;
 }
 
 export interface ReceiptSink {
-  /** Records the receipt; the id travels back with the result. Failures are logged, not thrown. */
-  record(execution: ExecutionRecord): Promise<ReceiptId | undefined>;
+  /** Records the receipt and returns its id. A rejection is logged and flagged, never thrown. */
+  record(execution: ExecutionRecord): Promise<ReceiptId>;
 }

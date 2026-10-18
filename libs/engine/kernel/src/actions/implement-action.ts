@@ -12,6 +12,15 @@ import type { ActionBody, ActionImpl } from './types.ts';
 
 const minted = new WeakSet();
 
+/**
+ * Does the action change state or touch messages? Everything but a query does (a peek counts), and
+ * so does a query that declares its MCP tool mutating: the prod lock and the audit must not be
+ * escapable by calling a mutation a query.
+ */
+export function isMutatingAction(def: ActionDef): boolean {
+  return def.kind !== 'query' || def.mcp?.mutating === true;
+}
+
 /** True only for an object `implementAction` returned. */
 export function isImplementedAction(value: unknown): value is ActionImpl {
   return typeof value === 'object' && value !== null && minted.has(value);
@@ -24,7 +33,7 @@ export function implementAction<A extends ActionDef, P = unknown>(
   const fail = (message: string): never => {
     throw new TypeError(`implementAction(${def.id}): ${message}`);
   };
-  const mutating = def.kind !== 'query';
+  const mutating = isMutatingAction(def);
 
   if (typeof body.execute !== 'function') fail('execute is required.');
   if (mutating && def.audit !== 'attempt+outcome') {

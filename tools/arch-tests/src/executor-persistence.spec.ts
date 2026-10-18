@@ -2,24 +2,30 @@
 // the two halves of M0-29 agree on what a row holds, and a row edited behind the executor's back
 // is caught. The kernel cannot import an adapter and an adapter cannot import the kernel, so the
 // test that joins them lives in a type:test project.
-import { defineAction } from '@app/contracts';
+import { defineAction, type ConnectionId } from '@app/contracts';
 import {
   allowUiPrincipals,
   AppError,
   createActionExecutor,
   createAesGcmTestCipher,
+  createAuditChain,
+  createGuardrails,
   createIdGenerator,
   createManualClock,
-  createMemoryAuditSink,
   createPlanStore,
+  createReceiptStore,
   createRecordingWrites,
   createTestContext,
+  createTestPrincipal,
   implementAction,
   type ActionExecutor,
+  type AuditChain,
+  type ReceiptStore,
 } from '@app/kernel';
 import {
   createMigrationRunner,
   createRepositories,
+  executeRawStatement,
   openSqlite,
   type PersistenceHandle,
   type Repositories,
@@ -41,7 +47,10 @@ const purge = defineAction({
     phrase: (input) => `purge ${input.name}`,
   },
   audit: 'attempt+outcome',
-  target: (input) => ({ name: input.name }),
+  target: (input) => ({
+    connectionId: 'c1' as ConnectionId,
+    name: input.name,
+  }),
   since: '1.0',
 });
 
@@ -49,6 +58,8 @@ describe('executor over the SQL plan repositories', () => {
   let handle: PersistenceHandle;
   let repos: Repositories;
   let executor: ActionExecutor;
+  let chain: AuditChain;
+  let receipts: ReceiptStore;
   let executed = 0;
   const clock = createManualClock(1_700_000_000_000);
   let counter = 0;
@@ -64,6 +75,11 @@ describe('executor over the SQL plan repositories', () => {
     await createMigrationRunner({ handle }).migrate();
     repos = createRepositories(handle, { now: () => clock.now() });
     const ids = createIdGenerator({ clock });
+    const guardrails = createGuardrails({ clock });
+    // The person arms the production connection the specs below work on.
+    guardrails.arming.arm(createTestPrincipal(), 'c1');
+    chain = createAuditChain({ repository: repos.audit });
+    receipts = createReceiptStore({ repository: repos.receipts, clock, ids });
     executor = createActionExecutor({
       plans: createPlanStore({
         repository: repos.plans,
@@ -73,7 +89,9 @@ describe('executor over the SQL plan repositories', () => {
       }),
       idempotency: repos.idempotency,
       authorizer: allowUiPrincipals(),
-      audit: createMemoryAuditSink(),
+      audit: chain,
+      guardrails: guardrails.policy,
+      receipts,
       writes: createRecordingWrites().writes,
       clock,
       ids,
@@ -135,7 +153,7 @@ describe('executor over the SQL plan repositories', () => {
       raw: Uint8Array.of(1, 2),
     });
 
-    expect(await run(created.id)).toEqual({
+    expect(await run(created.id)).toMatchObject({
       kind: 'output',
       output: { purged: 12 },
     });
@@ -254,5 +272,145 @@ describe('executor over the SQL plan repositories', () => {
     ).rejects.toMatchObject({ code: 'CONFIRMATION_MISMATCH' });
 
     expect(executed).toBe(0);
+  });
+
+  describe('audit chain and receipts over SQL', () => {
+    const runOnce = async (): Promise<void> => {
+      await run((await plan()).id);
+    };
+
+    it('AC-1 audit: an executed plan leaves linked attempt and outcome rows and a receipt, and the chain verifies', async () => {
+      await runOnce();
+
+      const rows = await repos.audit.window(0, 10);
+      expect(rows.map((row) => [row.seq, row.phase, row.attemptSeq])).toEqual([
+        [1, 'attempt', null],
+        [2, 'outcome', 1],
+      ]);
+      expect(rows[1]?.receiptId).toMatch(/\S/);
+      expect(
+        await receipts.get((rows[1]?.receiptId ?? '') as never),
+      ).toMatchObject({ actionId: 'queues.purge', auditSeq: 1, result: 'ok' });
+      expect(await chain.verify()).toMatchObject({ ok: true, rows: 2 });
+      expect(JSON.stringify(rows)).not.toContain('secret body');
+    });
+
+    it('AC-1 audit: the database refuses to edit or delete an audit row', async () => {
+      await runOnce();
+
+      await expect(
+        handle.db
+          .updateTable('audit_events')
+          .set({ risk: 'none' })
+          .where('seq', '=', 1)
+          .execute(),
+      ).rejects.toThrow(/append-only/);
+      await expect(
+        handle.db.deleteFrom('audit_events').where('seq', '=', 2).execute(),
+      ).rejects.toThrow(/append-only/);
+
+      expect(await chain.verify()).toMatchObject({ ok: true });
+    });
+
+    it('AC-1 audit: a schema owner who drops the triggers and edits a row is found by verify, at that seq', async () => {
+      await runOnce();
+      await runOnce();
+      await executeRawStatement(handle, 'DROP TRIGGER audit_events_no_update');
+      await executeRawStatement(
+        handle,
+        "UPDATE audit_events SET actor_id = 'someone-else' WHERE seq = 3",
+      );
+
+      expect(await chain.verify()).toMatchObject({
+        ok: false,
+        brokenSeq: 3,
+        reason: 'hash-mismatch',
+      });
+    });
+
+    it('AC-1 audit: a deleted audit row (triggers dropped) is reported at the missing seq', async () => {
+      await runOnce();
+      await runOnce();
+      await executeRawStatement(handle, 'DROP TRIGGER audit_events_no_delete');
+      await executeRawStatement(
+        handle,
+        'DELETE FROM audit_events WHERE seq = 2',
+      );
+
+      expect(await chain.verify()).toMatchObject({
+        ok: false,
+        brokenSeq: 2,
+        reason: 'seq-gap',
+      });
+    });
+
+    it('AC-1 audit: a truncated tail is reported against the anchored head', async () => {
+      await runOnce();
+      await runOnce();
+      const anchor = await chain.head();
+      await executeRawStatement(handle, 'DROP TRIGGER audit_events_no_delete');
+      await executeRawStatement(
+        handle,
+        'DELETE FROM audit_events WHERE seq > 2',
+      );
+
+      expect(await chain.verify()).toMatchObject({ ok: true, rows: 2 });
+      expect(await chain.verify({ expect: anchor })).toMatchObject({
+        ok: false,
+        brokenSeq: 3,
+        reason: 'truncated',
+      });
+    });
+
+    it('AC-1 audit: two engines on one database never fork the chain', async () => {
+      const other = createAuditChain({ repository: repos.audit });
+      const entry = (correlationId: string) => ({
+        at: clock.now(),
+        correlationId,
+        actionId: 'queues.purge' as never,
+        kind: 'command' as const,
+        principal: createTestPrincipal(),
+        target: {},
+        env: 'prod' as const,
+        risk: 'low' as const,
+      });
+
+      await Promise.all(
+        Array.from({ length: 20 }, (_, i) =>
+          (i % 2 === 0 ? chain : other).attempt(entry(`c-${String(i)}`)),
+        ),
+      );
+
+      expect((await repos.audit.window(0, 100)).map((row) => row.seq)).toEqual(
+        Array.from({ length: 20 }, (_, i) => i + 1),
+      );
+      expect(await chain.verify()).toMatchObject({ ok: true, rows: 20 });
+    });
+
+    it('AC-1 audit: when the audit table is unwritable the plan is denied and execute() is not called', async () => {
+      const created = await plan();
+      await executeRawStatement(handle, 'DROP TABLE audit_events');
+
+      await expect(run(created.id)).rejects.toMatchObject({ code: 'INTERNAL' });
+
+      expect(executed).toBe(0);
+    });
+
+    it('AC-2 guardrail: an unarmed prod connection is locked, on the SQL-backed executor too', async () => {
+      const locked = createTestContext({ env: 'prod' });
+      const other = createTestContext({
+        env: 'prod',
+        principal: createTestPrincipal({ id: 'user-2' }),
+      });
+
+      await expect(
+        executor.plan(purge, { name: 'orders' }, other),
+      ).rejects.toMatchObject({ code: 'GATE_BLOCKED' });
+
+      expect(
+        (await executor.plan(purge, { name: 'orders' }, locked)).state,
+      ).toBe('open');
+      expect(executed).toBe(0);
+    });
   });
 });

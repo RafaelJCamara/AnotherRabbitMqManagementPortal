@@ -60,6 +60,9 @@ export type {
   StreamCreditProof,
 } from './proofs.ts';
 export type {
+  AuditHead,
+  AuditRepository,
+  AuditRow,
   IdempotencyRepository,
   JobRecord,
   JobStore,
@@ -69,6 +72,8 @@ export type {
   PlanRecord,
   PlanRepository,
   PlanState,
+  ReceiptRecord,
+  ReceiptRepository,
   ReplayJournal,
   ReplayJournalEntry,
   Window,

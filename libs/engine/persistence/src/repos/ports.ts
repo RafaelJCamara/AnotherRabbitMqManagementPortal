@@ -1,7 +1,12 @@
 // Async repository ports (blueprint 4.3, I-5): every method returns a Promise from day one, so
 // SQLite can move behind one storage worker without touching a caller. Collections are paged by
 // keyset and bounded (I-7); nothing here lists "all".
-import type { IdempotencyRepository, PlanRepository } from '@app/ports';
+import type {
+  AuditRepository,
+  IdempotencyRepository,
+  PlanRepository,
+  ReceiptRepository,
+} from '@app/ports';
 
 /** A value that survives JSON.stringify and JSON.parse unchanged. */
 export type JsonValue =
@@ -82,4 +87,7 @@ export interface Repositories {
   /** The ActionExecutor's plans (M0-29). The port is @app/ports'; the kernel owns the policy. */
   readonly plans: PlanRepository;
   readonly idempotency: IdempotencyRepository;
+  /** The hash-chained audit and the receipts (M0-30). The kernel owns the chain. */
+  readonly audit: AuditRepository;
+  readonly receipts: ReceiptRepository;
 }

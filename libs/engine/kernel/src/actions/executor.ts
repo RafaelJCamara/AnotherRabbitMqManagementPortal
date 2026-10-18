@@ -13,6 +13,7 @@ import {
   EngineModeSchema,
   EnvClassSchema,
   ErrorCodeSchema,
+  GateDecisionSchema,
   PlanIdSchema,
   RiskSchema,
   WarningRefSchema,
@@ -35,7 +36,6 @@ import { AppError } from '../problem/problem.ts';
 import { sha256Hex } from './canonical.ts';
 import type { Authorizer } from './authorizer.ts';
 import {
-  defaultGuardrails,
   noProfiles,
   type AuditEntry,
   type AuditOutcome,
@@ -45,7 +45,7 @@ import {
   type ProfileSnapshot,
   type ReceiptSink,
 } from './hooks.ts';
-import { isImplementedAction } from './implement-action.ts';
+import { isImplementedAction, isMutatingAction } from './implement-action.ts';
 import {
   createIdempotencyGuard,
   type IdempotencyGuard,
@@ -95,13 +95,15 @@ export interface ActionExecutorOptions {
   authorizer: Authorizer;
   /** Required: there is no silent default (a failed attempt write denies the action). */
   audit: AuditSink;
+  /** Required: a default that let a production call through is how a lock gets forgotten. */
+  guardrails: GuardrailPolicy;
+  /** Required: every mutation and every peek leaves a receipt (I-13). */
+  receipts: ReceiptSink;
   /** The write-capable ports; handed to `execute` and to nothing else (I-2). */
   writes: ExecutorWrite;
   clock: Clock;
   ids: IdGenerator;
-  guardrails?: GuardrailPolicy;
   profiles?: ProfileResolver;
-  receipts?: ReceiptSink;
   logger?: Logger;
 }
 
@@ -164,7 +166,11 @@ const DecisionSchema = z.strictObject({
   approvalsRequired: z.number().int().min(0).max(10),
   confirmationPhrase: z.string().min(1).max(500).optional(),
   denied: z
-    .strictObject({ code: ErrorCodeSchema, reason: z.string() })
+    .strictObject({
+      code: ErrorCodeSchema,
+      reason: z.string(),
+      gate: GateDecisionSchema.optional(),
+    })
     .optional(),
   forbidLetBrokerHandle: z.boolean(),
   extraConsents: z.array(z.string().min(1).max(200)).max(100),
@@ -183,7 +189,7 @@ interface Prepared {
   profile: ProfileSnapshot;
 }
 
-const isMutating = (def: ActionDef): boolean => def.kind !== 'query';
+const isMutating = isMutatingAction;
 
 function describeIssues(error: ZodError): string {
   return error.issues
@@ -217,8 +223,15 @@ function sameText(typed: string, expected: string): boolean {
 export function createActionExecutor(
   options: ActionExecutorOptions,
 ): ActionExecutor {
-  const { plans, authorizer, audit, writes, clock, ids } = options;
-  const guardrails = options.guardrails ?? defaultGuardrails;
+  const { plans, authorizer, audit, guardrails, receipts, writes, clock, ids } =
+    options;
+  // Fail at start-up, not on the first production call, when a part is missing.
+  for (const [name, part] of Object.entries({ audit, guardrails, receipts })) {
+    // Not an object at run time (undefined or null from a loose caller) is as bad as missing.
+    if (Object(part) !== part) {
+      throw new TypeError(`createActionExecutor: ${name} is required.`);
+    }
+  }
   const profiles = options.profiles ?? noProfiles;
   const idempotency: IdempotencyGuard = createIdempotencyGuard(
     options.idempotency,
@@ -417,6 +430,9 @@ export function createActionExecutor(
     if (decision.denied !== undefined) {
       throw new AppError(decision.denied.code, {
         detail: decision.denied.reason,
+        ...(decision.denied.gate === undefined
+          ? {}
+          : { gate: decision.denied.gate }),
       });
     }
     return decision;
@@ -536,6 +552,8 @@ export function createActionExecutor(
     risk: Risk;
     consents: ReadonlySet<string>;
     plan?: Plan;
+    /** Principals whose approval the plan carried; written to the audit rows. */
+    approvedBy?: readonly string[];
   }
 
   async function invoke(call: Invocation): Promise<ExecuteOutcome> {
@@ -554,6 +572,9 @@ export function createActionExecutor(
       ...(call.plan === undefined
         ? {}
         : { planId: call.plan.id, planDigest: call.plan.digest }),
+      ...(call.approvedBy === undefined || call.approvedBy.length === 0
+        ? {}
+        : { approvedBy: call.approvedBy }),
     };
 
     if (ctx.signal.aborted) {
@@ -562,9 +583,10 @@ export function createActionExecutor(
         { detail: 'The call was cancelled before it started.' },
       );
     }
+    let attemptSeq: number | undefined;
     if (def.audit === 'attempt+outcome') {
       try {
-        await audit.attempt(entry);
+        attemptSeq = await audit.attempt(entry);
       } catch (cause) {
         throw new AppError('INTERNAL', {
           detail:
@@ -602,15 +624,55 @@ export function createActionExecutor(
       failure = toAppError(error);
     }
 
+    // The receipt first, so the outcome row can name it. Every mutation and every peek has one
+    // (I-13); a query has nothing to record. A failed write is reported, never undone.
+    const resultState = failure === undefined ? 'ok' : 'error';
+    let receiptId: ReceiptId | undefined;
+    let receiptGap = false;
+    if (isMutating(def)) {
+      try {
+        receiptId = await receipts.record({
+          actionId: def.id,
+          principal: ctx.principal,
+          correlationId: ctx.correlationId,
+          env: ctx.env,
+          risk: call.risk,
+          startedAt,
+          finishedAt: clock.now(),
+          result: resultState,
+          ...(failure === undefined ? {} : { code: failure.code }),
+          ...(call.plan === undefined
+            ? {}
+            : { planId: call.plan.id, planDigest: call.plan.digest }),
+          ...(result?.kind === 'job' ? { jobId: result.jobId } : {}),
+          ...(attemptSeq === undefined ? {} : { auditSeq: attemptSeq }),
+        });
+      } catch (cause) {
+        receiptGap = true;
+        options.logger?.error(
+          {
+            event: 'receipt.failed',
+            actionId: def.id,
+            correlationId: ctx.correlationId,
+            cause: cause instanceof Error ? cause.name : 'unknown',
+          },
+          'the receipt could not be recorded',
+        );
+      }
+    }
+
     // The outcome row: the action ran (or failed), so a failed write is reported, not undone.
     let auditGap = false;
     if (def.audit !== 'none') {
       const outcome: AuditOutcome = {
         ...entry,
         at: clock.now(),
-        result: failure === undefined ? 'ok' : 'error',
+        result: resultState,
         ...(failure === undefined ? {} : { code: failure.code }),
         ...(result?.kind === 'job' ? { jobId: result.jobId } : {}),
+        ...(attemptSeq === undefined ? {} : { attemptSeq }),
+        ...(receiptId === undefined ? {} : { receiptId }),
+        ...(receiptGap ? { receiptFailed: true } : {}),
       };
       try {
         await audit.outcome(outcome);
@@ -628,32 +690,6 @@ export function createActionExecutor(
       }
     }
 
-    let receiptId: ReceiptId | undefined;
-    if (options.receipts !== undefined) {
-      try {
-        receiptId = await options.receipts.record({
-          actionId: def.id,
-          principal: ctx.principal,
-          correlationId: ctx.correlationId,
-          env: ctx.env,
-          risk: call.risk,
-          startedAt,
-          finishedAt: clock.now(),
-          result: failure === undefined ? 'ok' : 'error',
-          ...(failure === undefined ? {} : { code: failure.code }),
-          ...(call.plan === undefined
-            ? {}
-            : { planId: call.plan.id, planDigest: call.plan.digest }),
-          ...(result?.kind === 'job' ? { jobId: result.jobId } : {}),
-        });
-      } catch {
-        options.logger?.error(
-          { event: 'receipt.failed', actionId: def.id },
-          'the receipt could not be recorded',
-        );
-      }
-    }
-
     if (failure !== undefined) throw failure;
     if (result === undefined) {
       throw new AppError('INTERNAL', {
@@ -664,7 +700,8 @@ export function createActionExecutor(
       return {
         ...result,
         ...(receiptId === undefined ? {} : { receiptId }),
-        ...(auditGap ? { auditOutcomeFailed: true } : {}),
+        ...(auditGap ? { auditOutcomeFailed: true as const } : {}),
+        ...(receiptGap ? { receiptFailed: true as const } : {}),
       };
     }
     return result;
@@ -1046,6 +1083,16 @@ export function createActionExecutor(
               risk: granted.risk,
               consents: given,
               plan,
+              approvedBy: [
+                ...new Set(
+                  opened.approvals
+                    .filter(
+                      (a) =>
+                        a.decision === 'approve' && a.digest === granted.digest,
+                    )
+                    .map((a) => a.by),
+                ),
+              ],
             });
           } catch (error) {
             await finish('failed');

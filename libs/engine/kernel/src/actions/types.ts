@@ -7,6 +7,7 @@ import {
   type EngineMode,
   type EnvClass,
   type ErrorCode,
+  type GateDecision,
   type InputOf,
   type JobId,
   type OutputOf,
@@ -154,18 +155,34 @@ export interface GuardrailDecision {
   planning: 'none' | 'optional' | 'required';
   approvalsRequired: number;
   confirmationPhrase?: string;
-  denied?: { code: ErrorCode; reason: string };
+  /** A refusal. The gate, when given, tells the caller why and which action would lift it. */
+  denied?: { code: ErrorCode; reason: string; gate?: GateDecision };
   forbidLetBrokerHandle: boolean;
   extraConsents: string[];
 }
 
+/**
+ * Flags on a result that the action already produced (I-13, no silent loss): the row that
+ * records it could not be written, and nobody must find that out from the logs alone.
+ */
+export interface OutcomeFlags {
+  /** The audit outcome row could not be written (it is queued and retried; see audit/chain.ts). */
+  auditOutcomeFailed?: true;
+  /** The receipt could not be recorded. */
+  receiptFailed?: true;
+}
+
 export type RunOutcome<A extends ActionDef = ActionDef> =
-  | { kind: 'output'; output: OutputOf<A>; receiptId?: ReceiptId }
+  | ({
+      kind: 'output';
+      output: OutputOf<A>;
+      receiptId?: ReceiptId;
+    } & OutcomeFlags)
   | { kind: 'planRequired'; plan: PlanView }
   | { kind: 'job'; jobId: JobId };
 
 export type ExecuteOutcome =
-  | { kind: 'output'; output: unknown; receiptId?: ReceiptId }
+  | ({ kind: 'output'; output: unknown; receiptId?: ReceiptId } & OutcomeFlags)
   | { kind: 'job'; jobId: JobId };
 
 export interface ExecuteRequest {

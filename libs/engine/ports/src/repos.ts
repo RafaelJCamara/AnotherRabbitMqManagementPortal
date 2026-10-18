@@ -1,7 +1,14 @@
 // Repository ports. Every method is async from day one (blueprint I-5), so SQLite can move to a
 // storage worker without touching a caller, and no method returns an unbounded collection (I-7):
 // lists are windows.
-import type { ActionId, EnvClass, JobId, PlanId, Risk } from '@app/contracts';
+import type {
+  ActionId,
+  EnvClass,
+  JobId,
+  PlanId,
+  ReceiptId,
+  Risk,
+} from '@app/contracts';
 
 import type { Principal } from './connection-manager.ts';
 
@@ -184,6 +191,95 @@ export interface PlanRepository {
    */
   expireDue(now: number, limit: number): Promise<number>;
   /** Deletes at most `limit` finished plans last touched before `cutoff` (retention). */
+  purgeBefore(cutoff: number, limit: number): Promise<number>;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The audit chain and receipts (M0-30). The kernel owns the hash chain (what is hashed, how a
+// break is found); these ports only store rows, in order, and never update or delete one.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * One row of the audit chain. The JSON members are canonical text written by the kernel and are
+ * hashed as text, so any edit, even whitespace, changes the hash. `hash` covers every other member.
+ */
+export interface AuditRow {
+  /** 1, 2, 3, ... with no gap; assigned by the kernel, unique in the store. */
+  readonly seq: number;
+  readonly at: number;
+  readonly phase: 'attempt' | 'outcome';
+  readonly correlationId: string;
+  readonly actionId: string;
+  readonly kind: string;
+  readonly actorId: string;
+  readonly surface: string;
+  readonly onBehalfOfId: string | null;
+  /** The principal at the time, with whoever it acted for. */
+  readonly actorJson: string;
+  readonly targetJson: string;
+  readonly env: string;
+  readonly risk: string;
+  readonly planId: string | null;
+  readonly planDigest: string | null;
+  /** The ids of the principals whose approval the plan carried (a JSON array). */
+  readonly approvedByJson: string;
+  /** On an outcome row: the `seq` of the attempt row it closes. */
+  readonly attemptSeq: number | null;
+  readonly result: 'ok' | 'error' | null;
+  readonly code: string | null;
+  readonly jobId: string | null;
+  readonly receiptId: string | null;
+  /** Masked, bounded flags and counters (a JSON object). Never an input or a message body. */
+  readonly detailJson: string;
+  readonly prevHash: string;
+  readonly hash: string;
+}
+
+export interface AuditHead {
+  readonly seq: number;
+  readonly hash: string;
+}
+
+/** Append-only. A store offers no update and no delete: retention is a separate, privileged job. */
+export interface AuditRepository {
+  /** The last row's `seq` and `hash`; undefined for an empty chain. */
+  head(): Promise<AuditHead | undefined>;
+  /**
+   * Appends `row`. Returns false, and stores nothing, when a row with that `seq` or that `prevHash`
+   * exists (another writer got there first): the caller reads the head again and retries.
+   */
+  append(row: AuditRow): Promise<boolean>;
+  /** Rows with `seq` greater than `afterSeq`, ascending; at most `limit` (clamped to 1,000). */
+  window(afterSeq: number, limit: number): Promise<readonly AuditRow[]>;
+}
+
+/** One receipt (blueprint 5.10). `detailJson` is the structured part, written by the action. */
+export interface ReceiptRecord {
+  readonly id: ReceiptId;
+  readonly actionId: ActionId;
+  readonly planId: PlanId | null;
+  readonly planDigest: string | null;
+  readonly principalId: string;
+  readonly onBehalfOfId: string | null;
+  readonly correlationId: string;
+  readonly env: EnvClass;
+  readonly risk: Risk;
+  readonly startedAt: number;
+  readonly finishedAt: number;
+  readonly result: 'ok' | 'error';
+  readonly code: string | null;
+  readonly jobId: JobId | null;
+  /** The `seq` of the audit attempt row of the same execution, when it had one. */
+  readonly auditSeq: number | null;
+  readonly detailJson: string;
+  readonly createdAt: number;
+}
+
+export interface ReceiptRepository {
+  /** Stores a new receipt. Rejects when the id exists. */
+  insert(record: ReceiptRecord): Promise<void>;
+  get(id: ReceiptId): Promise<ReceiptRecord | undefined>;
+  /** Deletes at most `limit` receipts created before `cutoff` (retention, 90 days). */
   purgeBefore(cutoff: number, limit: number): Promise<number>;
 }
 

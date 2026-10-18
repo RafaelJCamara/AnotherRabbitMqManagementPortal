@@ -4,24 +4,41 @@
 // one set. None of it belongs in a production composition root.
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
-import type { ActionId, PlanId } from '@app/contracts';
+import type { ActionId, PlanId, ReceiptId } from '@app/contracts';
 import type {
+  AuditRepository,
+  AuditRow,
   IdempotencyRepository,
   PlanPatch,
   PlanRecord,
   PlanRepository,
   Principal,
+  ReceiptRecord,
+  ReceiptRepository,
 } from '@app/ports';
 
+import { createAuditChain, type AuditChain } from '../audit/chain.ts';
 import { createManualClock, type ManualClock } from '../clock/clock.ts';
+import {
+  createGuardrails,
+  type ArmingControl,
+  type Guardrails,
+} from '../guardrails/policy.ts';
 import { createIdGenerator } from '../ids/ids.ts';
+import { createReceiptStore, type ReceiptStore } from '../receipts/store.ts';
 import { allowUiPrincipals } from './authorizer.ts';
 import {
   createActionExecutor,
   type ActionExecutor,
   type ActionExecutorOptions,
 } from './executor.ts';
-import type { AuditEntry, AuditOutcome, AuditSink } from './hooks.ts';
+import type {
+  AuditEntry,
+  AuditOutcome,
+  AuditSink,
+  ExecutionRecord,
+  ReceiptSink,
+} from './hooks.ts';
 import {
   createPlanStore,
   type PayloadCipher,
@@ -159,6 +176,7 @@ export function createMemoryAuditSink(): MemoryAuditSink {
   const outcomes: AuditOutcome[] = [];
   let failAttempt = false;
   let failOutcome = false;
+  let seq = 0;
   return {
     attempts,
     outcomes,
@@ -171,12 +189,99 @@ export function createMemoryAuditSink(): MemoryAuditSink {
     attempt(entry) {
       if (failAttempt) return Promise.reject(new Error('audit store is down'));
       attempts.push(entry);
-      return Promise.resolve();
+      seq += 1;
+      return Promise.resolve(seq);
     },
     outcome(entry) {
       if (failOutcome) return Promise.reject(new Error('audit store is down'));
       outcomes.push(entry);
       return Promise.resolve();
+    },
+  };
+}
+
+/**
+ * An audit repository in memory. `rows` is the live store, so a spec can edit, drop or reorder a
+ * row behind the chain's back; `failAppends` makes the next appends reject, as a dead disk would.
+ */
+export interface MemoryAuditRepository extends AuditRepository {
+  readonly rows: AuditRow[];
+  failAppends(on: boolean): void;
+  /** Runs before every `append`, for specs that race two writers. */
+  beforeAppend: (() => Promise<void>) | undefined;
+}
+
+export function createMemoryAuditRepository(): MemoryAuditRepository {
+  const rows: AuditRow[] = [];
+  let failing = false;
+  const repository: MemoryAuditRepository = {
+    rows,
+    beforeAppend: undefined,
+    failAppends(on) {
+      failing = on;
+    },
+    head() {
+      const last = rows.at(-1);
+      return Promise.resolve(
+        last === undefined ? undefined : { seq: last.seq, hash: last.hash },
+      );
+    },
+    async append(row) {
+      await repository.beforeAppend?.();
+      if (failing) throw new Error('audit store is down');
+      if (
+        rows.some(
+          (have) => have.seq === row.seq || have.prevHash === row.prevHash,
+        )
+      ) {
+        return false;
+      }
+      rows.push(row);
+      return true;
+    },
+    window(afterSeq, limit) {
+      return Promise.resolve(
+        [...rows]
+          .sort((a, b) => a.seq - b.seq)
+          .filter((row) => row.seq > afterSeq)
+          .slice(0, Math.max(1, Math.min(limit, 1000))),
+      );
+    },
+  };
+  return repository;
+}
+
+export interface MemoryReceiptRepository extends ReceiptRepository {
+  readonly rows: Map<string, ReceiptRecord>;
+  failInserts(on: boolean): void;
+}
+
+export function createMemoryReceiptRepository(): MemoryReceiptRepository {
+  const rows = new Map<string, ReceiptRecord>();
+  let failing = false;
+  return {
+    rows,
+    failInserts(on) {
+      failing = on;
+    },
+    insert(record) {
+      if (failing) return Promise.reject(new Error('receipt store is down'));
+      if (rows.has(record.id))
+        return Promise.reject(new Error('Duplicate receipt id.'));
+      rows.set(record.id, record);
+      return Promise.resolve();
+    },
+    get: (id) => Promise.resolve(rows.get(id)),
+    purgeBefore(cutoff, limit) {
+      let removed = 0;
+      for (const [id, row] of rows) {
+        if (removed >= limit) break;
+        if (row.createdAt < cutoff) {
+          rows.delete(id);
+          removed += 1;
+        }
+      }
+      return Promise.resolve(removed);
     },
   };
 }
@@ -335,10 +440,35 @@ export function createTestContext(
   };
 }
 
+/** A receipt sink in memory: it numbers receipts `rcpt-1`, ... and can be made to fail. */
+export interface MemoryReceiptSink extends ReceiptSink {
+  readonly records: readonly ExecutionRecord[];
+  failRecords(on: boolean): void;
+}
+
+export function createMemoryReceiptSink(): MemoryReceiptSink {
+  const records: ExecutionRecord[] = [];
+  let failing = false;
+  return {
+    records,
+    failRecords(on) {
+      failing = on;
+    },
+    record(execution) {
+      if (failing) return Promise.reject(new Error('receipt store is down'));
+      records.push(execution);
+      return Promise.resolve(`rcpt-${String(records.length)}` as ReceiptId);
+    },
+  };
+}
+
 export interface TestExecutor {
   executor: ActionExecutor;
   plans: PlanStore;
   audit: MemoryAuditSink;
+  receipts: MemoryReceiptSink;
+  /** The write side of the prod lock; specs arm a connection with it. */
+  arming: ArmingControl;
   clock: ManualClock;
   /** Calls the actions made on the write ports. */
   writeCalls: readonly string[];
@@ -377,12 +507,16 @@ export function createTestExecutor(
     ...parts.store,
   });
   const audit = createMemoryAuditSink();
+  const receipts = createMemoryReceiptSink();
+  const guardrails = createGuardrails({ clock });
   const recording = createRecordingWrites();
   const executor = createActionExecutor({
     plans,
     idempotency: idempotencyRepository,
     authorizer: allowUiPrincipals(),
     audit,
+    guardrails: guardrails.policy,
+    receipts,
     writes: recording.writes,
     clock,
     ids,
@@ -392,6 +526,8 @@ export function createTestExecutor(
     executor,
     plans,
     audit,
+    receipts,
+    arming: guardrails.arming,
     clock,
     writeCalls: recording.calls,
     planRepository,
@@ -399,6 +535,91 @@ export function createTestExecutor(
     cipher,
   };
 }
+// ---------------------------------------------------------------------------------------------
+// The real audit chain, receipt store and guardrails over memory stores
+// ---------------------------------------------------------------------------------------------
+
+export interface WiredExecutor extends Omit<
+  TestExecutor,
+  'audit' | 'receipts'
+> {
+  /** The real hash chain; its rows are in `auditRows`. */
+  chain: AuditChain;
+  auditRows: MemoryAuditRepository;
+  /** The real receipt store; its rows are in `receiptRows`. */
+  receipts: ReceiptStore;
+  receiptRows: MemoryReceiptRepository;
+  guardrails: Guardrails;
+}
+
+export interface WiredExecutorParts extends Omit<
+  TestExecutorParts,
+  'executor'
+> {
+  /** Shorter than 15 minutes for specs that need the lock to close before a plan expires. */
+  armWindowMs?: number;
+  executor?: Partial<ActionExecutorOptions>;
+}
+
+/**
+ * The executor with the parts a production root wires: the hash-chained audit, the receipt store
+ * and the prod lock, over memory repositories that a spec can read and tamper with.
+ */
+export function createWiredExecutor(
+  parts: WiredExecutorParts = {},
+): WiredExecutor {
+  const base = createTestExecutor({
+    ...(parts.planRepository === undefined
+      ? {}
+      : { planRepository: parts.planRepository }),
+    ...(parts.idempotencyRepository === undefined
+      ? {}
+      : { idempotencyRepository: parts.idempotencyRepository }),
+    ...(parts.cipher === undefined ? {} : { cipher: parts.cipher }),
+    ...(parts.store === undefined ? {} : { store: parts.store }),
+  });
+  const { clock } = base;
+  const ids = createIdGenerator({ clock });
+  const guardrails = createGuardrails({
+    clock,
+    ...(parts.armWindowMs === undefined
+      ? {}
+      : { armWindowMs: parts.armWindowMs }),
+  });
+  const auditRows = createMemoryAuditRepository();
+  const receiptRows = createMemoryReceiptRepository();
+  const chain = createAuditChain({ repository: auditRows });
+  const receipts = createReceiptStore({ repository: receiptRows, clock, ids });
+  const recording = createRecordingWrites();
+  const executor = createActionExecutor({
+    plans: base.plans,
+    idempotency: base.idempotencyRepository,
+    authorizer: allowUiPrincipals(),
+    audit: chain,
+    guardrails: guardrails.policy,
+    receipts,
+    writes: recording.writes,
+    clock,
+    ids,
+    ...parts.executor,
+  });
+  return {
+    executor,
+    plans: base.plans,
+    clock,
+    writeCalls: recording.calls,
+    planRepository: base.planRepository,
+    idempotencyRepository: base.idempotencyRepository,
+    cipher: base.cipher,
+    arming: guardrails.arming,
+    chain,
+    auditRows,
+    receipts,
+    receiptRows,
+    guardrails,
+  };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Plan purity (blueprint 2.2): plan() of every registered action runs against write ports that throw
 // ---------------------------------------------------------------------------------------------

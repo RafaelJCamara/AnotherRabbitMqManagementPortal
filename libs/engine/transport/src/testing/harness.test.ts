@@ -22,6 +22,7 @@ import {
 import {
   createLogger,
   createTestExecutor,
+  createTestPrincipal,
   implementAction,
   type LogSink,
   type TestExecutor,
@@ -91,7 +92,7 @@ const purgeDef = defineAction({
   risk: 'critical',
   planning: 'required',
   audit: 'attempt+outcome',
-  target: () => ({}),
+  target: (input) => ({ connectionId: input.cid as never }),
   http: { method: 'POST', path: '/connections/{cid}/queues/{qkey}/purge' },
   since: '1.0',
 });
@@ -106,7 +107,7 @@ const renameDef = defineAction({
   risk: 'low',
   planning: 'none',
   audit: 'attempt+outcome',
-  target: () => ({}),
+  target: (input) => ({ connectionId: input.cid as never }),
   http: { method: 'PUT', path: '/connections/{cid}/label' },
   since: '1.0',
 });
@@ -211,6 +212,18 @@ export function createHarness(
     started: false,
   };
   const engine = createTestExecutor();
+  // The router sends no environment class, so every call is prod (ADR-006) and its mutations are
+  // locked until a person arms the connection. These specs are about routing, not the lock: the two
+  // people the carrier and the launch token stand for have armed the connection they use.
+  for (const id of ['local-token', 'desktop-user']) {
+    engine.arming.arm(
+      createTestPrincipal({
+        id,
+        kind: id === 'local-token' ? 'local-token' : 'desktop-user',
+      }),
+      'c1',
+    );
+  }
   const executorBody = {
     meta: implementAction(metaDef, {
       execute: () => {

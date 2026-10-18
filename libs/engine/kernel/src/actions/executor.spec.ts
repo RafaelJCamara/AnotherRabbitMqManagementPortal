@@ -86,6 +86,11 @@ async function makePlan(
   return s.executor.plan(purgeDef, input, ctx);
 }
 
+/** Opens the prod lock for the test person on the connection the specs use. */
+function arm(s: Setup): void {
+  s.arming.arm(createTestPrincipal(), input.connectionId);
+}
+
 const runPlan = (
   s: Setup,
   plan: PlanView,
@@ -379,7 +384,11 @@ describe('executor happy path and the audit trail', () => {
 
     const outcome = await runPlan(s, plan, { expectedDigest: plan.digest });
 
-    expect(outcome).toEqual({ kind: 'output', output: { purged: 12 } });
+    expect(outcome).toEqual({
+      kind: 'output',
+      output: { purged: 12 },
+      receiptId: 'rcpt-1',
+    });
     expect(s.probe.executed).toBe(1);
     expect(s.audit.attempts).toHaveLength(1);
     expect(s.audit.outcomes).toHaveLength(1);
@@ -621,6 +630,7 @@ describe('executor consents, typed phrase and digest', () => {
 
   it('prod needs the typed phrase, checked by the engine: a wrong or missing phrase is CONFIRMATION_MISMATCH', async () => {
     const s = setup();
+    arm(s);
     const ctx = createTestContext({ env: 'prod' });
     const plan = await makePlan(s, ctx);
     expect(plan.confirmationPhrase).toBe('purge orders');
@@ -647,6 +657,7 @@ describe('executor consents, typed phrase and digest', () => {
 
   it('an unset environment class means prod', async () => {
     const s = setup();
+    arm(s);
 
     const plan = await s.executor.plan(purgeDef, input, {
       principal: createTestPrincipal(),
@@ -659,6 +670,7 @@ describe('executor consents, typed phrase and digest', () => {
 
   it('an unknown environment class means prod, too', async () => {
     const s = setup();
+    arm(s);
 
     const plan = await s.executor.plan(
       purgeDef,
@@ -671,6 +683,7 @@ describe('executor consents, typed phrase and digest', () => {
 
   it('a plan made in dev cannot be executed in prod', async () => {
     const s = setup();
+    arm(s);
     const plan = await makePlan(s, createTestContext({ env: 'dev' }));
 
     await expectRefused(
@@ -717,6 +730,7 @@ describe('executor consents, typed phrase and digest', () => {
         },
       };
       const s = setup({ planRepository: repository });
+      arm(s);
       const ctx = createTestContext({ env: 'prod' });
       const plan = await makePlan(s, ctx);
       tamper.edit = edits;
@@ -1383,7 +1397,7 @@ describe('executor failure modes of its parts', () => {
     expect(s.probe.executed).toBe(1);
   });
 
-  it('a receipt sink that fails does not fail the call; one that works returns its id', async () => {
+  it('a receipt sink that fails does not fail the call but flags it; one that works returns its id', async () => {
     const failing = setup({
       executor: { receipts: { record: () => Promise.reject(new Error('x')) } },
     });
@@ -1396,7 +1410,11 @@ describe('executor failure modes of its parts', () => {
     const a = await runPlan(failing, await makePlan(failing));
     const b = await runPlan(ok, await makePlan(ok));
 
-    expect(a).toEqual({ kind: 'output', output: { purged: 12 } });
+    expect(a).toEqual({
+      kind: 'output',
+      output: { purged: 12 },
+      receiptFailed: true,
+    });
     expect(b).toMatchObject({ kind: 'output', receiptId: 'rcpt-1' });
   });
 

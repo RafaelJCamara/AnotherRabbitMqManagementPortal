@@ -8,13 +8,17 @@ import {
   existsSync,
   lstatSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   symlinkSync,
   unlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { withoutAdoptedAliases } from '../src/shared/first-use.ts';
 
 export const repoRoot = join(import.meta.dirname, '..', '..', '..');
 
@@ -73,6 +77,12 @@ export class TempWorkspace {
         filter: (source) => !SKIPPED.has(source.split(/[\\/]/).at(-1) ?? ''),
       });
     }
+    // Start without the aliases of adopted first-use libraries, so the generators can create them.
+    const tsconfigBase = join(this.root, 'tsconfig.base.json');
+    writeFileSync(
+      tsconfigBase,
+      withoutAdoptedAliases(readFileSync(tsconfigBase, 'utf8')),
+    );
     symlinkSync(
       join(repoRoot, 'node_modules'),
       join(this.root, 'node_modules'),

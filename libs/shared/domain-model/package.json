@@ -1,0 +1,6 @@
+{
+  "name": "@app/domain-model-source",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0"
+}

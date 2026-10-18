@@ -39,7 +39,7 @@ An agent task may not break one. "Today" means the check exists in this reposito
 
 Nx 23.3 + pnpm 12.14 workspace with `@app/*` path aliases. Layout: [docs/architecture/repo-layout.md](docs/architecture/repo-layout.md).
 
-- Present now: `apps/engine`, `apps/web`, `apps/docs`, `libs/shared/contracts`, `libs/engine/kernel`, `libs/testkit` (broker-lab helpers), `testing/broker-lab` (broker images), and tooling in `tools/{eslint-rules,lint-selftest,supply-chain,agent-hooks,api-docs,work-graph}`. Everything else in the blueprint is built by later work packages.
+- Present now: `apps/engine`, `apps/web`, `apps/docs`, `libs/shared/contracts`, `libs/shared/domain-model`, `libs/shared/semantics` (registry core, no data yet), `libs/engine/kernel`, `libs/shared/live-protocol`, `libs/testkit` (broker-lab helpers), `testing/broker-lab` (broker images), and tooling in `tools/{eslint-rules,lint-selftest,supply-chain,agent-hooks,api-docs,work-graph,semantics-audit,platform-lane}`. Everything else in the blueprint is built by later work packages.
 - Every project carries a layer tag `type:*` and a runtime tag `runtime:*` in its `project.json`; `trust:critical` marks paths that need human CODEOWNERS sign-off (blueprint §2.1).
 
 | From | May import |
@@ -115,6 +115,7 @@ Run everything from the repository root.
 | Custom ESLint rules | `pnpm nx test eslint-rules` and `pnpm nx test lint-selftest` |
 | Agent hooks | `pnpm nx test agent-hooks` |
 | Spec emitters (regenerate / drift gate) | `pnpm nx run contracts:api-docs` / `pnpm nx run contracts:api-docs-check` |
+| Semantics registry audit (ids, keys, CF links, evidence) | `pnpm nx run semantics:audit-cells [--require=citations,conformance,effect]` |
 | Plan graph (features, work items, dependencies) | `pnpm nx run work-graph:validate` and `pnpm nx run work-graph:test` |
 | Platform upgrade lane (self-test; the workflow opens `lane:platform` issues) | `pnpm nx run platform-lane:test` |
 | Docs site | `pnpm nx build docs` |

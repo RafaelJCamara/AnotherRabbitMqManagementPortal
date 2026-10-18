@@ -1,0 +1,46 @@
+{
+  "name": "semantics",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/semantics/src",
+  "projectType": "library",
+  "tags": ["type:pure", "runtime:isomorphic", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/shared/semantics/tsconfig.lib.json --noEmit",
+          "tsc -p libs/shared/semantics/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/shared/semantics/vitest.config.mts"
+      }
+    },
+    "audit-cells": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/!(*.spec).ts",
+        "{workspaceRoot}/tools/semantics-audit/audit-cells.ts",
+        "{workspaceRoot}/tools/semantics-audit/register.mjs",
+        "{workspaceRoot}/libs/shared/domain-model/src/**/!(*.spec).ts",
+        "{workspaceRoot}/libs/shared/contracts/src/**/!(*.spec).ts",
+        "{workspaceRoot}/testing/lab-evidence/**/*.json",
+        { "externalDependencies": ["zod"] }
+      ],
+      "options": {
+        "command": "node --import ./tools/semantics-audit/register.mjs tools/semantics-audit/audit-cells.ts"
+      }
+    }
+  }
+}

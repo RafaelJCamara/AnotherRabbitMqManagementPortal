@@ -1,0 +1,30 @@
+{
+  "name": "domain-model",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/domain-model/src",
+  "projectType": "library",
+  "tags": ["type:pure", "runtime:isomorphic"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/shared/domain-model/tsconfig.lib.json --noEmit",
+          "tsc -p libs/shared/domain-model/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/shared/domain-model/vitest.config.mts"
+      }
+    }
+  }
+}

@@ -8,6 +8,8 @@ import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { format } from 'prettier';
 import { expect } from 'vitest';
 
+import { withoutAdoptedAliases } from './first-use.ts';
+
 export const repoRoot = join(import.meta.dirname, '..', '..', '..', '..');
 
 /** Real files from this repository that generators read or edit. */
@@ -24,7 +26,11 @@ const REAL_FILES = [
 export function workspaceTree(): Tree {
   const tree = createTreeWithEmptyWorkspace();
   for (const path of REAL_FILES) {
-    tree.write(path, readFileSync(join(repoRoot, path), 'utf8'));
+    const content = readFileSync(join(repoRoot, path), 'utf8');
+    tree.write(
+      path,
+      path === 'tsconfig.base.json' ? withoutAdoptedAliases(content) : content,
+    );
   }
   return tree;
 }

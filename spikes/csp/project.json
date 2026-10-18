@@ -1,0 +1,23 @@
+{
+  "name": "spikes-csp",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "spikes/csp/src",
+  "tags": ["type:test", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [{ "projects": ["web"], "target": "build" }],
+      "options": {
+        "commands": [
+          "node spikes/csp/scripts/setup.mjs",
+          "node spikes/csp/scripts/build.mjs",
+          "node spikes/csp/scripts/run.mjs"
+        ],
+        "parallel": false
+      }
+    }
+  }
+}

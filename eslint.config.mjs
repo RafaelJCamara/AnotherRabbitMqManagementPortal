@@ -239,13 +239,18 @@ const confinement = [
   { names: ['quickjs-emscripten'], only: ['libs/engine/plugin-host'] },
   { names: ['fastify', 'ws'], only: ['libs/engine/transport', 'apps/engine'] },
   { names: ['electron'], only: ['apps/desktop'] },
-  { names: ['ag-grid-*'], only: ['libs/ui/grid'] },
-  { names: ['cytoscape', 'elkjs', 'dagre'], only: ['libs/ui/graph'] },
+  // `spikes/csp` is the throwaway S-04 harness (M0-20, OQ-230): it loads the three heavy UI
+  // libraries from a scratch install, never from the workspace catalog.
+  { names: ['ag-grid-*'], only: ['libs/ui/grid', 'spikes/csp'] },
+  {
+    names: ['cytoscape', 'elkjs', 'dagre'],
+    only: ['libs/ui/graph', 'spikes/csp'],
+  },
   {
     names: ['@foblex/flow'],
     only: ['libs/ui/graph/flow', 'libs/ui/graph/src/flow'],
   },
-  { names: ['monaco-editor'], only: ['libs/ui/editor'] },
+  { names: ['monaco-editor'], only: ['libs/ui/editor', 'spikes/csp'] },
   { names: ['uplot', 'echarts', 'ngx-echarts'], only: ['libs/ui/charts'] },
   { names: ['rabbitmq-amqp-js-client'], only: ['testing/oracle-amqp10'] },
 ];

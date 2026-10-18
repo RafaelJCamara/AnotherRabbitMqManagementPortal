@@ -43,6 +43,8 @@
 |   |-- arch-tests/                      # ts-morph: WritePort funnel, plan purity harness, service isolation
 |   |-- supply-chain/                    # licence gate, lockfile gate, deps-allowlist.json, notices+SBOM from esbuild metafile, exclusion hygiene
 |   `-- semantics-evidence/              # status-flip check (evidence artefact + CODEOWNERS)
+|-- spikes/
+|   `-- csp/                             # S-04 (M0-20) throwaway harness: CSP + Trusted Types with AG Grid, Monaco, ELK; libraries installed to tmp/, never the catalog
 |-- packaging/
 |   |-- docker/                          # Dockerfile (node:24-trixie-slim -> distroless nodejs24-debian13:nonroot), healthcheck.mjs, compose.yaml (+postgres:17)
 |   `-- helm/<product>/                  # chart; migrations hook Job (DDL role); values.schema.json generated from TeamServerConfig

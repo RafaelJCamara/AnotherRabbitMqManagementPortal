@@ -1,0 +1,37 @@
+{
+  "name": "net-dialer",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/net-dialer/src",
+  "projectType": "library",
+  "tags": ["type:net", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/net-dialer/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/net-dialer/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/net-dialer/vitest.config.mts"
+      }
+    },
+    "it": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/testkit/src/it/run-it.ts net-dialer",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

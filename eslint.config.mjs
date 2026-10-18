@@ -47,7 +47,6 @@ const UI_DESIGN = 'type:ui-design';
 const UI_LIB = 'type:ui-lib';
 const UI_FEATURE = 'type:ui-feature';
 const SDK = 'type:sdk';
-const TEST = 'type:test';
 
 const ISOMORPHIC = 'runtime:isomorphic';
 const NODE = 'runtime:node';
@@ -204,6 +203,30 @@ const confinement = [
     only: ['libs/engine/persistence'],
   },
   { names: ['ssh2', 'socks'], only: ['libs/engine/net-dialer'] },
+  {
+    // I-9: every outbound socket goes through the Dialer and the TrustStore (M0-26). Anything else
+    // that needs `net` or `tls` is a listener or a local pipe of its own, or test and tooling code.
+    // OQ-183 lists why each location is here.
+    names: ['net', 'node:net', 'tls', 'node:tls'],
+    only: [
+      'libs/engine/net-dialer',
+      'libs/engine/net-truststore',
+      'libs/engine/adapter-amqp091',
+      'libs/engine/adapter-amqp10',
+      'libs/engine/adapter-mgmt-http',
+      'libs/engine/adapter-prometheus',
+      'libs/engine/adapter-stream',
+      'libs/engine/adapter-k8s',
+      'libs/engine/transport',
+      'apps/engine',
+      'apps/cli',
+      'apps/desktop',
+      'apps/conformance',
+      'libs/testkit',
+      'testing',
+      'tools',
+    ],
+  },
   {
     names: ['@kubernetes/client-node'],
     only: ['libs/engine/adapter-k8s', 'libs/engine/net-dialer'],

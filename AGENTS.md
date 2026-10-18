@@ -28,7 +28,7 @@ An agent task may not break one. "Today" means the check exists in this reposito
 | I-6 | Every buffer is bounded by item count and bytes; every drop is counted and surfaced | Lint `@app/bounded-buffers-only` (`BoundedRing` / `BoundedQueue`) | Lint |
 | I-7 | The UI never materialises an unbounded collection | Windowed queries only; no "list all" for inventory kinds | Planned |
 | I-8 | Each broker has a background load budget; interactive work pre-empts background work | `BrokerScheduler` is the only path to `MgmtHttpPort` and `PromScrapePort` | Planned |
-| I-9 | Every outbound socket goes through the Dialer and the TrustStore | `net`, `tls`, `undici`, `ssh2`, `socks` confined to `net-*` and adapter connectors | Partial lint (confinement); Dialer planned |
+| I-9 | Every outbound socket goes through the Dialer and the TrustStore | `net`, `tls`, `undici`, `ssh2`, `socks` confined to `net-*` and adapter connectors | Lint (confinement of `net`, `tls`, `undici`, `ssh2`, `socks`); direct and TLS Dialer and TrustStore landed (M0-26); tunnel routes and the SSRF policy planned |
 | I-10 | After entry, secrets are write-only: never in the renderer, logs, URLs, argv or env | Write-only contract fields; canary-secret log scan in E2E | Planned |
 | I-11 | Each third-party library is imported only by the project that owns it | Confinement table in `eslint.config.mjs` | Lint |
 | I-12 | No telemetry, no phone-home | Desktop E2E behind a deny-all egress proxy | Planned |
@@ -39,7 +39,7 @@ An agent task may not break one. "Today" means the check exists in this reposito
 
 Nx 23.3 + pnpm 12.14 workspace with `@app/*` path aliases. Layout: [docs/architecture/repo-layout.md](docs/architecture/repo-layout.md).
 
-- Present now: `apps/engine`, `apps/web`, `apps/docs`, `libs/shared/contracts`, `libs/shared/domain-model`, `libs/shared/semantics` (registry core, no data yet), `libs/engine/kernel`, `libs/engine/persistence`, `libs/shared/live-protocol`, `libs/testkit` (broker-lab helpers), `testing/broker-lab` (broker images), and tooling in `tools/{eslint-rules,lint-selftest,supply-chain,agent-hooks,api-docs,work-graph,semantics-audit,platform-lane}`. Everything else in the blueprint is built by later work packages.
+- Present now: `apps/engine`, `apps/web`, `apps/docs`, `libs/shared/contracts`, `libs/shared/domain-model`, `libs/shared/semantics` (registry core, no data yet), `libs/engine/kernel`, `libs/engine/persistence`, `libs/engine/net-dialer`, `libs/engine/net-truststore`, `libs/shared/live-protocol`, `libs/testkit` (broker-lab helpers), `testing/broker-lab` (broker images), and tooling in `tools/{eslint-rules,lint-selftest,supply-chain,agent-hooks,api-docs,work-graph,semantics-audit,platform-lane}`. Everything else in the blueprint is built by later work packages.
 - Every project carries a layer tag `type:*` and a runtime tag `runtime:*` in its `project.json`; `trust:critical` marks paths that need human CODEOWNERS sign-off (blueprint §2.1).
 
 | From | May import |

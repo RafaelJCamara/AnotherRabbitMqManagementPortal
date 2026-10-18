@@ -186,6 +186,51 @@ describe('third-party confinement (blueprint 2.4)', () => {
     ).toEqual([restricted]);
   });
 
+  describe('sockets are opened by the Dialer only (I-9)', () => {
+    it.each(['node:net', 'net', 'node:tls', 'tls'])(
+      'fails %s outside the network projects and the listed hosts',
+      async (name) => {
+        const source = `import * as socketApi from '${name}';\nexport const used = socketApi;\n`;
+
+        for (const path of [
+          'libs/engine/svc-peek/src/index.ts',
+          'libs/engine/kernel/src/index.ts',
+          'libs/engine/persistence/src/index.ts',
+          'libs/engine/secrets/src/index.ts',
+          'libs/engine/svc-explorer/src/index.ts',
+        ]) {
+          expect(rulesOf(await lintAs(path, source))).toEqual([restricted]);
+        }
+      },
+    );
+
+    it.each(['node:net', 'node:tls'])(
+      'allows %s in net-dialer, net-truststore and the test tooling',
+      async (name) => {
+        const source = `import * as socketApi from '${name}';\nexport const used = socketApi;\n`;
+
+        for (const path of [
+          'libs/engine/net-dialer/src/dialer.ts',
+          'libs/engine/net-truststore/src/truststore.ts',
+          'libs/testkit/src/lab/probes.ts',
+          'tools/supply-chain/src/index.ts',
+        ]) {
+          expect(await lintAs(path, source)).toEqual([]);
+        }
+      },
+    );
+
+    it('names the allowed locations in the message', async () => {
+      const violations = await lintAs(
+        'libs/engine/svc-peek/src/index.ts',
+        "import { connect } from 'node:tls';\nexport const used = connect;\n",
+      );
+
+      expect(violations[0]?.message).toContain('libs/engine/net-dialer');
+      expect(violations[0]?.message).toContain('libs/engine/net-truststore');
+    });
+  });
+
   it('lets a nested location use its own package only', async () => {
     const flow =
       "import { Flow } from '@foblex/flow';\nexport const used = Flow;\n";

@@ -44,6 +44,21 @@
         "command": "node --test tools/supply-chain/actions-pinned-selftest.ts"
       }
     },
+    "workflow-hardening-selftest": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/workflow-hardening.ts",
+        "{projectRoot}/workflow-hardening-selftest.ts",
+        "{projectRoot}/actions-pinned.ts",
+        "{projectRoot}/shared.ts",
+        "{workspaceRoot}/.github/workflows/conformance-record.yml",
+        "{workspaceRoot}/apps/conformance/src/record/provenance.ts"
+      ],
+      "options": {
+        "command": "node --test tools/supply-chain/workflow-hardening-selftest.ts"
+      }
+    },
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,

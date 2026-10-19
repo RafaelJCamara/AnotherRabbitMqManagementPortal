@@ -1,0 +1,167 @@
+# M0-71 (amendment A-20, invariant I-14): the only place lab evidence is recorded. It starts the
+# digest-pinned lab brokers (testing/broker-lab/versions.json), runs `conformance:record` (the
+# recorder stamps its artefacts `ci` only because this file is the running workflow), checks the
+# bundle, and, unless the run is a dry run, opens a bot pull request labelled `lab-evidence` so a
+# human reviews the files (CODEOWNERS covers testing/lab-evidence/**). Agents and local runs never
+# write evidence; the recorder refuses a `local` artefact for the evidence tree.
+#
+#   - Manual only (`workflow_dispatch`), and only on the default branch: another branch could carry
+#     another copy of this file, and the stamp would still say `ci`.
+#   - Two jobs keep the write token away from the code that talks to the brokers. `record` has read
+#     access only (it runs the install, the brokers and the scenarios) and hands over a bundle.
+#     `propose` is the only job with write access; it installs nothing, re-checks the bundle with a
+#     script that uses only Node built-ins, and runs nothing from the bundle.
+#   - Every input is validated (`bundle-cli.ts validate-inputs`) before anything starts, and no
+#     expression is interpolated into a `run:` block: inputs reach shell code only as environment
+#     variables.
+#   - The token is given to the last step of `propose` only; the checkouts keep no credentials.
+#   - Nothing is merged or approved here, and nothing is pushed to the default branch: only to a
+#     `lab-evidence/run-<id>-<attempt>` branch.
+#   - A manual run is a dry run unless `dry_run` is turned off: the bundle is then only kept as a
+#     build artifact. Opening the pull request with the workflow token needs the repository setting
+#     "Allow GitHub Actions to create and approve pull requests", and a pull request made with that
+#     token does not start CI; close and reopen it to run the checks (OQ-460).
+name: conformance-record
+
+on:
+  workflow_dispatch:
+    inputs:
+      cells:
+        description: Conformance ids or patterns, comma separated, no spaces (for example CF-SMOKE-01 or CF-SETTLE-*)
+        type: string
+        required: true
+        default: CF-SMOKE-01
+      versions:
+        description: Lab broker versions, comma separated, no spaces (see testing/broker-lab/versions.json)
+        type: string
+        required: true
+        default: 4.3.6
+      dry_run:
+        description: Keep the bundle as a build artifact instead of opening the pull request
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: conformance-record
+  cancel-in-progress: false
+
+jobs:
+  record:
+    name: record
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read # checkout only; the brokers are local containers and no token is needed
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Validate the inputs
+        env:
+          CELLS: ${{ inputs.cells }}
+          VERSIONS: ${{ inputs.versions }}
+        run: node apps/conformance/src/record/bundle-cli.ts validate-inputs
+      - name: The working tree is the commit that is stamped
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "The working tree differs from the commit the evidence is stamped with." >&2
+            git status --short >&2
+            exit 1
+          fi
+      - name: Record the evidence
+        env:
+          CELLS: ${{ inputs.cells }}
+          VERSIONS: ${{ inputs.versions }}
+        run: pnpm nx run conformance:record --cells="$CELLS" --versions="$VERSIONS" --out=dist/lab-evidence-bundle
+      - name: Check the bundle (layout, stamps, pinned digests, integrity)
+        env:
+          CELLS: ${{ inputs.cells }}
+          VERSIONS: ${{ inputs.versions }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: node apps/conformance/src/record/bundle-cli.ts check --dir=dist/lab-evidence-bundle --integrity
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lab-evidence-bundle
+          path: dist/lab-evidence-bundle
+          if-no-files-found: error
+          retention-days: 30
+      - name: Say what a dry run did
+        if: inputs.dry_run
+        run: |
+          echo "Dry run: the bundle is the lab-evidence-bundle artifact of this run. No branch was pushed and no pull request was opened." >> "$GITHUB_STEP_SUMMARY"
+
+  propose:
+    name: propose
+    needs: record
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # pushes the lab-evidence/run-* branch; the only write besides the pull request
+      pull-requests: write # opens the pull request and creates its label
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Validate the inputs
+        env:
+          CELLS: ${{ inputs.cells }}
+          VERSIONS: ${{ inputs.versions }}
+        run: node apps/conformance/src/record/bundle-cli.ts validate-inputs
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: lab-evidence-bundle
+          path: dist/lab-evidence-bundle
+      - name: Check the bundle again (nothing from it is run)
+        env:
+          CELLS: ${{ inputs.cells }}
+          VERSIONS: ${{ inputs.versions }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: node apps/conformance/src/record/bundle-cli.ts check --dir=dist/lab-evidence-bundle --pr-body=dist/pr-body.md
+      - name: Put the bundle into the evidence tree of the branch
+        run: |
+          mkdir -p testing/lab-evidence
+          cp -R dist/lab-evidence-bundle/. testing/lab-evidence/
+      - name: Open the bot pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          CELLS: ${{ inputs.cells }}
+          VERSIONS: ${{ inputs.versions }}
+        run: |
+          set -euo pipefail
+          branch="lab-evidence/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          title="chore(lab-evidence): record ${CELLS} on ${VERSIONS}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -- testing/lab-evidence
+          if git diff --cached --quiet; then
+            echo "The recording is identical to the committed evidence; nothing to propose."
+            exit 0
+          fi
+          if git diff --cached --name-only | grep -Ev '^testing/lab-evidence/[0-9]+\.[0-9]+\.[0-9]+/CF-[A-Z0-9-]+\.json$' >/dev/null; then
+            echo "The recording changed a path that is not an evidence artefact." >&2
+            exit 1
+          fi
+          git commit --signoff -m "$title" \
+            -m "Recorded by the conformance-record workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          (
+            export GIT_CONFIG_COUNT=1
+            export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader"
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+            export GIT_CONFIG_VALUE_0
+            git push origin "refs/heads/${branch}:refs/heads/${branch}"
+          )
+          if ! gh label list --limit 200 --json name --jq '.[].name' | grep -Fx lab-evidence >/dev/null; then
+            gh label create lab-evidence --color 0e8a16 --description "Lab evidence recorded by CI, waiting for human approval (I-14)"
+          fi
+          gh pr create --base "$BASE_BRANCH" --head "$branch" --title "$title" --body-file dist/pr-body.md --label lab-evidence

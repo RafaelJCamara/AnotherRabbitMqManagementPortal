@@ -68,21 +68,27 @@ export interface RecordOptions {
   readonly openHost?: (endpoint: LabEndpoint) => Promise<RecordHost>;
 }
 
-/** Records every scenario against the endpoint's broker and returns the files written. */
+/**
+ * Records every scenario against the endpoint's broker and returns the files written. Each scenario
+ * gets its own connection: delivery tags count per channel, and a scenario may break its channel on
+ * purpose, so what one scenario recorded must not depend on the ones that ran before it (the live leg
+ * of the three-way assertion replays a scenario alone on a fresh connection and compares).
+ */
 export async function recordCells(options: RecordOptions): Promise<string[]> {
   const { endpoint } = options;
-  const host = await (options.openHost ?? openLabHost)(endpoint);
+  const open = options.openHost ?? openLabHost;
   const knownSecrets = [endpoint.credentials.password];
   const artefacts: EvidenceArtefact[] = [];
-  try {
-    const served = await host.brokerVersion();
-    if (served !== endpoint.version) {
-      throw new EvidenceError(
-        'refused',
-        `the broker serves ${served ?? 'an unreadable version'}, not the ${endpoint.version} the lab pinned`,
-      );
-    }
-    for (const scenario of options.scenarios) {
+  for (const scenario of options.scenarios) {
+    const host = await open(endpoint);
+    try {
+      const served = await host.brokerVersion();
+      if (served !== endpoint.version) {
+        throw new EvidenceError(
+          'refused',
+          `the broker serves ${served ?? 'an unreadable version'}, not the ${endpoint.version} the lab pinned`,
+        );
+      }
       const run = await runScenario(host, scenario, options.runId);
       const artefact = sealArtefact({
         schemaVersion: 1,
@@ -103,9 +109,9 @@ export async function recordCells(options: RecordOptions): Promise<string[]> {
         );
       }
       artefacts.push(artefact);
+    } finally {
+      await host.close();
     }
-  } finally {
-    await host.close();
   }
   return artefacts.map((artefact) =>
     writeEvidence(artefact, {

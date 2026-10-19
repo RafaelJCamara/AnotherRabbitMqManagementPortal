@@ -132,6 +132,10 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm nx run conformance:it --versions=4.3.6
+      # M0-37: the three-way assertion with its live leg on a real broker. CF-SMOKE-01 has no recorded
+      # evidence yet, so it reports `unverified` (shown, never green); a recorded artefact that the
+      # live run contradicts fails with a field-level diff.
+      - run: pnpm nx run conformance:test --grep=CF-SMOKE --versions=4.3.6
       - run: pnpm nx run conformance:record --cells=CF-SMOKE-01 --versions=4.3.6 --out=dist/conformance-record
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -140,6 +144,46 @@ jobs:
           path: dist/conformance-record
           if-no-files-found: ignore
           retention-days: 7
+
+  # M0-37: invariant I-14 on the change under test (the push range, or the pull request against its
+  # base). A registry cell's status or effect may change only with valid lab evidence recorded by
+  # conformance-record.yml; every evidence file must verify, carry a CI stamp and trace to a
+  # successful run of that workflow (checked through the GitHub API with the job's token). The
+  # coverage gate then shows which cells the recorded evidence confirms.
+  semantics-evidence:
+    name: semantics evidence (I-14)
+    needs: gates
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read # the check asks the API about the run behind each evidence stamp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Base of the change
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            echo "ref=origin/$BASE_REF" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" = "push" ] && [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "ref=$BEFORE" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=origin/main" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Status and effect changes need valid, CI-recorded evidence
+        env:
+          BASE: ${{ steps.base.outputs.ref }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: pnpm nx run semantics-evidence:check --base="$BASE"
+      - run: pnpm nx run semantics:audit-cells
+      - run: pnpm nx run conformance:coverage
 
   toolchain:
     name: toolchain (${{ matrix.os }})

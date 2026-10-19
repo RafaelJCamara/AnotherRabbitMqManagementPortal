@@ -112,6 +112,22 @@ describe.each(versions)('conformance:record against RabbitMQ %s', (version) => {
     expect(result.stdout).toContain(`drivers-smoke ok on ${version}`);
   });
 
+  it('AC-2 the three-way live leg tells a run that matches its recorded evidence from one that differs, on a real broker', () => {
+    const result = spawnSync(
+      process.execPath,
+      ['apps/conformance/src/it/three-way-smoke.ts'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 120_000,
+        env: { ...process.env, LAB_BROKER: labBroker(broker) },
+      },
+    );
+
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    expect(result.stdout).toContain(`three-way-smoke ok on ${version}`);
+  });
+
   it('AC-2 refuses a listener that broker-lab did not create, even on the loopback address, and records nothing', async () => {
     const stranger: Server = createServer();
     await new Promise<void>((resolve) =>

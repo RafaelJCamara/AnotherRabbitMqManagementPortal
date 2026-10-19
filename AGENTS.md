@@ -33,7 +33,7 @@ An agent task may not break one. "Today" means the check exists in this reposito
 | I-11 | Each third-party library is imported only by the project that owns it | Confinement table in `eslint.config.mjs` | Lint |
 | I-12 | No telemetry, no phone-home | Desktop E2E behind a deny-all egress proxy | Container: the engine bundle runs under an egress guard (`engine:smoke`, and `engine:egress` for 10 minutes), the Dialer purpose registry generates the outbound-calls page; the network-less container run and the desktop run are planned (OQ-400) |
 | I-13 | No silent loss: overflow, sampling, gaps, interrupted holds and uncertain replays appear in receipts and frames | Live-protocol model tests; receipt schema | Planned |
-| I-14 | Lab truth outranks registry text: a cell's status changes only with a lab evidence artefact and CODEOWNERS sign-off | `semantics-evidence` CI check | CODEOWNERS and the `guard-paths` hook; CI check planned |
+| I-14 | Lab truth outranks registry text: a cell's status changes only with a lab evidence artefact and CODEOWNERS sign-off | `semantics-evidence` CI check | CODEOWNERS, the `guard-paths` hook and `nx run semantics-evidence:check` (M0-37): a status or effect change needs valid CI-recorded evidence, and the run behind each stamp is checked through the GitHub API |
 
 ## 3. Repo map
 
@@ -116,6 +116,8 @@ Run everything from the repository root.
 | Agent hooks | `pnpm nx test agent-hooks` |
 | Spec emitters (regenerate / drift gate) | `pnpm nx run contracts:api-docs` / `pnpm nx run contracts:api-docs-check` |
 | Semantics registry audit (ids, keys, CF links, evidence) | `pnpm nx run semantics:audit-cells [--require=citations,conformance,effect]` |
+| Semantics evidence (I-14: a status or effect change needs valid CI-recorded evidence) | `pnpm nx run semantics-evidence:check --base=origin/main` (set `GITHUB_TOKEN` when it must check a run) |
+| Conformance (three-way: live run, recorded evidence, registry cell; live needs a Docker daemon) | `pnpm nx run conformance:test [--grep=CF-SMOKE --versions=4.3.6] [--strict]` and `pnpm nx run conformance:coverage [--strict]` |
 | Plan graph (features, work items, dependencies) | `pnpm nx run work-graph:validate` and `pnpm nx run work-graph:test` |
 | Platform upgrade lane (self-test; the workflow opens `lane:platform` issues) | `pnpm nx run platform-lane:test` |
 | Engine bundle (build, then run it as a process: modes, data-dir lock, metafile) | `pnpm nx build engine` / `pnpm nx run engine:smoke` |
@@ -128,7 +130,7 @@ Run everything from the repository root.
 | Architecture tests (mutation funnel I-2, proof minting A-9, plan-purity manifest) | `pnpm nx test arch-tests` |
 | Dev gallery absent from the production web build | `pnpm nx run web-gallery-check:gallery-absent` |
 | Action layer (ActionExecutor, PlanStore) | `pnpm nx test kernel --testNamePattern=executor` |
-| Planned | `pnpm nx run conformance:test --versions=...`, `pnpm nx e2e e2e-web`, `pnpm nx run perf:smoke` |
+| Planned | `pnpm nx e2e e2e-web`, `pnpm nx run perf:smoke` |
 
 ## 8. Engine rules (`libs/engine`, `apps/engine`; details in `.claude/rules/engine.md`)
 

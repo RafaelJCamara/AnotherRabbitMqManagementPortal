@@ -20,10 +20,18 @@
     },
     "test": {
       "executor": "nx:run-commands",
-      "cache": true,
-      "inputs": ["default", "^production"],
+      "cache": false,
       "options": {
-        "command": "vitest run --config apps/conformance/vitest.config.mts"
+        "command": "node libs/testkit/src/it/run-conformance.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --import ./tools/semantics-audit/register.mjs apps/conformance/src/assert/coverage-cli.ts",
+        "cwd": "{workspaceRoot}"
       }
     },
     "it": {

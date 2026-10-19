@@ -246,6 +246,44 @@ describe('A-20 and I-14 the recorder refuses to record what it cannot stand behi
       'CF-SMOKE-02.json',
     ]);
   });
+
+  it('AC-2 (M0-37) gives each scenario its own connection, closed after it, so no tag and no broken channel carries over', async () => {
+    const second = defineScenario({
+      cfId: 'CF-SMOKE-02',
+      title: 'a second scenario',
+      protocol: 'amqp091',
+      steps: [
+        declareQueue('q'),
+        publish('q', 'm1'),
+        get('d', 'q'),
+        settle('d', { kind: 'ack' }),
+        observe('after', 'q'),
+      ],
+    });
+    const hosts: MemoryHost[] = [];
+
+    const files = await recordCells(
+      await options(new MemoryHost(), {
+        scenarios: [cfSmoke01, second],
+        openHost: () => {
+          const host = new MemoryHost();
+          hosts.push(host);
+          return Promise.resolve(host);
+        },
+      }),
+    );
+
+    expect(hosts).toHaveLength(2);
+    expect(hosts.map((host) => host.closedCount)).toEqual([1, 1]);
+    // The second scenario's first delivery is tag 1, as if it had been recorded alone.
+    const artefact = verifyEvidenceText(
+      '4.3.6/CF-SMOKE-02.json',
+      readFileSync(files[1] ?? '', 'utf8'),
+    );
+    expect(
+      artefact.steps.find((step) => step.op === 'get')?.result,
+    ).toMatchObject({ deliveryTag: 1 });
+  });
 });
 
 describe('AC-2 the recorder reaches a broker only through an endpoint broker-lab created', () => {

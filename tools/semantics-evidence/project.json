@@ -1,0 +1,37 @@
+{
+  "name": "semantics-evidence",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/semantics-evidence/src",
+  "projectType": "library",
+  "tags": ["type:test", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p tools/semantics-evidence/tsconfig.lib.json --noEmit",
+          "tsc -p tools/semantics-evidence/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config tools/semantics-evidence/vitest.config.mts"
+      }
+    },
+    "check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --import ./tools/semantics-evidence/register.mjs tools/semantics-evidence/src/cli.ts"
+      }
+    }
+  }
+}

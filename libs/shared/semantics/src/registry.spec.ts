@@ -47,8 +47,20 @@ function cell(overrides: Partial<SemanticsCell> = {}): SemanticsCell {
   };
 }
 
+/** Registry data with every table empty, so a test sees only what it puts in. */
 function data(overrides: Partial<RegistryData> = {}): RegistryData {
-  return { ...registryData, cells: [], ...overrides };
+  return {
+    version: SEMANTICS_VERSION,
+    cells: [],
+    warnings: [],
+    hazards: [],
+    capabilities: [],
+    gates: [],
+    peekCaps: [],
+    tapRules: [],
+    providerPresets: [],
+    ...overrides,
+  };
 }
 
 const gap = (run: () => unknown): SemanticsGapError => {
@@ -85,6 +97,15 @@ describe('registry cells: AC-2 fail closed', () => {
     expect(() => registry.gate('peek' as FeatureId, profile())).toThrow(
       SemanticsGapError,
     );
+    expect(() =>
+      registry.capability('channelsAcceptDisableStats', profile()),
+    ).toThrow(SemanticsGapError);
+    expect(() =>
+      registry.providerPreset(
+        { provider: 'amazon-mq', product: 'rabbitmq' },
+        null,
+      ),
+    ).toThrow(SemanticsGapError);
   });
 
   it('AC-2 isDoomed answers through the registry', () => {
@@ -565,5 +586,53 @@ describe('registry tables', () => {
         }),
       ).length,
     ).toBeGreaterThan(0);
+  });
+});
+
+describe('registry data of M0-13 tables', () => {
+  it('rejects a duplicate capability, an invalid capability range and a provider table with a hole', () => {
+    const capability = {
+      id: 'canDoIt',
+      summary: 's',
+      versions: '>=4.0.0',
+      appliesWhen: 'always' as const,
+      citations: [{ kind: 'D' as const, ref: 'r' }],
+    };
+    const [first, ...rest] = registryData.providerPresets;
+    if (first === undefined) throw new Error('test setup: no presets');
+
+    expect(
+      validateRegistryData(
+        data({ capabilities: [capability, capability] }),
+      ).join(),
+    ).toContain('defined twice');
+    expect(
+      validateRegistryData(
+        data({ capabilities: [{ ...capability, versions: '??' }] }),
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      validateRegistryData(data({ providerPresets: rest })).join(),
+    ).toContain(`provider preset ${first.id} is missing`);
+  });
+
+  it('the shipped data builds a registry whose tables all answer', () => {
+    const shipped = createRegistry(registryData);
+
+    expect(shipped.warning('W-BUDGET').severity).toBe('consent');
+    expect(
+      shipped.hazards(
+        profile({
+          versions: {
+            min: v('4.3.5'),
+            perNode: {},
+            mixed: false,
+            build: 'oss',
+          },
+          stats: { disabled: true, queueTotals: false },
+        }),
+      ),
+    ).toContain('channels-400-stats-off');
+    expect(shipped.tapRule('x-random', null).refuseByDefault).toBe(true);
   });
 });

@@ -135,9 +135,11 @@ export interface BrokerSemanticsRegistry {
   isDoomed(era: Era, c: { deliveryCount?: number; acquiredCount?: number }, limit: DeliveryLimit): boolean;
   warning(id: WarningId): WarningRef;
   hazards(p: Pick<BrokerProfile, 'versions' | 'stats' | 'featureFlags' | 'product'>): string[];
+  capability(id: string, p: Pick<BrokerProfile, 'versions' | 'stats' | 'product'>): boolean;   // DC-32, e.g. 'channelsAcceptDisableStats'; throws SemanticsGapError for an unknown id
   gate(feature: FeatureId, p: BrokerProfile): GateDecision;
   peekCaps(era: Era, q: QueueType, role: 'user' | 'admin', v: Verification): { def: number; max: number; maxBytes: number };
   tapRule(exchangeType: string, version: SemVer | null): { diverts: boolean; e2eAllowed: boolean; refuseByDefault: boolean };
+  providerPreset(t: Pick<BrokerProfile, 'provider' | 'product'>, version: SemVer | null): ResolvedPreset;   // limits, owned objects, support levels (j.1); a probe outranks it
 }
 
 // =====================================================================================

@@ -121,7 +121,12 @@ export function cellKeyString(key: CellKey): string {
 
 /** A lookup other than a cell: a table name and the identifier that was not found. */
 export interface TableKey {
-  readonly table: 'warning' | 'gate' | 'peek-caps';
+  readonly table:
+    | 'warning'
+    | 'gate'
+    | 'peek-caps'
+    | 'capability'
+    | 'provider-preset';
   readonly id: string;
 }
 export type GapKey = CellKey | TableKey;

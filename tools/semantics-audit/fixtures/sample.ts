@@ -36,9 +36,11 @@ const empty: Omit<RegistryData, 'cells'> = {
   version: 'sem-2026.10.1',
   warnings: [],
   hazards: [],
+  capabilities: [],
   gates: [],
   peekCaps: [],
   tapRules: [],
+  providerPresets: [],
 };
 
 export const registryData: RegistryData = {

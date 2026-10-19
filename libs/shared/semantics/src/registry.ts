@@ -13,6 +13,11 @@ import type { Era, QueueType, SemVer, Verification } from '@app/domain-model';
 import { z } from 'zod';
 import { auditCells } from './audit.ts';
 import {
+  buildCapabilities,
+  CapabilityRuleSchema,
+  type CapabilityProfile,
+} from './capabilities.ts';
+import {
   buildPeekCaps,
   PeekCapRowSchema,
   type PeekCaps,
@@ -30,6 +35,12 @@ import {
   HazardRuleSchema,
   type HazardProfile,
 } from './hazards.ts';
+import {
+  buildProviderPresets,
+  ProviderPresetSchema,
+  type PresetTarget,
+  type ResolvedPreset,
+} from './provider-presets.ts';
 import {
   cellKeyString,
   RegistryDataError,
@@ -51,9 +62,11 @@ export const RegistryDataSchema = z.strictObject({
   cells: z.array(SemanticsCellSchema),
   warnings: z.array(WarningRefSchema),
   hazards: z.array(HazardRuleSchema),
+  capabilities: z.array(CapabilityRuleSchema),
   gates: z.array(GateRuleSchema),
   peekCaps: z.array(PeekCapRowSchema),
   tapRules: z.array(TapRuleSchema),
+  providerPresets: z.array(ProviderPresetSchema),
 });
 export type RegistryData = z.infer<typeof RegistryDataSchema>;
 
@@ -67,6 +80,12 @@ export interface BrokerSemanticsRegistry {
   /** Throws SemanticsGapError for an unknown warning id. */
   warning(id: WarningId): WarningRef;
   hazards(profile: HazardProfile): string[];
+  /**
+   * Whether the broker answers a request shape correctly (DC-32), for example
+   * `channelsAcceptDisableStats`. Throws SemanticsGapError for an unknown id; answers false when
+   * the evidence does not say yes (an unreadable node version, a product the rule does not name).
+   */
+  capability(id: string, profile: CapabilityProfile): boolean;
   /** Throws SemanticsGapError for a feature without a gate rule. */
   gate(feature: FeatureId, profile: GateProfile): GateDecision;
   /** Throws SemanticsGapError when the table has no row. */
@@ -77,6 +96,12 @@ export interface BrokerSemanticsRegistry {
     verification: Verification,
   ): PeekCaps;
   tapRule(exchangeType: string, version: SemVer | null): TapRuleOutcome;
+  /**
+   * What the provider (or a non-RabbitMQ product) is known to limit, with the per-version
+   * corrections for `version` applied (null: none). Throws SemanticsGapError when the table has
+   * no preset; a probe result outranks a preset.
+   */
+  providerPreset(target: PresetTarget, version: SemVer | null): ResolvedPreset;
 }
 
 /**
@@ -98,9 +123,11 @@ export function validateRegistryData(input: unknown): string[] {
   const builders: (() => unknown)[] = [
     () => buildWarnings(data.warnings),
     () => buildHazards(data.hazards),
+    () => buildCapabilities(data.capabilities),
     () => buildGates(data.gates),
     () => buildPeekCaps(data.peekCaps),
     () => buildTapRules(data.tapRules),
+    () => buildProviderPresets(data.providerPresets),
   ];
   for (const build of builders) {
     try {
@@ -135,9 +162,11 @@ export function createRegistry(input: RegistryData): BrokerSemanticsRegistry {
 
   const warning = buildWarnings(data.warnings);
   const hazards = buildHazards(data.hazards);
+  const capability = buildCapabilities(data.capabilities);
   const gate = buildGates(data.gates);
   const peekCaps = buildPeekCaps(data.peekCaps);
   const tapRule = buildTapRules(data.tapRules);
+  const providerPreset = buildProviderPresets(data.providerPresets);
 
   return {
     version: data.version,
@@ -157,8 +186,10 @@ export function createRegistry(input: RegistryData): BrokerSemanticsRegistry {
     isDoomed,
     warning,
     hazards,
+    capability,
     gate,
     peekCaps,
     tapRule,
+    providerPreset,
   };
 }

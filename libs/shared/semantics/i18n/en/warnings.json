@@ -1,0 +1,50 @@
+{
+  "W-BUDGET": {
+    "v1": "RabbitMQ {{version}} counts every return of a quorum-queue message against its delivery limit ({{limit}}). Peeking uses 1 of each message's {{limit}} delivery attempts. Messages that have already used {{limit}} will be {{disposition}} by this peek."
+  },
+  "W-313": {
+    "v1": "On RabbitMQ 3.13 every peek increases x-delivery-count. Delivery limit: {{limit}}. Where a limit is set, messages already at it are dead-lettered or deleted by this peek."
+  },
+  "W-TAIL": {
+    "v1": "This quorum queue has no delivery limit, so RabbitMQ {{version}} puts returned messages at the back: peeking moves these {{count}} messages behind {{behind}} others."
+  },
+  "W-OVERLIMIT": {
+    "v1": "This queue receives dead-lettered messages from {{sources}}. Its delivery limit ({{limit}}) is not higher than theirs, so messages that died for exceeding a delivery limit arrive with a count above {{limit}}. RabbitMQ {{consequence}} such messages on ANY return, including this peek. Set delivery-limit to -1 (or at least {{minimum}}) on this queue first."
+  },
+  "W-DELAY": {
+    "v1": "Delayed retry is on ({{type}}, min {{min}} ms, max {{max}} ms). Messages returned by this peek are held back for at least {{min}} ms; consumers will not receive them during that time."
+  },
+  "W-REDELIVERED": {
+    "v1": "Peeked messages will reach their next consumer with redelivered=true{{counterNote}}."
+  },
+  "W-HOLD": {
+    "v1": "For up to {{seconds}} s these messages are unavailable to consumers, which may process later messages first."
+  },
+  "W-DROPHEAD": {
+    "v1": "This queue is near its length limit ({{ready}}/{{max}}, overflow=drop-head). While the peek holds messages they don't count toward the limit; if publishers fill the gap, RabbitMQ will {{action}} the oldest messages when the peek returns them, starting with the peeked ones."
+  },
+  "W-TTL": {
+    "v1": "Messages expire after {{ttl}}. Any message whose TTL passes during the peek will be {{fate}} when it is returned."
+  },
+  "W-CRASH": {
+    "v1": "If this tool's connection breaks before the messages are returned, RabbitMQ counts it as a failed delivery (x-delivery-count +1) for every held message."
+  },
+  "W-SAC-CQ": {
+    "v1": "Single active consumer is on. basic.get bypasses it: the active consumer may process later messages before the peeked ones are returned, breaking strict ordering."
+  },
+  "W-SAC-QQ": {
+    "v1": "RabbitMQ refuses basic.get on quorum queues with single active consumer. Peeking registers a consumer that will be the active one while it runs; real consumers wait until it ends."
+  },
+  "W-EXCLUSIVE": {
+    "v1": "This exclusive queue belongs to another connection; RabbitMQ does not allow reading it."
+  },
+  "W-UPGRADED": {
+    "v1": "RabbitMQ reports delivery limit '{{stat}}' for this queue, but its arguments and policies imply {{computed}}. The queue was probably created before 4.0, and any policy change that matches it will apply {{computed}}."
+  },
+  "W-MIXED": {
+    "v1": "Cluster nodes run different versions ({{list}}); quorum queues keep the older rules until every node is upgraded. Using {{era}} rules."
+  },
+  "W-STREAM": {
+    "v1": "Reading a stream with an anonymous reader does not remove or change messages. A named consumer would store its offset."
+  }
+}

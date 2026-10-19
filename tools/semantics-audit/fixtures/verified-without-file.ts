@@ -21,7 +21,9 @@ export const registryData: RegistryData = {
   ],
   warnings: [],
   hazards: [],
+  capabilities: [],
   gates: [],
   peekCaps: [],
   tapRules: [],
+  providerPresets: [],
 };

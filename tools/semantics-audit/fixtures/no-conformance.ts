@@ -21,7 +21,9 @@ export const registryData: RegistryData = {
   cells: [cell, { ...cell }],
   warnings: [],
   hazards: [],
+  capabilities: [],
   gates: [],
   peekCaps: [],
   tapRules: [],
+  providerPresets: [],
 };

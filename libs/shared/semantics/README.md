@@ -4,7 +4,7 @@
 
 Tags: `type:pure`, `runtime:isomorphic`, `trust:critical` (a human CODEOWNERS sign-off is required).
 
-This package is the mechanism. The data arrives with M0-12 (settle matrix, counters, DLX carry-over, delayed retry) and M0-13 (hazards, capabilities, warnings, peek caps, tap rules, provider presets); until then every table is empty, so every lookup is a gap.
+This package is the mechanism plus the data. M0-13 ships the hazards, capabilities, warnings, peek caps, tap rules and provider presets (see "The M0-13 data tables"). The cells (settle matrix, counters, DLX carry-over, delayed retry) arrive with M0-12; until then every cell lookup is a gap.
 
 ## Public API
 
@@ -15,7 +15,7 @@ This package is the mechanism. The data arrives with M0-12 (settle matrix, count
 | Registry     | `createRegistry(data)`, `BrokerSemanticsRegistry`, `RegistryDataSchema`, `validateRegistryData`; `semanticsRegistry` is the one this release ships | `src/registry.ts`   |
 | Era          | `resolveEra(EraInputs)` returning `{ era, reasons, conservative, verification }`                                                                | `src/era.ts`        |
 | Doom guard   | `isDoomed(era, counters, limit)`, `DeliveryLimit`                                                                                               | `src/doomed.ts`     |
-| Tables       | `WarningDefSchema`, `GateRuleSchema`, `PeekCapRowSchema`, `TapRuleSchema`, `HazardRuleSchema` and their types                                   | `src/{warnings,gates,caps,tap-rules,hazards}.ts` |
+| Tables       | `WarningDefSchema`, `GateRuleSchema`, `PeekCapRowSchema`, `TapRuleSchema`, `HazardRuleSchema`, `CapabilityRuleSchema`, `ProviderPresetSchema`, `presetIdFor` and their types | `src/{warnings,gates,caps,tap-rules,hazards,capabilities,provider-presets}.ts` |
 | Audit        | `auditCells(cells, { require, evidenceExists })`                                                                                                | `src/audit.ts`      |
 | Data         | `registryData`, `SEMANTICS_VERSION`, `settleMatrix`                                                                                             | `src/data/`         |
 
@@ -26,9 +26,26 @@ This package is the mechanism. The data arrives with M0-12 (settle matrix, count
 | `cell(key)`                 | No cell has exactly this key, or the cell's effect is `null` (not derived yet), or its status is `lab-contradicted`.       |
 | `warning(id)`               | Unknown `W-*` id.                                                                                                         |
 | `gate(feature, profile)`    | The feature has no gate rule.                                                                                             |
-| `peekCaps(era, q, role, v)` | No row for the key, or, for a build that is not `verified`, no row in the conservative 4.0-4.2 era.                       |
+| `peekCaps(era, q, role, v)` | No row for the key (streams have none), or, for a build that is not `verified`, no row in the conservative 4.0-4.2 era.   |
+| `capability(id, profile)`   | Unknown capability id. A known capability the evidence does not prove answers `false`, not a gap.                          |
+| `providerPreset(target, v)` | The table has no preset for the provider or product (the shipped table has one for each).                                  |
 
 Not a gap, by design: `tapRule` refuses an exchange type nobody described (`diverts`, no e2e, refuse by default; blueprint 5.8), and `isDoomed` treats an unknown limit or an unreadable counter as doomed (ADR-028). Callers never catch the error to supply a default: the planner uses the 4.0-4.2 rules, asks for extra consent and rejects unattended plans.
+
+## The M0-13 data tables
+
+Files in `src/data/`; every claim in them is read from the fact sheet (`docs/research/fact-sheet.md`) and cited, none is lab-verified. The tables carry no `status` or `evidence` field, so a human can not mistake them for verified: the cells do, and that is where the lab evidence goes (OQ-361).
+
+| Table                  | File                      | What a lookup answers                                                                                                                          |
+| ---------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hazards(profile)`     | `hazards.data.ts`         | Ids of the known-bug rules that might apply (fact sheet section a). Written to over-report: an unreadable node version matches every rule.      |
+| `capability(id, p)`    | `capabilities.data.ts`    | Whether the broker answers a request shape correctly (DC-32), for example `channelsAcceptDisableStats`. Written to under-grant: every node must be proven inside the range, and `unknown` is not a RabbitMQ product. |
+| `warning(id)`          | `warnings.data.ts`        | The 16 `W-*` ids with a severity and a versioned text key. The words are in `i18n/en/warnings.json` under `<id>.v<textVersion>`; a changed text gets a new version and keeps the old one. |
+| `peekCaps(...)`        | `peek-caps.data.ts`       | Default, maximum and byte cap per era, queue type and role. An unverified build is capped at the 4.0-4.2 default.                               |
+| `tapRule(type, v)`     | `tap-rules.data.ts`       | Whether a tap on the exchange type diverts, allows e2e and is refused by default. An unlisted type is refused.                                  |
+| `providerPreset(t, v)` | `provider-presets.data.ts`| Documented limits, owned objects and the support level of ten areas for a provider or non-RabbitMQ product (fact sheet j.1). A probe result outranks it. |
+
+The texts use `{{name}}` placeholders (Transloco syntax); the planner fills them. They never say a classic or quorum read is non-destructive or read-only (DC-15); the `@app/honest-wording` rule lints the JSON file and a spec repeats the banned terms.
 
 ## The era resolver
 

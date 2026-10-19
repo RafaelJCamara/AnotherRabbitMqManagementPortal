@@ -11,6 +11,11 @@ export {
   type Requirement,
 } from './audit.ts';
 export {
+  CapabilityRuleSchema,
+  type CapabilityProfile,
+  type CapabilityRule,
+} from './capabilities.ts';
+export {
   PeekCapRowSchema,
   PeekRoleSchema,
   type PeekCapRow,
@@ -31,6 +36,19 @@ export {
   type HazardProfile,
   type HazardRule,
 } from './hazards.ts';
+export {
+  PresetIdSchema,
+  presetIdFor,
+  ProviderPresetSchema,
+  SUPPORT_AREAS,
+  SupportLevelSchema,
+  type PresetId,
+  type PresetTarget,
+  type ProviderPreset,
+  type ResolvedPreset,
+  type SupportArea,
+  type SupportLevel,
+} from './provider-presets.ts';
 export {
   createRegistry,
   RegistryDataSchema,

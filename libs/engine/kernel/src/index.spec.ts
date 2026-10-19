@@ -18,6 +18,7 @@ describe('kernel public API', () => {
         'createIdGenerator',
         'createLogger',
         'createManualClock',
+        'createMetaAction',
         'createManualTimers',
         'envVarName',
         'isOverloadError',

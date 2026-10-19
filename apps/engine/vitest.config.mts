@@ -9,5 +9,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/**/*.spec.ts'],
+    // The bundle smoke runs as the target engine:smoke, against dist/.
+    exclude: ['src/**/*.smoke.spec.ts'],
   },
 });

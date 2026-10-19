@@ -13,14 +13,22 @@
         "platform": "node",
         "format": ["esm"],
         "bundle": true,
-        "thirdParty": false,
+        "thirdParty": true,
         "outputPath": "dist/apps/engine",
         "main": "apps/engine/src/main.ts",
         "tsConfig": "apps/engine/tsconfig.app.json",
         "outputFileName": "main.mjs",
         "metafile": true,
         "esbuildOptions": {
-          "outExtension": { ".js": ".mjs" }
+          "outExtension": { ".js": ".mjs" },
+          "alias": {
+            "pg-native": "./apps/engine/src/optional-addon-absent.ts",
+            "bufferutil": "./apps/engine/src/optional-addon-absent.ts",
+            "utf-8-validate": "./apps/engine/src/optional-addon-absent.ts"
+          },
+          "banner": {
+            "js": "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);"
+          }
         }
       },
       "configurations": {
@@ -47,6 +55,14 @@
       "inputs": ["default", "^production"],
       "options": {
         "command": "vitest run --config apps/engine/vitest.config.mts"
+      }
+    },
+    "smoke": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "cache": false,
+      "options": {
+        "command": "vitest run --config apps/engine/vitest.smoke.config.mts"
       }
     }
   }

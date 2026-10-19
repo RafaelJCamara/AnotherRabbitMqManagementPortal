@@ -44,6 +44,10 @@ jobs:
         run: pnpm nx run supply-chain:actions-pinned
       - name: Feature and work-item graph (dangling, cyclic, forward dependencies)
         run: pnpm nx run work-graph:validate
+      # M0-36: the built engine bundle as a process: local and desktop mode start, the data-dir lock
+      # refuses a second engine, team mode refuses, and the metafile lists every bundled package.
+      - name: Engine bundle smoke
+        run: pnpm nx run engine:smoke
       - name: Gates self-tests (planted violations)
         if: runner.os == 'Linux'
         run: |

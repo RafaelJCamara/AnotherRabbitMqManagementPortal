@@ -117,3 +117,7 @@ export {
   type AppErrorOptions,
   type ToProblemOptions,
 } from './problem/problem.ts';
+export {
+  createMetaAction,
+  type MetaActionOptions,
+} from './meta/meta-action.ts';

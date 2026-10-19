@@ -25,6 +25,7 @@ export {
   secretInput,
   type SecretStatus,
 } from './secret.ts';
+export { MetaOutputSchema, metaGet } from './registry/meta.ts';
 export {
   OpsArmInputSchema,
   OpsArmOutputSchema,

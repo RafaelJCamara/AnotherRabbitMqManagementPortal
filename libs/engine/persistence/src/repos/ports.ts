@@ -3,6 +3,7 @@
 // keyset and bounded (I-7); nothing here lists "all".
 import type {
   AuditRepository,
+  DataKeyRepository,
   IdempotencyRepository,
   PlanRepository,
   ReceiptRepository,
@@ -90,4 +91,6 @@ export interface Repositories {
   /** The hash-chained audit and the receipts (M0-30). The kernel owns the chain. */
   readonly audit: AuditRepository;
   readonly receipts: ReceiptRepository;
+  /** Wrapped data keys (M0-22). The port is @app/ports'; @app/secrets owns the cryptography. */
+  readonly dataKeys: DataKeyRepository;
 }

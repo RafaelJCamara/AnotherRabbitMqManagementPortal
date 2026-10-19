@@ -9,8 +9,8 @@ import type { Migration } from '../migrate/types';
 // UPDATE and DELETE (and TRUNCATE on Postgres), the DML-only app role of blueprint 6.1 in
 // SQL form: a schema owner can still drop them, which is what `audit verify` and the anchors are for.
 //
-// This is migration 0003 because `0002_data_keys` (M0-22) has not landed (OQ-222, OQ-270). Whichever
-// of the two lands second renumbers its file and its registry entry; no released schema exists.
+// This is migration 0003 because `0002_data_keys` (M0-22) had not landed. M0-22 landed second and
+// took 0004 (see that file), so nothing here was renumbered.
 export const migration0003AuditReceipts: Migration = {
   id: '0003_audit_receipts',
   up: async (db) => {

@@ -1,6 +1,11 @@
 // The repository contract: the same tests run against every dialect (SQLite unit tests, SQLite and
 // Postgres 16 and 18 integration tests). Test-only; excluded from the library build.
-import type { AuditRow, PlanRecord, ReceiptRecord } from '@app/ports';
+import type {
+  AuditRow,
+  DataKeyRecord,
+  PlanRecord,
+  ReceiptRecord,
+} from '@app/ports';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -637,6 +642,151 @@ export function repositoryContract(options: RepositoryContractOptions): void {
         expect(await repos.receipts.purgeBefore(500, 10)).toBe(0);
 
         expect(await repos.receipts.get('new-1' as never)).toBeDefined();
+      });
+    });
+
+    describe('data keys (wrapped, never in the open)', () => {
+      const key = (
+        id: string,
+        over: Partial<DataKeyRecord> = {},
+      ): DataKeyRecord => ({
+        id: id.padEnd(32, '0'),
+        purpose: 'main',
+        wrapKind: 'passphrase',
+        wrapParamsJson:
+          '{"N":131072,"kdf":"scrypt","p":1,"r":8,"salt":"c2FsdA=="}',
+        wrapped: Uint8Array.from(
+          { length: 60 },
+          (_, index) => (index * 7) % 256,
+        ),
+        state: 'active',
+        createdAt: 1_000,
+        retiredAt: null,
+        ...over,
+      });
+
+      beforeEach(async () => {
+        await handle.db.deleteFrom('data_keys').execute();
+      });
+
+      it('AC-1 data key: stores a key and reads every column back, bytes and nulls included', async () => {
+        const retired = key('b', {
+          wrapKind: 'keyring',
+          state: 'retired',
+          createdAt: 500,
+          retiredAt: 900,
+        });
+
+        expect(await repos.dataKeys.insert(key('a'))).toBe(true);
+        expect(await repos.dataKeys.insert(retired)).toBe(true);
+
+        expect(await repos.dataKeys.get(key('a').id)).toEqual(key('a'));
+        expect(await repos.dataKeys.get(retired.id)).toEqual(retired);
+        expect(await repos.dataKeys.get('f'.repeat(32))).toBeUndefined();
+        const stored = await repos.dataKeys.get(key('a').id);
+        expect(stored?.wrapped).toBeInstanceOf(Uint8Array);
+        expect(Buffer.isBuffer(stored?.wrapped)).toBe(false);
+      });
+
+      it('AC-1 data key: a repeated id is refused and the first row stays', async () => {
+        await repos.dataKeys.insert(key('a'));
+
+        expect(
+          await repos.dataKeys.insert(
+            key('a', { wrapKind: 'file-kek', purpose: 'other' }),
+          ),
+        ).toBe(false);
+
+        expect(await repos.dataKeys.get(key('a').id)).toEqual(key('a'));
+      });
+
+      it('AC-1 data key: one active key per purpose, more under other purposes and beside retired ones', async () => {
+        expect(await repos.dataKeys.insert(key('a'))).toBe(true);
+        expect(await repos.dataKeys.insert(key('b'))).toBe(false);
+        expect(await repos.dataKeys.get(key('b').id)).toBeUndefined();
+
+        expect(
+          await repos.dataKeys.insert(key('c', { purpose: 'captures' })),
+        ).toBe(true);
+        expect(
+          await repos.dataKeys.insert(
+            key('d', { state: 'retired', retiredAt: 5 }),
+          ),
+        ).toBe(true);
+      });
+
+      it('AC-1 data key: of many writers racing to initialise one purpose exactly one wins', async () => {
+        const results = await Promise.all(
+          Array.from({ length: 12 }, (_, i) =>
+            repos.dataKeys.insert(key(i.toString(16))),
+          ),
+        );
+
+        expect(results.filter(Boolean)).toHaveLength(1);
+        expect(await repos.dataKeys.list('main')).toHaveLength(1);
+      });
+
+      it('AC-1 data key: retiring keeps the row, once, and frees the purpose for a new active key', async () => {
+        await repos.dataKeys.insert(key('a'));
+
+        expect(await repos.dataKeys.retire(key('a').id, 2_000)).toBe(true);
+        expect(await repos.dataKeys.retire(key('a').id, 3_000)).toBe(false);
+        expect(await repos.dataKeys.retire('f'.repeat(32), 3_000)).toBe(false);
+        expect(await repos.dataKeys.get(key('a').id)).toEqual(
+          key('a', { state: 'retired', retiredAt: 2_000 }),
+        );
+
+        expect(
+          await repos.dataKeys.insert(key('b', { createdAt: 2_000 })),
+        ).toBe(true);
+      });
+
+      it('AC-1 data key: lists one purpose, newest first', async () => {
+        await repos.dataKeys.insert(
+          key('a', { state: 'retired', retiredAt: 1, createdAt: 100 }),
+        );
+        await repos.dataKeys.insert(key('b', { createdAt: 300 }));
+        await repos.dataKeys.insert(
+          key('c', { state: 'retired', retiredAt: 2, createdAt: 200 }),
+        );
+        await repos.dataKeys.insert(key('d', { purpose: 'captures' }));
+
+        expect(
+          (await repos.dataKeys.list('main')).map((row) => row.id),
+        ).toEqual([key('b').id, key('c').id, key('a').id]);
+        expect(await repos.dataKeys.list('nobody')).toEqual([]);
+      });
+
+      it('AC-1 data key: the database refuses a wrap kind or a state it does not know', async () => {
+        const base = {
+          id: 'e'.repeat(32),
+          purpose: 'main',
+          wrap_params: '{}',
+          wrapped: new Uint8Array(1),
+          created_at: 1,
+          retired_at: null,
+        };
+
+        await expect(
+          handle.db
+            .insertInto('data_keys')
+            .values({
+              ...base,
+              wrap_kind: 'plaintext' as never,
+              state: 'retired',
+            })
+            .execute(),
+        ).rejects.toThrow();
+        await expect(
+          handle.db
+            .insertInto('data_keys')
+            .values({
+              ...base,
+              wrap_kind: 'keyring',
+              state: 'maybe' as never,
+            })
+            .execute(),
+        ).rejects.toThrow();
       });
     });
 

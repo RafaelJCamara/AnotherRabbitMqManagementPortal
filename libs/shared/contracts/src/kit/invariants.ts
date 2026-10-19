@@ -1,6 +1,7 @@
 // Kit invariants (blueprint 3.1). `checkRegistry` returns every violation; `assertRegistry` throws.
 // The emitters call `assertRegistry` first, so an invalid registry never produces a spec.
 import { z } from 'zod';
+import { hasSecretField } from '../secret.ts';
 import type { ActionDef } from './define-action.ts';
 import type { TopicDef } from './define-topic.ts';
 import {
@@ -70,6 +71,25 @@ function checkAction(action: ActionDef, out: Violation[]): void {
       fail('path-param-in-input', `path parameter '${name}' must be required`);
     }
   }
+  // I-10: a secret is write-only. It is not in the output, and not in a URL (a path parameter, or
+  // any field of a GET, which is a query string).
+  if (hasSecretField(action.output, 'output')) {
+    fail('secret-write-only', 'the output contains a write-only secret field');
+  }
+  if (shape) {
+    const inPath = new Set(pathParamNames(path));
+    for (const [name, field] of Object.entries(shape)) {
+      if (
+        (method === 'GET' || inPath.has(name)) &&
+        hasSecretField(field, 'input')
+      ) {
+        fail(
+          'secret-write-only',
+          `input field '${name}' is a write-only secret and would travel in the URL`,
+        );
+      }
+    }
+  }
   if (method === 'GET' && shape) {
     const inPath = new Set(pathParamNames(path));
     for (const [name, field] of Object.entries(shape)) {
@@ -89,6 +109,13 @@ function checkTopic(topic: TopicDef, out: Violation[]): void {
     out.push({ rule, subject, message });
   if (!ID_FORMAT.test(topic.id)) {
     fail('topic-id-format', `id must look like 'namespace.name'`);
+  }
+  // I-10: a topic frame goes to every subscriber and into the live buffers; no secret rides on it.
+  if (
+    hasSecretField(topic.params, 'input') ||
+    hasSecretField(topic.item, 'output')
+  ) {
+    fail('secret-write-only', 'a topic carries a write-only secret field');
   }
   if (!Number.isInteger(topic.ring.items) || topic.ring.items <= 0) {
     fail('topic-bounded', 'ring.items must be a positive integer');

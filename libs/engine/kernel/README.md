@@ -32,7 +32,7 @@ Tags: `type:kernel`, `runtime:node`. `src/actions/` is trust-critical (CODEOWNER
 - **I-11.** `pino` (and `pino-*`) may be imported only here; other projects use the `Logger` interface.
 - **Config.** Unknown keys are rejected in every source (environment, file, defaults), even when the schema would strip them. Environment variables are `PREFIX_SECTION__KEY` (`APP_SERVER__PUBLIC_URL` is `server.publicUrl`); `..._FILE` reads the value from a file. Text from the environment or a file is converted to the number, boolean, array (JSON) or object (JSON) the schema asks for.
 
-Open questions: OQ-110 to OQ-116 (kernel), OQ-170 to OQ-178 (scheduler) and OQ-220 to OQ-246 (executor) and OQ-270 to OQ-279 (audit, receipts, guardrails) in [docs/open-questions.md](../../../docs/open-questions.md).
+Open questions: OQ-110 to OQ-116 (kernel), OQ-170 to OQ-178 (scheduler) and OQ-220 to OQ-246 (executor) and OQ-271 to OQ-279 (audit, receipts, guardrails) in [docs/open-questions.md](../../../docs/open-questions.md).
 
 ## Proof commands
 

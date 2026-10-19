@@ -14,6 +14,7 @@
 | Frames    | `ClientFrame`, `ServerFrame` (live protocol), `PortFrame` (desktop MessagePort), `CtlFrame` (main to engine)                                                             | `src/live-frames.ts`, `src/port-frames.ts`, `src/ctl-frames.ts` |
 | Bridge    | `PlatformBridge` v1 (`BRIDGE_VERSION`), `AppInfo`, `SaveTarget`                                                                                                          | `src/bridge.ts`                                            |
 | Config    | `EnvClass`, `Risk`, `EngineMode`, `Qos`                                                                                                                                  | `src/config/env.ts`                                        |
+| Secrets   | `secretInput()` (a write-only string), `SecretStatusSchema` (`isSet`, `updatedAt`), `hasSecretField`, `SECRET_MAX_CHARS`                                                 | `src/secret.ts`                                            |
 | Registry  | `registry`: every action and topic the engine serves                                                                                                                     | `src/registry/`                                            |
 | Emitters  | `emitOpenApi`, `emitAsyncApi`, `emitSpecs`, `specDrift`                                                                                                                  | `src/emit/`                                                |
 
@@ -38,6 +39,7 @@ Enforced by `checkRegistry`, which both emitters call first, so an invalid regis
 - every `{param}` in a path is a required field of the input;
 - GET is bound to `kind: 'query'` only and carries flat inputs (scalars and arrays of scalars);
 - a mutating action (`command`, `job`, `peek`, or `mcp.mutating`) has `audit: 'attempt+outcome'`;
+- a secret is write-only (I-10): no secretInput() field in an action output, in a topic's params or items, in a path parameter or in any field of a GET;
 - a topic is bounded (`ring.items` and `ring.bytes` positive integers), has a positive `maxHz` when set, and has `key()` when its flow is `snapshot-delta`.
 
 Other rules: schemas are explicit (`@app/explicit-zod-schemas`: no `z.any()`, no loose objects), and the emitters reject schemas that need `$ref` or `$defs` (recursive types) until a spec needs them.

@@ -283,6 +283,46 @@ export interface ReceiptRepository {
   purgeBefore(cutoff: number, limit: number): Promise<number>;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Wrapped data keys (M0-22, ADR-014). The secrets library (adapter) owns the cryptography; this
+// port only stores what a key wrap returned. A row never holds a data key in the open: `wrapped`
+// is the key sealed under a KEK that lives elsewhere (a file, a passphrase, the OS keyring), or, for
+// a key the desktop main process delivers, only a key check value.
+// ---------------------------------------------------------------------------------------------
+
+export type DataKeyWrapKind =
+  | 'file-kek'
+  | 'passphrase'
+  | 'keyring'
+  | 'ctl-delivered';
+
+export interface DataKeyRecord {
+  /** 32 lowercase hex characters. Named inside every ciphertext made with the key. */
+  readonly id: string;
+  /** What the key is for (`main`). One active key per purpose. */
+  readonly purpose: string;
+  readonly wrapKind: DataKeyWrapKind;
+  /** Non-secret wrap parameters (KDF salt and cost, KEK check, keyring account) as canonical JSON. */
+  readonly wrapParamsJson: string;
+  readonly wrapped: Uint8Array;
+  readonly state: 'active' | 'retired';
+  readonly createdAt: number;
+  readonly retiredAt: number | null;
+}
+
+export interface DataKeyRepository {
+  /**
+   * Stores a new key. Returns false, and stores nothing, when the id exists or the purpose already
+   * has an active key and the record is also active (another writer initialised first).
+   */
+  insert(record: DataKeyRecord): Promise<boolean>;
+  get(id: string): Promise<DataKeyRecord | undefined>;
+  /** Every key of the purpose, newest first; at most 100 (a vault holds a handful). */
+  list(purpose: string): Promise<readonly DataKeyRecord[]>;
+  /** Marks an active key retired. It stays in the store: rows sealed under it must still open. */
+  retire(id: string, now: number): Promise<boolean>;
+}
+
 /** Idempotency keys are scoped to the principal that sent them: nobody can burn another's key. */
 export interface IdempotencyRepository {
   /** True when the key was new and is now taken; false when it was already used. Atomic. */

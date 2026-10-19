@@ -18,6 +18,14 @@ export * from './object-key.ts';
 export * from './port-frames.ts';
 export { registry } from './registry/index.ts';
 export {
+  containsWriteOnly,
+  hasSecretField,
+  SECRET_MAX_CHARS,
+  SecretStatusSchema,
+  secretInput,
+  type SecretStatus,
+} from './secret.ts';
+export {
   OpsArmInputSchema,
   OpsArmOutputSchema,
   OpsDisarmOutputSchema,

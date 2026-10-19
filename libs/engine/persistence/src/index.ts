@@ -4,6 +4,7 @@ export type {
   AuditEventsTable,
   BlobsTable,
   ConnectionProfilesTable,
+  DataKeysTable,
   Database,
   IdempotencyKeysTable,
   PersistenceHandle,

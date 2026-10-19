@@ -128,6 +128,19 @@ export interface ReceiptsTable {
   created_at: number;
 }
 
+/** data_keys (M0-22): wrapped data keys; see 0004_data_keys. Never holds a key in the open. */
+export interface DataKeysTable {
+  id: string;
+  purpose: string;
+  wrap_kind: 'file-kek' | 'passphrase' | 'keyring' | 'ctl-delivered';
+  /** JSON text: non-secret wrap parameters. */
+  wrap_params: string;
+  wrapped: Uint8Array;
+  state: 'active' | 'retired';
+  created_at: number;
+  retired_at: number | null;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -138,6 +151,7 @@ export interface Database {
   idempotency_keys: IdempotencyKeysTable;
   audit_events: AuditEventsTable;
   receipts: ReceiptsTable;
+  data_keys: DataKeysTable;
 }
 
 /** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */

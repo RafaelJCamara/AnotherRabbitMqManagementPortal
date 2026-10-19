@@ -177,6 +177,18 @@ export interface JobEventsTable {
   owner: string | null;
 }
 
+/** views (M0-47): a person's saved views; bound to no connection. */
+export interface ViewsTable {
+  id: string;
+  owner_id: string;
+  kind: string;
+  name: string;
+  /** JSON text the UI owns. */
+  definition: string;
+  created_at: number;
+  updated_at: number;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -190,6 +202,7 @@ export interface Database {
   data_keys: DataKeysTable;
   jobs: JobsTable;
   job_events: JobEventsTable;
+  views: ViewsTable;
 }
 
 /** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */

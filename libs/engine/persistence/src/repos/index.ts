@@ -7,6 +7,7 @@ import { createJobStore } from './jobs';
 import { createIdempotencyRepository, createPlanRepository } from './plans';
 import type { Repositories } from './ports';
 import { createSettingsRepository } from './settings';
+import { createWorkspaceRepository } from './workspace';
 
 export interface RepositoryOptions {
   /** Wall-clock milliseconds. Defaults to `Date.now`. */
@@ -29,5 +30,6 @@ export function createRepositories(
     receipts: createReceiptRepository(handle.db),
     dataKeys: createDataKeyRepository(handle.db),
     jobs: createJobStore(handle.db, handle.dialect),
+    workspace: createWorkspaceRepository(handle.db, now),
   };
 }

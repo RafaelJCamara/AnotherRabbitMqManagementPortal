@@ -8,6 +8,7 @@ import type {
   JobStore,
   PlanRepository,
   ReceiptRepository,
+  WorkspaceRepository,
 } from '@app/ports';
 
 /** A value that survives JSON.stringify and JSON.parse unchanged. */
@@ -96,4 +97,6 @@ export interface Repositories {
   readonly dataKeys: DataKeyRepository;
   /** Durable jobs (M0-31). The port is @app/ports'; `@app/jobs` owns the policy. */
   readonly jobs: JobStore;
+  /** Saved views, layouts, settings and keybindings (M0-47). The port is @app/ports'. */
+  readonly workspace: WorkspaceRepository;
 }

@@ -32,3 +32,13 @@ export {
   opsArm,
   opsDisarm,
 } from './registry/ops.ts';
+export * from './registry/layouts-get.ts';
+export * from './registry/layouts-put.ts';
+export * from './registry/views-list.ts';
+export * from './registry/views-create.ts';
+export * from './registry/views-delete.ts';
+export * from './registry/settings-get.ts';
+export * from './registry/settings-put.ts';
+export * from './registry/keybindings-get.ts';
+export * from './registry/keybindings-put.ts';
+export * from './registry/workspace.ts';

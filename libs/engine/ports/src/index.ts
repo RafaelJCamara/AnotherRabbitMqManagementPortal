@@ -94,3 +94,9 @@ export type {
   Window,
   WindowQuery,
 } from './repos.ts';
+export type {
+  SavedViewRecord,
+  WorkspaceDocument,
+  WorkspaceDocumentKind,
+  WorkspaceRepository,
+} from './workspace.ts';

@@ -189,6 +189,158 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
+    "/connections/{cid}/layout": {
+      "get": {
+        "operationId": "layouts.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "layout": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": {},
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "updatedAt": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "layout",
+                    "updatedAt"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Read the saved workspace layout of a connection profile",
+        "tags": [
+          "layouts"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "workspace.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      },
+      "put": {
+        "operationId": "layouts.put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "layout": {
+                    "additionalProperties": {},
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "layout"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Save the workspace layout of a connection profile",
+        "tags": [
+          "layouts"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "workspace.write",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{connectionId}/arm": {
       "post": {
         "operationId": "ops.arm",
@@ -331,6 +483,140 @@
         "x-since": "1.0"
       }
     },
+    "/keybindings": {
+      "get": {
+        "operationId": "keybindings.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "bindings": {
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "maxLength": 64,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "pattern": "^[a-z][A-Za-z0-9.-]{0,99}$",
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "bindings"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Read the keybinding overrides of the caller",
+        "tags": [
+          "keybindings"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "workspace.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      },
+      "put": {
+        "operationId": "keybindings.put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "bindings": {
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "maxLength": 64,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "propertyNames": {
+                      "pattern": "^[a-z][A-Za-z0-9.-]{0,99}$",
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "bindings"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Replace the keybinding overrides",
+        "tags": [
+          "keybindings"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "workspace.write",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/meta": {
       "get": {
         "operationId": "meta.get",
@@ -390,6 +676,482 @@
         "x-risk": "none",
         "x-since": "1.0"
       }
+    },
+    "/settings": {
+      "get": {
+        "operationId": "settings.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "settings": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "defaultPageSize": {
+                          "maximum": 200,
+                          "minimum": 10,
+                          "type": "integer"
+                        },
+                        "locale": {
+                          "maxLength": 35,
+                          "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+                          "type": "string"
+                        },
+                        "timeDisplay": {
+                          "enum": [
+                            "local",
+                            "utc"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "locale",
+                        "timeDisplay",
+                        "defaultPageSize"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "settings"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Read the workspace settings of the caller",
+        "tags": [
+          "settings"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "workspace.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      },
+      "put": {
+        "operationId": "settings.put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "settings": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "defaultPageSize": {
+                        "maximum": 200,
+                        "minimum": 10,
+                        "type": "integer"
+                      },
+                      "locale": {
+                        "maxLength": 35,
+                        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+                        "type": "string"
+                      },
+                      "timeDisplay": {
+                        "enum": [
+                          "local",
+                          "utc"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "settings"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "settings": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "defaultPageSize": {
+                          "maximum": 200,
+                          "minimum": 10,
+                          "type": "integer"
+                        },
+                        "locale": {
+                          "maxLength": 35,
+                          "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+                          "type": "string"
+                        },
+                        "timeDisplay": {
+                          "enum": [
+                            "local",
+                            "utc"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "locale",
+                        "timeDisplay",
+                        "defaultPageSize"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "settings"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Change workspace settings",
+        "tags": [
+          "settings"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "workspace.write",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/views": {
+      "get": {
+        "operationId": "views.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9-]{0,39}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "createdAt": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "definition": {
+                            "additionalProperties": {},
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "id": {
+                            "maxLength": 64,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "kind": {
+                            "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                            "type": "string"
+                          },
+                          "name": {
+                            "maxLength": 80,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "kind",
+                          "definition",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 200,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "List the saved views of the caller",
+        "tags": [
+          "views"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "workspace.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      },
+      "post": {
+        "operationId": "views.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "definition": {
+                    "additionalProperties": {},
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "kind": {
+                    "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                    "type": "string"
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "kind",
+                  "definition"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "view": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "createdAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "definition": {
+                          "additionalProperties": {},
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        "id": {
+                          "maxLength": 64,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "kind": {
+                          "pattern": "^[a-z][a-z0-9-]{0,39}$",
+                          "type": "string"
+                        },
+                        "name": {
+                          "maxLength": 80,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "kind",
+                        "definition",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "view"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Save a view (filters, columns, sort) that works on any connection",
+        "tags": [
+          "views"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "workspace.write",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/views/{viewId}": {
+      "delete": {
+        "operationId": "views.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "viewId",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Delete a saved view",
+        "tags": [
+          "views"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "workspace.write",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
     }
   },
   "servers": [
@@ -399,10 +1161,22 @@
   ],
   "tags": [
     {
+      "name": "keybindings"
+    },
+    {
+      "name": "layouts"
+    },
+    {
       "name": "meta"
     },
     {
       "name": "ops"
+    },
+    {
+      "name": "settings"
+    },
+    {
+      "name": "views"
     }
   ]
 }

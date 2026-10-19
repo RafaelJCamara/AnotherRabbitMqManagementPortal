@@ -14,6 +14,7 @@ export type {
   ReceiptsTable,
   SchemaMigrationsTable,
   SettingsTable,
+  ViewsTable,
 } from './database';
 export { executeRawStatement } from './database';
 export { openSqlite, type NodeSqliteOptions } from './dialects/node-sqlite';

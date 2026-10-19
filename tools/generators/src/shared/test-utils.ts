@@ -23,11 +23,27 @@ const REAL_FILES = [
   'tools/supply-chain/deps-allowlist.json',
   // What the action and topic generators register into.
   'libs/shared/contracts/src/index.ts',
-  'libs/shared/contracts/src/registry/index.ts',
   'libs/shared/contracts/src/registry/meta.ts',
   'libs/shared/contracts/src/registry/ops.ts',
   'tools/arch-tests/src/registered-actions.ts',
 ];
+
+/**
+ * The registry as the generators first saw it. The live file grows with every real action, so a
+ * test that read it would break each time a work package registers one; the generators only need
+ * its shape: an import block, an `actions` array and a `topics` array.
+ */
+const BASELINE_REGISTRY = `// The contract registry. A new action or topic is added here, then the committed specs are
+// regenerated; the spec drift gate fails on any difference.
+import type { Registry } from '../kit/invariants.ts';
+import { metaGet } from './meta.ts';
+import { opsArm, opsDisarm } from './ops.ts';
+
+export const registry: Registry = {
+  actions: [metaGet, opsArm, opsDisarm],
+  topics: [],
+};
+`;
 
 export function workspaceTree(): Tree {
   const tree = createTreeWithEmptyWorkspace();
@@ -38,6 +54,7 @@ export function workspaceTree(): Tree {
       path === 'tsconfig.base.json' ? withoutAdoptedAliases(content) : content,
     );
   }
+  tree.write('libs/shared/contracts/src/registry/index.ts', BASELINE_REGISTRY);
   return tree;
 }
 

@@ -824,5 +824,97 @@ export function repositoryContract(options: RepositoryContractOptions): void {
         expect(await repos.blobs.get(stored.sha256)).toEqual(new Uint8Array());
       });
     });
+
+    describe('workspace (views and per-owner documents)', () => {
+      const view = (id: string, ownerId: string, kind = 'queues') => ({
+        id,
+        ownerId,
+        name: `view ${id}`,
+        kind,
+        definition: {
+          filter: { regex: '^orders' },
+          columns: ['name', 'ready'],
+        },
+        createdAt: 1_000,
+        updatedAt: 1_000,
+      });
+
+      beforeEach(async () => {
+        await handle.db.deleteFrom('views').execute();
+      });
+
+      it('stores a view with its JSON definition and deletes it for its owner only', async () => {
+        await repos.workspace.insertView(view('v1', 'alice'));
+
+        expect(await repos.workspace.deleteView('bob', 'v1')).toBe(false);
+        expect(await repos.workspace.listViews('alice', { limit: 10 })).toEqual(
+          {
+            items: [view('v1', 'alice')],
+          },
+        );
+        expect(await repos.workspace.deleteView('alice', 'v1')).toBe(true);
+        expect(await repos.workspace.deleteView('alice', 'v1')).toBe(false);
+        expect(await repos.workspace.countViews('alice')).toBe(0);
+      });
+
+      it('lists one owner in windows by id and filters by kind', async () => {
+        for (const id of ['v1', 'v2', 'v3']) {
+          await repos.workspace.insertView(
+            view(id, 'alice', id === 'v2' ? 'exchanges' : 'queues'),
+          );
+        }
+        await repos.workspace.insertView(view('v4', 'bob'));
+
+        const first = await repos.workspace.listViews('alice', { limit: 2 });
+        const second = await repos.workspace.listViews('alice', {
+          limit: 2,
+          ...(first.nextCursor === undefined
+            ? {}
+            : { cursor: first.nextCursor }),
+        });
+
+        expect(first.items.map((item) => item.id)).toEqual(['v1', 'v2']);
+        expect(first.nextCursor).toBe('v2');
+        expect(second.items.map((item) => item.id)).toEqual(['v3']);
+        expect(second.nextCursor).toBeUndefined();
+        expect(
+          (
+            await repos.workspace.listViews('alice', {
+              kind: 'exchanges',
+              limit: 10,
+            })
+          ).items.map((item) => item.id),
+        ).toEqual(['v2']);
+        expect(await repos.workspace.countViews('alice')).toBe(3);
+      });
+
+      it('keeps documents apart by owner and kind, and replaces on write', async () => {
+        clock.now = 5_000;
+        await repos.workspace.putDocument('alice', 'layout', 'c1', { a: 1 });
+        await repos.workspace.putDocument('alice', 'layout', 'c2', { a: 2 });
+        await repos.workspace.putDocument('alice', 'setting', 'c1', 'x');
+        clock.now = 6_000;
+        await repos.workspace.putDocument('alice', 'layout', 'c1', { a: 3 });
+
+        expect(
+          await repos.workspace.getDocument('alice', 'layout', 'c1'),
+        ).toEqual({
+          key: 'c1',
+          value: { a: 3 },
+          updatedAt: 6_000,
+        });
+        expect(
+          await repos.workspace.getDocument('bob', 'layout', 'c1'),
+        ).toBeUndefined();
+        expect(
+          (await repos.workspace.listDocuments('alice', 'layout', 10)).map(
+            (document) => document.key,
+          ),
+        ).toEqual(['c1', 'c2']);
+        expect(
+          await repos.workspace.listDocuments('alice', 'layout', 1),
+        ).toHaveLength(1);
+      });
+    });
   });
 }

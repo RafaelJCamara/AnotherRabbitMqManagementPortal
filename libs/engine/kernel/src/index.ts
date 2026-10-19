@@ -84,11 +84,21 @@ export {
   type LogSink,
 } from './log/logger.ts';
 export {
+  createCanaryScanner,
+  encodedForms,
+  MIN_CANARY_LENGTH,
+  type CanaryEncoding,
+  type CanaryHit,
+  type CanaryScanner,
+  type EncodedForm,
+} from './log/canary.ts';
+export {
   isSensitiveKey,
   REDACTED,
   redactText,
   redactValue,
 } from './log/redact.ts';
+export { scrubJson } from './log/scrub.ts';
 export {
   BrokerScheduler,
   createManualTimers,

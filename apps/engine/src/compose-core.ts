@@ -59,6 +59,7 @@ import {
   type VaultStatus,
   type WrapInput,
 } from '@app/secrets';
+import type { FileTokenSink, LogTail } from '@app/svc-ops';
 import { buildApp, type Authenticator } from '@app/transport';
 import type { FastifyInstance } from 'fastify';
 
@@ -106,6 +107,15 @@ export interface ModeProfile {
     readonly recovery: 'interrupt-all-running' | 'interrupt-expired';
     readonly autoResume: 'never' | 'resumable';
   };
+  /**
+   * Where a diagnostics bundle can be saved and which secret values this mode holds (a launch
+   * token, a carrier secret), so the bundle can remove them wherever they appear (M0-69, I-10).
+   * Absent: this mode has no save target yet, and diagnostics.bundle is not registered.
+   */
+  readonly diagnostics?: {
+    readonly files: FileTokenSink;
+    readonly secretValues: () => readonly string[];
+  };
 }
 
 export interface ComposeOptions {
@@ -115,6 +125,8 @@ export interface ComposeOptions {
   readonly logger: Logger;
   readonly registry?: Registry;
   readonly trust?: TrustStoreOptions;
+  /** The newest log lines, for the diagnostics bundle. Absent: no bundle (nothing to collect from). */
+  readonly logs?: LogTail;
   /** Wraps the repositories over the database: a seam for the tests that make a write fail. */
   readonly decorateRepositories?: (repositories: Repositories) => Repositories;
   readonly clock?: Clock;
@@ -285,10 +297,40 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
       recovery: profile.jobs.recovery,
       autoResume: profile.jobs.autoResume,
     });
+    // What the UI was built against and what the schema is at: the ready line carries them, and a
+    // diagnostics bundle names them.
+    const ready: ReadyInfo = {
+      contract: sha256(emitSpecs(contracts)['openapi.v1.json'] ?? ''),
+      schemaHash: sha256(
+        migrations.map((migration) => migration.id).join('\n'),
+      ),
+    };
     const modules = options.modules({
       engineVersion: options.engineVersion,
       mode: profile.mode,
       arming: guardrails.arming,
+      ...(options.logs === undefined || profile.diagnostics === undefined
+        ? {}
+        : {
+            ops: {
+              diagnostics: {
+                versions: () => ({
+                  engine: options.engineVersion,
+                  mode: profile.mode,
+                  node: process.version,
+                  platform: `${process.platform}-${process.arch}`,
+                  ...ready,
+                }),
+                logs: options.logs,
+                // No connection profile is stored yet (M0-44), so there is none to summarise.
+                profiles: () => Promise.resolve([]),
+                audit: repos.audit,
+                secretValues: profile.diagnostics.secretValues,
+              },
+              files: profile.diagnostics.files,
+              clock,
+            },
+          }),
     });
     for (const module of modules) {
       executor.register(...module.actions);
@@ -389,12 +431,6 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
       });
     }
 
-    const ready: ReadyInfo = {
-      contract: sha256(emitSpecs(contracts)['openapi.v1.json'] ?? ''),
-      schemaHash: sha256(
-        migrations.map((migration) => migration.id).join('\n'),
-      ),
-    };
     await step('ready', () => {
       state = 'ready';
       return Promise.resolve();

@@ -27,3 +27,9 @@ export {
   type UndiciConnector,
   type UndiciConnectorOptions,
 } from './undici-connector.ts';
+export {
+  isRegisteredPurpose,
+  PURPOSES,
+  type PurposeSpec,
+  type PurposeStatus,
+} from './purposes.ts';

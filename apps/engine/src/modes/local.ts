@@ -25,6 +25,7 @@ import {
 } from '@app/secrets';
 import { createLocalTokenAuth } from '@app/transport';
 
+import { createDataDirBundleSink } from '../data-dir-bundles.ts';
 import { UsageError } from '../entry/args.ts';
 import type { ModeFactory } from './types.ts';
 
@@ -70,6 +71,11 @@ export const createLocalMode: ModeFactory = (host) => {
       listener: { host: '127.0.0.1', port: args.port ?? 0 },
       ...(uiRoot === undefined ? {} : { uiRoots: [uiRoot] }),
       jobs: { recovery: 'interrupt-all-running', autoResume: 'never' },
+      // Bundles go to <data dir>/diagnostics; the launch token is removed from them.
+      diagnostics: {
+        files: createDataDirBundleSink(dataDir),
+        secretValues: () => [token],
+      },
     },
     launchUrl: (address) =>
       `http://${address.host}:${String(address.port)}/#t=${token}`,

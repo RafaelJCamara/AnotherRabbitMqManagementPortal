@@ -16,6 +16,8 @@ import { createSettingsGetAction } from '@app/svc-workspace';
 import { createSettingsPutAction } from '@app/svc-workspace';
 import { createKeybindingsGetAction } from '@app/svc-workspace';
 import { createKeybindingsPutAction } from '@app/svc-workspace';
+import { createDiagnosticsBundleAction } from '@app/svc-ops';
+import { FAKE_FILE_TOKEN, createOpsFakeDeps } from '@app/svc-ops';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -67,6 +69,11 @@ const manifest: RegisteredAction[] = [
     path: 'libs/engine/svc-workspace/src/actions/keybindings-put.ts',
     impl: createKeybindingsPutAction(createWorkspaceFakeDeps()),
     input: { bindings: {} },
+  },
+  {
+    path: 'libs/engine/svc-ops/src/actions/diagnostics-bundle.ts',
+    impl: createDiagnosticsBundleAction(createOpsFakeDeps()),
+    input: { fileToken: FAKE_FILE_TOKEN },
   },
 ];
 

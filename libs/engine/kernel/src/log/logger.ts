@@ -64,6 +64,12 @@ export interface LoggerOptions {
   bindings?: LogFields;
   /** Default: standard output, written asynchronously. Desktop file sinks are supplied by the host. */
   sink?: LogSink;
+  /**
+   * Called with each finished, redacted line (newline included) just before the sink gets it, for a
+   * holder that keeps the newest lines (the diagnostics bundle). It sees what the sink sees, never
+   * more, and it does not replace the sink.
+   */
+  onLine?: (line: string) => void;
   /** The `time` of each line comes from here. Default: the system clock. */
   clock?: Clock;
 }
@@ -95,7 +101,9 @@ export function createLogger(options: LoggerOptions = {}): Logger {
   const sink = options.sink ?? pino.destination({ dest: 1, sync: false });
   const destination: DestinationStream = {
     write: (line) => {
-      sink.write(redactLine(line));
+      const redacted = redactLine(line);
+      options.onLine?.(redacted);
+      sink.write(redacted);
     },
   };
   const logger = pino(

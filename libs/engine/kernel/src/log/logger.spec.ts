@@ -165,6 +165,25 @@ describe('createLogger', () => {
     expect(sink.text()).not.toContain('canary-pw');
   });
 
+  it('hands onLine the same redacted line the sink gets, and does not replace the sink', () => {
+    const sink = memorySink();
+    const seen: string[] = [];
+    const logger = createLogger({
+      sink,
+      onLine: (line) => {
+        seen.push(line);
+      },
+    });
+
+    logger.info({ password: AMQP_PASSWORD }, `dial ${SHOVEL_URI}`);
+
+    expect(seen).toEqual(sink.lines);
+    expect(seen).toHaveLength(1);
+    expect(seen.join('')).not.toContain(AMQP_PASSWORD);
+    expect(seen.join('')).not.toContain(SHOVEL_PASSWORD);
+    expect(seen[0]?.endsWith('\n')).toBe(true);
+  });
+
   it('writes nothing when silent', () => {
     const sink = memorySink();
     createLogger({ sink, level: 'silent' }).fatal('nothing');

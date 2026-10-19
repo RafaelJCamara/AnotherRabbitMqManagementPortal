@@ -10,6 +10,7 @@ import {
   type ArmingControl,
   type DrainPhaseSpec,
 } from '@app/kernel';
+import { createOpsModule, type OpsModuleDeps } from '@app/svc-ops';
 
 export interface EngineModule {
   readonly id: string;
@@ -25,11 +26,22 @@ export interface ModuleContext {
   readonly mode: EngineMode;
   /** Only `ops.arm` and `ops.disarm` may use it. */
   readonly arming: ArmingControl;
+  /** The ports of the operations service; absent when this mode cannot save a bundle. */
+  readonly ops?: OpsModuleDeps;
 }
 
 export type ModuleFactory = (context: ModuleContext) => readonly EngineModule[];
 
-export const coreModules: ModuleFactory = ({ engineVersion, mode, arming }) => [
+export const coreModules: ModuleFactory = ({
+  engineVersion,
+  mode,
+  arming,
+  ops,
+}) => [
   { id: 'meta', actions: [createMetaAction({ engineVersion, mode })] },
   { id: 'ops', actions: createArmActions(arming) },
+  // The diagnostics bundle exists only where a mode gave it somewhere to save to (M0-69).
+  ...(ops === undefined
+    ? []
+    : [{ id: 'svc-ops', actions: createOpsModule(ops).actions }]),
 ];

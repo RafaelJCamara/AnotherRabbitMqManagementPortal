@@ -12,6 +12,7 @@ import { settingsGet } from './settings-get.ts';
 import { settingsPut } from './settings-put.ts';
 import { keybindingsGet } from './keybindings-get.ts';
 import { keybindingsPut } from './keybindings-put.ts';
+import { diagnosticsBundle } from './diagnostics-bundle.ts';
 
 export const registry: Registry = {
   actions: [
@@ -27,6 +28,7 @@ export const registry: Registry = {
     settingsPut,
     keybindingsGet,
     keybindingsPut,
+    diagnosticsBundle,
   ],
   topics: [],
 };

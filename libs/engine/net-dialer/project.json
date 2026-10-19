@@ -26,6 +26,28 @@
         "command": "vitest run --config libs/engine/net-dialer/vitest.config.mts"
       }
     },
+    "outbound-calls": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node libs/engine/net-dialer/src/emit-outbound-calls.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "outbound-calls-check": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/purposes.ts",
+        "{projectRoot}/src/outbound-calls-page.ts",
+        "{projectRoot}/src/emit-outbound-calls.ts",
+        "{workspaceRoot}/apps/docs/src/content/docs/security/outbound-calls.md"
+      ],
+      "options": {
+        "command": "node libs/engine/net-dialer/src/emit-outbound-calls.ts --check",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "it": {
       "executor": "nx:run-commands",
       "options": {

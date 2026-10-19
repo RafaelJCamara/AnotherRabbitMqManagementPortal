@@ -57,6 +57,15 @@
         "command": "vitest run --config apps/engine/vitest.config.mts"
       }
     },
+    "egress": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "cache": false,
+      "options": {
+        "command": "vitest run --config apps/engine/vitest.smoke.config.mts -t egress",
+        "env": { "EGRESS_SOAK_SECONDS": "600" }
+      }
+    },
     "smoke": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],

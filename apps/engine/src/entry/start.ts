@@ -8,6 +8,7 @@ import { createDesktopMode } from '../modes/desktop.ts';
 import { createLocalMode } from '../modes/local.ts';
 import { createTeamMode } from '../modes/team.ts';
 import type { ModeFactory } from '../modes/types.ts';
+import { createLogTail } from '../log-tail.ts';
 import { coreModules } from '../modules/index.ts';
 import { parseArgs } from './args.ts';
 import type { CtlPort } from './ctl.ts';
@@ -40,10 +41,16 @@ export async function startEngine(
   io: EntryIo,
 ): Promise<StartedEngine> {
   const args = parseArgs(argv);
+  // The newest lines are also held for the diagnostics bundle (the kernel hands each redacted line
+  // to `onLine`); the sink is the kernel's own (standard output) unless a test gave one.
+  const logs = createLogTail();
   const logger = createLogger({
     level: args.logLevel ?? 'info',
     bindings: { service: 'engine', mode: args.mode },
     ...(io.logSink === undefined ? {} : { sink: io.logSink }),
+    onLine: (line) => {
+      logs.add(line);
+    },
   });
   const boot = await MODES[args.mode]({
     args,
@@ -56,6 +63,7 @@ export async function startEngine(
     modules: coreModules,
     engineVersion: ENGINE_VERSION,
     logger,
+    logs,
   });
   const pending = engine.reconciliation
     .filter((report) => report.outcome.status === 'pending')

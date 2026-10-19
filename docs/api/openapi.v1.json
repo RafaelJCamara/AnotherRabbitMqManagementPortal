@@ -483,6 +483,143 @@
         "x-since": "1.0"
       }
     },
+    "/diagnostics/bundle": {
+      "post": {
+        "operationId": "diagnostics.bundle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "fileToken": {
+                    "pattern": "^[A-Za-z0-9_-]{16,128}$",
+                    "type": "string"
+                  },
+                  "logLines": {
+                    "maximum": 5000,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "fileToken"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "bytes": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "omitted": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "enum": [
+                              "receipts",
+                              "incidents"
+                            ],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "maxLength": 200,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "reason"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 16,
+                      "type": "array"
+                    },
+                    "sections": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "enum": [
+                              "versions",
+                              "logs",
+                              "profiles",
+                              "audit"
+                            ],
+                            "type": "string"
+                          },
+                          "items": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "truncated": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "items",
+                          "truncated"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 16,
+                      "type": "array"
+                    },
+                    "sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "bytes",
+                    "sha256",
+                    "sections",
+                    "omitted"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Write a redacted local diagnostics bundle to a file the person chose",
+        "tags": [
+          "diagnostics"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "query",
+        "x-permission": "diagnostics.export",
+        "x-planning": "none",
+        "x-risk": "low",
+        "x-since": "1.0"
+      }
+    },
     "/keybindings": {
       "get": {
         "operationId": "keybindings.get",
@@ -1160,6 +1297,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "diagnostics"
+    },
     {
       "name": "keybindings"
     },

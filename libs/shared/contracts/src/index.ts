@@ -43,3 +43,4 @@ export * from './registry/settings-put.ts';
 export * from './registry/keybindings-get.ts';
 export * from './registry/keybindings-put.ts';
 export * from './registry/workspace.ts';
+export * from './registry/diagnostics-bundle.ts';

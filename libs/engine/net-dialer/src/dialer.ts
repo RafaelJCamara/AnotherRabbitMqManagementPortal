@@ -85,6 +85,12 @@ export interface DialerOptions {
   /** Default: allow everything (the SSRF policy comes with M3-09). */
   readonly policy?: EgressPolicy;
   readonly resolver?: Resolver;
+  /**
+   * Whether a purpose is on the outbound-calls registry (`isRegisteredPurpose`). When given, a dial
+   * or a check with any other purpose is refused before anything is resolved (M0-69, I-12), so the
+   * published list of outbound calls is the list of calls that can happen. Default: any purpose.
+   */
+  readonly purposes?: (purpose: string) => boolean;
   /** Resolution, TCP connect and TLS handshake together. Default 10 seconds. */
   readonly connectTimeoutMs?: number;
   readonly log?: DialerLog;
@@ -177,6 +183,10 @@ const errnoOf = (error: unknown): string =>
   typeof error.code === 'string'
     ? error.code
     : 'unknown error';
+
+/** The reason a purpose is refused; the purpose is a short identifier (`PURPOSE`). */
+const unregistered = (purpose: string): string =>
+  `the purpose "${purpose}" is not in the outbound-calls registry`;
 
 export function createDialer(options: DialerOptions = {}): Dialer {
   const policy = options.policy ?? allowAllPolicy;
@@ -297,6 +307,9 @@ export function createDialer(options: DialerOptions = {}): Dialer {
   ): Promise<DialResult> {
     requireDirect(route);
     const { host, port, purpose } = validateTarget(target);
+    if (options.purposes?.(purpose) === false) {
+      throw egressDenied(host, port, unregistered(purpose));
+    }
     const { combined, explain } = limits(signal);
     try {
       combined.throwIfAborted();
@@ -337,6 +350,9 @@ export function createDialer(options: DialerOptions = {}): Dialer {
   return {
     async check(target) {
       const { host, port, purpose } = validateTarget(target);
+      if (options.purposes?.(purpose) === false) {
+        return { allowed: false, reason: unregistered(purpose), resolved: [] };
+      }
       const deadline = AbortSignal.timeout(timeoutMs);
       let addresses: readonly ResolvedAddress[];
       try {

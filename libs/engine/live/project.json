@@ -1,0 +1,30 @@
+{
+  "name": "live",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/live/src",
+  "projectType": "library",
+  "tags": ["type:kernel", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/live/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/live/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/live/vitest.config.mts"
+      }
+    }
+  }
+}

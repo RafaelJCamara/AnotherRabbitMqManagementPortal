@@ -14,6 +14,7 @@ export {
   sendProblem,
 } from './problem-handler.ts';
 export { API_PREFIX } from './router.ts';
+export { LIVE_PATH, type LiveEndpoint } from './ws/upgrade.ts';
 export {
   NONCE_PLACEHOLDER,
   contentSecurityPolicy,

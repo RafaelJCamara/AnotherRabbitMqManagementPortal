@@ -34,6 +34,7 @@
     "@swc/helpers": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
+    "@types/ws": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "angular-eslint": "catalog:",
     "astro": "catalog:",
@@ -65,6 +66,7 @@
     "pg": "catalog:",
     "pino": "catalog:",
     "rxjs": "catalog:",
+    "ws": "catalog:",
     "zod": "catalog:"
   }
 }

@@ -19,7 +19,7 @@ Tags: `type:ui-data`, `runtime:browser`. Imports `@app/contracts`, `@app/live-pr
 - The credit balance is a `Credits` from `@app/live-protocol`, the class the engine session counts with. A frame that arrives with no credit left is counted (`creditViolations`) and still delivered.
 - **Credit goes back after rendering.** Frames are delivered to subscribers at once; the credit for them is granted in the next animation frame (`afterRender`), one `credit` frame per subscription. A page that is not drawing grants nothing, so the engine keeps its items and each topic's QoS decides what is dropped and counted.
 - `seq` is a cursor. A `data` or `delta` frame that is not newer than the last delivered is dropped and counted; a `snapshot` always replaces the state; loss is only ever announced by a `gap` frame.
-- On transport loss the client reconnects with backoff and sends `hello{resume: {session, lastSeq}}`. If the engine resumes the session, credits restart at zero and the client grants its initial credit again (OQ-121); if not, subscribers get a `reset` event and the subscriptions are made again. After the allowed attempts every subscription fails with a `TransportError` and the state is `down`.
+- On transport loss the client reconnects with backoff and sends `hello{resume: {session, lastSeq}}`. If the engine resumes the session, credits restart at zero and the client grants its initial credit again (the engine hub does the same, M0-33); if not, subscribers get a `reset` event and the subscriptions are made again. After the allowed attempts every subscription fails with a `TransportError` and the state is `down`.
 
 ## Invariants
 

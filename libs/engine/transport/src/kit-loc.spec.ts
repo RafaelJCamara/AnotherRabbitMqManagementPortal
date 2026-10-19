@@ -34,19 +34,30 @@ describe('no new listeners (I-1, security rules)', () => {
     expect(app.server.listening).toBe(false);
     await app.close();
     const dir = fileURLToPath(new URL('.', import.meta.url));
-    const offenders = readdirSync(dir, { recursive: true, encoding: 'utf8' })
+    const kit = readdirSync(dir, { recursive: true, encoding: 'utf8' })
       .filter(
         (file) =>
           file.endsWith('.ts') &&
           !file.endsWith('.spec.ts') &&
           !file.startsWith('testing'),
       )
-      .filter((file) =>
-        /\.listen\(|createServer\(|from 'ws'|from 'node:dgram'|from 'node:http2'/.test(
-          readFileSync(join(dir, file), 'utf8'),
+      .map((file) => ({
+        file: file.replaceAll('\\', '/'),
+        source: readFileSync(join(dir, file), 'utf8'),
+      }));
+    const offenders = kit
+      .filter(({ source }) =>
+        /\.listen\(|createServer\(|from 'node:dgram'|from 'node:http2'/.test(
+          source,
         ),
-      );
+      )
+      .map(({ file }) => file);
     expect(offenders).toEqual([]);
+    // M0-33: `ws` belongs to the live upgrade alone, with noServer: it takes sockets that the
+    // engine's own listener accepted and never binds one.
+    const wsUsers = kit.filter(({ source }) => source.includes("from 'ws'"));
+    expect(wsUsers.map(({ file }) => file)).toEqual(['ws/upgrade.ts']);
+    expect(wsUsers[0]?.source).toContain('noServer: true');
   });
 });
 

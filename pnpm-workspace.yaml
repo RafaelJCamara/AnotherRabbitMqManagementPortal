@@ -68,6 +68,7 @@ catalog:
   '@swc/helpers': 0.5.23
   '@types/node': 24.19.2
   '@types/pg': 8.23.1
+  '@types/ws': 8.18.2
   '@typescript-eslint/parser': 8.71.2
   amqplib: 2.2.0
   angular-eslint: 22.6.0
@@ -90,6 +91,7 @@ catalog:
   typescript: 6.0.3
   typescript-eslint: 8.71.2
   vitest: 5.0.5
+  ws: 8.22.0
   yaml: 2.9.1
   zod: 4.6.7
 

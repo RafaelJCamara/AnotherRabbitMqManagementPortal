@@ -12,7 +12,7 @@ Tags: `type:pure`, `runtime:isomorphic`. Imports `@app/contracts` only (frame an
   - `latest`: coalesced by key, paced at `maxHz`. With `flow: 'snapshot-delta'` the frames are `snapshot` then `delta` and a bounds hit is a gap plus snapshot; with `credit` flow the oldest key is dropped and counted in `dropped`.
   - `sampled`: every `sampleEvery`-th item, drop-oldest when full, counted in `dropped`; frames carry `sampledEvery`.
 - `LiveSession`, `acceptHello`, `DEFAULT_SESSION_LIMITS` and the types `SessionLimits`, `SubSpec`, `TopicResolver`, `Received`, `Drained`, `SubscriptionView` (`session.ts`): one session. `receive(clientFrame)`, `publish(sid, item)`, `publishRemove(sid, key)`, `drain(now)` (frames plus `wakeAt`), `end`, `goaway`, `park`, `resume`, `close`.
-- `ResumeRegistry`, `resumeOutbox`, `RESUME_WINDOW_MS`, `DEFAULT_MAX_PARKED` (`resume.ts`): a session survives transport loss for 30 s.
+- `ResumeRegistry`, `resumeOutbox`, `RESUME_WINDOW_MS`, `DEFAULT_MAX_PARKED` (`resume.ts`): a session survives transport loss for 30 s. `onDrop(id, session, reason)` tells the owner about a session forgotten unclaimed (`expired` or `evicted`) so it can stop what it holds (M0-33).
 
 `SessionLimits` is `{maxSubs: 64, outboxBytes: 8 MiB, maxFrameBytes: 1 MiB}`.
 

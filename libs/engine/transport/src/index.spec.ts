@@ -9,6 +9,7 @@ describe('transport public API', () => {
       'API_PREFIX',
       'CARRIER_HEADER',
       'INTERNAL_HOST',
+      'LIVE_PATH',
       'NONCE_PLACEHOLDER',
       'PROBLEM_CONTENT_TYPE',
       'buildApp',

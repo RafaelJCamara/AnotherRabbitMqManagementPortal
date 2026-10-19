@@ -409,7 +409,7 @@ export class LiveClient {
     for (const sub of this.#subs.values()) {
       sub.unrendered = 0;
       if (resumed && sub.subscribed) {
-        // The engine kept the subscription, but credits restart at zero (OQ-121).
+        // The engine kept the subscription, but credits restart at zero (the engine hub resets them on resume).
         sub.credits.reset();
         const accepted = sub.credits.grant(sub.initialCredit);
         if (accepted > 0)

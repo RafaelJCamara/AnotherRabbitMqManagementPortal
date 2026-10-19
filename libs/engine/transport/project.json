@@ -29,6 +29,12 @@
         "command": "node libs/engine/transport/scripts/kit-loc.mjs"
       }
     },
+    "it": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config libs/engine/transport/vitest.it.config.mts"
+      }
+    },
     "test": {
       "executor": "nx:run-commands",
       "cache": true,

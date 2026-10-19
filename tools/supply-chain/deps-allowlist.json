@@ -107,6 +107,10 @@
       "reason": "Type declarations for pg, used by the persistence Postgres dialect.",
       "ref": "M0-21"
     },
+    "@types/ws": {
+      "reason": "Type declarations for ws, used by the live WebSocket upgrade of the transport kit.",
+      "ref": "M0-33"
+    },
     "@typescript-eslint/parser": {
       "reason": "TypeScript parser for ESLint.",
       "ref": "M0-03"
@@ -177,6 +181,10 @@
       "ref": "M0-03"
     },
     "vitest": { "reason": "Unit test runner.", "ref": "M0-01" },
+    "ws": {
+      "reason": "WebSocket server of the live endpoint (blueprint 7.2), used with noServer on upgrade; exact pin 8.22.0; confined to libs/engine/transport and apps/engine.",
+      "ref": "M0-33"
+    },
     "yaml": {
       "reason": "Parses pnpm-workspace.yaml and pnpm-lock.yaml in the supply-chain gates.",
       "ref": "M0-02"

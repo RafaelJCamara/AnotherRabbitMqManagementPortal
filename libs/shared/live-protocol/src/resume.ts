@@ -18,23 +18,34 @@ export interface ResumeRegistryStats {
   readonly evicted: number;
 }
 
-export interface ResumeRegistryOptions {
+export interface ResumeRegistryOptions<S = unknown> {
   readonly windowMs?: number;
   readonly maxParked?: number;
+  /**
+   * Called when a parked session is forgotten without being claimed (its window ran out, or the
+   * registry was full), so its owner can release what it holds (the hub stops its topic sources).
+   */
+  readonly onDrop?: (
+    id: string,
+    session: S,
+    reason: 'expired' | 'evicted',
+  ) => void;
 }
 
 export class ResumeRegistry<S> {
   readonly #windowMs: number;
   readonly #maxParked: number;
+  readonly #onDrop: ResumeRegistryOptions<S>['onDrop'];
   /** Insertion order is expiry order, because the window is the same for every session. */
   readonly #parked = new Map<string, { session: S; expiresAt: number }>();
   #claimed = 0;
   #expired = 0;
   #evicted = 0;
 
-  constructor(options: ResumeRegistryOptions = {}) {
+  constructor(options: ResumeRegistryOptions<S> = {}) {
     this.#windowMs = options.windowMs ?? RESUME_WINDOW_MS;
     this.#maxParked = options.maxParked ?? DEFAULT_MAX_PARKED;
+    this.#onDrop = options.onDrop;
     if (!(this.#windowMs > 0) || !(this.#maxParked >= 1)) {
       throw new RangeError('resume window and capacity must be positive');
     }
@@ -57,10 +68,12 @@ export class ResumeRegistry<S> {
     this.#parked.delete(id);
     this.sweep(now);
     while (this.#parked.size >= this.#maxParked) {
-      const oldest = this.#parked.keys().next();
+      const oldest = this.#parked.entries().next();
       if (oldest.done) break;
-      this.#parked.delete(oldest.value);
+      const [oldestId, entry] = oldest.value;
+      this.#parked.delete(oldestId);
       this.#evicted += 1;
+      this.#onDrop?.(oldestId, entry.session, 'evicted');
     }
     this.#parked.set(id, { session, expiresAt: now + this.#windowMs });
   }
@@ -72,6 +85,7 @@ export class ResumeRegistry<S> {
     this.#parked.delete(id);
     if (now > entry.expiresAt) {
       this.#expired += 1;
+      this.#onDrop?.(id, entry.session, 'expired');
       return undefined;
     }
     this.#claimed += 1;
@@ -86,6 +100,7 @@ export class ResumeRegistry<S> {
       this.#parked.delete(id);
       this.#expired += 1;
       gone.push(id);
+      this.#onDrop?.(id, entry.session, 'expired');
     }
     return gone;
   }

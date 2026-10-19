@@ -26,6 +26,7 @@
       "@app/domain-model": ["./libs/shared/domain-model/src/index.ts"],
       "@app/generators": ["./tools/generators/src/index.ts"],
       "@app/kernel": ["./libs/engine/kernel/src/index.ts"],
+      "@app/live": ["./libs/engine/live/src/index.ts"],
       "@app/live-protocol": ["./libs/shared/live-protocol/src/index.ts"],
       "@app/net-dialer": ["./libs/engine/net-dialer/src/index.ts"],
       "@app/net-truststore": ["./libs/engine/net-truststore/src/index.ts"],

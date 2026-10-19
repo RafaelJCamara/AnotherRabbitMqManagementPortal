@@ -55,6 +55,23 @@ describe('ResumeRegistry', () => {
     expect(registry.stats.evicted).toBe(1);
   });
 
+  it('tells the owner about every session it forgets unclaimed (M0-33)', () => {
+    const dropped: string[] = [];
+    const registry = new ResumeRegistry<number>({
+      maxParked: 2,
+      onDrop: (id, session, reason) =>
+        dropped.push(`${id}:${String(session)}:${reason}`),
+    });
+    registry.park('a', 1, 0);
+    registry.park('b', 2, 1);
+    registry.park('c', 3, 2); // evicts a
+    expect(registry.claim('b', 3)).toBe(2); // claimed: not a drop
+    registry.park('d', 4, 3);
+    expect(registry.claim('c', 30_003)).toBeUndefined(); // expired on claim
+    registry.sweep(40_000); // d expires in the sweep
+    expect(dropped).toEqual(['a:1:evicted', 'c:3:expired', 'd:4:expired']);
+  });
+
   it('rejects a zero window or capacity', () => {
     expect(() => new ResumeRegistry({ windowMs: 0 })).toThrow(RangeError);
     expect(() => new ResumeRegistry({ maxParked: 0 })).toThrow(RangeError);

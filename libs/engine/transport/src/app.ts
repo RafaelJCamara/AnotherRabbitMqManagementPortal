@@ -6,7 +6,7 @@
 import { randomBytes } from 'node:crypto';
 import { Socket } from 'node:net';
 
-import { assertRegistry, type EngineMode, type Registry } from '@app/contracts';
+import { assertRegistry, type Registry } from '@app/contracts';
 import {
   createIdGenerator,
   type ActionExecutor,
@@ -16,14 +16,7 @@ import {
 import type { Principal } from '@app/ports';
 import fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 
-import {
-  CARRIER_HEADER,
-  parseBearer,
-  type Authenticator,
-} from './auth/credentials.ts';
-import { checkJsonOnly } from './guards/json-only.ts';
-import { createHostPolicy } from './guards/host-origin.ts';
-import { checkSecFetch } from './guards/sec-fetch.ts';
+import { createAdmission, type TransportAuth } from './auth/admission.ts';
 import {
   httpError,
   installProblemHandlers,
@@ -35,6 +28,9 @@ import {
   registerStaticUi,
   type StaticUiOptions,
 } from './static-ui.ts';
+import { registerLive, type LiveEndpoint } from './ws/upgrade.ts';
+
+export type { TransportAuth };
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -49,14 +45,6 @@ declare module 'fastify' {
   }
 }
 
-export interface TransportAuth {
-  readonly mode: EngineMode;
-  /** Tried in order; the first principal wins, none means 401. */
-  readonly authenticators: readonly Authenticator[];
-  /** Origins other than loopback this engine answers to (a reverse proxy, a published port). */
-  readonly publicOrigins?: readonly string[];
-}
-
 export interface BuildAppOptions {
   readonly logger?: Logger;
   readonly ids?: IdGenerator;
@@ -65,6 +53,8 @@ export interface BuildAppOptions {
   readonly csp?: (nonce: string) => string;
   /** Largest JSON body in bytes. Default 1 MiB. */
   readonly bodyLimit?: number;
+  /** Serves the live WebSocket (/api/v1/live) and its tickets from this hub. */
+  readonly live?: LiveEndpoint;
 }
 
 const REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -78,7 +68,7 @@ export function buildApp(
   assertRegistry(registry);
   const ids = options.ids ?? createIdGenerator();
   const csp = options.csp ?? contentSecurityPolicy;
-  const hosts = createHostPolicy(auth.publicOrigins ?? []);
+  const admission = createAdmission(auth);
   /** Headers every answer carries, the ones a framework error (a bad URL) included. */
   const stamp = (reply: FastifyReply, id: string, nonce: string): void => {
     reply.headers({
@@ -128,30 +118,13 @@ export function buildApp(
     request.cspNonce = randomBytes(16).toString('base64');
     stamp(reply, request.correlationId, request.cspNonce);
 
+    const isPublic = request.routeOptions.config.public === true;
     // A socket is the network; only an injected request (the tunnel) is in-process.
     const viaSocket = request.raw.socket instanceof Socket;
-    const carrier = request.headers[CARRIER_HEADER];
-    if (viaSocket && carrier !== undefined) {
-      throw httpError(403, 'The carrier header is not accepted here.');
-    }
-    const isPublic = request.routeOptions.config.public === true;
-    hosts.check(request.headers, viaSocket);
-    checkSecFetch(request.headers, isPublic);
-    checkJsonOnly(request.headers, request.method);
+    admission.guard(request.headers, request.method, viaSocket, isPublic);
     if (isPublic) return;
 
-    const principal = [...auth.authenticators]
-      .map((authenticate) =>
-        authenticate({
-          // A carrier request never falls back to a bearer token.
-          bearer:
-            carrier === undefined
-              ? parseBearer(request.headers.authorization)
-              : undefined,
-          carrier: typeof carrier === 'string' ? carrier : undefined,
-        }),
-      )
-      .find((candidate) => candidate !== undefined);
+    const principal = admission.authenticate(request.headers);
     if (principal === undefined) {
       reply.header('www-authenticate', 'Bearer');
       throw httpError(401, 'Authentication required.');
@@ -160,6 +133,7 @@ export function buildApp(
   });
 
   registerActionRoutes(app, registry, executor, auth.mode);
+  if (options.live !== undefined) registerLive(app, options.live, admission);
   if (options.ui !== undefined) registerStaticUi(app, options.ui, auth.mode);
   return app;
 }

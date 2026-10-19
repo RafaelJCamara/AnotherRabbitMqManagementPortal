@@ -1,0 +1,48 @@
+# TYPE lavinmq_detailed_queue_messages_ready gauge
+# HELP lavinmq_detailed_queue_messages_ready Messages ready to be delivered to consumers
+lavinmq_detailed_queue_messages_ready{queue="default.classic", vhost="/"} 0
+lavinmq_detailed_queue_messages_ready{queue="golden.classic", vhost="golden"} 3
+lavinmq_detailed_queue_messages_ready{queue="golden.dead", vhost="golden"} 0
+lavinmq_detailed_queue_messages_ready{queue="golden.stream", vhost="golden"} 3
+# TYPE lavinmq_detailed_queue_messages_unacked gauge
+# HELP lavinmq_detailed_queue_messages_unacked Messages delivered to consumers but not yet acknowledged
+lavinmq_detailed_queue_messages_unacked{queue="default.classic", vhost="/"} 0
+lavinmq_detailed_queue_messages_unacked{queue="golden.classic", vhost="golden"} 2
+lavinmq_detailed_queue_messages_unacked{queue="golden.dead", vhost="golden"} 0
+lavinmq_detailed_queue_messages_unacked{queue="golden.stream", vhost="golden"} 0
+# TYPE lavinmq_detailed_queue_messages gauge
+# HELP lavinmq_detailed_queue_messages Sum of ready and unacknowledged messages - total queue depth
+lavinmq_detailed_queue_messages{queue="default.classic", vhost="/"} 0
+lavinmq_detailed_queue_messages{queue="golden.classic", vhost="golden"} 5
+lavinmq_detailed_queue_messages{queue="golden.dead", vhost="golden"} 0
+lavinmq_detailed_queue_messages{queue="golden.stream", vhost="golden"} 3
+# TYPE lavinmq_detailed_queue_deduplication counter
+# HELP lavinmq_detailed_queue_deduplication Number of deduplicated messages for this queue
+lavinmq_detailed_queue_deduplication{queue="default.classic", vhost="/"} 0
+lavinmq_detailed_queue_deduplication{queue="golden.classic", vhost="golden"} 0
+lavinmq_detailed_queue_deduplication{queue="golden.dead", vhost="golden"} 0
+lavinmq_detailed_queue_deduplication{queue="golden.stream", vhost="golden"} 0
+# TYPE lavinmq_detailed_queue_messages_delivered_total counter
+# HELP lavinmq_detailed_queue_messages_delivered_total Total number of messages delivered to consumers or fetched via basic.get for this queue
+lavinmq_detailed_queue_messages_delivered_total{queue="default.classic", vhost="/"} 0
+lavinmq_detailed_queue_messages_delivered_total{queue="golden.classic", vhost="golden"} 4
+lavinmq_detailed_queue_messages_delivered_total{queue="golden.dead", vhost="golden"} 0
+lavinmq_detailed_queue_messages_delivered_total{queue="golden.stream", vhost="golden"} 0
+# TYPE lavinmq_detailed_queue_messages_acked_total counter
+# HELP lavinmq_detailed_queue_messages_acked_total Total number of messages acknowledged for this queue
+lavinmq_detailed_queue_messages_acked_total{queue="default.classic", vhost="/"} 0
+lavinmq_detailed_queue_messages_acked_total{queue="golden.classic", vhost="golden"} 0
+lavinmq_detailed_queue_messages_acked_total{queue="golden.dead", vhost="golden"} 0
+lavinmq_detailed_queue_messages_acked_total{queue="golden.stream", vhost="golden"} 0
+# TYPE lavinmq_detailed_queue_consumers gauge
+# HELP lavinmq_detailed_queue_consumers Consumers on a queue
+lavinmq_detailed_queue_consumers{queue="default.classic", vhost="/"} 0
+lavinmq_detailed_queue_consumers{queue="golden.classic", vhost="golden"} 1
+lavinmq_detailed_queue_consumers{queue="golden.dead", vhost="golden"} 0
+lavinmq_detailed_queue_consumers{queue="golden.stream", vhost="golden"} 0
+# TYPE telemetry_scrape_duration_seconds gauge
+# HELP telemetry_scrape_duration_seconds Duration for metrics collection in seconds
+telemetry_scrape_duration_seconds 3.1907e-5
+# TYPE telemetry_scrape_mem gauge
+# HELP telemetry_scrape_mem Memory used for metrics collections in bytes
+telemetry_scrape_mem 32784

@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "name": "golden-ttl",
+      "vhost": "golden",
+      "pattern": "^golden\\.classic$",
+      "apply-to": "queues",
+      "priority": 1,
+      "definition": {
+        "message-ttl": 600000
+      }
+    }
+  ],
+  "filtered_count": 1,
+  "item_count": 1,
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 1
+}

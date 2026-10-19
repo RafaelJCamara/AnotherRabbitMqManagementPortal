@@ -1,0 +1,158 @@
+{
+  "description": "golden fixtures",
+  "metadata": {
+    "description": "golden fixtures",
+    "tags": [
+      "golden",
+      "fixtures"
+    ],
+    "default_queue_type": "classic"
+  },
+  "rabbitmq_version": "4.3.6",
+  "product_name": "RabbitMQ",
+  "product_version": "4.3.6",
+  "rabbit_version": "4.3.6",
+  "limits": {},
+  "exchanges": [
+    {
+      "arguments": {},
+      "auto_delete": false,
+      "durable": true,
+      "name": "golden.direct",
+      "type": "direct"
+    },
+    {
+      "arguments": {},
+      "auto_delete": false,
+      "durable": true,
+      "name": "golden.dlx",
+      "type": "fanout"
+    },
+    {
+      "arguments": {},
+      "auto_delete": false,
+      "durable": true,
+      "name": "golden.hash",
+      "type": "x-consistent-hash"
+    },
+    {
+      "arguments": {
+        "alternate-exchange": "golden.dlx"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "name": "golden.topic",
+      "type": "topic"
+    }
+  ],
+  "parameters": [
+    {
+      "component": "operator_policy",
+      "name": "golden-op",
+      "value": {
+        "apply-to": "queues",
+        "definition": {
+          "max-length": 100000
+        },
+        "pattern": "^golden\\.classic$",
+        "priority": 1
+      }
+    }
+  ],
+  "policies": [
+    {
+      "apply-to": "queues",
+      "definition": {
+        "delivery-limit": 7
+      },
+      "name": "golden-delivery-limit",
+      "pattern": "^golden\\.quorum$",
+      "priority": 1
+    },
+    {
+      "apply-to": "queues",
+      "definition": {
+        "message-ttl": 600000
+      },
+      "name": "golden-ttl",
+      "pattern": "^golden\\.classic$",
+      "priority": 1
+    }
+  ],
+  "explanation": "Definitions of virtual host 'golden'",
+  "original_vhost_name": "golden",
+  "rabbitmq_definition_format": "single_virtual_host",
+  "queues": [
+    {
+      "arguments": {
+        "x-queue-type": "classic"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "name": "golden.dead",
+      "type": "classic"
+    },
+    {
+      "arguments": {
+        "x-max-length-bytes": 1000000,
+        "x-queue-type": "stream"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "name": "golden.stream",
+      "type": "stream"
+    },
+    {
+      "arguments": {
+        "x-queue-type": "quorum"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "name": "golden.quorum",
+      "type": "quorum"
+    },
+    {
+      "arguments": {
+        "x-dead-letter-exchange": "golden.dlx",
+        "x-max-length": 1000,
+        "x-queue-type": "classic"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "name": "golden.classic",
+      "type": "classic"
+    }
+  ],
+  "bindings": [
+    {
+      "arguments": {},
+      "destination": "golden.dead",
+      "destination_type": "queue",
+      "routing_key": "",
+      "source": "golden.dlx"
+    },
+    {
+      "arguments": {},
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "orders.#",
+      "source": "golden.topic"
+    },
+    {
+      "arguments": {},
+      "destination": "golden.quorum",
+      "destination_type": "queue",
+      "routing_key": "10",
+      "source": "golden.hash"
+    },
+    {
+      "arguments": {
+        "x-golden": "direct"
+      },
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "classic",
+      "source": "golden.direct"
+    }
+  ]
+}

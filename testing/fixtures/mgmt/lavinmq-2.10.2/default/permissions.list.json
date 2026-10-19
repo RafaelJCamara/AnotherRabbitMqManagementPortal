@@ -1,0 +1,31 @@
+{
+  "items": [
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "read": ".*",
+      "write": ".*"
+    },
+    {
+      "user": "guest",
+      "vhost": "golden",
+      "configure": ".*",
+      "read": ".*",
+      "write": ".*"
+    },
+    {
+      "user": "golden-monitor",
+      "vhost": "golden",
+      "configure": "^golden\\.",
+      "read": ".*",
+      "write": "^golden\\."
+    }
+  ],
+  "filtered_count": 3,
+  "item_count": 3,
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 3
+}

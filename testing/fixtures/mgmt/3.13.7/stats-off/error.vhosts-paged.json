@@ -1,0 +1,45 @@
+{
+  "filtered_count": 2,
+  "item_count": 2,
+  "items": [
+    {
+      "cluster_state": {
+        "rabbit@lab-node": "running"
+      },
+      "default_queue_type": "undefined",
+      "description": "Default virtual host",
+      "metadata": {
+        "description": "Default virtual host",
+        "tags": []
+      },
+      "name": "/",
+      "tags": [],
+      "tracing": false
+    },
+    {
+      "cluster_state": {
+        "rabbit@lab-node": "running"
+      },
+      "default_queue_type": "classic",
+      "description": "golden fixtures",
+      "metadata": {
+        "description": "golden fixtures",
+        "tags": [
+          "golden",
+          "fixtures"
+        ],
+        "default_queue_type": "classic"
+      },
+      "name": "golden",
+      "tags": [
+        "golden",
+        "fixtures"
+      ],
+      "tracing": false
+    }
+  ],
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 2
+}

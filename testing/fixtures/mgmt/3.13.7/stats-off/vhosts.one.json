@@ -1,0 +1,21 @@
+{
+  "name": "golden",
+  "description": "golden fixtures",
+  "tags": [
+    "golden",
+    "fixtures"
+  ],
+  "default_queue_type": "classic",
+  "metadata": {
+    "description": "golden fixtures",
+    "tags": [
+      "golden",
+      "fixtures"
+    ],
+    "default_queue_type": "classic"
+  },
+  "tracing": false,
+  "cluster_state": {
+    "rabbit@lab-node": "running"
+  }
+}

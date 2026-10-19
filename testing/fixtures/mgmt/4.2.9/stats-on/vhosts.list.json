@@ -1,0 +1,122 @@
+[
+  {
+    "messages": 0,
+    "name": "/",
+    "description": "Default virtual host",
+    "metadata": {
+      "description": "Default virtual host",
+      "tags": [],
+      "default_queue_type": "classic"
+    },
+    "tags": [],
+    "default_queue_type": "classic",
+    "messages_ready": 0,
+    "messages_unacknowledged": 0,
+    "protected_from_deletion": false,
+    "tracing": false,
+    "cluster_state": {
+      "rabbit@lab-node": "running"
+    },
+    "messages_details": {
+      "rate": 0
+    },
+    "messages_unacknowledged_details": {
+      "rate": 0
+    },
+    "messages_ready_details": {
+      "rate": 0
+    }
+  },
+  {
+    "messages": 11,
+    "name": "golden",
+    "recv_oct": 487,
+    "send_oct": 936,
+    "description": "golden fixtures",
+    "metadata": {
+      "description": "golden fixtures",
+      "tags": [
+        "golden",
+        "fixtures"
+      ],
+      "default_queue_type": "classic"
+    },
+    "tags": [
+      "golden",
+      "fixtures"
+    ],
+    "default_queue_type": "classic",
+    "messages_ready": 9,
+    "messages_unacknowledged": 2,
+    "protected_from_deletion": false,
+    "tracing": false,
+    "cluster_state": {
+      "rabbit@lab-node": "running"
+    },
+    "message_stats": {
+      "ack": 0,
+      "ack_details": {
+        "rate": 0
+      },
+      "confirm": 11,
+      "confirm_details": {
+        "rate": 0
+      },
+      "deliver": 2,
+      "deliver_details": {
+        "rate": 0
+      },
+      "deliver_get": 4,
+      "deliver_get_details": {
+        "rate": 0.4
+      },
+      "deliver_no_ack": 0,
+      "deliver_no_ack_details": {
+        "rate": 0
+      },
+      "drop_unroutable": 0,
+      "drop_unroutable_details": {
+        "rate": 0
+      },
+      "get": 2,
+      "get_details": {
+        "rate": 0.4
+      },
+      "get_empty": 0,
+      "get_empty_details": {
+        "rate": 0
+      },
+      "get_no_ack": 0,
+      "get_no_ack_details": {
+        "rate": 0
+      },
+      "publish": 11,
+      "publish_details": {
+        "rate": 0
+      },
+      "redeliver": 0,
+      "redeliver_details": {
+        "rate": 0
+      },
+      "return_unroutable": 0,
+      "return_unroutable_details": {
+        "rate": 0
+      }
+    },
+    "recv_oct_details": {
+      "rate": 0
+    },
+    "send_oct_details": {
+      "rate": 0
+    },
+    "messages_details": {
+      "rate": 0
+    },
+    "messages_unacknowledged_details": {
+      "rate": 0
+    },
+    "messages_ready_details": {
+      "rate": 0
+    }
+  }
+]

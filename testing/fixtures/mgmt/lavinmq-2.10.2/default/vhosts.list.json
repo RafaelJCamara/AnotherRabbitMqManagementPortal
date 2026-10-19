@@ -1,0 +1,51 @@
+[
+  {
+    "name": "/",
+    "dir": "42099b4af021e53fd8fd4e056c2568d7c2e3ffa8",
+    "tracing": false,
+    "tags": [],
+    "description": "",
+    "cluster_state": {},
+    "messages": 0,
+    "messages_unacknowledged": 0,
+    "messages_ready": 0,
+    "message_stats": {
+      "ack": 0,
+      "confirm": 0,
+      "deliver": 0,
+      "deliver_no_ack": 0,
+      "get": 0,
+      "get_no_ack": 0,
+      "deliver_get": 0,
+      "publish": 0,
+      "redeliver": 0,
+      "return_unroutable": 0
+    }
+  },
+  {
+    "name": "golden",
+    "dir": "ec30adc79e734900430e4174cf0a36c2d0c42272",
+    "tracing": false,
+    "tags": [
+      "golden",
+      "fixtures"
+    ],
+    "description": "golden fixtures",
+    "cluster_state": {},
+    "messages": 8,
+    "messages_unacknowledged": 2,
+    "messages_ready": 6,
+    "message_stats": {
+      "ack": 0,
+      "confirm": 0,
+      "deliver": 2,
+      "deliver_no_ack": 0,
+      "get": 0,
+      "get_no_ack": 2,
+      "deliver_get": 4,
+      "publish": 8,
+      "redeliver": 0,
+      "return_unroutable": 0
+    }
+  }
+]

@@ -10,6 +10,7 @@ import {
   bindings,
   channels,
   definitions,
+  extensions,
   fillTemplate,
   getRequest,
   health,
@@ -17,6 +18,7 @@ import {
   nodes,
   overview,
   queues,
+  vhosts,
   whoami,
 } from './index.ts';
 
@@ -62,6 +64,52 @@ describe('catalogue', () => {
     expect(queues.list.paged).toBe(true);
     expect(overview.paged).toBe(false);
     expect(bindings.ofQueue.paged).toBe(true);
+  });
+
+  it('reads the shapes the golden fixtures showed: extension scripts as lists, a null exclusive owner, null binding arguments', () => {
+    expect(
+      extensions.schema.parse([
+        { javascript: 'shovel.js' },
+        { javascript: ['shovel_management-ejs.js', 'shovel.js'] },
+        [],
+      ]),
+    ).toHaveLength(3);
+    expect(
+      queues.list.schema.parse([
+        { name: 'q', vhost: '/', exclusive: null, delivery_limit: 7 },
+      ]),
+    ).toMatchObject({ itemCount: 1 });
+    expect(
+      bindings.list.schema.parse([
+        {
+          source: '',
+          vhost: '/',
+          destination: 'q',
+          destination_type: 'queue',
+          routing_key: 'q',
+          arguments: null,
+        },
+      ]),
+    ).toMatchObject({ itemCount: 1 });
+    // ... and still refuses what is not a list of those.
+    expect(extensions.schema.safeParse([{ javascript: 3 }]).success).toBe(
+      false,
+    );
+  });
+
+  it('does not page /api/vhosts: the broker answers 500 to `page` (golden fixtures, OQ-433)', () => {
+    const profile = profileOf('4.3.6');
+    const capability = () => true;
+    expect(vhosts.list.paged).toBe(false);
+    expect(
+      shapeRequest('/api/vhosts', undefined, profile, capability).target,
+    ).toBe('/api/vhosts');
+    // The bare array it answers is still one page for the caller.
+    expect(vhosts.list.schema.parse([{ name: '/' }])).toMatchObject({
+      page: 1,
+      pageCount: 1,
+      itemCount: 1,
+    });
   });
 
   it('builds the request the scheduler runs', () => {

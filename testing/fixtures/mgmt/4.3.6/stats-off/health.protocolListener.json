@@ -1,0 +1,10 @@
+{
+  "status": "ok",
+  "protocols": [
+    "amqp",
+    "clustering",
+    "http",
+    "http/prometheus",
+    "stream"
+  ]
+}

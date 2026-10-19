@@ -1,0 +1,40 @@
+[
+  {
+    "javascript": "dispatcher.js"
+  },
+  {
+    "javascript": [
+      "federation_management-ejs.js",
+      "federation.js"
+    ]
+  },
+  {
+    "javascript": "shovel.js"
+  },
+  {
+    "javascript": [
+      "shovel_management-ejs.js",
+      "shovel.js"
+    ]
+  },
+  [],
+  [],
+  [],
+  [],
+  [],
+  {
+    "javascript": [
+      "stream_management-ejs.js",
+      "stream.js"
+    ]
+  },
+  [],
+  [],
+  [],
+  {
+    "javascript": [
+      "tracing-ejs.js",
+      "tracing.js"
+    ]
+  }
+]

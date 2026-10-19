@@ -71,6 +71,8 @@ jobs:
         with:
           workflow-id: ci.yml
       - run: pnpm nx affected -t lint typecheck test build
+      # M0-25: the golden fixtures of the management client replayed (no broker needed).
+      - run: pnpm nx affected -t test-golden
       # Drift gate: regenerate the specs from the contract registry and fail on any difference.
       - run: pnpm nx run contracts:api-docs-check
 

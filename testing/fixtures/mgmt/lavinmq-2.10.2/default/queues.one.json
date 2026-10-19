@@ -1,0 +1,147 @@
+{
+  "name": "golden.classic",
+  "durable": true,
+  "exclusive": false,
+  "auto_delete": false,
+  "arguments": {
+    "x-max-length": 1000,
+    "x-dead-letter-exchange": "golden.dlx"
+  },
+  "consumers": 1,
+  "vhost": "golden",
+  "messages": 5,
+  "total_bytes": 425,
+  "messages_persistent": 5,
+  "ready": 3,
+  "messages_ready": 3,
+  "ready_bytes": 255,
+  "message_bytes_ready": 255,
+  "ready_avg_bytes": 85,
+  "unacked": 2,
+  "messages_unacknowledged": 2,
+  "unacked_bytes": 170,
+  "message_bytes_unacknowledged": 170,
+  "unacked_avg_bytes": 85,
+  "operator_policy": "golden-op",
+  "policy": "golden-ttl",
+  "state": "running",
+  "effective_policy_definition": {
+    "message-ttl": 600000,
+    "max-length": 100000
+  },
+  "effective_arguments": [
+    "x-dead-letter-exchange",
+    "x-max-length"
+  ],
+  "effective_policy_arguments": [
+    "message-ttl"
+  ],
+  "internal": false,
+  "message_stats": {
+    "ack": 0,
+    "ack_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    },
+    "deliver": 2,
+    "deliver_details": {
+      "rate": 0.4,
+      "log": [
+        0.4
+      ]
+    },
+    "deliver_no_ack": 0,
+    "deliver_no_ack_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    },
+    "deliver_get": 2,
+    "deliver_get_details": {
+      "rate": 0.4,
+      "log": [
+        0.4
+      ]
+    },
+    "confirm": 0,
+    "confirm_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    },
+    "get": 0,
+    "get_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    },
+    "get_no_ack": 0,
+    "get_no_ack_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    },
+    "publish": 5,
+    "publish_details": {
+      "rate": 1,
+      "log": [
+        1
+      ]
+    },
+    "redeliver": 0,
+    "redeliver_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    },
+    "reject": 0,
+    "reject_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    },
+    "return_unroutable": 0,
+    "return_unroutable_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    },
+    "dedup": 0,
+    "dedup_details": {
+      "rate": 0,
+      "log": [
+        0
+      ]
+    }
+  },
+  "consumer_details": [
+    {
+      "queue": {
+        "name": "golden.classic",
+        "vhost": "golden"
+      },
+      "consumer_tag": "amq.ctag-phmQCKook_TdnrWvX57_VN7_4jXSATzq",
+      "exclusive": false,
+      "ack_required": true,
+      "prefetch_count": 2,
+      "priority": 0,
+      "channel_details": {
+        "peer_host": "192.0.2.1",
+        "peer_port": 35992,
+        "connection_name": "192.0.2.1:35992 -> 192.0.2.2:5672",
+        "user": "guest",
+        "number": 1,
+        "name": "192.0.2.1:35992[1]"
+      }
+    }
+  ]
+}

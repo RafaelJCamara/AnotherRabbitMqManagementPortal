@@ -72,9 +72,18 @@ export const whoami = defineEndpoint({
   schema: WhoamiSchema,
 });
 
-/** `[]` means LavinMQ or a minimal broker. */
+/**
+ * `[]` means LavinMQ or a minimal broker. On RabbitMQ an entry is `{"javascript": "shovel.js"}`, or
+ * from 4.x `{"javascript": ["shovel_management-ejs.js", "shovel.js"]}`, or an empty array for a
+ * plugin that adds no script (golden fixtures, M0-25).
+ */
 export const extensions = defineEndpoint({
   id: 'extensions.list',
   template: '/api/extensions',
-  schema: z.array(z.object({ javascript: z.string() })),
+  schema: z.array(
+    z.union([
+      z.object({ javascript: z.union([z.string(), z.array(z.string())]) }),
+      z.array(z.string()),
+    ]),
+  ),
 });

@@ -1,0 +1,213 @@
+{
+  "$comment": "The topology every golden recording starts from (M0-25): one list of management API calls, run in order against a fresh broker before the answers are recorded. `products` limits a step to those products (default: all); `optional` steps may be refused by a product and are then listed in the manifest. `@CANARY@` is replaced by the canary secret of the recorder, which the scrubber must remove from every fixture. Changing this file changes every fixture: re-record with `pnpm nx run adapter-mgmt-http:record-golden` and review the diff.",
+  "id": "golden-seed-1",
+  "steps": [
+    {
+      "name": "vhost golden",
+      "method": "PUT",
+      "path": "/api/vhosts/golden",
+      "body": {
+        "description": "golden fixtures",
+        "tags": "golden,fixtures",
+        "default_queue_type": "classic"
+      }
+    },
+    {
+      "name": "user golden-monitor",
+      "method": "PUT",
+      "path": "/api/users/golden-monitor",
+      "body": { "password": "@CANARY@", "tags": "monitoring" }
+    },
+    {
+      "name": "user golden-plain",
+      "method": "PUT",
+      "path": "/api/users/golden-plain",
+      "body": { "password": "@CANARY@", "tags": "" }
+    },
+    {
+      "name": "permission guest on golden",
+      "method": "PUT",
+      "path": "/api/permissions/golden/guest",
+      "body": { "configure": ".*", "write": ".*", "read": ".*" }
+    },
+    {
+      "name": "permission golden-monitor on golden",
+      "method": "PUT",
+      "path": "/api/permissions/golden/golden-monitor",
+      "body": { "configure": "^golden\\.", "write": "^golden\\.", "read": ".*" }
+    },
+    {
+      "name": "exchange golden.direct",
+      "method": "PUT",
+      "path": "/api/exchanges/golden/golden.direct",
+      "body": { "type": "direct", "durable": true }
+    },
+    {
+      "name": "exchange golden.topic",
+      "method": "PUT",
+      "path": "/api/exchanges/golden/golden.topic",
+      "body": { "type": "topic", "durable": true, "arguments": { "alternate-exchange": "golden.dlx" } }
+    },
+    {
+      "name": "exchange golden.dlx",
+      "method": "PUT",
+      "path": "/api/exchanges/golden/golden.dlx",
+      "body": { "type": "fanout", "durable": true }
+    },
+    {
+      "name": "exchange golden.hash",
+      "method": "PUT",
+      "path": "/api/exchanges/golden/golden.hash",
+      "products": ["rabbitmq"],
+      "body": { "type": "x-consistent-hash", "durable": true }
+    },
+    {
+      "name": "queue golden.classic",
+      "method": "PUT",
+      "path": "/api/queues/golden/golden.classic",
+      "body": {
+        "durable": true,
+        "arguments": {
+          "x-max-length": 1000,
+          "x-dead-letter-exchange": "golden.dlx"
+        }
+      }
+    },
+    {
+      "name": "queue golden.dead",
+      "method": "PUT",
+      "path": "/api/queues/golden/golden.dead",
+      "body": { "durable": true }
+    },
+    {
+      "name": "queue golden.quorum",
+      "method": "PUT",
+      "path": "/api/queues/golden/golden.quorum",
+      "products": ["rabbitmq"],
+      "body": { "durable": true, "arguments": { "x-queue-type": "quorum" } }
+    },
+    {
+      "name": "queue golden.stream",
+      "method": "PUT",
+      "path": "/api/queues/golden/golden.stream",
+      "optional": true,
+      "body": {
+        "durable": true,
+        "arguments": { "x-queue-type": "stream", "x-max-length-bytes": 1000000 }
+      }
+    },
+    {
+      "name": "queue default.classic",
+      "method": "PUT",
+      "path": "/api/queues/%2F/default.classic",
+      "body": { "durable": true }
+    },
+    {
+      "name": "binding golden.direct to golden.classic",
+      "method": "POST",
+      "path": "/api/bindings/golden/e/golden.direct/q/golden.classic",
+      "body": { "routing_key": "classic", "arguments": { "x-golden": "direct" } }
+    },
+    {
+      "name": "binding golden.topic to golden.classic",
+      "method": "POST",
+      "path": "/api/bindings/golden/e/golden.topic/q/golden.classic",
+      "body": { "routing_key": "orders.#" }
+    },
+    {
+      "name": "binding golden.dlx to golden.dead",
+      "method": "POST",
+      "path": "/api/bindings/golden/e/golden.dlx/q/golden.dead",
+      "body": { "routing_key": "" }
+    },
+    {
+      "name": "binding golden.hash to golden.quorum",
+      "method": "POST",
+      "path": "/api/bindings/golden/e/golden.hash/q/golden.quorum",
+      "products": ["rabbitmq"],
+      "body": { "routing_key": "10" }
+    },
+    {
+      "name": "policy golden-ttl",
+      "method": "PUT",
+      "path": "/api/policies/golden/golden-ttl",
+      "body": {
+        "pattern": "^golden\\.classic$",
+        "apply-to": "queues",
+        "priority": 1,
+        "definition": { "message-ttl": 600000 }
+      }
+    },
+    {
+      "name": "policy golden-delivery-limit",
+      "method": "PUT",
+      "path": "/api/policies/golden/golden-delivery-limit",
+      "products": ["rabbitmq"],
+      "body": {
+        "pattern": "^golden\\.quorum$",
+        "apply-to": "queues",
+        "priority": 1,
+        "definition": { "delivery-limit": 7 }
+      }
+    },
+    {
+      "name": "operator policy golden-op",
+      "method": "PUT",
+      "path": "/api/operator-policies/golden/golden-op",
+      "optional": true,
+      "body": {
+        "pattern": "^golden\\.classic$",
+        "apply-to": "queues",
+        "priority": 1,
+        "definition": { "max-length": 100000 }
+      }
+    },
+    {
+      "name": "publish 5 to golden.classic",
+      "method": "POST",
+      "path": "/api/exchanges/golden/amq.default/publish",
+      "repeat": 5,
+      "body": {
+        "properties": {
+          "delivery_mode": 2,
+          "content_type": "text/plain",
+          "headers": { "x-golden": "classic" }
+        },
+        "routing_key": "golden.classic",
+        "payload": "golden message",
+        "payload_encoding": "string"
+      }
+    },
+    {
+      "name": "publish 3 to golden.quorum",
+      "method": "POST",
+      "path": "/api/exchanges/golden/amq.default/publish",
+      "products": ["rabbitmq"],
+      "repeat": 3,
+      "body": {
+        "properties": { "delivery_mode": 2, "content_type": "text/plain" },
+        "routing_key": "golden.quorum",
+        "payload": "golden message",
+        "payload_encoding": "string"
+      }
+    },
+    {
+      "name": "publish 3 to golden.stream",
+      "method": "POST",
+      "path": "/api/exchanges/golden/amq.default/publish",
+      "optional": true,
+      "repeat": 3,
+      "body": {
+        "properties": { "delivery_mode": 2, "content_type": "text/plain" },
+        "routing_key": "golden.stream",
+        "payload": "golden message",
+        "payload_encoding": "string"
+      }
+    }
+  ],
+  "consumer": {
+    "vhost": "golden",
+    "queue": "golden.classic",
+    "prefetch": 2
+  }
+}

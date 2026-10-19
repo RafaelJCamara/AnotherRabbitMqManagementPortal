@@ -53,7 +53,8 @@ export const BindingSchema = z.object({
   destination: z.string(),
   destination_type: z.string(),
   routing_key: z.string(),
-  arguments: Args.optional(),
+  // `null` on the binding of the default exchange (LavinMQ, golden fixtures, M0-25).
+  arguments: Args.nullable().optional(),
   properties_key: z.string().optional(),
 });
 export type MgmtBinding = z.infer<typeof BindingSchema>;
@@ -100,10 +101,13 @@ export const VhostSchema = z.object({
 export type MgmtVhost = z.infer<typeof VhostSchema>;
 
 export const vhosts = {
+  // The golden fixtures (M0-25): `GET /api/vhosts?page=1&page_size=100` answers 500 on 4.0.9,
+  // 4.1.8, 4.2.9 and 4.3.6 (3.13.7 and LavinMQ accept it). The plain list is a bare array.
   list: defineList({
     id: 'vhosts.list',
     template: '/api/vhosts',
     item: VhostSchema,
+    paged: false,
   }),
   one: defineEndpoint({
     id: 'vhosts.one',

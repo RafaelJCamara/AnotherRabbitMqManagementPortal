@@ -1,0 +1,15 @@
+{
+  "arguments": {
+    "x-dead-letter-exchange": "golden.dlx",
+    "x-max-length": 1000,
+    "x-queue-type": "classic"
+  },
+  "auto_delete": false,
+  "durable": true,
+  "exclusive": false,
+  "name": "golden.classic",
+  "node": "rabbit@lab-node",
+  "state": "running",
+  "type": "classic",
+  "vhost": "golden"
+}

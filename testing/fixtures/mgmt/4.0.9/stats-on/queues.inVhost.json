@@ -1,0 +1,99 @@
+{
+  "filtered_count": 4,
+  "item_count": 4,
+  "items": [
+    {
+      "arguments": {
+        "x-dead-letter-exchange": "golden.dlx",
+        "x-max-length": 1000,
+        "x-queue-type": "classic"
+      },
+      "auto_delete": false,
+      "consumers": 1,
+      "durable": true,
+      "effective_policy_definition": {
+        "max-length": 100000,
+        "message-ttl": 600000
+      },
+      "exclusive": false,
+      "messages": 5,
+      "messages_ready": 3,
+      "messages_unacknowledged": 2,
+      "name": "golden.classic",
+      "node": "rabbit@lab-node",
+      "operator_policy": "golden-op",
+      "policy": "golden-ttl",
+      "state": "running",
+      "type": "classic",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {
+        "x-queue-type": "classic"
+      },
+      "auto_delete": false,
+      "consumers": 0,
+      "durable": true,
+      "effective_policy_definition": {},
+      "exclusive": false,
+      "messages": 0,
+      "messages_ready": 0,
+      "messages_unacknowledged": 0,
+      "name": "golden.dead",
+      "node": "rabbit@lab-node",
+      "operator_policy": null,
+      "policy": null,
+      "state": "running",
+      "type": "classic",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {
+        "x-queue-type": "quorum"
+      },
+      "auto_delete": false,
+      "consumers": 0,
+      "delivery_limit": 7,
+      "durable": true,
+      "effective_policy_definition": {
+        "delivery-limit": 7
+      },
+      "exclusive": false,
+      "messages": 3,
+      "messages_ready": 3,
+      "messages_unacknowledged": 0,
+      "name": "golden.quorum",
+      "node": "rabbit@lab-node",
+      "operator_policy": null,
+      "policy": "golden-delivery-limit",
+      "state": "running",
+      "type": "quorum",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {
+        "x-max-length-bytes": 1000000,
+        "x-queue-type": "stream"
+      },
+      "auto_delete": false,
+      "consumers": 0,
+      "durable": true,
+      "effective_policy_definition": {},
+      "exclusive": false,
+      "messages": 3,
+      "messages_ready": 3,
+      "messages_unacknowledged": 0,
+      "name": "golden.stream",
+      "node": "rabbit@lab-node",
+      "operator_policy": null,
+      "policy": null,
+      "state": "running",
+      "type": "stream",
+      "vhost": "golden"
+    }
+  ],
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 4
+}

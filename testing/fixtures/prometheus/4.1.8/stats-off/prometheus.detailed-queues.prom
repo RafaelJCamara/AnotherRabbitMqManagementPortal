@@ -1,0 +1,55 @@
+# TYPE rabbitmq_detailed_queue_messages_ready gauge
+# HELP rabbitmq_detailed_queue_messages_ready Messages ready to be delivered to consumers
+rabbitmq_detailed_queue_messages_ready{vhost="/",queue="default.classic"} 0
+rabbitmq_detailed_queue_messages_ready{vhost="golden",queue="golden.stream"} 3
+rabbitmq_detailed_queue_messages_ready{vhost="golden",queue="golden.classic"} 3
+rabbitmq_detailed_queue_messages_ready{vhost="golden",queue="golden.quorum"} 3
+rabbitmq_detailed_queue_messages_ready{vhost="golden",queue="golden.dead"} 0
+# TYPE rabbitmq_detailed_queue_messages_unacked gauge
+# HELP rabbitmq_detailed_queue_messages_unacked Messages delivered to consumers but not yet acknowledged
+rabbitmq_detailed_queue_messages_unacked{vhost="/",queue="default.classic"} 0
+rabbitmq_detailed_queue_messages_unacked{vhost="golden",queue="golden.stream"} 0
+rabbitmq_detailed_queue_messages_unacked{vhost="golden",queue="golden.classic"} 2
+rabbitmq_detailed_queue_messages_unacked{vhost="golden",queue="golden.quorum"} 0
+rabbitmq_detailed_queue_messages_unacked{vhost="golden",queue="golden.dead"} 0
+# TYPE rabbitmq_detailed_queue_messages gauge
+# HELP rabbitmq_detailed_queue_messages Sum of ready and unacknowledged messages - total queue depth
+rabbitmq_detailed_queue_messages{vhost="/",queue="default.classic"} 0
+rabbitmq_detailed_queue_messages{vhost="golden",queue="golden.stream"} 3
+rabbitmq_detailed_queue_messages{vhost="golden",queue="golden.classic"} 5
+rabbitmq_detailed_queue_messages{vhost="golden",queue="golden.quorum"} 3
+rabbitmq_detailed_queue_messages{vhost="golden",queue="golden.dead"} 0
+# TYPE rabbitmq_detailed_queue_process_reductions_total counter
+# HELP rabbitmq_detailed_queue_process_reductions_total Total number of queue process reductions
+rabbitmq_detailed_queue_process_reductions_total{vhost="/",queue="default.classic"} 10084
+rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.stream"} 0
+rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.classic"} 18564
+rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.quorum"} 22224
+rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.dead"} 9326
+# TYPE rabbitmq_detailed_queue_consumers gauge
+# HELP rabbitmq_detailed_queue_consumers Consumers on a queue
+rabbitmq_detailed_queue_consumers{vhost="/",queue="default.classic"} 0
+rabbitmq_detailed_queue_consumers{vhost="golden",queue="golden.stream"} 0
+rabbitmq_detailed_queue_consumers{vhost="golden",queue="golden.classic"} 1
+rabbitmq_detailed_queue_consumers{vhost="golden",queue="golden.quorum"} 0
+rabbitmq_detailed_queue_consumers{vhost="golden",queue="golden.dead"} 0
+# TYPE rabbitmq_detailed_queue_info gauge
+# HELP rabbitmq_detailed_queue_info A metric with a constant '1' value and labels that provide some queue details
+rabbitmq_detailed_queue_info{vhost="golden",queue="golden.dead",queue_type="rabbit_classic_queue",membership="leader"} 1
+rabbitmq_detailed_queue_info{vhost="golden",queue="golden.stream",queue_type="rabbit_stream_queue",membership="leader"} 1
+rabbitmq_detailed_queue_info{vhost="golden",queue="golden.quorum",queue_type="rabbit_quorum_queue",membership="leader"} 1
+rabbitmq_detailed_queue_info{vhost="golden",queue="golden.classic",queue_type="rabbit_classic_queue",membership="leader"} 1
+rabbitmq_detailed_queue_info{vhost="/",queue="default.classic",queue_type="rabbit_classic_queue",membership="leader"} 1
+# TYPE rabbitmq_build_info untyped
+# HELP rabbitmq_build_info RabbitMQ & Erlang/OTP version info
+rabbitmq_build_info{rabbitmq_version="4.1.8",prometheus_plugin_version="4.1.8",prometheus_client_version="4.11.0",erlang_version="27.3.4.19"} 1
+# TYPE rabbitmq_identity_info untyped
+# HELP rabbitmq_identity_info RabbitMQ node & cluster identity info
+rabbitmq_identity_info{rabbitmq_node="rabbit@lab-node",rabbitmq_cluster="rabbit@lab-node",rabbitmq_cluster_permanent_id="rabbitmq-cluster-id-PSoie7eUllTYoLiBOL8WSw",rabbitmq_endpoint="detailed"} 1
+# TYPE telemetry_scrape_encoded_size_bytes summary
+# HELP telemetry_scrape_encoded_size_bytes Scrape size, encoded
+# TYPE telemetry_scrape_size_bytes summary
+# HELP telemetry_scrape_size_bytes Scrape size, not encoded
+# TYPE telemetry_scrape_duration_seconds summary
+# HELP telemetry_scrape_duration_seconds Scrape duration
+

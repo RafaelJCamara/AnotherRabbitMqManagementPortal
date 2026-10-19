@@ -1,0 +1,264 @@
+{
+  "management_version": "4.2.9",
+  "rates_mode": "basic",
+  "sample_retention_policies": {
+    "global": [
+      600,
+      3600,
+      28800,
+      86400
+    ],
+    "basic": [
+      600,
+      3600
+    ],
+    "detailed": [
+      600
+    ]
+  },
+  "exchange_types": [
+    {
+      "name": "direct",
+      "description": "AMQP direct exchange, as per the AMQP specification",
+      "enabled": true
+    },
+    {
+      "name": "fanout",
+      "description": "AMQP fanout exchange, as per the AMQP specification",
+      "enabled": true
+    },
+    {
+      "name": "headers",
+      "description": "AMQP headers exchange, as per the AMQP specification",
+      "enabled": true
+    },
+    {
+      "name": "topic",
+      "description": "AMQP topic exchange, as per the AMQP specification",
+      "enabled": true
+    },
+    {
+      "name": "x-consistent-hash",
+      "description": "Consistent Hashing Exchange",
+      "enabled": true
+    },
+    {
+      "name": "x-federation-upstream",
+      "description": "Federation upstream helper exchange",
+      "internal_purpose": "federation",
+      "enabled": true
+    },
+    {
+      "name": "x-local-random",
+      "description": "Picks one random local binding (queue) to route via (to).",
+      "enabled": true
+    }
+  ],
+  "product_version": "4.2.9",
+  "product_name": "RabbitMQ",
+  "rabbitmq_version": "4.2.9",
+  "cluster_name": "rabbit@lab-node",
+  "cluster_tags": {},
+  "node_tags": {},
+  "erlang_version": "27.3.4.19",
+  "erlang_full_version": "Erlang/OTP 27 [erts-15.2.7.14] [source] [64-bit] [smp:32:32] [ds:32:32:10] [async-threads:1] [jit:ns]",
+  "crypto_lib_version": "OpenSSL 3.5.9 29 Sep 2026",
+  "disable_stats": false,
+  "default_queue_type": "classic",
+  "is_op_policy_updating_enabled": true,
+  "enable_queue_totals": false,
+  "message_stats": {
+    "get": 0,
+    "deliver": 2,
+    "confirm": 11,
+    "ack": 0,
+    "publish": 11,
+    "disk_reads": 2,
+    "disk_writes": 5,
+    "get_empty": 0,
+    "get_no_ack": 0,
+    "deliver_no_ack": 0,
+    "redeliver": 0,
+    "drop_unroutable": 0,
+    "return_unroutable": 0,
+    "deliver_get": 2,
+    "get_empty_details": {
+      "rate": 0
+    },
+    "deliver_get_details": {
+      "rate": 0
+    },
+    "ack_details": {
+      "rate": 0
+    },
+    "redeliver_details": {
+      "rate": 0
+    },
+    "deliver_no_ack_details": {
+      "rate": 0
+    },
+    "deliver_details": {
+      "rate": 0
+    },
+    "get_no_ack_details": {
+      "rate": 0
+    },
+    "get_details": {
+      "rate": 0
+    },
+    "drop_unroutable_details": {
+      "rate": 0
+    },
+    "return_unroutable_details": {
+      "rate": 0
+    },
+    "confirm_details": {
+      "rate": 2.2
+    },
+    "publish_details": {
+      "rate": 2.2
+    },
+    "disk_writes_details": {
+      "rate": 0
+    },
+    "disk_reads_details": {
+      "rate": 0
+    }
+  },
+  "churn_rates": {
+    "connection_closed": 11,
+    "queue_declared": 5,
+    "queue_created": 5,
+    "connection_created": 12,
+    "queue_deleted": 0,
+    "channel_created": 12,
+    "channel_closed": 11,
+    "queue_deleted_details": {
+      "rate": 0
+    },
+    "queue_created_details": {
+      "rate": 0
+    },
+    "queue_declared_details": {
+      "rate": 0
+    },
+    "channel_closed_details": {
+      "rate": 0
+    },
+    "channel_created_details": {
+      "rate": 0
+    },
+    "connection_closed_details": {
+      "rate": 0
+    },
+    "connection_created_details": {
+      "rate": 0
+    }
+  },
+  "queue_totals": {
+    "messages": 11,
+    "messages_ready": 9,
+    "messages_unacknowledged": 2,
+    "messages_details": {
+      "rate": 0.6
+    },
+    "messages_unacknowledged_details": {
+      "rate": 0
+    },
+    "messages_ready_details": {
+      "rate": 0.6
+    }
+  },
+  "object_totals": {
+    "channels": 1,
+    "consumers": 1,
+    "exchanges": 20,
+    "queues": 5,
+    "connections": 1
+  },
+  "statistics_db_event_queue": 0,
+  "node": "rabbit@lab-node",
+  "listeners": [
+    {
+      "node": "rabbit@lab-node",
+      "protocol": "amqp",
+      "ip_address": "::",
+      "port": 5672,
+      "socket_opts": {
+        "backlog": 128,
+        "nodelay": true,
+        "linger": [
+          true,
+          0
+        ],
+        "exit_on_close": false
+      },
+      "tls": false
+    },
+    {
+      "node": "rabbit@lab-node",
+      "protocol": "clustering",
+      "ip_address": "::",
+      "port": 25672,
+      "socket_opts": [],
+      "tls": false
+    },
+    {
+      "node": "rabbit@lab-node",
+      "protocol": "http",
+      "ip_address": "::",
+      "port": 15672,
+      "socket_opts": {
+        "cowboy_opts": {
+          "sendfile": false
+        },
+        "port": 15672
+      },
+      "tls": false
+    },
+    {
+      "node": "rabbit@lab-node",
+      "protocol": "http/prometheus",
+      "ip_address": "::",
+      "port": 15692,
+      "socket_opts": {
+        "port": 15692,
+        "protocol": "http/prometheus",
+        "cowboy_opts": {
+          "sendfile": false
+        }
+      },
+      "tls": false
+    },
+    {
+      "node": "rabbit@lab-node",
+      "protocol": "stream",
+      "ip_address": "::",
+      "port": 5552,
+      "socket_opts": {
+        "backlog": 128,
+        "nodelay": true
+      },
+      "tls": false
+    }
+  ],
+  "contexts": [
+    {
+      "ssl_opts": [],
+      "node": "rabbit@lab-node",
+      "description": "RabbitMQ Management",
+      "path": "/",
+      "cowboy_opts": "[{sendfile,false}]",
+      "port": "15672"
+    },
+    {
+      "ssl_opts": [],
+      "node": "rabbit@lab-node",
+      "description": "RabbitMQ Prometheus",
+      "path": "/",
+      "port": "15692",
+      "protocol": "'http/prometheus'",
+      "cowboy_opts": "[{sendfile,false}]"
+    }
+  ]
+}

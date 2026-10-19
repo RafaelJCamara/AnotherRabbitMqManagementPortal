@@ -1,0 +1,23 @@
+{
+  "arguments": {
+    "x-dead-letter-exchange": "golden.dlx",
+    "x-max-length": 1000,
+    "x-queue-type": "classic"
+  },
+  "auto_delete": false,
+  "durable": true,
+  "effective_policy_definition": {
+    "max-length": 100000,
+    "message-ttl": 600000
+  },
+  "exclusive": false,
+  "internal": false,
+  "internal_owner": false,
+  "name": "golden.classic",
+  "node": "rabbit@lab-node",
+  "operator_policy": "golden-op",
+  "policy": "golden-ttl",
+  "state": "running",
+  "type": "classic",
+  "vhost": "golden"
+}

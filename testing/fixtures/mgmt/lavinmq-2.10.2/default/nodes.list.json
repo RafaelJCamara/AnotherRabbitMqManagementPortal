@@ -1,0 +1,124 @@
+[
+  {
+    "uptime": 7967,
+    "running": true,
+    "name": "lab-node",
+    "applications": [
+      {
+        "name": "lavinmq",
+        "description": "LavinMQ",
+        "version": "2.10.2"
+      }
+    ],
+    "os_pid": "1",
+    "fd_total": 1048576,
+    "fd_used": 27,
+    "processors": 32,
+    "mem_limit": 16592478208,
+    "mem_used": 33628160,
+    "mem_used_details": {
+      "log": [
+        30814208,
+        33628160
+      ]
+    },
+    "io_write_count": 296,
+    "io_write_details": {
+      "log": [
+        11.2,
+        46.4
+      ]
+    },
+    "io_read_count": 47232,
+    "io_read_details": {
+      "log": [
+        1912,
+        686.4
+      ]
+    },
+    "cpu_user_time": 114,
+    "cpu_user_details": {
+      "log": [
+        0,
+        0
+      ]
+    },
+    "cpu_sys_time": 125,
+    "cpu_sys_details": {
+      "log": [
+        0,
+        0.01
+      ]
+    },
+    "db_dir": "/var/lib/lavinmq",
+    "disk_total": 1081101176832,
+    "disk_total_details": {
+      "log": [
+        1081101176832,
+        1081101176832
+      ]
+    },
+    "disk_free": 960405704704,
+    "disk_free_details": {
+      "log": [
+        960405786624,
+        960405704704
+      ]
+    },
+    "partitions": [],
+    "proc_used": 27,
+    "run_queue": 0,
+    "sockets_used": 1,
+    "followers": [],
+    "messages_unacknowledged": 2,
+    "messages_ready": 6,
+    "connection_created": 1,
+    "connection_created_details": {
+      "rate": 0.2,
+      "log": [
+        0,
+        0.2
+      ]
+    },
+    "connection_closed": 0,
+    "connection_closed_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    },
+    "channel_created": 1,
+    "channel_created_details": {
+      "rate": 0.2,
+      "log": [
+        0,
+        0.2
+      ]
+    },
+    "channel_closed": 0,
+    "channel_closed_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    },
+    "queue_declared": 4,
+    "queue_declared_details": {
+      "rate": 0.8,
+      "log": [
+        0,
+        0.8
+      ]
+    },
+    "queue_deleted": 0,
+    "queue_deleted_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    }
+  }
+]

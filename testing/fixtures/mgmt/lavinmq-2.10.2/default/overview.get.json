@@ -1,0 +1,180 @@
+{
+  "lavinmq_version": "2.10.2",
+  "product_name": "LavinMQ",
+  "node": "lab-node",
+  "uptime": 7,
+  "object_totals": {
+    "channels": 1,
+    "connections": 1,
+    "consumers": 1,
+    "exchanges": 17,
+    "queues": 4,
+    "bindings": 3
+  },
+  "queue_totals": {
+    "messages": 8,
+    "messages_ready": 6,
+    "messages_unacknowledged": 2,
+    "messages_log": [
+      8
+    ],
+    "messages_ready_log": [
+      6
+    ],
+    "messages_unacknowledged_log": [
+      2
+    ]
+  },
+  "recv_oct_details": {
+    "rate": 35.8,
+    "log": [
+      0,
+      35.8
+    ]
+  },
+  "send_oct_details": {
+    "rate": 80.4,
+    "log": [
+      0,
+      80.4
+    ]
+  },
+  "message_stats": {
+    "ack": 0,
+    "ack_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    },
+    "deliver": 2,
+    "deliver_details": {
+      "rate": 0.4,
+      "log": [
+        0,
+        0.4
+      ]
+    },
+    "get": 0,
+    "get_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    },
+    "deliver_get": 2,
+    "deliver_get_details": {
+      "rate": 0.4,
+      "log": [
+        0,
+        0.4
+      ]
+    },
+    "publish": 8,
+    "publish_details": {
+      "rate": 1.6,
+      "log": [
+        0,
+        1.6
+      ]
+    },
+    "confirm": 0,
+    "confirm_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    },
+    "redeliver": 0,
+    "redeliver_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    },
+    "reject": 0,
+    "reject_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    },
+    "return_unroutable": 0,
+    "return_unroutable_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0
+      ]
+    }
+  },
+  "churn_rates": {
+    "connection_created": 1,
+    "connection_created_details": {
+      "rate": 0.2
+    },
+    "connection_closed": 0,
+    "connection_closed_details": {
+      "rate": 0
+    },
+    "channel_created": 1,
+    "channel_created_details": {
+      "rate": 0.2
+    },
+    "channel_closed": 0,
+    "channel_closed_details": {
+      "rate": 0
+    },
+    "queue_declared": 4,
+    "queue_declared_details": {
+      "rate": 0.8
+    },
+    "queue_deleted": 0,
+    "queue_deleted_details": {
+      "rate": 0
+    }
+  },
+  "listeners": [
+    {
+      "ip_address": "0.0.0.0",
+      "protocol": "amqp",
+      "port": 5672
+    },
+    {
+      "ip_address": "0.0.0.0",
+      "protocol": "mqtt",
+      "port": 1883
+    }
+  ],
+  "exchange_types": [
+    {
+      "name": "direct",
+      "human": "Direct"
+    },
+    {
+      "name": "fanout",
+      "human": "Fanout"
+    },
+    {
+      "name": "topic",
+      "human": "Topic"
+    },
+    {
+      "name": "headers",
+      "human": "Headers"
+    },
+    {
+      "name": "x-federation-upstream",
+      "human": "Federation Upstream"
+    },
+    {
+      "name": "x-consistent-hash",
+      "human": "Consistent Hash"
+    }
+  ]
+}

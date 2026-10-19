@@ -1,0 +1,10 @@
+{
+  "name": "golden-ttl",
+  "vhost": "golden",
+  "pattern": "^golden\\.classic$",
+  "apply-to": "queues",
+  "priority": 1,
+  "definition": {
+    "message-ttl": 600000
+  }
+}

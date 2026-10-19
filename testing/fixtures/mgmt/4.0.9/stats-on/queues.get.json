@@ -1,0 +1,34 @@
+[
+  {
+    "payload_bytes": 14,
+    "redelivered": false,
+    "exchange": "",
+    "routing_key": "golden.classic",
+    "message_count": 2,
+    "properties": {
+      "delivery_mode": 2,
+      "headers": {
+        "x-golden": "classic"
+      },
+      "content_type": "text/plain"
+    },
+    "payload": "golden message",
+    "payload_encoding": "string"
+  },
+  {
+    "payload_bytes": 14,
+    "redelivered": false,
+    "exchange": "",
+    "routing_key": "golden.classic",
+    "message_count": 1,
+    "properties": {
+      "delivery_mode": 2,
+      "headers": {
+        "x-golden": "classic"
+      },
+      "content_type": "text/plain"
+    },
+    "payload": "golden message",
+    "payload_encoding": "string"
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "name": "guest",
+      "password_hash": "<scrubbed>",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    },
+    {
+      "name": "golden-monitor",
+      "password_hash": "<scrubbed>",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "monitoring"
+    },
+    {
+      "name": "golden-plain",
+      "password_hash": "<scrubbed>",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ""
+    }
+  ],
+  "filtered_count": 3,
+  "item_count": 3,
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 3
+}

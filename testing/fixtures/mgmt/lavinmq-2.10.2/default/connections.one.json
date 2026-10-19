@@ -1,0 +1,55 @@
+{
+  "channels": 1,
+  "connected_at": 1792419363000,
+  "type": "network",
+  "channel_max": 2048,
+  "frame_max": 131072,
+  "timeout": 30,
+  "client_properties": {
+    "connection_name": "golden/recorder/source/seed",
+    "product": "amqplib",
+    "version": "2.2.0",
+    "platform": "Node.JS v24.19.0",
+    "information": "https://amqp-node.github.io/amqplib/",
+    "capabilities": {
+      "publisher_confirms": true,
+      "exchange_exchange_bindings": true,
+      "basic.nack": true,
+      "consumer_cancel_notify": true,
+      "connection.blocked": true,
+      "authentication_failure_close": true
+    }
+  },
+  "vhost": "golden",
+  "user": "guest",
+  "protocol": "AMQP 0-9-1",
+  "auth_mechanism": "PLAIN",
+  "host": "192.0.2.2",
+  "port": 5672,
+  "peer_host": "192.0.2.1",
+  "peer_port": 35992,
+  "name": "192.0.2.1:35992 -> 192.0.2.2:5672",
+  "pid": "192.0.2.1:35992 -> 192.0.2.2:5672",
+  "ssl": false,
+  "tls_version": null,
+  "cipher": null,
+  "state": "running",
+  "send_oct": 402,
+  "send_oct_details": {
+    "rate": 0,
+    "log": [
+      80.4,
+      0,
+      0
+    ]
+  },
+  "recv_oct": 67,
+  "recv_oct_details": {
+    "rate": 0,
+    "log": [
+      13.4,
+      0,
+      0
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+[
+  {
+    "source": "",
+    "vhost": "golden",
+    "destination": "golden.classic",
+    "destination_type": "queue",
+    "routing_key": "golden.classic",
+    "arguments": {},
+    "properties_key": "golden.classic"
+  },
+  {
+    "source": "golden.direct",
+    "vhost": "golden",
+    "destination": "golden.classic",
+    "destination_type": "queue",
+    "routing_key": "classic",
+    "arguments": {
+      "x-golden": "direct"
+    },
+    "properties_key": "classic~UYRScQ"
+  },
+  {
+    "source": "golden.topic",
+    "vhost": "golden",
+    "destination": "golden.classic",
+    "destination_type": "queue",
+    "routing_key": "orders.#",
+    "arguments": {},
+    "properties_key": "orders.%23"
+  }
+]

@@ -11,7 +11,8 @@ export const QueueSchema = z.object({
   type: z.string().optional(),
   durable: z.boolean().optional(),
   auto_delete: z.boolean().optional(),
-  exclusive: z.boolean().optional(),
+  // `null` for a quorum or stream queue (golden fixtures, M0-25): it has no exclusive owner.
+  exclusive: z.boolean().nullable().optional(),
   arguments: z.record(z.string(), z.unknown()).optional(),
   node: z.string().optional(),
   state: z.string().optional(),

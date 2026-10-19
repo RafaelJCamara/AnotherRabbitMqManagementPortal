@@ -41,6 +41,8 @@ interface Definition<T> {
   readonly schema: z.ZodType<T>;
   readonly columns?: readonly string[];
   readonly stats?: boolean;
+  /** A list the broker does not page: sending `page` to it is refused (OQ-433). Default true. */
+  readonly paged?: boolean;
 }
 
 /** A single object or a fixed-shape answer. */
@@ -56,14 +58,19 @@ export function defineEndpoint<T>(definition: Definition<T>): EndpointSpec<T> {
   };
 }
 
-/** A list: always requested paged, read into a `Page`. */
+/**
+ * A list: requested paged and read into a `Page`, whether the broker answers the envelope or a bare
+ * array. `paged: false` is for the list that rejects `page` (the golden fixtures show `/api/vhosts`
+ * answering 500 to it on 4.0 and later): it is requested without paging and its bare array is one
+ * page.
+ */
 export function defineList<T>(
   definition: Omit<Definition<T>, 'schema'> & { readonly item: z.ZodType<T> },
 ): EndpointSpec<Page<T>> {
   return {
     id: definition.id,
     template: definition.template,
-    paged: true,
+    paged: definition.paged ?? true,
     columns: definition.columns,
     stats: definition.stats ?? false,
     schema: pagedSchema(definition.item),

@@ -1,0 +1,74 @@
+{
+  "items": [
+    {
+      "number": 1,
+      "name": "192.0.2.1:35992[1]",
+      "vhost": "golden",
+      "user": "guest",
+      "consumer_count": 1,
+      "prefetch_count": 2,
+      "global_prefetch_count": 0,
+      "confirm": false,
+      "transactional": false,
+      "messages_unacknowledged": 2,
+      "connection_details": {
+        "peer_host": "192.0.2.1",
+        "peer_port": 35992,
+        "name": "192.0.2.1:35992 -> 192.0.2.2:5672"
+      },
+      "state": "running",
+      "message_stats": {
+        "ack": 0,
+        "ack_details": {
+          "rate": 0
+        },
+        "get": 0,
+        "get_details": {
+          "rate": 0
+        },
+        "get_no_ack": 0,
+        "get_no_ack_details": {
+          "rate": 0
+        },
+        "publish": 0,
+        "publish_details": {
+          "rate": 0
+        },
+        "deliver": 2,
+        "deliver_details": {
+          "rate": 0
+        },
+        "deliver_no_ack": 0,
+        "deliver_no_ack_details": {
+          "rate": 0
+        },
+        "deliver_get": 2,
+        "deliver_get_details": {
+          "rate": 0
+        },
+        "redeliver": 0,
+        "redeliver_details": {
+          "rate": 0
+        },
+        "reject": 0,
+        "reject_details": {
+          "rate": 0
+        },
+        "confirm": 0,
+        "confirm_details": {
+          "rate": 0
+        },
+        "return_unroutable": 0,
+        "return_unroutable_details": {
+          "rate": 0
+        }
+      }
+    }
+  ],
+  "filtered_count": 1,
+  "item_count": 1,
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 1
+}

@@ -21,8 +21,17 @@ Tags: `type:adapter`, `runtime:node`.
 - Lists are always paged and `page_size` is clamped to 500 (I-7); answers are read up to a byte cap (I-6).
 - Credentials exist for one request, only as the `Authorization` header; they never reach an error, a URL or a log (I-10).
 
+## Golden fixtures (M0-25)
+
+`testing/fixtures/{mgmt,prometheus}/<version>/<mode>/` holds what real brokers answered: the five lab RabbitMQ versions (3.13.7, 4.0.9, 4.1.8, 4.2.9, 4.3.6) with statistics on and off, and LavinMQ 2.10.2, each with a manifest naming product, version, image digest, statistics mode and seed ([testing/fixtures/README.md](../../../testing/fixtures/README.md)). `golden/golden.spec.ts` replays them through the real client: every endpoint of the catalogue is asked for, the request the client sends equals the one recorded, every successful answer parses with its schema, every failure becomes the contract error the status map says, the recorded LavinMQ deviations and the stats-off gaps are asserted, the hazard table and the capability cells are checked against the fixtures, and every committed file is scanned for secrets and host names. An endpoint added to the catalogue fails `test-golden` until `libs/testkit/src/golden/plan.ts` asks for it and the fixtures are recorded again.
+
+The recorder lives in the testkit (`libs/testkit/src/golden`, an adapter may not import `type:test`); the nightly `golden-refresh` workflow compares shapes and opens a pull request on a difference.
+
 ## Proof commands
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p adapter-mgmt-http
+pnpm nx run adapter-mgmt-http:test-golden                              # replay the committed fixtures; no Docker
+pnpm nx run adapter-mgmt-http:record-golden --versions=4.3.6 --check   # fresh recording against the committed shapes; needs Docker
+pnpm nx run adapter-mgmt-http:record-golden                            # record everything again (about 12 minutes)
 ```

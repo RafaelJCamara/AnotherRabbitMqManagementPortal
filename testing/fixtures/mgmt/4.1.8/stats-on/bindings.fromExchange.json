@@ -1,0 +1,13 @@
+[
+  {
+    "source": "golden.direct",
+    "vhost": "golden",
+    "destination": "golden.classic",
+    "destination_type": "queue",
+    "routing_key": "classic",
+    "arguments": {
+      "x-golden": "direct"
+    },
+    "properties_key": "classic~UYRScQ"
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "kind": "prometheus",
+  "product": "rabbitmq",
+  "version": "4.3.6",
+  "image": "rabbitmq:4.3.6-management",
+  "digest": "sha256:ca5d088daf64c9de02c923c1c57c724bf4884c5c69bfa8172c68b214c0057cea",
+  "stats": "on",
+  "brokerConfig": [],
+  "seed": {
+    "id": "golden-seed-1",
+    "sha256": "2ad1d0ec229b686a4d08e47d5327ff65dc06a7fa18e72c9068833fbd0154b55f",
+    "refused": []
+  },
+  "recorder": "libs/testkit/src/golden",
+  "entries": [
+    {
+      "id": "prometheus.metrics",
+      "kind": "prometheus",
+      "method": "GET",
+      "path": "/metrics",
+      "sent": "/metrics",
+      "auth": "guest",
+      "status": 200,
+      "file": "prometheus.metrics.prom",
+      "bytes": 473309
+    },
+    {
+      "id": "prometheus.detailed-queues",
+      "kind": "prometheus",
+      "method": "GET",
+      "path": "/metrics/detailed?family=queue_coarse_metrics&family=queue_consumer_count",
+      "sent": "/metrics/detailed?family=queue_coarse_metrics&family=queue_consumer_count",
+      "auth": "guest",
+      "status": 200,
+      "file": "prometheus.detailed-queues.prom",
+      "bytes": 4210
+    }
+  ],
+  "skipped": []
+}

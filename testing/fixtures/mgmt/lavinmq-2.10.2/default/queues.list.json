@@ -1,0 +1,83 @@
+{
+  "items": [
+    {
+      "name": "default.classic",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "exclusive": false,
+      "arguments": {},
+      "state": "running",
+      "messages": 0,
+      "messages_ready": 0,
+      "messages_unacknowledged": 0,
+      "consumers": 0,
+      "policy": null,
+      "operator_policy": null,
+      "effective_policy_definition": {}
+    },
+    {
+      "name": "golden.classic",
+      "vhost": "golden",
+      "durable": true,
+      "auto_delete": false,
+      "exclusive": false,
+      "arguments": {
+        "x-max-length": 1000,
+        "x-dead-letter-exchange": "golden.dlx"
+      },
+      "state": "running",
+      "messages": 5,
+      "messages_ready": 3,
+      "messages_unacknowledged": 2,
+      "consumers": 1,
+      "policy": "golden-ttl",
+      "operator_policy": "golden-op",
+      "effective_policy_definition": {
+        "message-ttl": 600000,
+        "max-length": 100000
+      }
+    },
+    {
+      "name": "golden.dead",
+      "vhost": "golden",
+      "durable": true,
+      "auto_delete": false,
+      "exclusive": false,
+      "arguments": {},
+      "state": "running",
+      "messages": 0,
+      "messages_ready": 0,
+      "messages_unacknowledged": 0,
+      "consumers": 0,
+      "policy": null,
+      "operator_policy": null,
+      "effective_policy_definition": {}
+    },
+    {
+      "name": "golden.stream",
+      "vhost": "golden",
+      "durable": true,
+      "auto_delete": false,
+      "exclusive": false,
+      "arguments": {
+        "x-queue-type": "stream",
+        "x-max-length-bytes": 1000000
+      },
+      "state": "running",
+      "messages": 3,
+      "messages_ready": 3,
+      "messages_unacknowledged": 0,
+      "consumers": 0,
+      "policy": null,
+      "operator_policy": null,
+      "effective_policy_definition": {}
+    }
+  ],
+  "filtered_count": 4,
+  "item_count": 4,
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 4
+}

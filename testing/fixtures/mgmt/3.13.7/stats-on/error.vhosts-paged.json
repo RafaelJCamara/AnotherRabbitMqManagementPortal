@@ -1,0 +1,127 @@
+{
+  "filtered_count": 2,
+  "item_count": 2,
+  "items": [
+    {
+      "cluster_state": {
+        "rabbit@lab-node": "running"
+      },
+      "default_queue_type": "undefined",
+      "description": "Default virtual host",
+      "messages": 0,
+      "messages_details": {
+        "rate": 0
+      },
+      "messages_ready": 0,
+      "messages_ready_details": {
+        "rate": 0
+      },
+      "messages_unacknowledged": 0,
+      "messages_unacknowledged_details": {
+        "rate": 0
+      },
+      "metadata": {
+        "description": "Default virtual host",
+        "tags": []
+      },
+      "name": "/",
+      "tags": [],
+      "tracing": false
+    },
+    {
+      "cluster_state": {
+        "rabbit@lab-node": "running"
+      },
+      "default_queue_type": "classic",
+      "description": "golden fixtures",
+      "message_stats": {
+        "ack": 0,
+        "ack_details": {
+          "rate": 0
+        },
+        "confirm": 11,
+        "confirm_details": {
+          "rate": 0
+        },
+        "deliver": 2,
+        "deliver_details": {
+          "rate": 0
+        },
+        "deliver_get": 4,
+        "deliver_get_details": {
+          "rate": 0
+        },
+        "deliver_no_ack": 0,
+        "deliver_no_ack_details": {
+          "rate": 0
+        },
+        "drop_unroutable": 0,
+        "drop_unroutable_details": {
+          "rate": 0
+        },
+        "get": 2,
+        "get_details": {
+          "rate": 0
+        },
+        "get_empty": 0,
+        "get_empty_details": {
+          "rate": 0
+        },
+        "get_no_ack": 0,
+        "get_no_ack_details": {
+          "rate": 0
+        },
+        "publish": 11,
+        "publish_details": {
+          "rate": 0
+        },
+        "redeliver": 0,
+        "redeliver_details": {
+          "rate": 0
+        },
+        "return_unroutable": 0,
+        "return_unroutable_details": {
+          "rate": 0
+        }
+      },
+      "messages": 11,
+      "messages_details": {
+        "rate": 0
+      },
+      "messages_ready": 9,
+      "messages_ready_details": {
+        "rate": 0
+      },
+      "messages_unacknowledged": 2,
+      "messages_unacknowledged_details": {
+        "rate": 0
+      },
+      "metadata": {
+        "description": "golden fixtures",
+        "tags": [
+          "golden",
+          "fixtures"
+        ],
+        "default_queue_type": "classic"
+      },
+      "name": "golden",
+      "recv_oct": 487,
+      "recv_oct_details": {
+        "rate": 0
+      },
+      "send_oct": 935,
+      "send_oct_details": {
+        "rate": 1.6
+      },
+      "tags": [
+        "golden",
+        "fixtures"
+      ],
+      "tracing": false
+    }
+  ],
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 2
+}

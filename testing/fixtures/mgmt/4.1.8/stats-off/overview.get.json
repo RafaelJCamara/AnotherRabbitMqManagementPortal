@@ -1,0 +1,75 @@
+{
+  "management_version": "4.1.8",
+  "rates_mode": "basic",
+  "sample_retention_policies": {
+    "global": [
+      600,
+      3600,
+      28800,
+      86400
+    ],
+    "basic": [
+      600,
+      3600
+    ],
+    "detailed": [
+      600
+    ]
+  },
+  "exchange_types": [
+    {
+      "name": "direct",
+      "description": "AMQP direct exchange, as per the AMQP specification",
+      "enabled": true
+    },
+    {
+      "name": "fanout",
+      "description": "AMQP fanout exchange, as per the AMQP specification",
+      "enabled": true
+    },
+    {
+      "name": "headers",
+      "description": "AMQP headers exchange, as per the AMQP specification",
+      "enabled": true
+    },
+    {
+      "name": "topic",
+      "description": "AMQP topic exchange, as per the AMQP specification",
+      "enabled": true
+    },
+    {
+      "name": "x-consistent-hash",
+      "description": "Consistent Hashing Exchange",
+      "enabled": true
+    },
+    {
+      "name": "x-federation-upstream",
+      "description": "Federation upstream helper exchange",
+      "internal_purpose": "federation",
+      "enabled": true
+    },
+    {
+      "name": "x-local-random",
+      "description": "Picks one random local binding (queue) to route via (to).",
+      "enabled": true
+    }
+  ],
+  "product_version": "4.1.8",
+  "product_name": "RabbitMQ",
+  "rabbitmq_version": "4.1.8",
+  "cluster_name": "rabbit@lab-node",
+  "cluster_tags": {},
+  "node_tags": {},
+  "erlang_version": "27.3.4.19",
+  "erlang_full_version": "Erlang/OTP 27 [erts-15.2.7.14] [source] [64-bit] [smp:32:32] [ds:32:32:10] [async-threads:1] [jit:ns]",
+  "disable_stats": true,
+  "default_queue_type": "classic",
+  "is_op_policy_updating_enabled": true,
+  "enable_queue_totals": false,
+  "node": "rabbit@lab-node",
+  "object_totals": {
+    "queues": 5,
+    "exchanges": 19,
+    "connections": 1
+  }
+}

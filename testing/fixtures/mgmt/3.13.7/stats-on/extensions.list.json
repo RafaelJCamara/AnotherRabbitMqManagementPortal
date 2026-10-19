@@ -1,0 +1,27 @@
+[
+  {
+    "javascript": "dispatcher.js"
+  },
+  {
+    "javascript": "federation.js"
+  },
+  {
+    "javascript": "shovel.js"
+  },
+  {
+    "javascript": "shovel.js"
+  },
+  [],
+  [],
+  [],
+  [],
+  {
+    "javascript": "stream.js"
+  },
+  [],
+  [],
+  [],
+  {
+    "javascript": "tracing.js"
+  }
+]

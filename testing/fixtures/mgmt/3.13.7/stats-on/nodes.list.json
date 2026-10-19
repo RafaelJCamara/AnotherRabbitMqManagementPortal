@@ -1,0 +1,38 @@
+[
+  {
+    "auth_mechanisms": [
+      {
+        "name": "AMQPLAIN",
+        "description": "QPid AMQPLAIN mechanism",
+        "enabled": true
+      },
+      {
+        "name": "RABBIT-CR-DEMO",
+        "description": "RabbitMQ Demo challenge-response authentication mechanism",
+        "enabled": false
+      },
+      {
+        "name": "PLAIN",
+        "description": "SASL PLAIN authentication mechanism",
+        "enabled": true
+      }
+    ],
+    "enabled_plugins": [
+      "rabbitmq_management",
+      "rabbitmq_prometheus",
+      "rabbitmq_stream",
+      "rabbitmq_stream_management",
+      "rabbitmq_tracing",
+      "rabbitmq_shovel",
+      "rabbitmq_shovel_management",
+      "rabbitmq_federation",
+      "rabbitmq_federation_management",
+      "rabbitmq_consistent_hash_exchange",
+      "rabbitmq_event_exchange",
+      "rabbitmq_auth_backend_oauth2"
+    ],
+    "name": "rabbit@lab-node",
+    "running": true,
+    "being_drained": false
+  }
+]

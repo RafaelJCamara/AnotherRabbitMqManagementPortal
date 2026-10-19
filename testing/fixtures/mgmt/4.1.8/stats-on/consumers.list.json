@@ -1,0 +1,25 @@
+[
+  {
+    "arguments": {},
+    "ack_required": true,
+    "active": true,
+    "activity_status": "up",
+    "channel_details": {
+      "connection_name": "192.0.2.1:48442 -> 192.0.2.2:5672",
+      "name": "192.0.2.1:48442 -> 192.0.2.2:5672 (1)",
+      "node": "rabbit@lab-node",
+      "number": 1,
+      "peer_host": "192.0.2.1",
+      "peer_port": 48442,
+      "user": "guest"
+    },
+    "consumer_tag": "amq.ctag-JsFH-NZTMe2cUnQQhvNEug",
+    "consumer_timeout": 1800000,
+    "exclusive": false,
+    "prefetch_count": 2,
+    "queue": {
+      "name": "golden.classic",
+      "vhost": "golden"
+    }
+  }
+]

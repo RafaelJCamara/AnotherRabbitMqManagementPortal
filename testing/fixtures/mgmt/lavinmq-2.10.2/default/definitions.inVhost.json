@@ -1,0 +1,192 @@
+{
+  "lavinmq_version": "2.10.2",
+  "queues": [
+    {
+      "name": "golden.classic",
+      "vhost": "golden",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-max-length": 1000,
+        "x-dead-letter-exchange": "golden.dlx"
+      }
+    },
+    {
+      "name": "golden.dead",
+      "vhost": "golden",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "golden.stream",
+      "vhost": "golden",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "stream",
+        "x-max-length-bytes": 1000000
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "",
+      "vhost": "golden",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "amq.direct",
+      "vhost": "golden",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "amq.fanout",
+      "vhost": "golden",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "amq.topic",
+      "vhost": "golden",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "amq.headers",
+      "vhost": "golden",
+      "type": "headers",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "amq.match",
+      "vhost": "golden",
+      "type": "headers",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "golden.direct",
+      "vhost": "golden",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "golden.topic",
+      "vhost": "golden",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {
+        "alternate-exchange": "golden.dlx"
+      }
+    },
+    {
+      "name": "golden.dlx",
+      "vhost": "golden",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "golden.direct",
+      "vhost": "golden",
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "classic",
+      "arguments": {
+        "x-golden": "direct"
+      },
+      "properties_key": "classic~eC1nb2xkZW46ZGlyZWN0"
+    },
+    {
+      "source": "golden.topic",
+      "vhost": "golden",
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "orders.#",
+      "arguments": {},
+      "properties_key": "orders.#"
+    },
+    {
+      "source": "golden.dlx",
+      "vhost": "golden",
+      "destination": "golden.dead",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {},
+      "properties_key": "~"
+    }
+  ],
+  "policies": [
+    {
+      "name": "golden-ttl",
+      "vhost": "golden",
+      "pattern": "^golden\\.classic$",
+      "apply-to": "queues",
+      "priority": 1,
+      "definition": {
+        "message-ttl": 600000
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "component": "operator_policy",
+      "vhost": "golden",
+      "name": "golden-op",
+      "value": {
+        "pattern": "^golden\\.classic$",
+        "definition": {
+          "max-length": 100000
+        },
+        "priority": 1,
+        "apply-to": "queues"
+      }
+    }
+  ],
+  "mqtt_permissions": [
+    {
+      "name": "default",
+      "vhost": "golden",
+      "members": [
+        "*"
+      ],
+      "rules": [
+        {
+          "identifier": "allow-all",
+          "pattern": "#",
+          "read": true,
+          "write": true
+        }
+      ]
+    }
+  ]
+}

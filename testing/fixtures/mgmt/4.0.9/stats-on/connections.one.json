@@ -1,0 +1,66 @@
+{
+  "send_oct_details": {
+    "rate": 1.6
+  },
+  "connected_at": 1792419084382,
+  "recv_oct": 487,
+  "recv_cnt": 6,
+  "host": "192.0.2.2",
+  "ssl_cipher": "",
+  "node": "rabbit@lab-node",
+  "peer_port": 53864,
+  "state": "running",
+  "user_provided_name": "golden/recorder/source/seed",
+  "garbage_collection": {
+    "fullsweep_after": 65535,
+    "max_heap_size": 0,
+    "min_bin_vheap_size": 46422,
+    "min_heap_size": 233,
+    "minor_gcs": 11
+  },
+  "auth_mechanism": "PLAIN",
+  "send_cnt": 7,
+  "peer_cert_issuer": "",
+  "user": "guest",
+  "recv_oct_details": {
+    "rate": 0
+  },
+  "vhost": "golden",
+  "timeout": 30,
+  "reductions": 13773,
+  "peer_cert_subject": "",
+  "ssl_protocol": "",
+  "send_pend": 0,
+  "protocol": "AMQP 0-9-1",
+  "ssl_hash": "",
+  "send_oct": 944,
+  "ssl_key_exchange": "",
+  "channel_max": 2047,
+  "reductions_details": {
+    "rate": 170.8
+  },
+  "frame_max": 131072,
+  "port": 5672,
+  "user_who_performed_action": "guest",
+  "ssl": false,
+  "name": "192.0.2.1:53864 -> 192.0.2.2:5672",
+  "type": "network",
+  "peer_cert_validity": "",
+  "channels": 1,
+  "peer_host": "192.0.2.1",
+  "client_properties": {
+    "capabilities": {
+      "authentication_failure_close": true,
+      "basic.nack": true,
+      "connection.blocked": true,
+      "consumer_cancel_notify": true,
+      "exchange_exchange_bindings": true,
+      "publisher_confirms": true
+    },
+    "connection_name": "golden/recorder/source/seed",
+    "information": "https://amqp-node.github.io/amqplib/",
+    "platform": "Node.JS v24.19.0",
+    "product": "amqplib",
+    "version": "2.2.0"
+  }
+}

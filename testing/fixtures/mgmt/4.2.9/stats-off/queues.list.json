@@ -1,0 +1,96 @@
+{
+  "filtered_count": 5,
+  "item_count": 5,
+  "items": [
+    {
+      "arguments": {
+        "x-queue-type": "classic"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "exclusive": false,
+      "messages": 0,
+      "messages_ready": 0,
+      "messages_unacknowledged": 0,
+      "name": "default.classic",
+      "node": "rabbit@lab-node",
+      "state": "running",
+      "type": "classic",
+      "vhost": "/"
+    },
+    {
+      "arguments": {
+        "x-dead-letter-exchange": "golden.dlx",
+        "x-max-length": 1000,
+        "x-queue-type": "classic"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "exclusive": false,
+      "messages": 5,
+      "messages_ready": 3,
+      "messages_unacknowledged": 2,
+      "name": "golden.classic",
+      "node": "rabbit@lab-node",
+      "policy": "golden-ttl",
+      "state": "running",
+      "type": "classic",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {
+        "x-queue-type": "classic"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "exclusive": false,
+      "messages": 0,
+      "messages_ready": 0,
+      "messages_unacknowledged": 0,
+      "name": "golden.dead",
+      "node": "rabbit@lab-node",
+      "state": "running",
+      "type": "classic",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {
+        "x-queue-type": "quorum"
+      },
+      "auto_delete": false,
+      "delivery_limit": 7,
+      "durable": true,
+      "effective_policy_definition": {
+        "delivery-limit": 7
+      },
+      "exclusive": null,
+      "messages": 3,
+      "messages_ready": 3,
+      "messages_unacknowledged": 0,
+      "name": "golden.quorum",
+      "node": "rabbit@lab-node",
+      "operator_policy": null,
+      "policy": "golden-delivery-limit",
+      "state": "running",
+      "type": "quorum",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {
+        "x-max-length-bytes": 1000000,
+        "x-queue-type": "stream"
+      },
+      "auto_delete": false,
+      "durable": true,
+      "exclusive": null,
+      "name": "golden.stream",
+      "state": "running",
+      "type": "stream",
+      "vhost": "golden"
+    }
+  ],
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 5
+}

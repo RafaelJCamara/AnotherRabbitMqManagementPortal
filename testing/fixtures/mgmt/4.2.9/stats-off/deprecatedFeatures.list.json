@@ -1,0 +1,66 @@
+[
+  {
+    "name": "queue_master_locator",
+    "state": "permitted",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "management_metrics_collection",
+    "state": "permitted",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#disable-metrics-delivery-via-the-management-api--ui",
+    "provided_by": "rabbitmq_management_agent"
+  },
+  {
+    "name": "global_qos",
+    "state": "permitted",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#removal-of-global-qos",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "ram_node_type",
+    "state": "denied",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#removal-of-ram-nodes",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "transient_nonexcl_queues",
+    "state": "permitted",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#removal-of-transient-non-exclusive-queues",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "amqp_filter_set_bug",
+    "state": "permitted",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-messaging-v1.0-os.html#type-filter-set",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "amqp_address_v1",
+    "state": "permitted",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://www.rabbitmq.com/docs/amqp#addresses",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "classic_queue_mirroring",
+    "state": "denied",
+    "desc": "",
+    "deprecation_phase": "removed",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#removal-of-classic-queue-mirroring",
+    "provided_by": "rabbit"
+  }
+]

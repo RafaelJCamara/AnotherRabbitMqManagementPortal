@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "kind": "prometheus",
+  "product": "rabbitmq",
+  "version": "4.0.9",
+  "image": "rabbitmq:4.0.9-management",
+  "digest": "sha256:32f058dc1323eed60dc47e84bab5726b88c6ad4e2f2c81a459d6d75b2876efc4",
+  "stats": "off",
+  "brokerConfig": [
+    "management.disable_stats = true",
+    "management_agent.disable_metrics_collector = true"
+  ],
+  "seed": {
+    "id": "golden-seed-1",
+    "sha256": "2ad1d0ec229b686a4d08e47d5327ff65dc06a7fa18e72c9068833fbd0154b55f",
+    "refused": []
+  },
+  "recorder": "libs/testkit/src/golden",
+  "entries": [
+    {
+      "id": "prometheus.metrics",
+      "kind": "prometheus",
+      "method": "GET",
+      "path": "/metrics",
+      "sent": "/metrics",
+      "auth": "guest",
+      "status": 200,
+      "file": "prometheus.metrics.prom",
+      "bytes": 454754
+    },
+    {
+      "id": "prometheus.detailed-queues",
+      "kind": "prometheus",
+      "method": "GET",
+      "path": "/metrics/detailed?family=queue_coarse_metrics&family=queue_consumer_count",
+      "sent": "/metrics/detailed?family=queue_coarse_metrics&family=queue_consumer_count",
+      "auth": "guest",
+      "status": 200,
+      "file": "prometheus.detailed-queues.prom",
+      "bytes": 3561
+    }
+  ],
+  "skipped": []
+}

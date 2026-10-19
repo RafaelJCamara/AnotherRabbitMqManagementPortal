@@ -1,0 +1,7 @@
+{
+  "user": "golden-monitor",
+  "vhost": "golden",
+  "configure": "^golden\\.",
+  "write": "^golden\\.",
+  "read": ".*"
+}

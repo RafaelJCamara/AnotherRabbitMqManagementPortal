@@ -98,7 +98,7 @@ export const ConsumerSchema = z.object({
 });
 export type MgmtConsumer = z.infer<typeof ConsumerSchema>;
 
-/** Whether the broker pages the consumer lists is unverified (OQ-417); a bare array is one page. */
+/** The consumer lists answer a bare array on RabbitMQ (golden fixtures, OQ-433); a bare array is one page. */
 export const consumers = {
   list: defineList({
     id: 'consumers.list',

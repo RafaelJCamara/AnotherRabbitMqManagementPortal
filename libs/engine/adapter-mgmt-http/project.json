@@ -25,6 +25,25 @@
       "options": {
         "command": "vitest run --config libs/engine/adapter-mgmt-http/vitest.config.mts"
       }
+    },
+    "test-golden": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/testing/fixtures/**/*"
+      ],
+      "options": {
+        "command": "vitest run --config libs/engine/adapter-mgmt-http/vitest.golden.config.mts"
+      }
+    },
+    "record-golden": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/testkit/src/it/run-golden.ts",
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }

@@ -1,0 +1,23 @@
+[
+  {
+    "user": "guest",
+    "vhost": "/",
+    "configure": ".*",
+    "write": ".*",
+    "read": ".*"
+  },
+  {
+    "user": "golden-monitor",
+    "vhost": "golden",
+    "configure": "^golden\\.",
+    "write": "^golden\\.",
+    "read": ".*"
+  },
+  {
+    "user": "guest",
+    "vhost": "golden",
+    "configure": ".*",
+    "write": ".*",
+    "read": ".*"
+  }
+]

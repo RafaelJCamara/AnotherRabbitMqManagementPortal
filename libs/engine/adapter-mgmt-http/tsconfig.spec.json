@@ -4,5 +4,10 @@
     "outDir": "../../../dist/out-tsc",
     "types": ["vitest/globals", "node"]
   },
-  "include": ["src/**/*.ts", "vitest.config.mts"]
+  "include": [
+    "src/**/*.ts",
+    "golden/**/*.ts",
+    "vitest.config.mts",
+    "vitest.golden.config.mts"
+  ]
 }

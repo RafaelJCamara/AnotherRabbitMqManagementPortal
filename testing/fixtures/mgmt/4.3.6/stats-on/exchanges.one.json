@@ -1,0 +1,14 @@
+{
+  "arguments": {
+    "alternate-exchange": "golden.dlx"
+  },
+  "auto_delete": false,
+  "durable": true,
+  "incoming": [],
+  "internal": false,
+  "name": "golden.topic",
+  "outgoing": [],
+  "type": "topic",
+  "user_who_performed_action": "guest",
+  "vhost": "golden"
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "vhost": "golden",
+    "name": "golden-op",
+    "pattern": "^golden\\.classic$",
+    "apply-to": "queues",
+    "definition": {
+      "max-length": 100000
+    },
+    "priority": 1
+  }
+]

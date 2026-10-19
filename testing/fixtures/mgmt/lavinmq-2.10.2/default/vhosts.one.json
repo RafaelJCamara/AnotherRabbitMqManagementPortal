@@ -1,0 +1,26 @@
+{
+  "name": "golden",
+  "dir": "ec30adc79e734900430e4174cf0a36c2d0c42272",
+  "tracing": false,
+  "tags": [
+    "golden",
+    "fixtures"
+  ],
+  "description": "golden fixtures",
+  "cluster_state": {},
+  "messages": 8,
+  "messages_unacknowledged": 2,
+  "messages_ready": 6,
+  "message_stats": {
+    "ack": 0,
+    "confirm": 0,
+    "deliver": 2,
+    "deliver_no_ack": 0,
+    "get": 0,
+    "get_no_ack": 2,
+    "deliver_get": 4,
+    "publish": 8,
+    "redeliver": 0,
+    "return_unroutable": 0
+  }
+}

@@ -1,0 +1,115 @@
+# M0-25 (U-13): the nightly refresh of the golden fixtures (testing/fixtures). It starts the five lab
+# RabbitMQ brokers (statistics on and off) and LavinMQ 2.10.2, asks them what the fixtures hold, and
+# compares the shapes (fields, types, statuses, Prometheus families; never the values, which differ
+# on every run). On any difference it records the fixtures again and opens a pull request with the
+# new files, so a broker that changes what it answers is seen the day it happens.
+#
+#   - Recording needs a Docker daemon: hosted Linux runners only.
+#   - A failed run that found no difference (a broker did not start, Docker failed) is a failed job,
+#     not a pull request: the drift report is written only when the comparison itself ran.
+#   - The token is given to the last step only; the checkout does not keep credentials, and the
+#     recorder runs with the read-only default of the workflow.
+#   - Manual runs default to a dry run (the difference is reported, nothing is pushed); so does a run
+#     on any branch but the default one.
+#   - Creating the pull request with the workflow token needs the repository setting "Allow GitHub
+#     Actions to create and approve pull requests" (OQ-430).
+name: golden-refresh
+
+on:
+  schedule:
+    - cron: '41 2 * * *' # every night, 02:41 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Report the difference instead of opening a pull request
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: golden-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: refresh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: write # pushes the refresh branch; the only write besides the pull request
+      pull-requests: write # opens the pull request
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Replay the committed fixtures (no broker)
+        run: pnpm nx run adapter-mgmt-http:test-golden
+      - name: Compare the brokers with the committed fixtures
+        id: check
+        env:
+          GOLDEN_DRIFT_REPORT: ${{ github.workspace }}/dist/golden-drift.txt
+        run: |
+          mkdir -p dist
+          rm -f "$GOLDEN_DRIFT_REPORT"
+          if pnpm nx run adapter-mgmt-http:record-golden --check; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+          elif [ -s "$GOLDEN_DRIFT_REPORT" ]; then
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "The comparison did not run to the end (no drift report); see the log above." >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.check.outputs.drift == 'true'
+        with:
+          name: golden-drift
+          path: dist/golden-drift.txt
+          retention-days: 30
+      - name: Record the fixtures again
+        if: steps.check.outputs.drift == 'true'
+        run: pnpm nx run adapter-mgmt-http:record-golden
+      - name: Open the pull request
+        if: steps.check.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+        run: |
+          {
+            echo "### Golden fixtures differ from the brokers"
+            echo
+            echo '```'
+            cat dist/golden-drift.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run: no branch pushed, no pull request opened."
+            exit 0
+          fi
+          branch="golden-refresh/$(date -u +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add testing/fixtures
+          if git diff --cached --quiet; then
+            echo "The recording changed nothing on disk."
+            exit 0
+          fi
+          git commit --signoff -m "chore(fixtures): refresh golden fixtures" \
+            -m "The nightly shape comparison found a difference between the brokers and testing/fixtures. The difference is in the pull request description and in the golden-drift artifact of the run."
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" push origin "$branch"
+          {
+            echo "The nightly \`golden-refresh\` run compared the brokers with \`testing/fixtures\` (shapes, not values) and found:"
+            echo
+            echo '```'
+            head -c 60000 dist/golden-drift.txt
+            echo '```'
+            echo
+            echo "Review what changed in the answers; if a hazard or a capability cell is affected, open an issue (fixtures are not lab evidence, I-14)."
+          } > dist/pr-body.md
+          gh pr create --base "$BASE_BRANCH" --head "$branch" \
+            --title "chore(fixtures): refresh golden fixtures" --body-file dist/pr-body.md

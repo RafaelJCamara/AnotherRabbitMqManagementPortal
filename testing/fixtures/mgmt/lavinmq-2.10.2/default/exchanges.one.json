@@ -1,0 +1,53 @@
+{
+  "type": "topic",
+  "durable": true,
+  "auto_delete": false,
+  "internal": false,
+  "arguments": {
+    "alternate-exchange": "golden.dlx"
+  },
+  "vhost": "golden",
+  "effective_policy_definition": {},
+  "effective_arguments": [
+    "alternate-exchange"
+  ],
+  "name": "golden.topic",
+  "message_stats": {
+    "publish_in": 0,
+    "publish_in_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0,
+        0
+      ]
+    },
+    "publish_out": 0,
+    "publish_out_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0,
+        0
+      ]
+    },
+    "unroutable": 0,
+    "unroutable_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0,
+        0
+      ]
+    },
+    "dedup": 0,
+    "dedup_details": {
+      "rate": 0,
+      "log": [
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

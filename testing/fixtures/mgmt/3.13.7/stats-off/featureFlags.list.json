@@ -1,0 +1,194 @@
+[
+  {
+    "name": "classic_mirrored_queue_version",
+    "desc": "Support setting version for classic mirrored queues",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "classic_queue_type_delivery_support",
+    "desc": "Bug fix for classic queue deliveries using mixed versions",
+    "doc_url": "https://github.com/rabbitmq/rabbitmq-server/issues/5931",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "detailed_queues_endpoint",
+    "desc": "Add a detailed queues HTTP API endpoint. Reduce number of metrics in the default endpoint.",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "stable",
+    "provided_by": "rabbitmq_management"
+  },
+  {
+    "name": "direct_exchange_routing_v2",
+    "desc": "v2 direct exchange routing implementation",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "drop_unroutable_metric",
+    "desc": "Count unroutable publishes to be dropped in stats",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbitmq_management_agent"
+  },
+  {
+    "name": "empty_basic_get_metric",
+    "desc": "Count AMQP `basic.get` on empty queues in stats",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbitmq_management_agent"
+  },
+  {
+    "name": "feature_flags_v2",
+    "desc": "Feature flags subsystem V2",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "implicit_default_bindings",
+    "desc": "Default bindings are now implicit, instead of being stored in the database",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "khepri_db",
+    "desc": "Use the new Khepri Raft-based metadata store",
+    "doc_url": "",
+    "state": "disabled",
+    "stability": "experimental",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "listener_records_in_ets",
+    "desc": "Store listener records in ETS instead of Mnesia",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "maintenance_mode_status",
+    "desc": "Maintenance mode status",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "message_containers",
+    "desc": "Message containers.",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "stable",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "message_containers_deaths_v2",
+    "desc": "Bug fix for dead letter cycle detection",
+    "doc_url": "https://github.com/rabbitmq/rabbitmq-server/issues/11159",
+    "state": "enabled",
+    "stability": "stable",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "quorum_queue",
+    "desc": "Support queues of type `quorum`",
+    "doc_url": "https://www.rabbitmq.com/quorum-queues.html",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "quorum_queue_non_voters",
+    "desc": "Allows new quorum queue members to be added as non voters initially.",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "stable",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "restart_streams",
+    "desc": "Support for restarting streams with optional preferred next leader argument.Used to implement stream leader rebalancing",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "stable",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "stream_filtering",
+    "desc": "Support for stream filtering.",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "stable",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "stream_queue",
+    "desc": "Support queues of type `stream`",
+    "doc_url": "https://www.rabbitmq.com/stream.html",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "stream_sac_coordinator_unblock_group",
+    "desc": "Bug fix to unblock a group of consumers in a super stream partition",
+    "doc_url": "https://github.com/rabbitmq/rabbitmq-server/issues/7743",
+    "state": "enabled",
+    "stability": "stable",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "stream_single_active_consumer",
+    "desc": "Single active consumer for streams",
+    "doc_url": "https://www.rabbitmq.com/stream.html",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "stream_update_config_command",
+    "desc": "A new internal command that is used to update streams as part of a policy.",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "stable",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "tracking_records_in_ets",
+    "desc": "Store tracking records in ETS instead of Mnesia",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "user_limits",
+    "desc": "Configure connection and channel limits for a user",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "virtual_host_metadata",
+    "desc": "Virtual host metadata (description, tags, etc)",
+    "doc_url": "",
+    "state": "enabled",
+    "stability": "required",
+    "provided_by": "rabbit"
+  }
+]

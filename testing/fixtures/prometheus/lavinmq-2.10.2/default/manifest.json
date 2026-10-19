@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "kind": "prometheus",
+  "product": "lavinmq",
+  "version": "2.10.2",
+  "image": "cloudamqp/lavinmq:2.10.2",
+  "digest": "sha256:83c0083744fa619f1c06927618e6f863390bcdebac6de9a0f52173fa69fea9ef",
+  "stats": "n/a",
+  "brokerConfig": [
+    "--metrics-http-bind=0.0.0.0"
+  ],
+  "seed": {
+    "id": "golden-seed-1",
+    "sha256": "2ad1d0ec229b686a4d08e47d5327ff65dc06a7fa18e72c9068833fbd0154b55f",
+    "refused": []
+  },
+  "recorder": "libs/testkit/src/golden",
+  "entries": [
+    {
+      "id": "prometheus.metrics",
+      "kind": "prometheus",
+      "method": "GET",
+      "path": "/metrics",
+      "sent": "/metrics",
+      "auth": "guest",
+      "status": 200,
+      "file": "prometheus.metrics.prom",
+      "bytes": 7964
+    },
+    {
+      "id": "prometheus.detailed-queues",
+      "kind": "prometheus",
+      "method": "GET",
+      "path": "/metrics/detailed?family=queue_coarse_metrics&family=queue_consumer_count",
+      "sent": "/metrics/detailed?family=queue_coarse_metrics&family=queue_consumer_count",
+      "auth": "guest",
+      "status": 200,
+      "file": "prometheus.detailed-queues.prom",
+      "bytes": 3578
+    }
+  ],
+  "skipped": []
+}

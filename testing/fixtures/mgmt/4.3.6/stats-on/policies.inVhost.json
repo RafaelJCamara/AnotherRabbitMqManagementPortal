@@ -1,0 +1,22 @@
+[
+  {
+    "vhost": "golden",
+    "name": "golden-delivery-limit",
+    "pattern": "^golden\\.quorum$",
+    "apply-to": "queues",
+    "definition": {
+      "delivery-limit": 7
+    },
+    "priority": 1
+  },
+  {
+    "vhost": "golden",
+    "name": "golden-ttl",
+    "pattern": "^golden\\.classic$",
+    "apply-to": "queues",
+    "definition": {
+      "message-ttl": 600000
+    },
+    "priority": 1
+  }
+]

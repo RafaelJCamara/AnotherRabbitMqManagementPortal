@@ -35,7 +35,7 @@
 |-- testing/
 |   |-- broker-lab/                      # Dockerfiles per version (plugins, 5552/15692, TLS, OAuth), 3-node + HAProxy + toxiproxy compose
 |   |-- lab-evidence/<broker-version>/<CF-id>.json   # recorded independently of the registry (CODEOWNERS: lab-evidence)
-|   |-- fixtures/{mgmt/<version>/, prometheus/, messages/<framework>/}
+|   |-- fixtures/{mgmt,prometheus}/<version>/<stats-mode>/ (M0-25, recorded; seed.json), messages/<framework>/
 |   `-- oracle-amqp10/                   # differential oracle (rhea overridden to 3.0.5)
 |-- tools/
 |   |-- generators/                      # action, topic, job, service-module, adapter, ui-feature, lint-rule, decoder, semantics-cell, migration, conformance-cell

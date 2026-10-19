@@ -1,0 +1,40 @@
+[
+  {
+    "name": "/",
+    "description": "Default virtual host",
+    "metadata": {
+      "description": "Default virtual host",
+      "tags": [],
+      "default_queue_type": "classic"
+    },
+    "tags": [],
+    "default_queue_type": "classic",
+    "protected_from_deletion": false,
+    "tracing": false,
+    "cluster_state": {
+      "rabbit@lab-node": "running"
+    }
+  },
+  {
+    "name": "golden",
+    "description": "golden fixtures",
+    "metadata": {
+      "description": "golden fixtures",
+      "tags": [
+        "golden",
+        "fixtures"
+      ],
+      "default_queue_type": "classic"
+    },
+    "tags": [
+      "golden",
+      "fixtures"
+    ],
+    "default_queue_type": "classic",
+    "protected_from_deletion": false,
+    "tracing": false,
+    "cluster_state": {
+      "rabbit@lab-node": "running"
+    }
+  }
+]

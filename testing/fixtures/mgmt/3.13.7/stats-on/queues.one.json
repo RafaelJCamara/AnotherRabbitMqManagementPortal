@@ -1,0 +1,74 @@
+{
+  "consumer_details": [],
+  "arguments": {
+    "x-queue-type": "quorum"
+  },
+  "auto_delete": false,
+  "consumer_capacity": 0,
+  "consumer_utilisation": 0,
+  "consumers": 0,
+  "deliveries": [],
+  "durable": true,
+  "effective_policy_definition": {
+    "delivery-limit": 7
+  },
+  "exclusive": false,
+  "garbage_collection": {
+    "fullsweep_after": 65535,
+    "max_heap_size": 0,
+    "min_bin_vheap_size": 46422,
+    "min_heap_size": 233,
+    "minor_gcs": 6
+  },
+  "incoming": [],
+  "leader": "rabbit@lab-node",
+  "members": [
+    "rabbit@lab-node"
+  ],
+  "memory": 109476,
+  "message_bytes": 42,
+  "message_bytes_dlx": 0,
+  "message_bytes_persistent": 42,
+  "message_bytes_ram": 0,
+  "message_bytes_ready": 42,
+  "message_bytes_unacknowledged": 0,
+  "message_stats": {
+    "publish": 3,
+    "publish_details": {
+      "rate": 0
+    }
+  },
+  "messages": 3,
+  "messages_details": {
+    "rate": 0
+  },
+  "messages_dlx": 0,
+  "messages_persistent": 3,
+  "messages_ram": 0,
+  "messages_ready": 3,
+  "messages_ready_details": {
+    "rate": 0
+  },
+  "messages_unacknowledged": 0,
+  "messages_unacknowledged_details": {
+    "rate": 0
+  },
+  "name": "golden.quorum",
+  "node": "rabbit@lab-node",
+  "online": [
+    "rabbit@lab-node"
+  ],
+  "open_files": {
+    "rabbit@lab-node": 0
+  },
+  "operator_policy": null,
+  "policy": "golden-delivery-limit",
+  "reductions": 22934,
+  "reductions_details": {
+    "rate": 61.4
+  },
+  "single_active_consumer_tag": null,
+  "state": "running",
+  "type": "quorum",
+  "vhost": "golden"
+}

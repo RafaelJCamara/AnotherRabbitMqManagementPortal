@@ -1,0 +1,37 @@
+[
+  {
+    "name": "management_metrics_collection",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#disable-metrics-delivery-via-the-management-api--ui",
+    "provided_by": "rabbitmq_management_agent"
+  },
+  {
+    "name": "classic_queue_mirroring",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#removal-of-classic-queue-mirroring",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "global_qos",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#removal-of-global-qos",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "ram_node_type",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#removal-of-ram-nodes",
+    "provided_by": "rabbit"
+  },
+  {
+    "name": "transient_nonexcl_queues",
+    "desc": "",
+    "deprecation_phase": "permitted_by_default",
+    "doc_url": "https://blog.rabbitmq.com/posts/2021/08/4.0-deprecation-announcements/#removal-of-transient-non-exclusive-queues",
+    "provided_by": "rabbit"
+  }
+]

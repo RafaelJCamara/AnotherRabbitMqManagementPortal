@@ -42,6 +42,7 @@
       "@app/ports/testing": ["./libs/engine/ports/src/testing/index.ts"],
       "@app/secrets": ["./libs/engine/secrets/src/index.ts"],
       "@app/semantics": ["./libs/shared/semantics/src/index.ts"],
+      "@app/svc-capabilities": ["./libs/engine/svc-capabilities/src/index.ts"],
       "@app/svc-connections": ["./libs/engine/svc-connections/src/index.ts"],
       "@app/svc-ops": ["./libs/engine/svc-ops/src/index.ts"],
       "@app/svc-workspace": ["./libs/engine/svc-workspace/src/index.ts"],

@@ -25,6 +25,12 @@ export function repositoryContract(options: RepositoryContractOptions): void {
     let handle: PersistenceHandle;
     let repos: Repositories;
     const clock = { now: 1_000 };
+    const record = (connectionId: string, fingerprint: string) => ({
+      connectionId,
+      fingerprint,
+      verification: 'unverified-minor',
+      probedAt: 2_000,
+    });
 
     beforeAll(async () => {
       handle = await options.open();
@@ -1034,6 +1040,60 @@ export function repositoryContract(options: RepositoryContractOptions): void {
         expect(await repos.connections.count('alice')).toBe(4);
         expect(await repos.connections.count('bob')).toBe(3);
         expect(await repos.connections.count('nobody')).toBe(2);
+      });
+
+      it('deletes the cached BrokerProfile together with the connection', async () => {
+        await repos.connections.save(profile('c1', 'alice'));
+        await repos.brokerProfiles.put({
+          ...record('c1', 'fp-1'),
+          profile: {},
+        });
+
+        expect(await repos.connections.delete('c1')).toBe(true);
+
+        expect(await repos.brokerProfiles.get('c1')).toBeUndefined();
+      });
+    });
+
+    describe('broker profiles (the probe cache)', () => {
+      beforeEach(async () => {
+        await handle.db.deleteFrom('broker_profiles').execute();
+      });
+
+      it('stores one profile per connection, replaces it and returns the document unchanged', async () => {
+        const first = {
+          ...record('c1', 'fp-1'),
+          profile: { product: 'rabbitmq', nodes: [{ name: 'rabbit@a' }] },
+        };
+
+        await repos.brokerProfiles.put(first);
+        expect(await repos.brokerProfiles.get('c1')).toEqual(first);
+
+        const second = {
+          ...record('c1', 'fp-2'),
+          probedAt: 9_000,
+          profile: [],
+        };
+        await repos.brokerProfiles.put(second);
+        expect(await repos.brokerProfiles.get('c1')).toEqual(second);
+        expect(await repos.brokerProfiles.get('c2')).toBeUndefined();
+      });
+
+      it('deletes only the named connection and says whether there was one', async () => {
+        await repos.brokerProfiles.put({
+          ...record('c1', 'fp-1'),
+          profile: {},
+        });
+        await repos.brokerProfiles.put({
+          ...record('c2', 'fp-2'),
+          profile: {},
+        });
+
+        expect(await repos.brokerProfiles.delete('c1')).toBe(true);
+        expect(await repos.brokerProfiles.delete('c1')).toBe(false);
+
+        expect(await repos.brokerProfiles.get('c1')).toBeUndefined();
+        expect(await repos.brokerProfiles.get('c2')).toBeDefined();
       });
     });
   });

@@ -22,6 +22,8 @@ import { connectionsTestHttp } from './connections-test-http.ts';
 import { connectionsTestAmqp } from './connections-test-amqp.ts';
 import { bundlesExport } from './bundles-export.ts';
 import { bundlesImport } from './bundles-import.ts';
+import { profileGet } from './profile-get.ts';
+import { probeRun } from './probe-run.ts';
 
 export const registry: Registry = {
   actions: [
@@ -47,6 +49,8 @@ export const registry: Registry = {
     connectionsTestAmqp,
     bundlesExport,
     bundlesImport,
+    profileGet,
+    probeRun,
   ],
   topics: [],
 };

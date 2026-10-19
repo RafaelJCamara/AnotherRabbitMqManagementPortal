@@ -20,7 +20,7 @@ import {
   type UiFixture,
 } from './testing/harness.test.ts';
 
-const PROBE = '/api/v1/connections/c1/probe';
+const PROBE = '/api/v1/connections/c1/ping';
 
 function noCors(headers: Record<string, unknown>): void {
   for (const name of Object.keys(headers)) {
@@ -38,7 +38,7 @@ describe('routes derived from the action registry', () => {
     await h.app.close();
   });
 
-  it('AC-1 an action bound to POST /connections/{cid}/probe has a route, GET is 405 and invalid input is a 400 Problem', async () => {
+  it('AC-1 an action bound to POST /connections/{cid}/ping has a route, GET is 405 and invalid input is a 400 Problem', async () => {
     const ok = await h.app.inject({
       method: 'POST',
       url: PROBE,

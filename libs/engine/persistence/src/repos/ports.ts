@@ -10,6 +10,7 @@ import type {
   PlanRepository,
   ReceiptRepository,
   WorkspaceRepository,
+  BrokerProfileStore,
 } from '@app/ports';
 
 /** A value that survives JSON.stringify and JSON.parse unchanged. */
@@ -102,4 +103,6 @@ export interface Repositories {
   readonly jobs: JobStore;
   /** Saved views, layouts, settings and keybindings (M0-47). The port is @app/ports'. */
   readonly workspace: WorkspaceRepository;
+  /** The cache of probed BrokerProfiles (M0-45). The port is @app/ports'. */
+  readonly brokerProfiles: BrokerProfileStore;
 }

@@ -1,0 +1,37 @@
+{
+  "name": "svc-capabilities",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/svc-capabilities/src",
+  "projectType": "library",
+  "tags": ["type:service", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/svc-capabilities/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/svc-capabilities/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/svc-capabilities/vitest.config.mts"
+      }
+    },
+    "it": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/testkit/src/it/run-it.ts svc-capabilities",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

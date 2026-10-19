@@ -54,3 +54,5 @@ export * from './registry/connections-test-http.ts';
 export * from './registry/connections-test-amqp.ts';
 export * from './registry/bundles-export.ts';
 export * from './registry/bundles-import.ts';
+export * from './registry/profile-get.ts';
+export * from './registry/probe-run.ts';

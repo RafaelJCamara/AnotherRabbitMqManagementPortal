@@ -1,6 +1,7 @@
 import type { PersistenceHandle } from '../database';
 import { createAuditRepository, createReceiptRepository } from './audit';
 import { createBlobRepository } from './blobs';
+import { createBrokerProfileStore } from './broker-profiles';
 import { createConnectionProfileRepository } from './connection-profiles';
 import { createConnectionStore } from './connections';
 import { createDataKeyRepository } from './data-keys';
@@ -33,5 +34,6 @@ export function createRepositories(
     dataKeys: createDataKeyRepository(handle.db),
     jobs: createJobStore(handle.db, handle.dialect),
     workspace: createWorkspaceRepository(handle.db, now),
+    brokerProfiles: createBrokerProfileStore(handle.db),
   };
 }

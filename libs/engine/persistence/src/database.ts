@@ -198,6 +198,16 @@ export interface CredentialsTable {
   updated_at: number;
 }
 
+/** broker_profiles (M0-45): the cache of probed BrokerProfiles, one per connection; see 0008_broker_profiles. */
+export interface BrokerProfilesTable {
+  connection_id: string;
+  fingerprint: string;
+  verification: string;
+  probed_at: number;
+  /** JSON text: the BrokerProfile, owned by svc-capabilities. */
+  profile: string;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -213,6 +223,7 @@ export interface Database {
   job_events: JobEventsTable;
   views: ViewsTable;
   credentials: CredentialsTable;
+  broker_profiles: BrokerProfilesTable;
 }
 
 /** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */

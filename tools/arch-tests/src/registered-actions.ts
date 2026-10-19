@@ -28,6 +28,9 @@ import { createConnectionsTestHttpAction } from '@app/svc-connections';
 import { createConnectionsTestAmqpAction } from '@app/svc-connections';
 import { createBundlesExportAction } from '@app/svc-connections';
 import { createBundlesImportAction } from '@app/svc-connections';
+import { createProfileGetAction } from '@app/svc-capabilities';
+import { createCapabilitiesFakeDeps } from '@app/svc-capabilities';
+import { createProbeRunAction } from '@app/svc-capabilities';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -141,6 +144,16 @@ const manifest: RegisteredAction[] = [
         profiles: [],
       },
     },
+  },
+  {
+    path: 'libs/engine/svc-capabilities/src/actions/profile-get.ts',
+    impl: createProfileGetAction(createCapabilitiesFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-capabilities/src/actions/probe-run.ts',
+    impl: createProbeRunAction(createCapabilitiesFakeDeps()),
+    input: { cid: 'c1' },
   },
 ];
 

@@ -52,6 +52,14 @@ export type {
   RoleBudget,
 } from './connection-manager.ts';
 export type { DialCheck, DialerPort, DialTarget } from './dialer.ts';
+export type {
+  AmqpHandshakeResult,
+  BrokerProfileRecord,
+  BrokerProfileStore,
+  BrokerWireProbe,
+  TlsProbeResult,
+  WireTarget,
+} from './probe.ts';
 export { LANES } from './mgmt.ts';
 export type {
   Lane,

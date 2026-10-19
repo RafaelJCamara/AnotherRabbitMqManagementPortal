@@ -3197,6 +3197,165 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/probe": {
+      "post": {
+        "operationId": "probe.run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "changed": {
+                      "type": "boolean"
+                    },
+                    "profile": {},
+                    "steps": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "detail": {
+                            "maxLength": 200,
+                            "type": "string"
+                          },
+                          "id": {
+                            "enum": [
+                              "tls",
+                              "host-fingerprint",
+                              "oauth-discovery",
+                              "identity",
+                              "overview",
+                              "extensions",
+                              "nodes",
+                              "feature-flags",
+                              "vendor-fingerprints",
+                              "exchanges",
+                              "prometheus",
+                              "amqp-handshake"
+                            ],
+                            "type": "string"
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "unavailable",
+                              "failed",
+                              "skipped"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 12,
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "profile",
+                    "changed",
+                    "steps"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Probe the broker with management reads and cache its BrokerProfile",
+        "tags": [
+          "probe"
+        ],
+        "x-audit": "outcome",
+        "x-kind": "query",
+        "x-permission": "connection.manage",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/{cid}/profile": {
+      "get": {
+        "operationId": "profile.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "profile": {}
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Read the cached BrokerProfile of a connection",
+        "tags": [
+          "profile"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "connection.view",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{connectionId}/arm": {
       "post": {
         "operationId": "ops.arm",
@@ -4173,6 +4332,12 @@
     },
     {
       "name": "ops"
+    },
+    {
+      "name": "probe"
+    },
+    {
+      "name": "profile"
     },
     {
       "name": "settings"

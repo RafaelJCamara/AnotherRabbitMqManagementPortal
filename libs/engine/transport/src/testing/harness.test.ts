@@ -58,7 +58,7 @@ const probeDef = defineAction({
   planning: 'none',
   audit: 'none',
   target: () => ({}),
-  http: { method: 'POST', path: '/connections/{cid}/probe' },
+  http: { method: 'POST', path: '/connections/{cid}/ping' },
   since: '1.0',
 });
 

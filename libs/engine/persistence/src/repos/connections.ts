@@ -76,6 +76,11 @@ export function createConnectionStore(
           .deleteFrom('credentials')
           .where('connection_id', '=', id)
           .execute();
+        // The probed profile is the cache of what this connection's broker said (0008).
+        await trx
+          .deleteFrom('broker_profiles')
+          .where('connection_id', '=', id)
+          .execute();
         const result = await trx
           .deleteFrom('connection_profiles')
           .where('id', '=', id)

@@ -18,6 +18,16 @@ import { createKeybindingsGetAction } from '@app/svc-workspace';
 import { createKeybindingsPutAction } from '@app/svc-workspace';
 import { createDiagnosticsBundleAction } from '@app/svc-ops';
 import { FAKE_FILE_TOKEN, createOpsFakeDeps } from '@app/svc-ops';
+import { createConnectionsCreateAction } from '@app/svc-connections';
+import { createConnectionsFakeDeps } from '@app/svc-connections';
+import { createConnectionsUpdateAction } from '@app/svc-connections';
+import { createConnectionsDeleteAction } from '@app/svc-connections';
+import { createConnectionsListAction } from '@app/svc-connections';
+import { createConnectionsGetAction } from '@app/svc-connections';
+import { createConnectionsTestHttpAction } from '@app/svc-connections';
+import { createConnectionsTestAmqpAction } from '@app/svc-connections';
+import { createBundlesExportAction } from '@app/svc-connections';
+import { createBundlesImportAction } from '@app/svc-connections';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -74,6 +84,63 @@ const manifest: RegisteredAction[] = [
     path: 'libs/engine/svc-ops/src/actions/diagnostics-bundle.ts',
     impl: createDiagnosticsBundleAction(createOpsFakeDeps()),
     input: { fileToken: FAKE_FILE_TOKEN },
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/connections-create.ts',
+    impl: createConnectionsCreateAction(createConnectionsFakeDeps()),
+    input: {
+      name: 'Orders',
+      envClass: 'dev',
+      uri: 'amqps://u:p@mq.example:5671/%2Fprod',
+    },
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/connections-update.ts',
+    impl: createConnectionsUpdateAction(createConnectionsFakeDeps()),
+    input: { cid: 'c1', name: 'Renamed' },
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/connections-delete.ts',
+    impl: createConnectionsDeleteAction(createConnectionsFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/connections-list.ts',
+    impl: createConnectionsListAction(createConnectionsFakeDeps()),
+    input: {},
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/connections-get.ts',
+    impl: createConnectionsGetAction(createConnectionsFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/connections-test-http.ts',
+    impl: createConnectionsTestHttpAction(createConnectionsFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/connections-test-amqp.ts',
+    impl: createConnectionsTestAmqpAction(createConnectionsFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/bundles-export.ts',
+    impl: createBundlesExportAction(createConnectionsFakeDeps()),
+    input: {},
+  },
+  {
+    path: 'libs/engine/svc-connections/src/actions/bundles-import.ts',
+    impl: createBundlesImportAction(createConnectionsFakeDeps()),
+    input: {
+      bundle: {
+        format: 'connection-bundle',
+        version: 1,
+        exportedAt: 1,
+        secretsIncluded: false,
+        profiles: [],
+      },
+    },
   },
 ];
 

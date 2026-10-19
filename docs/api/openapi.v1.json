@@ -189,6 +189,2862 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
+    "/bundles/export": {
+      "post": {
+        "operationId": "bundles.export",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "connectionIds": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 200,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "bundle": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "exportedAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "format": {
+                          "const": "connection-bundle",
+                          "type": "string"
+                        },
+                        "profiles": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "amqp": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "auth": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "plain",
+                                          "none"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "username": {
+                                        "anyOf": [
+                                          {
+                                            "maxLength": 255,
+                                            "minLength": 1,
+                                            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "username"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "host": {
+                                    "maxLength": 253,
+                                    "minLength": 1,
+                                    "pattern": "^[A-Za-z0-9._:-]+$",
+                                    "type": "string"
+                                  },
+                                  "port": {
+                                    "maximum": 65535,
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "tls": {
+                                    "type": "boolean"
+                                  },
+                                  "vhost": {
+                                    "maxLength": 255,
+                                    "minLength": 1,
+                                    "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "host",
+                                  "port",
+                                  "tls",
+                                  "vhost",
+                                  "auth"
+                                ],
+                                "type": "object"
+                              },
+                              "color": {
+                                "anyOf": [
+                                  {
+                                    "pattern": "^#[0-9a-fA-F]{6}$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "envClass": {
+                                "enum": [
+                                  "prod",
+                                  "staging",
+                                  "test",
+                                  "dev",
+                                  "local"
+                                ],
+                                "type": "string"
+                              },
+                              "http": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "auth": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "kind": {
+                                        "enum": [
+                                          "basic",
+                                          "bearer",
+                                          "none"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "username": {
+                                        "anyOf": [
+                                          {
+                                            "maxLength": 255,
+                                            "minLength": 1,
+                                            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "username"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "host": {
+                                    "maxLength": 253,
+                                    "minLength": 1,
+                                    "pattern": "^[A-Za-z0-9._:-]+$",
+                                    "type": "string"
+                                  },
+                                  "pathPrefix": {
+                                    "anyOf": [
+                                      {
+                                        "maxLength": 200,
+                                        "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "port": {
+                                    "maximum": 65535,
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "tls": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "host",
+                                  "port",
+                                  "tls",
+                                  "pathPrefix",
+                                  "auth"
+                                ],
+                                "type": "object"
+                              },
+                              "name": {
+                                "maxLength": 80,
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "envClass",
+                              "color",
+                              "http",
+                              "amqp"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 200,
+                          "type": "array"
+                        },
+                        "secretsIncluded": {
+                          "const": false,
+                          "type": "boolean"
+                        },
+                        "version": {
+                          "const": 1,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "format",
+                        "version",
+                        "exportedAt",
+                        "secretsIncluded",
+                        "profiles"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "bundle"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Export connection profiles as a bundle without any secret",
+        "tags": [
+          "bundles"
+        ],
+        "x-audit": "outcome",
+        "x-kind": "query",
+        "x-permission": "connection.export",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/bundles/import": {
+      "post": {
+        "operationId": "bundles.import",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "bundle": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "exportedAt": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "format": {
+                        "const": "connection-bundle",
+                        "type": "string"
+                      },
+                      "profiles": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "amqp": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "auth": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "plain",
+                                        "none"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "username": {
+                                      "anyOf": [
+                                        {
+                                          "maxLength": 255,
+                                          "minLength": 1,
+                                          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "username"
+                                  ],
+                                  "type": "object"
+                                },
+                                "host": {
+                                  "maxLength": 253,
+                                  "minLength": 1,
+                                  "pattern": "^[A-Za-z0-9._:-]+$",
+                                  "type": "string"
+                                },
+                                "port": {
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                },
+                                "tls": {
+                                  "type": "boolean"
+                                },
+                                "vhost": {
+                                  "maxLength": 255,
+                                  "minLength": 1,
+                                  "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "host",
+                                "port",
+                                "tls",
+                                "vhost",
+                                "auth"
+                              ],
+                              "type": "object"
+                            },
+                            "color": {
+                              "anyOf": [
+                                {
+                                  "pattern": "^#[0-9a-fA-F]{6}$",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "envClass": {
+                              "enum": [
+                                "prod",
+                                "staging",
+                                "test",
+                                "dev",
+                                "local"
+                              ],
+                              "type": "string"
+                            },
+                            "http": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "auth": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "basic",
+                                        "bearer",
+                                        "none"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "username": {
+                                      "anyOf": [
+                                        {
+                                          "maxLength": 255,
+                                          "minLength": 1,
+                                          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "username"
+                                  ],
+                                  "type": "object"
+                                },
+                                "host": {
+                                  "maxLength": 253,
+                                  "minLength": 1,
+                                  "pattern": "^[A-Za-z0-9._:-]+$",
+                                  "type": "string"
+                                },
+                                "pathPrefix": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 200,
+                                      "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "port": {
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                },
+                                "tls": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "host",
+                                "port",
+                                "tls",
+                                "pathPrefix",
+                                "auth"
+                              ],
+                              "type": "object"
+                            },
+                            "name": {
+                              "maxLength": 80,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "envClass",
+                            "color",
+                            "http",
+                            "amqp"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 200,
+                        "type": "array"
+                      },
+                      "secretsIncluded": {
+                        "const": false,
+                        "type": "boolean"
+                      },
+                      "version": {
+                        "const": 1,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "format",
+                      "version",
+                      "exportedAt",
+                      "secretsIncluded",
+                      "profiles"
+                    ],
+                    "type": "object"
+                  },
+                  "onConflict": {
+                    "enum": [
+                      "skip",
+                      "rename"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "bundle"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "created": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "name": {
+                            "maxLength": 80,
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 200,
+                      "type": "array"
+                    },
+                    "skipped": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "maxLength": 80,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "reason": {
+                            "const": "name-exists",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "reason"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 200,
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "created",
+                    "skipped"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Import the profiles of a bundle; their secrets are entered afterwards",
+        "tags": [
+          "bundles"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "connection.manage",
+        "x-planning": "none",
+        "x-risk": "low",
+        "x-since": "1.0"
+      }
+    },
+    "/connections": {
+      "get": {
+        "operationId": "connections.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "amqp": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "auth": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "plain",
+                                      "none"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "isSet": {
+                                        "type": "boolean"
+                                      },
+                                      "updatedAt": {
+                                        "anyOf": [
+                                          {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "isSet",
+                                      "updatedAt"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "username": {
+                                    "anyOf": [
+                                      {
+                                        "maxLength": 255,
+                                        "minLength": 1,
+                                        "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "username",
+                                  "secret"
+                                ],
+                                "type": "object"
+                              },
+                              "host": {
+                                "maxLength": 253,
+                                "minLength": 1,
+                                "pattern": "^[A-Za-z0-9._:-]+$",
+                                "type": "string"
+                              },
+                              "port": {
+                                "maximum": 65535,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "tls": {
+                                "type": "boolean"
+                              },
+                              "vhost": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "host",
+                              "port",
+                              "tls",
+                              "vhost",
+                              "auth"
+                            ],
+                            "type": "object"
+                          },
+                          "canEdit": {
+                            "type": "boolean"
+                          },
+                          "color": {
+                            "anyOf": [
+                              {
+                                "pattern": "^#[0-9a-fA-F]{6}$",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "createdAt": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "envClass": {
+                            "enum": [
+                              "prod",
+                              "staging",
+                              "test",
+                              "dev",
+                              "local"
+                            ],
+                            "type": "string"
+                          },
+                          "http": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "auth": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "basic",
+                                      "bearer",
+                                      "none"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "isSet": {
+                                        "type": "boolean"
+                                      },
+                                      "updatedAt": {
+                                        "anyOf": [
+                                          {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "isSet",
+                                      "updatedAt"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "username": {
+                                    "anyOf": [
+                                      {
+                                        "maxLength": 255,
+                                        "minLength": 1,
+                                        "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "username",
+                                  "secret"
+                                ],
+                                "type": "object"
+                              },
+                              "host": {
+                                "maxLength": 253,
+                                "minLength": 1,
+                                "pattern": "^[A-Za-z0-9._:-]+$",
+                                "type": "string"
+                              },
+                              "pathPrefix": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 200,
+                                    "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "port": {
+                                "maximum": 65535,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "tls": {
+                                "type": "boolean"
+                              },
+                              "url": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "url",
+                              "host",
+                              "port",
+                              "tls",
+                              "pathPrefix",
+                              "auth"
+                            ],
+                            "type": "object"
+                          },
+                          "id": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "name": {
+                            "maxLength": 80,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "visibility": {
+                            "enum": [
+                              "private",
+                              "team"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "envClass",
+                          "color",
+                          "visibility",
+                          "canEdit",
+                          "http",
+                          "amqp",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 100,
+                      "type": "array"
+                    },
+                    "nextCursor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "List the connection profiles the caller can see, in windows",
+        "tags": [
+          "connections"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "connection.view",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      },
+      "post": {
+        "operationId": "connections.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amqp": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "plain",
+                              "none"
+                            ],
+                            "type": "string"
+                          },
+                          "password": {
+                            "format": "password",
+                            "maxLength": 8192,
+                            "minLength": 1,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "username": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "type": "object"
+                      },
+                      "host": {
+                        "maxLength": 253,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9._:-]+$",
+                        "type": "string"
+                      },
+                      "port": {
+                        "maximum": 65535,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "tls": {
+                        "type": "boolean"
+                      },
+                      "vhost": {
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "color": {
+                    "pattern": "^#[0-9a-fA-F]{6}$",
+                    "type": "string"
+                  },
+                  "envClass": {
+                    "enum": [
+                      "prod",
+                      "staging",
+                      "test",
+                      "dev",
+                      "local"
+                    ],
+                    "type": "string"
+                  },
+                  "http": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "basic",
+                              "bearer",
+                              "none"
+                            ],
+                            "type": "string"
+                          },
+                          "password": {
+                            "format": "password",
+                            "maxLength": 8192,
+                            "minLength": 1,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "token": {
+                            "format": "password",
+                            "maxLength": 8192,
+                            "minLength": 1,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "username": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "type": "object"
+                      },
+                      "host": {
+                        "maxLength": 253,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9._:-]+$",
+                        "type": "string"
+                      },
+                      "pathPrefix": {
+                        "anyOf": [
+                          {
+                            "maxLength": 200,
+                            "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "port": {
+                        "maximum": 65535,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "tls": {
+                        "type": "boolean"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uri": {
+                    "format": "password",
+                    "maxLength": 8192,
+                    "minLength": 1,
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "visibility": {
+                    "enum": [
+                      "private",
+                      "team"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "envClass"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "profile": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "amqp": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "auth": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "plain",
+                                    "none"
+                                  ],
+                                  "type": "string"
+                                },
+                                "secret": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "isSet": {
+                                      "type": "boolean"
+                                    },
+                                    "updatedAt": {
+                                      "anyOf": [
+                                        {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "isSet",
+                                    "updatedAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                "username": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 255,
+                                      "minLength": 1,
+                                      "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "username",
+                                "secret"
+                              ],
+                              "type": "object"
+                            },
+                            "host": {
+                              "maxLength": 253,
+                              "minLength": 1,
+                              "pattern": "^[A-Za-z0-9._:-]+$",
+                              "type": "string"
+                            },
+                            "port": {
+                              "maximum": 65535,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tls": {
+                              "type": "boolean"
+                            },
+                            "vhost": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "host",
+                            "port",
+                            "tls",
+                            "vhost",
+                            "auth"
+                          ],
+                          "type": "object"
+                        },
+                        "canEdit": {
+                          "type": "boolean"
+                        },
+                        "color": {
+                          "anyOf": [
+                            {
+                              "pattern": "^#[0-9a-fA-F]{6}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "envClass": {
+                          "enum": [
+                            "prod",
+                            "staging",
+                            "test",
+                            "dev",
+                            "local"
+                          ],
+                          "type": "string"
+                        },
+                        "http": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "auth": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "basic",
+                                    "bearer",
+                                    "none"
+                                  ],
+                                  "type": "string"
+                                },
+                                "secret": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "isSet": {
+                                      "type": "boolean"
+                                    },
+                                    "updatedAt": {
+                                      "anyOf": [
+                                        {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "isSet",
+                                    "updatedAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                "username": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 255,
+                                      "minLength": 1,
+                                      "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "username",
+                                "secret"
+                              ],
+                              "type": "object"
+                            },
+                            "host": {
+                              "maxLength": 253,
+                              "minLength": 1,
+                              "pattern": "^[A-Za-z0-9._:-]+$",
+                              "type": "string"
+                            },
+                            "pathPrefix": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 200,
+                                  "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "port": {
+                              "maximum": 65535,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tls": {
+                              "type": "boolean"
+                            },
+                            "url": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "host",
+                            "port",
+                            "tls",
+                            "pathPrefix",
+                            "auth"
+                          ],
+                          "type": "object"
+                        },
+                        "id": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "name": {
+                          "maxLength": 80,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "visibility": {
+                          "enum": [
+                            "private",
+                            "team"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "envClass",
+                        "color",
+                        "visibility",
+                        "canEdit",
+                        "http",
+                        "amqp",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Save a connection profile with separate HTTP and AMQP endpoints and credentials",
+        "tags": [
+          "connections"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "connection.manage",
+        "x-planning": "none",
+        "x-risk": "low",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/test-amqp": {
+      "post": {
+        "operationId": "connections.test-amqp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "cid": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "draft": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amqp": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "auth": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "plain",
+                                  "none"
+                                ],
+                                "type": "string"
+                              },
+                              "password": {
+                                "format": "password",
+                                "maxLength": 8192,
+                                "minLength": 1,
+                                "type": "string",
+                                "writeOnly": true
+                              },
+                              "username": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ],
+                            "type": "object"
+                          },
+                          "host": {
+                            "maxLength": 253,
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9._:-]+$",
+                            "type": "string"
+                          },
+                          "port": {
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "tls": {
+                            "type": "boolean"
+                          },
+                          "vhost": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "http": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "auth": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "basic",
+                                  "bearer",
+                                  "none"
+                                ],
+                                "type": "string"
+                              },
+                              "password": {
+                                "format": "password",
+                                "maxLength": 8192,
+                                "minLength": 1,
+                                "type": "string",
+                                "writeOnly": true
+                              },
+                              "token": {
+                                "format": "password",
+                                "maxLength": 8192,
+                                "minLength": 1,
+                                "type": "string",
+                                "writeOnly": true
+                              },
+                              "username": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ],
+                            "type": "object"
+                          },
+                          "host": {
+                            "maxLength": 253,
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9._:-]+$",
+                            "type": "string"
+                          },
+                          "pathPrefix": {
+                            "anyOf": [
+                              {
+                                "maxLength": 200,
+                                "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "port": {
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "tls": {
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "uri": {
+                        "format": "password",
+                        "maxLength": 8192,
+                        "minLength": 1,
+                        "type": "string",
+                        "writeOnly": true
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "failure": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "AMQP_PORT_BLOCKED",
+                            "AMQP_EGRESS_DENIED",
+                            "AMQP_TLS_UNTRUSTED",
+                            "AMQP_AUTH_REFUSED",
+                            "AMQP_VHOST_REFUSED",
+                            "AMQP_UNEXPECTED",
+                            "SECRET_UNAVAILABLE"
+                          ],
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "type": "object"
+                    },
+                    "gates": {
+                      "additionalProperties": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "fix": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "actionId": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "input": {}
+                            },
+                            "required": [
+                              "actionId",
+                              "input"
+                            ],
+                            "type": "object"
+                          },
+                          "mode": {
+                            "enum": [
+                              "full",
+                              "degraded"
+                            ],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "enabled"
+                        ],
+                        "type": "object"
+                      },
+                      "propertyNames": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "target": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "host": {
+                          "maxLength": 253,
+                          "minLength": 1,
+                          "pattern": "^[A-Za-z0-9._:-]+$",
+                          "type": "string"
+                        },
+                        "port": {
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "tls": {
+                          "type": "boolean"
+                        },
+                        "vhost": {
+                          "maxLength": 255,
+                          "minLength": 1,
+                          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port",
+                        "tls",
+                        "vhost"
+                      ],
+                      "type": "object"
+                    },
+                    "tookMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "target",
+                    "tookMs",
+                    "gates"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Test the AMQP endpoint of a saved or unsaved profile, on its own",
+        "tags": [
+          "connections"
+        ],
+        "x-audit": "outcome",
+        "x-kind": "query",
+        "x-permission": "connection.manage",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/test-http": {
+      "post": {
+        "operationId": "connections.test-http",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "cid": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "draft": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amqp": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "auth": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "plain",
+                                  "none"
+                                ],
+                                "type": "string"
+                              },
+                              "password": {
+                                "format": "password",
+                                "maxLength": 8192,
+                                "minLength": 1,
+                                "type": "string",
+                                "writeOnly": true
+                              },
+                              "username": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ],
+                            "type": "object"
+                          },
+                          "host": {
+                            "maxLength": 253,
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9._:-]+$",
+                            "type": "string"
+                          },
+                          "port": {
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "tls": {
+                            "type": "boolean"
+                          },
+                          "vhost": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "http": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "auth": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "basic",
+                                  "bearer",
+                                  "none"
+                                ],
+                                "type": "string"
+                              },
+                              "password": {
+                                "format": "password",
+                                "maxLength": 8192,
+                                "minLength": 1,
+                                "type": "string",
+                                "writeOnly": true
+                              },
+                              "token": {
+                                "format": "password",
+                                "maxLength": 8192,
+                                "minLength": 1,
+                                "type": "string",
+                                "writeOnly": true
+                              },
+                              "username": {
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ],
+                            "type": "object"
+                          },
+                          "host": {
+                            "maxLength": 253,
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9._:-]+$",
+                            "type": "string"
+                          },
+                          "pathPrefix": {
+                            "anyOf": [
+                              {
+                                "maxLength": 200,
+                                "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "port": {
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "tls": {
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "uri": {
+                        "format": "password",
+                        "maxLength": 8192,
+                        "minLength": 1,
+                        "type": "string",
+                        "writeOnly": true
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "amqpPorts": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "plain": {
+                          "anyOf": [
+                            {
+                              "maximum": 65535,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "tls": {
+                          "anyOf": [
+                            {
+                              "maximum": 65535,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "plain",
+                        "tls"
+                      ],
+                      "type": "object"
+                    },
+                    "broker": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "clusterName": {
+                          "type": "string"
+                        },
+                        "product": {
+                          "type": "string"
+                        },
+                        "tags": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "maxItems": 32,
+                          "type": "array"
+                        },
+                        "user": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "tags"
+                      ],
+                      "type": "object"
+                    },
+                    "failure": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "enum": [
+                            "HTTP_UNREACHABLE",
+                            "HTTP_TIMEOUT",
+                            "HTTP_EGRESS_DENIED",
+                            "HTTP_TLS_UNTRUSTED",
+                            "HTTP_AUTH_REFUSED",
+                            "HTTP_MISSING_TAG",
+                            "HTTP_NOT_MANAGEMENT",
+                            "HTTP_UNEXPECTED",
+                            "SECRET_UNAVAILABLE"
+                          ],
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "type": "object"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "target": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url"
+                      ],
+                      "type": "object"
+                    },
+                    "tookMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "target",
+                    "tookMs"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Test the management HTTP endpoint of a saved or unsaved profile, on its own",
+        "tags": [
+          "connections"
+        ],
+        "x-audit": "outcome",
+        "x-kind": "query",
+        "x-permission": "connection.manage",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/{cid}": {
+      "delete": {
+        "operationId": "connections.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Delete a connection profile and its stored credentials",
+        "tags": [
+          "connections"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "connection.manage",
+        "x-planning": "optional",
+        "x-risk": "medium",
+        "x-since": "1.0"
+      },
+      "get": {
+        "operationId": "connections.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "profile": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "amqp": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "auth": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "plain",
+                                    "none"
+                                  ],
+                                  "type": "string"
+                                },
+                                "secret": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "isSet": {
+                                      "type": "boolean"
+                                    },
+                                    "updatedAt": {
+                                      "anyOf": [
+                                        {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "isSet",
+                                    "updatedAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                "username": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 255,
+                                      "minLength": 1,
+                                      "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "username",
+                                "secret"
+                              ],
+                              "type": "object"
+                            },
+                            "host": {
+                              "maxLength": 253,
+                              "minLength": 1,
+                              "pattern": "^[A-Za-z0-9._:-]+$",
+                              "type": "string"
+                            },
+                            "port": {
+                              "maximum": 65535,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tls": {
+                              "type": "boolean"
+                            },
+                            "vhost": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "host",
+                            "port",
+                            "tls",
+                            "vhost",
+                            "auth"
+                          ],
+                          "type": "object"
+                        },
+                        "canEdit": {
+                          "type": "boolean"
+                        },
+                        "color": {
+                          "anyOf": [
+                            {
+                              "pattern": "^#[0-9a-fA-F]{6}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "envClass": {
+                          "enum": [
+                            "prod",
+                            "staging",
+                            "test",
+                            "dev",
+                            "local"
+                          ],
+                          "type": "string"
+                        },
+                        "http": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "auth": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "basic",
+                                    "bearer",
+                                    "none"
+                                  ],
+                                  "type": "string"
+                                },
+                                "secret": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "isSet": {
+                                      "type": "boolean"
+                                    },
+                                    "updatedAt": {
+                                      "anyOf": [
+                                        {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "isSet",
+                                    "updatedAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                "username": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 255,
+                                      "minLength": 1,
+                                      "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "username",
+                                "secret"
+                              ],
+                              "type": "object"
+                            },
+                            "host": {
+                              "maxLength": 253,
+                              "minLength": 1,
+                              "pattern": "^[A-Za-z0-9._:-]+$",
+                              "type": "string"
+                            },
+                            "pathPrefix": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 200,
+                                  "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "port": {
+                              "maximum": 65535,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tls": {
+                              "type": "boolean"
+                            },
+                            "url": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "host",
+                            "port",
+                            "tls",
+                            "pathPrefix",
+                            "auth"
+                          ],
+                          "type": "object"
+                        },
+                        "id": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "name": {
+                          "maxLength": 80,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "visibility": {
+                          "enum": [
+                            "private",
+                            "team"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "envClass",
+                        "color",
+                        "visibility",
+                        "canEdit",
+                        "http",
+                        "amqp",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Read one connection profile; secrets are reported only as set or not set",
+        "tags": [
+          "connections"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "connection.view",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      },
+      "patch": {
+        "operationId": "connections.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amqp": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "plain",
+                              "none"
+                            ],
+                            "type": "string"
+                          },
+                          "password": {
+                            "format": "password",
+                            "maxLength": 8192,
+                            "minLength": 1,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "username": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "type": "object"
+                      },
+                      "host": {
+                        "maxLength": 253,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9._:-]+$",
+                        "type": "string"
+                      },
+                      "port": {
+                        "maximum": 65535,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "tls": {
+                        "type": "boolean"
+                      },
+                      "vhost": {
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "color": {
+                    "anyOf": [
+                      {
+                        "pattern": "^#[0-9a-fA-F]{6}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "envClass": {
+                    "enum": [
+                      "prod",
+                      "staging",
+                      "test",
+                      "dev",
+                      "local"
+                    ],
+                    "type": "string"
+                  },
+                  "http": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "basic",
+                              "bearer",
+                              "none"
+                            ],
+                            "type": "string"
+                          },
+                          "password": {
+                            "format": "password",
+                            "maxLength": 8192,
+                            "minLength": 1,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "token": {
+                            "format": "password",
+                            "maxLength": 8192,
+                            "minLength": 1,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "username": {
+                            "maxLength": 255,
+                            "minLength": 1,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "type": "object"
+                      },
+                      "host": {
+                        "maxLength": 253,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9._:-]+$",
+                        "type": "string"
+                      },
+                      "pathPrefix": {
+                        "anyOf": [
+                          {
+                            "maxLength": 200,
+                            "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "port": {
+                        "maximum": 65535,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "tls": {
+                        "type": "boolean"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "visibility": {
+                    "enum": [
+                      "private",
+                      "team"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "profile": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "amqp": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "auth": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "plain",
+                                    "none"
+                                  ],
+                                  "type": "string"
+                                },
+                                "secret": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "isSet": {
+                                      "type": "boolean"
+                                    },
+                                    "updatedAt": {
+                                      "anyOf": [
+                                        {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "isSet",
+                                    "updatedAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                "username": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 255,
+                                      "minLength": 1,
+                                      "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "username",
+                                "secret"
+                              ],
+                              "type": "object"
+                            },
+                            "host": {
+                              "maxLength": 253,
+                              "minLength": 1,
+                              "pattern": "^[A-Za-z0-9._:-]+$",
+                              "type": "string"
+                            },
+                            "port": {
+                              "maximum": 65535,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tls": {
+                              "type": "boolean"
+                            },
+                            "vhost": {
+                              "maxLength": 255,
+                              "minLength": 1,
+                              "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "host",
+                            "port",
+                            "tls",
+                            "vhost",
+                            "auth"
+                          ],
+                          "type": "object"
+                        },
+                        "canEdit": {
+                          "type": "boolean"
+                        },
+                        "color": {
+                          "anyOf": [
+                            {
+                              "pattern": "^#[0-9a-fA-F]{6}$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "envClass": {
+                          "enum": [
+                            "prod",
+                            "staging",
+                            "test",
+                            "dev",
+                            "local"
+                          ],
+                          "type": "string"
+                        },
+                        "http": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "auth": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "basic",
+                                    "bearer",
+                                    "none"
+                                  ],
+                                  "type": "string"
+                                },
+                                "secret": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "isSet": {
+                                      "type": "boolean"
+                                    },
+                                    "updatedAt": {
+                                      "anyOf": [
+                                        {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "isSet",
+                                    "updatedAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                "username": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 255,
+                                      "minLength": 1,
+                                      "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "username",
+                                "secret"
+                              ],
+                              "type": "object"
+                            },
+                            "host": {
+                              "maxLength": 253,
+                              "minLength": 1,
+                              "pattern": "^[A-Za-z0-9._:-]+$",
+                              "type": "string"
+                            },
+                            "pathPrefix": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 200,
+                                  "pattern": "^\\/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "port": {
+                              "maximum": 65535,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tls": {
+                              "type": "boolean"
+                            },
+                            "url": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "host",
+                            "port",
+                            "tls",
+                            "pathPrefix",
+                            "auth"
+                          ],
+                          "type": "object"
+                        },
+                        "id": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "name": {
+                          "maxLength": 80,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "visibility": {
+                          "enum": [
+                            "private",
+                            "team"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "envClass",
+                        "color",
+                        "visibility",
+                        "canEdit",
+                        "http",
+                        "amqp",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Change a connection profile; a secret is replaced only when a new one is sent",
+        "tags": [
+          "connections"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-kind": "command",
+        "x-permission": "connection.manage",
+        "x-planning": "none",
+        "x-risk": "low",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{cid}/layout": {
       "get": {
         "operationId": "layouts.get",
@@ -1297,6 +4153,12 @@
     }
   ],
   "tags": [
+    {
+      "name": "bundles"
+    },
+    {
+      "name": "connections"
+    },
     {
       "name": "diagnostics"
     },

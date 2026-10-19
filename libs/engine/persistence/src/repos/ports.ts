@@ -3,6 +3,7 @@
 // keyset and bounded (I-7); nothing here lists "all".
 import type {
   AuditRepository,
+  ConnectionStore,
   DataKeyRepository,
   IdempotencyRepository,
   JobStore,
@@ -86,6 +87,8 @@ export interface BlobRepository {
 export interface Repositories {
   readonly settings: SettingsRepository;
   readonly connectionProfiles: ConnectionProfileRepository;
+  /** Profiles with their sealed credentials, changed together (M0-44). The port is @app/ports'. */
+  readonly connections: ConnectionStore;
   readonly blobs: BlobRepository;
   /** The ActionExecutor's plans (M0-29). The port is @app/ports'; the kernel owns the policy. */
   readonly plans: PlanRepository;

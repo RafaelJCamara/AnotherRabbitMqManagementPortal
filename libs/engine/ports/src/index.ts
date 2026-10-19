@@ -24,6 +24,27 @@ export type {
   OpenedConnection,
 } from './amqp091-connector.ts';
 export type {
+  AmqpProbeResult,
+  ConnectionInput,
+  ConnectionListQuery,
+  ConnectionProber,
+  ConnectionRecord,
+  ConnectionStore,
+  ConnectionVisibility,
+  CredentialChange,
+  CredentialProtocol,
+  CredentialRecord,
+  FieldSealer,
+  HttpProbeFacts,
+  HttpProbeResult,
+  ProbeAmqpAuth,
+  ProbeAmqpEndpoint,
+  ProbeFailure,
+  ProbeFailureReason,
+  ProbeHttpAuth,
+  ProbeHttpEndpoint,
+} from './connections.ts';
+export type {
   ConnectionManager,
   ConnectionRole,
   ConnectionUsage,

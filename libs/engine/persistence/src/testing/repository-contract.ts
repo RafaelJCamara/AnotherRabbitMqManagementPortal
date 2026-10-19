@@ -916,5 +916,125 @@ export function repositoryContract(options: RepositoryContractOptions): void {
         ).toHaveLength(1);
       });
     });
+
+    describe('connections (profiles with sealed credentials)', () => {
+      const profile = (id: string, ownerId: string | null, team = false) => ({
+        id,
+        name: `connection ${id}`,
+        envClass: 'staging',
+        color: null,
+        config: { v: 1, http: { host: 'mq.example', port: 15672 } },
+        ownerId,
+        visibility: team ? ('team' as const) : ('private' as const),
+      });
+      // Bytes with every value in them, as a real ciphertext has.
+      const sealed = (seed: number) =>
+        Uint8Array.from({ length: 64 }, (_, index) => (index * 7 + seed) % 256);
+
+      beforeEach(async () => {
+        await handle.db.deleteFrom('credentials').execute();
+      });
+
+      it('saves the profile and its credentials together and reads the bytes back unchanged', async () => {
+        const saved = await repos.connections.save(profile('c1', 'alice'), {
+          put: { http: sealed(1), amqp: sealed(2) },
+        });
+
+        expect(saved).toMatchObject({
+          id: 'c1',
+          createdAt: 1_000,
+          updatedAt: 1_000,
+        });
+        const stored = await repos.connections.credentials('c1');
+        expect(stored.map((row) => row.protocol)).toEqual(['amqp', 'http']);
+        expect(
+          Buffer.from(stored[0]?.ciphertext ?? new Uint8Array()).equals(
+            Buffer.from(sealed(2)),
+          ),
+        ).toBe(true);
+        expect(
+          Buffer.from(stored[1]?.ciphertext ?? new Uint8Array()).equals(
+            Buffer.from(sealed(1)),
+          ),
+        ).toBe(true);
+      });
+
+      it('replaces one credential, removes another and leaves a protocol that is not named alone', async () => {
+        await repos.connections.save(profile('c1', 'alice'), {
+          put: { http: sealed(1), amqp: sealed(2) },
+        });
+        clock.now = 5_000;
+
+        await repos.connections.save(profile('c1', 'alice'), {
+          put: { http: sealed(3) },
+        });
+        expect(
+          (await repos.connections.credentials('c1')).map((row) => [
+            row.protocol,
+            row.updatedAt,
+          ]),
+        ).toEqual([
+          ['amqp', 1_000],
+          ['http', 5_000],
+        ]);
+
+        await repos.connections.save(profile('c1', 'alice'), {
+          remove: ['amqp'],
+        });
+        expect(
+          (await repos.connections.credentials('c1')).map(
+            (row) => row.protocol,
+          ),
+        ).toEqual(['http']);
+      });
+
+      it('deletes the profile and every credential of it, and only that profile', async () => {
+        await repos.connections.save(profile('c1', 'alice'), {
+          put: { http: sealed(1), amqp: sealed(2) },
+        });
+        await repos.connections.save(profile('c2', 'alice'), {
+          put: { http: sealed(3) },
+        });
+
+        expect(await repos.connections.delete('c1')).toBe(true);
+        expect(await repos.connections.delete('c1')).toBe(false);
+
+        expect(await repos.connections.get('c1')).toBeUndefined();
+        expect(await repos.connections.credentials('c1')).toEqual([]);
+        expect(await repos.connections.credentials('c2')).toHaveLength(1);
+      });
+
+      it('lists only what a person may see, in windows by id, and counts the same', async () => {
+        for (const row of [
+          profile('a', 'alice'),
+          profile('b', 'bob'),
+          profile('c', 'bob', true),
+          profile('d', 'alice'),
+          profile('e', null, true),
+        ]) {
+          await repos.connections.save(row);
+        }
+
+        const first = await repos.connections.list({
+          visibleTo: 'alice',
+          limit: 2,
+        });
+        const second = await repos.connections.list({
+          visibleTo: 'alice',
+          limit: 2,
+          ...(first.nextCursor === undefined
+            ? {}
+            : { cursor: first.nextCursor }),
+        });
+
+        expect(first.items.map((item) => item.id)).toEqual(['a', 'c']);
+        expect(first.nextCursor).toBe('c');
+        expect(second.items.map((item) => item.id)).toEqual(['d', 'e']);
+        expect(second.nextCursor).toBeUndefined();
+        expect(await repos.connections.count('alice')).toBe(4);
+        expect(await repos.connections.count('bob')).toBe(3);
+        expect(await repos.connections.count('nobody')).toBe(2);
+      });
+    });
   });
 }

@@ -25,6 +25,13 @@
       "options": {
         "command": "vitest run --config libs/engine/svc-connections/vitest.config.mts"
       }
+    },
+    "it": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/testkit/src/it/run-it.ts svc-connections",
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }

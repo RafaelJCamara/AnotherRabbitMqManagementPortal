@@ -2,6 +2,7 @@ import type { PersistenceHandle } from '../database';
 import { createAuditRepository, createReceiptRepository } from './audit';
 import { createBlobRepository } from './blobs';
 import { createConnectionProfileRepository } from './connection-profiles';
+import { createConnectionStore } from './connections';
 import { createDataKeyRepository } from './data-keys';
 import { createJobStore } from './jobs';
 import { createIdempotencyRepository, createPlanRepository } from './plans';
@@ -23,6 +24,7 @@ export function createRepositories(
   return {
     settings: createSettingsRepository(handle.db, now),
     connectionProfiles: createConnectionProfileRepository(handle.db, now),
+    connections: createConnectionStore(handle.db, now),
     blobs: createBlobRepository(handle.db, now),
     plans: createPlanRepository(handle.db),
     idempotency: createIdempotencyRepository(handle.db),

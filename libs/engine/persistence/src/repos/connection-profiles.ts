@@ -11,7 +11,7 @@ import { clampLimit, parseJson } from './settings';
 
 const DEFAULT_LIMIT = 100;
 
-function toRecord(
+export function toRecord(
   row: Selectable<ConnectionProfilesTable>,
 ): ConnectionProfileRecord {
   return {

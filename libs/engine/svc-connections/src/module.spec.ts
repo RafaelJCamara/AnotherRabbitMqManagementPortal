@@ -10,8 +10,28 @@ describe('createConnectionsModule', () => {
     );
   });
 
-  // The action, topic and job generators register into these lists, so the module's own spec does
-  // not pin their contents: each registered item has its own spec.
+  it('registers the nine actions of the connections work package (M0-44)', () => {
+    const module = createConnectionsModule(createConnectionsFakeDeps());
+
+    expect(
+      module.actions
+        .map((action) => (action as { def: { id: string } }).def.id)
+        .sort(),
+    ).toEqual([
+      'bundles.export',
+      'bundles.import',
+      'connections.create',
+      'connections.delete',
+      'connections.get',
+      'connections.list',
+      'connections.test-amqp',
+      'connections.test-http',
+      'connections.update',
+    ]);
+  });
+
+  // The topic and job generators register into these lists, so the module's own spec does not pin
+  // their contents: each registered item has its own spec.
   it('lists its actions, topics and jobs', () => {
     const module = createConnectionsModule(createConnectionsFakeDeps());
 

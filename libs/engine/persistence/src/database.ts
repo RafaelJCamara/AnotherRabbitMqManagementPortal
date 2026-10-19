@@ -189,6 +189,15 @@ export interface ViewsTable {
   updated_at: number;
 }
 
+/** credentials (M0-44): sealed connection secrets, one per profile and protocol; see 0007_credentials. */
+export interface CredentialsTable {
+  connection_id: string;
+  protocol: 'http' | 'amqp';
+  /** Ciphertext made by @app/secrets; never a secret in the open. */
+  ciphertext: Uint8Array;
+  updated_at: number;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -203,6 +212,7 @@ export interface Database {
   jobs: JobsTable;
   job_events: JobEventsTable;
   views: ViewsTable;
+  credentials: CredentialsTable;
 }
 
 /** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */

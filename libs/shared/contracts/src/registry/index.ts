@@ -13,6 +13,15 @@ import { settingsPut } from './settings-put.ts';
 import { keybindingsGet } from './keybindings-get.ts';
 import { keybindingsPut } from './keybindings-put.ts';
 import { diagnosticsBundle } from './diagnostics-bundle.ts';
+import { connectionsCreate } from './connections-create.ts';
+import { connectionsUpdate } from './connections-update.ts';
+import { connectionsDelete } from './connections-delete.ts';
+import { connectionsList } from './connections-list.ts';
+import { connectionsGet } from './connections-get.ts';
+import { connectionsTestHttp } from './connections-test-http.ts';
+import { connectionsTestAmqp } from './connections-test-amqp.ts';
+import { bundlesExport } from './bundles-export.ts';
+import { bundlesImport } from './bundles-import.ts';
 
 export const registry: Registry = {
   actions: [
@@ -29,6 +38,15 @@ export const registry: Registry = {
     keybindingsGet,
     keybindingsPut,
     diagnosticsBundle,
+    connectionsCreate,
+    connectionsUpdate,
+    connectionsDelete,
+    connectionsList,
+    connectionsGet,
+    connectionsTestHttp,
+    connectionsTestAmqp,
+    bundlesExport,
+    bundlesImport,
   ],
   topics: [],
 };

@@ -42,10 +42,14 @@ class Fake implements FakeConnection {
   readonly releases: string[] = [];
   readonly #listeners = new Set<(event: ConnectorEvent) => void>();
 
-  constructor(
-    readonly role: ConnectionRole,
-    readonly request: ConnectorRequest,
-  ) {}
+  readonly role: ConnectionRole;
+  readonly request: ConnectorRequest;
+
+  // No parameter properties: the testkit compiles this file with erasableSyntaxOnly (M0-44).
+  constructor(role: ConnectionRole, request: ConnectorRequest) {
+    this.role = role;
+    this.request = request;
+  }
 
   get connectionName(): string {
     const { product, mode, session } = this.request.name;

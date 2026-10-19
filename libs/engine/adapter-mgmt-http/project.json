@@ -1,0 +1,30 @@
+{
+  "name": "adapter-mgmt-http",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/adapter-mgmt-http/src",
+  "projectType": "library",
+  "tags": ["type:adapter", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/adapter-mgmt-http/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/adapter-mgmt-http/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/adapter-mgmt-http/vitest.config.mts"
+      }
+    }
+  }
+}

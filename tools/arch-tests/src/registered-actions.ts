@@ -3,7 +3,8 @@
 //
 // There is one entry per `implementAction(...)` call site. `repository.spec.ts` compares this list
 // with the call sites it finds in the source, so an action that is not listed fails the build:
-// adding an action means adding it here (the action generator, M0-35, appends the entry).
+// adding an action means adding it here. `pnpm nx g @app/generators:action` appends the entry; when
+// an action becomes a factory that needs ports, build it here with fakes from `@app/testkit`.
 import type { PlanPuritySample } from '@app/kernel';
 
 export interface RegisteredAction extends PlanPuritySample {
@@ -11,6 +12,8 @@ export interface RegisteredAction extends PlanPuritySample {
   path: string;
 }
 
+const manifest: RegisteredAction[] = [];
+
 export function registeredActions(): RegisteredAction[] {
-  return [];
+  return [...manifest];
 }

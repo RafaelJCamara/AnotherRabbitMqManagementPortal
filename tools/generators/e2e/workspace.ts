@@ -37,6 +37,23 @@ const COPIED = [
   'tools/lint-selftest',
   'tools/supply-chain/deps-allowlist.json',
 ];
+// The libraries a generated service compiles against (its stubs import the kernel and the contracts).
+const KERNEL_COPIED = [
+  'libs/shared/contracts',
+  'libs/engine/kernel',
+  'libs/engine/ports',
+];
+// The golden-path proof also runs the router, the testkit, the architecture tests and the API
+// document emitter, so it takes the whole product as it stands.
+const FULL_COPIED = [
+  'libs/engine',
+  'libs/shared',
+  'libs/testkit',
+  'testing/broker-lab',
+  'tools/arch-tests',
+  'tools/api-docs',
+  'docs/api',
+];
 const SKIPPED = new Set(['node_modules', 'dist', 'tmp', '.nx', 'coverage']);
 
 /**
@@ -65,29 +82,61 @@ export interface RunResult {
 export class TempWorkspace {
   readonly root: string;
 
-  constructor() {
+  /**
+   * `full` copies the product as it stands and keeps every alias: the golden-path proof needs the
+   * router, the testkit and the architecture tests. Otherwise the copy holds the policy files, the
+   * plugin and the libraries a service compiles against, and starts without the aliases of the
+   * adopted first-use libraries so the generators can create them (see `restoreAlias`).
+   */
+  constructor(options: { full?: boolean } = {}) {
     // The real path, not the 8.3 short name (RUNNER~1) that Windows temp directories can have:
     // Vitest's jsdom environment cannot find spec files below a short path.
     this.root = realpathSync.native(
       mkdtempSync(join(tmpdir(), 'generators-e2e-')),
     );
-    for (const path of COPIED) {
+    const copied = [
+      ...COPIED,
+      ...(options.full === true ? FULL_COPIED : KERNEL_COPIED),
+    ];
+    for (const path of copied) {
       cpSync(join(repoRoot, path), join(this.root, path), {
         recursive: true,
         filter: (source) => !SKIPPED.has(source.split(/[\\/]/).at(-1) ?? ''),
       });
     }
-    // Start without the aliases of adopted first-use libraries, so the generators can create them.
-    const tsconfigBase = join(this.root, 'tsconfig.base.json');
-    writeFileSync(
-      tsconfigBase,
-      withoutAdoptedAliases(readFileSync(tsconfigBase, 'utf8')),
-    );
+    if (options.full !== true) {
+      const tsconfigBase = join(this.root, 'tsconfig.base.json');
+      writeFileSync(
+        tsconfigBase,
+        withoutAdoptedAliases(readFileSync(tsconfigBase, 'utf8')),
+      );
+    }
     symlinkSync(
       join(repoRoot, 'node_modules'),
       join(this.root, 'node_modules'),
       'junction',
     );
+  }
+
+  /**
+   * Puts one alias back once the generators have run, for a library that was copied: the kernel
+   * imports `@app/ports`, but the adapter generator must not see that alias while it runs.
+   */
+  restoreAlias(alias: string): void {
+    const read = (
+      path: string,
+    ): { compilerOptions: { paths: Record<string, string[]> } } =>
+      JSON.parse(readFileSync(path, 'utf8')) as never;
+    const target = join(this.root, 'tsconfig.base.json');
+    const real = read(join(repoRoot, 'tsconfig.base.json'));
+    const copy = read(target);
+    const paths = real.compilerOptions.paths[alias];
+    if (paths === undefined)
+      throw new Error(`${alias} is not in tsconfig.base.json`);
+    copy.compilerOptions.paths[alias] = paths;
+    writeFileSync(target, `${JSON.stringify(copy, null, 2)}\n`);
+    // The generators write it with Prettier's layout; so does the copy, or the format check fails.
+    this.prettier('--write', 'tsconfig.base.json');
   }
 
   run(command: string, args: string[]): RunResult {

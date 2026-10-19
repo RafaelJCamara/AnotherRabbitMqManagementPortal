@@ -52,6 +52,21 @@
       "factory": "./src/migration/generator",
       "schema": "./src/migration/schema.json",
       "description": "The next numbered persistence migration, with its spec."
+    },
+    "action": {
+      "factory": "./src/action/generator",
+      "schema": "./src/action/schema.json",
+      "description": "An engine action: contract, implementAction stub, registrations, unit and HTTP specs and a UI command stub. The generated tests fail until it is implemented."
+    },
+    "topic": {
+      "factory": "./src/topic/generator",
+      "schema": "./src/topic/schema.json",
+      "description": "A live topic: contract, registrations and a spec that checks the topic is bounded, keyed and secret-free."
+    },
+    "job": {
+      "factory": "./src/job/generator",
+      "schema": "./src/job/schema.json",
+      "description": "A durable job definition in a service module, with a spec that fails until run and onDrain are implemented."
     }
   }
 }

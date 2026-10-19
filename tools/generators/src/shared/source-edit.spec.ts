@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   appendImport,
+  appendLine,
   appendToArray,
+  appendToPropertyArray,
   arrayElements,
   arrayOfObjects,
+  findPropertyArray,
 } from './source-edit.ts';
+import ts from 'typescript';
 
 describe('appendToArray', () => {
   it('appends after the last element of a multi-line array', () => {
@@ -85,5 +89,75 @@ describe('appendImport', () => {
     expect(
       appendImport('export const x = 1;\n', 'x.ts', "import c from 'c';"),
     ).toBe("import c from 'c';\nexport const x = 1;\n");
+  });
+});
+
+describe('appendToPropertyArray', () => {
+  const registry =
+    'export const registry: Registry = {\n  actions: [a, b],\n  topics: [],\n};\n';
+
+  it('appends to the array property of an object, and to an empty one', () => {
+    const withAction = appendToPropertyArray(
+      registry,
+      'r.ts',
+      'registry',
+      'actions',
+      'c',
+    );
+    const withTopic = appendToPropertyArray(
+      withAction,
+      'r.ts',
+      'registry',
+      'topics',
+      't',
+    );
+
+    expect(withTopic).toMatch(/actions: \[a, b,\s*c,?\s*\]/);
+    expect(withTopic).toMatch(/topics: \[\s*t,?\s*\]/);
+  });
+
+  it('leaves the other property alone', () => {
+    const next = appendToPropertyArray(
+      registry,
+      'r.ts',
+      'registry',
+      'actions',
+      'c',
+    );
+
+    expect(next).toContain('topics: [],');
+  });
+
+  it('says what it expected when the object or the property is missing or not an array', () => {
+    const parse = (text: string) =>
+      ts.createSourceFile('r.ts', text, ts.ScriptTarget.Latest, true);
+
+    expect(() =>
+      findPropertyArray(parse(registry), 'other', 'actions'),
+    ).toThrow(/no top-level object "other"/);
+    expect(() =>
+      findPropertyArray(parse(registry), 'registry', 'jobs'),
+    ).toThrow(/array property "jobs"/);
+    expect(() =>
+      findPropertyArray(
+        parse('const registry = { actions: 5 };'),
+        'registry',
+        'actions',
+      ),
+    ).toThrow(/array property "actions"/);
+  });
+});
+
+describe('appendLine', () => {
+  it('adds a line at the end, with one newline', () => {
+    expect(
+      appendLine("export * from './a.ts';\n\n", "export * from './b.ts';"),
+    ).toBe("export * from './a.ts';\nexport * from './b.ts';\n");
+  });
+
+  it('adds nothing when the line is already there, whatever its indentation', () => {
+    const text = "export * from './a.ts';\n";
+
+    expect(appendLine(text, "  export * from './a.ts';")).toBe(text);
   });
 });

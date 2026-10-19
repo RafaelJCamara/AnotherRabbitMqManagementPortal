@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppTopic",
+  "title": "Topic",
+  "description": "Adds a live topic: contract (defineTopic), registrations and a spec that checks the topic is bounded, keyed and secret-free.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The topic id, namespace.name (for example tap.messages).",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "module": {
+      "type": "string",
+      "description": "The service module that owns the topic (svc-tap or tap). It must exist: create it with the service-module generator."
+    },
+    "flow": {
+      "type": "string",
+      "enum": ["credit", "snapshot-delta"],
+      "description": "credit sends data frames against the credit the UI grants; snapshot-delta sends a snapshot, then deltas that remove items by key."
+    },
+    "qos": {
+      "type": "string",
+      "enum": ["lossless", "latest", "sampled"],
+      "description": "lossless is never dropped (a gap and a snapshot on overflow); latest is coalesced by key at --max-hz; sampled keeps every n-th item with counters and needs the credit flow."
+    },
+    "permission": {
+      "type": "string",
+      "description": "The permission from the RBAC catalogue (blueprint 7.3), area.verb."
+    },
+    "maxHz": {
+      "type": "number",
+      "description": "Frames per second at most. Required for qos latest."
+    },
+    "ringItems": {
+      "type": "number",
+      "description": "Items the ring holds (I-6). Default 1000."
+    },
+    "ringBytes": {
+      "type": "number",
+      "description": "Bytes the ring holds (I-6). Default 1048576."
+    }
+  },
+  "required": ["name", "module", "flow", "qos", "permission"],
+  "additionalProperties": false
+}

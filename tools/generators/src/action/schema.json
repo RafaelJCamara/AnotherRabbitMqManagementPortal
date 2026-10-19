@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppAction",
+  "title": "Action",
+  "description": "Adds an engine action: contract, implementAction stub, registration, unit spec, HTTP spec and UI command stub. The generated tests fail until the action is implemented.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The action id, namespace.verb (for example queues.purge).",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "module": {
+      "type": "string",
+      "description": "The service module that owns the action (svc-admin or admin). It must exist: create it with the service-module generator."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["query", "command", "peek", "job"],
+      "description": "query reads; command, peek and job change state or touch messages (peeks count as mutations)."
+    },
+    "http": {
+      "type": "string",
+      "description": "The HTTP binding, 'METHOD /path' with {param} segments (for example 'POST /connections/{cid}/queues/{qkey}/purge'). GET only for a query. Omit for an action without a route."
+    },
+    "permission": {
+      "type": "string",
+      "description": "The permission from the RBAC catalogue (blueprint 7.3), area.verb."
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["none", "low", "medium", "high", "critical"],
+      "description": "Required for anything but a query."
+    },
+    "planning": {
+      "type": "string",
+      "enum": ["none", "optional", "required"],
+      "description": "Required for anything but a query. The environment policy may raise it, never lower it."
+    },
+    "mcp": {
+      "type": "string",
+      "enum": ["none", "read", "mutating"],
+      "description": "MCP exposure. read is only for a query; a command, peek or job is mutating or not exposed. Default none."
+    },
+    "cli": {
+      "type": "string",
+      "description": "The CLI command words, for example 'queues purge'."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One line for the API document and the UI. Defaults to the id in words. Never call a read of messages non-destructive or read-only."
+    },
+    "since": {
+      "type": "string",
+      "description": "The contract version (major.minor) that introduces the action. Default 1.0."
+    },
+    "feature": {
+      "type": "string",
+      "description": "The UI feature that gets the command stub (libs/ui/feature-<name>), or none. Defaults to the module's name without svc-."
+    }
+  },
+  "required": ["name", "module", "kind", "permission"],
+  "additionalProperties": false
+}

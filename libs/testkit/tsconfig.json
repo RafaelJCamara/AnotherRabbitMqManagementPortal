@@ -2,8 +2,6 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["es2023"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
     "target": "es2023",
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,

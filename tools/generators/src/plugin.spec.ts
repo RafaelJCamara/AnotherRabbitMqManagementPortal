@@ -29,17 +29,20 @@ const collection = readJson<{ generators: Record<string, GeneratorEntry> }>(
 );
 
 describe('generators.json', () => {
-  it('offers the generators of the M0-08 scope', () => {
+  it('offers the generators of the M0-08 and M0-35 scopes', () => {
     expect(Object.keys(collection.generators).sort()).toEqual([
+      'action',
       'adapter',
       'conformance-cell',
       'decoder',
       'eslint-rule',
+      'job',
       'library',
       'lint-rule',
       'migration',
       'semantics-cell',
       'service-module',
+      'topic',
       'ui-feature',
     ]);
   });
@@ -96,6 +99,22 @@ describe('command forms of docs/plan/execution-plan.md section 2.5', () => {
     ['service-module', ['name']],
     ['migration', ['name']],
     ['library', ['name', 'type']],
+    [
+      'action',
+      [
+        'name',
+        'module',
+        'kind',
+        'http',
+        'permission',
+        'risk',
+        'planning',
+        'mcp',
+        'cli',
+      ],
+    ],
+    ['topic', ['name', 'module', 'flow', 'qos', 'permission']],
+    ['job', ['name', 'module']],
   ])('%s takes %j', (generator, expected) => {
     expect(options(generator)).toEqual(expect.arrayContaining(expected));
   });

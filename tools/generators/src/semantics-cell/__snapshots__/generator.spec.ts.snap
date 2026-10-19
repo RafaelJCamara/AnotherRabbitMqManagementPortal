@@ -194,6 +194,10 @@ export interface SemanticsCell {
 ",
   "libs/shared/semantics/tsconfig.json": "{
   "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
   "files": [],
   "include": [],
   "references": [

@@ -169,6 +169,10 @@ export interface RuleFixture {
 ",
   "libs/shared/lint-rules/tsconfig.json": "{
   "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
   "files": [],
   "include": [],
   "references": [

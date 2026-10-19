@@ -10,7 +10,8 @@ Tags: \`type:service\`, \`runtime:node\`.
 ## Public API
 
 - \`createDemoModule(deps)\`: returns the \`EngineModule\` the composition root registers.
-- \`DemoModuleDeps\`: the ports the module needs.
+- \`DemoModuleDeps\` (\`src/deps.ts\`): the ports the module needs.
+- \`createDemoFakeDeps()\` (\`src/testing.ts\`): fakes for those ports, for specs, the architecture manifest and the HTTP specs.
 
 ## Invariants
 
@@ -31,11 +32,13 @@ exports[`service-module > creates the uniform service shape for svc-demo > files
   "libs/engine/svc-demo/README.md",
   "libs/engine/svc-demo/project.json",
   "libs/engine/svc-demo/src/actions/index.ts",
+  "libs/engine/svc-demo/src/deps.ts",
   "libs/engine/svc-demo/src/index.ts",
   "libs/engine/svc-demo/src/internal/.gitkeep",
   "libs/engine/svc-demo/src/jobs/index.ts",
   "libs/engine/svc-demo/src/module.spec.ts",
   "libs/engine/svc-demo/src/module.ts",
+  "libs/engine/svc-demo/src/testing.ts",
   "libs/engine/svc-demo/src/topics.ts",
   "libs/engine/svc-demo/tsconfig.json",
   "libs/engine/svc-demo/tsconfig.lib.json",
@@ -48,7 +51,8 @@ exports[`service-module > creates the uniform service shape for svc-demo > modul
 "// The composition root calls createDemoModule with the ports this service needs and
 // registers what the module returns. A service never imports another service or an adapter:
 // cross-service needs are ports wired in the composition root.
-import { actions } from './actions';
+import { createActions } from './actions';
+import type { DemoModuleDeps } from './deps';
 import { jobs } from './jobs';
 import { topics } from './topics';
 
@@ -63,12 +67,8 @@ export interface EngineModule {
   readonly jobs: readonly unknown[];
 }
 
-/** The ports this module needs, injected by the composition root. */
-export type DemoModuleDeps = Readonly<Record<string, never>>;
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the first port is wired in with the first action.
 export function createDemoModule(deps: DemoModuleDeps): EngineModule {
-  return { id: 'svc-demo', actions, topics, jobs };
+  return { id: 'svc-demo', actions: createActions(deps), topics, jobs };
 }
 "
 `;
@@ -111,18 +111,21 @@ exports[`service-module > creates the uniform service shape for svc-demo > spec 
 "import { describe, expect, it } from 'vitest';
 
 import { createDemoModule } from './module';
+import { createDemoFakeDeps } from './testing';
 
 describe('createDemoModule', () => {
   it('registers the module under the project name', () => {
-    expect(createDemoModule({}).id).toBe('svc-demo');
+    expect(createDemoModule(createDemoFakeDeps()).id).toBe('svc-demo');
   });
 
-  it('starts without actions, topics or jobs', () => {
-    const module = createDemoModule({});
+  // The action, topic and job generators register into these lists, so the module's own spec does
+  // not pin their contents: each registered item has its own spec.
+  it('lists its actions, topics and jobs', () => {
+    const module = createDemoModule(createDemoFakeDeps());
 
-    expect(module.actions).toEqual([]);
-    expect(module.topics).toEqual([]);
-    expect(module.jobs).toEqual([]);
+    expect(Array.isArray(module.actions)).toBe(true);
+    expect(Array.isArray(module.topics)).toBe(true);
+    expect(Array.isArray(module.jobs)).toBe(true);
   });
 });
 "

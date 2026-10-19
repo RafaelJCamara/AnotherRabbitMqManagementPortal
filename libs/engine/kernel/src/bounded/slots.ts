@@ -7,8 +7,11 @@ export class Slots<T> {
   private sizes: number[];
   private head = 0;
   private count = 0;
+  private readonly maxItems: number;
 
-  constructor(private readonly maxItems: number) {
+  // No parameter property: `erasableSyntaxOnly` projects (the testkit) compile this file (OQ-305).
+  constructor(maxItems: number) {
+    this.maxItems = maxItems;
     const initial = Math.min(maxItems, 16);
     this.items = new Array<T | undefined>(initial);
     this.sizes = new Array<number>(initial).fill(0);

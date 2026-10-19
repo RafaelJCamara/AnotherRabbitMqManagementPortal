@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "AppJob",
+  "title": "Job",
+  "description": "Adds a durable job definition to a service module, with a spec that fails until run() and onDrain() are implemented. The action that starts it is an action of kind job.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The job type, namespace.name (for example queues.purge-many).",
+      "$default": { "$source": "argv", "index": 0 }
+    },
+    "module": {
+      "type": "string",
+      "description": "The service module that owns the job (svc-admin or admin). It must exist: create it with the service-module generator."
+    },
+    "resumable": {
+      "type": "boolean",
+      "description": "Whether the job continues from its last checkpoint after an interruption.",
+      "default": true
+    }
+  },
+  "required": ["name", "module"],
+  "additionalProperties": false
+}

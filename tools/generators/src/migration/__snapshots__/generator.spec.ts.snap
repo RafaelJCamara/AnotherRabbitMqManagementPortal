@@ -170,7 +170,9 @@ export const migrations: readonly Migration[] = [migration0001Core];
   "libs/engine/persistence/tsconfig.json": "{
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["es2022"]
+    "lib": ["es2022"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "files": [],
   "include": [],

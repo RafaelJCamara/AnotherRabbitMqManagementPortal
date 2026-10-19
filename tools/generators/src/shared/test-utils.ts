@@ -21,6 +21,12 @@ const REAL_FILES = [
   'tools/eslint-rules/README.md',
   'tools/lint-selftest/src/project-rules.spec.ts',
   'tools/supply-chain/deps-allowlist.json',
+  // What the action and topic generators register into.
+  'libs/shared/contracts/src/index.ts',
+  'libs/shared/contracts/src/registry/index.ts',
+  'libs/shared/contracts/src/registry/meta.ts',
+  'libs/shared/contracts/src/registry/ops.ts',
+  'tools/arch-tests/src/registered-actions.ts',
 ];
 
 export function workspaceTree(): Tree {

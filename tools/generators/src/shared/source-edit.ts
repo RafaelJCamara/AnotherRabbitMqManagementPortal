@@ -52,6 +52,52 @@ export function findArray(
   );
 }
 
+/** The array assigned to `property` of the object literal that the top-level `name` holds. */
+export function findPropertyArray(
+  source: ts.SourceFile,
+  name: string,
+  property: string,
+): ts.ArrayLiteralExpression {
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (
+        !ts.isIdentifier(declaration.name) ||
+        declaration.name.text !== name ||
+        !declaration.initializer
+      ) {
+        continue;
+      }
+      const value = unwrap(declaration.initializer);
+      if (!ts.isObjectLiteralExpression(value)) continue;
+      for (const member of value.properties) {
+        if (
+          ts.isPropertyAssignment(member) &&
+          ts.isIdentifier(member.name) &&
+          member.name.text === property
+        ) {
+          const array = unwrap(member.initializer);
+          if (ts.isArrayLiteralExpression(array)) return array;
+        }
+      }
+    }
+  }
+  throw new Error(
+    `${source.fileName}: no top-level object "${name}" with an array property "${property}". The generator expects it; was the file restructured?`,
+  );
+}
+
+function splice(
+  text: string,
+  array: ts.ArrayLiteralExpression,
+  element: string,
+): string {
+  const close = array.getEnd() - 1;
+  const before = text.slice(0, close).trimEnd();
+  const comma = array.elements.length > 0 && !before.endsWith(',') ? ',' : '';
+  return `${before}${comma}\n${element},\n${text.slice(close)}`;
+}
+
 /** Appends `element` (source text) as the last item of the array `name`. */
 export function appendToArray(
   text: string,
@@ -59,11 +105,30 @@ export function appendToArray(
   name: string,
   element: string,
 ): string {
-  const array = findArray(parse(text, fileName), name);
-  const close = array.getEnd() - 1;
-  const before = text.slice(0, close).trimEnd();
-  const comma = array.elements.length > 0 && !before.endsWith(',') ? ',' : '';
-  return `${before}${comma}\n${element},\n${text.slice(close)}`;
+  return splice(text, findArray(parse(text, fileName), name), element);
+}
+
+/** Appends `element` as the last item of the array `property` of the object `name`. */
+export function appendToPropertyArray(
+  text: string,
+  fileName: string,
+  name: string,
+  property: string,
+  element: string,
+): string {
+  return splice(
+    text,
+    findPropertyArray(parse(text, fileName), name, property),
+    element,
+  );
+}
+
+/** Adds `line` at the end of the file; a no-op when the file already holds it. */
+export function appendLine(text: string, line: string): string {
+  if (text.split('\n').some((existing) => existing.trim() === line.trim())) {
+    return text;
+  }
+  return `${text.replace(/\s*$/, '')}\n${line}\n`;
 }
 
 /** The elements of the array `name` as source text. */

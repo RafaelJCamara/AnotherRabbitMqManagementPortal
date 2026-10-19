@@ -80,6 +80,10 @@ beforeAll(() => {
   generate('migration', 'core');
   generate('migration', 'data-keys');
 
+  // The generated service imports the kernel, which imports the ports. The adapter generator had
+  // to run without that alias (it would import the made-up DemoPort from it), so it comes back now.
+  workspace.restoreAlias('@app/ports');
+
   // A real cross-project import, to prove the path alias works for lint, typecheck and test.
   write('libs/shared/demo-pure/src/answer.ts', 'export const answer = 42;\n');
   write(

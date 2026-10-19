@@ -193,7 +193,9 @@ export interface DecoderPlugin {
   "libs/engine/decoders/tsconfig.json": "{
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["es2022"]
+    "lib": ["es2022"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "files": [],
   "include": [],
@@ -318,6 +320,10 @@ export {};
 ",
   "libs/sdk/header-registry/tsconfig.json": "{
   "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
   "files": [],
   "include": [],
   "references": [

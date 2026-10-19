@@ -50,7 +50,8 @@ const list = defineAction({
   planning: 'none',
   audit: 'none',
   target: () => ({}),
-  http: { method: 'GET', path: '/connections/{cid}/queues' },
+  // Not a path a real action will use: this one is added to the committed registry below.
+  http: { method: 'GET', path: '/spec-only/{cid}/queues' },
   since: '1.0',
 });
 
@@ -100,7 +101,7 @@ function resolveRefs(document: Json): number {
 }
 
 const PURGE = '/connections/{cid}/queues/{qkey}/purge';
-const LIST = '/connections/{cid}/queues';
+const LIST = '/spec-only/{cid}/queues';
 
 /** [name, in, required] of an operation's parameters. */
 function parameters(op: unknown): unknown[] {

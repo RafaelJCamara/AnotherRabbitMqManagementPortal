@@ -118,7 +118,8 @@ export const demoRoutes: Routes = [
   "libs/ui/feature-demo/tsconfig.json": "{
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "noPropertyAccessFromIndexSignature": true,
+    "allowImportingTsExtensions": true,
+    "noPropertyAccessFromIndexSignature": false,
     "experimentalDecorators": true,
     "module": "preserve"
   },

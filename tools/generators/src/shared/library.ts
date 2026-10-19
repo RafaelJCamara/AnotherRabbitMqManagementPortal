@@ -180,8 +180,13 @@ function tsconfigJson(spec: LibrarySpec, angular: boolean): unknown {
   const compilerOptions: Record<string, unknown> = {};
   // Engine code has no DOM: the library list says so, and so does the compiler.
   if (spec.runtime === 'node') compilerOptions.lib = ['es2022'];
+  // The shared libraries (contracts, kernel, ...) import their own files as `./x.ts`, and a
+  // project that imports them through the `@app/*` aliases compiles those sources too (OQ-327).
+  if (!angular) compilerOptions.noEmit = true;
+  compilerOptions.allowImportingTsExtensions = true;
   if (angular) {
-    compilerOptions.noPropertyAccessFromIndexSignature = true;
+    // Off, like ui-data: the shared libraries read index signatures with dots (OQ-264).
+    compilerOptions.noPropertyAccessFromIndexSignature = false;
     compilerOptions.experimentalDecorators = true;
     compilerOptions.module = 'preserve';
   }

@@ -1,5 +1,20 @@
-// Public API of the testkit. Only the broker-lab helpers exist so far (M0-14).
+// Public API of the testkit: the broker-lab helpers (M0-14), createTestEngine and the port fakes
+// (M0-35).
 export { startBroker, waitForManagement } from './broker-lab.ts';
+export {
+  API,
+  createTestEngine,
+  type InjectRequest,
+  type TestEngine,
+  type TestEngineOptions,
+  type TestResponse,
+} from './create-test-engine.ts';
+export {
+  createFakeMgmtRead,
+  createFakeMgmtWrite,
+  type FakeMgmtRead,
+  type FakeMgmtWrite,
+} from './fakes.ts';
 export type {
   BrokerHandle,
   BrokerLabDeps,

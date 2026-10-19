@@ -29,7 +29,7 @@ pnpm nx run contracts:api-docs        # writes docs/api/openapi.v1.json and asyn
 pnpm nx run contracts:api-docs-check  # regenerates in memory and fails on any difference
 ```
 
-The `action` and `topic` generators (M0-35) will do the first two steps; until they land, follow `src/registry/meta.ts`.
+The `action` and `topic` generators do the first two steps (`pnpm nx g @app/generators:action`, `:topic`; worked examples in `docs/golden-path/`).
 
 ## Invariants
 

@@ -356,11 +356,13 @@ describe('diagnostics bundle', () => {
       const hostile = JSON.stringify({ msg: 'z'.repeat(2000) });
       const lines = Array.from({ length: 600 }, () => hostile);
       let worst = 0;
+      let ticks = 0;
       let last = performance.now();
       const timer = setInterval(() => {
         const now = performance.now();
         worst = Math.max(worst, now - last);
         last = now;
+        ticks += 1;
       }, 1);
 
       await bundleWith({ lines, clock: systemClock });
@@ -368,7 +370,14 @@ describe('diagnostics bundle', () => {
       worst = Math.max(worst, performance.now() - last);
       clearInterval(timer);
 
-      expect(worst).toBeLessThan(200);
+      // The build works in slices of SLICE_MS and lets the loop run between them, so the timer runs
+      // once per slice: hundreds of times here, however slow the machine. A build that never gave
+      // way (or gave way every hundred lines) runs it a handful of times. Counting turns is what
+      // keeps this test off the load of a shared runner (a macOS runner stretched one 5 ms slice to
+      // 350 ms when the milliseconds were the assertion); the gap bound only catches a build that
+      // held the loop for most of its twenty seconds.
+      expect(ticks).toBeGreaterThan(20);
+      expect(worst).toBeLessThan(2000);
     }, 60_000);
 
     it('a log line nested far deeper than the stack is bounded, not a crash', async () => {

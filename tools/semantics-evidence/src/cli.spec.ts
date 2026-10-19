@@ -8,6 +8,7 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -212,6 +213,33 @@ describe('semantics-evidence CLI', () => {
     expect(await run(none.api)).toBe(0);
     expect(none.getRun).not.toHaveBeenCalled();
   }, 120_000);
+
+  it('AC-1 reads the base from the base commit when the repository is reached through a link (a temporary folder on macOS)', async () => {
+    const first = git('rev-parse', 'HEAD');
+    registry({ effect: { deltaAC: 0, deltaDC: 1, position: 'tail' } });
+    commit('change the effect');
+    const link = `${dir}-link`;
+    symlinkSync(dir, link, 'junction');
+    try {
+      const code = await main(
+        [
+          `--base=${first}`,
+          `--root=${link}`,
+          '--data=registry.ts',
+          `--repo=${REPOSITORY}`,
+        ],
+        {},
+        {},
+      );
+
+      expect(code).toBe(1);
+      expect(errors.join('\n')).toContain(
+        'effect changed without a valid evidence artefact',
+      );
+    } finally {
+      unlinkSync(link);
+    }
+  }, 60_000);
 
   it('I-10 reads the registry in a child process that does not hold the GitHub token', async () => {
     // The data module of this repository plays the part of the registry code of a change under check.

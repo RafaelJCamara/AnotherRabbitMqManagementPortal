@@ -8,14 +8,17 @@
 //    revision can be read without checking it out. Files of this project and everything under
 //    node_modules still come from the disk; a file the commit does not have is an error.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const toolRoot = new URL('./', import.meta.url);
-const repoRoot = new URL('../../', import.meta.url);
+// Node loads modules by their real path (a temporary folder on macOS is behind a link), so the
+// folders are compared by real path too.
+const folder = (path) => pathToFileURL(`${realpathSync(path)}/`);
+const toolRoot = folder(fileURLToPath(new URL('./', import.meta.url)));
+const repoRoot = folder(fileURLToPath(new URL('../../', import.meta.url)));
 const root = process.env.SEMANTICS_EVIDENCE_ROOT
-  ? pathToFileURL(`${process.env.SEMANTICS_EVIDENCE_ROOT}/`)
+  ? folder(process.env.SEMANTICS_EVIDENCE_ROOT)
   : repoRoot;
 const rev = process.env.SEMANTICS_EVIDENCE_REV;
 if (rev !== undefined && !/^[0-9a-f]{40}$/.test(rev)) {

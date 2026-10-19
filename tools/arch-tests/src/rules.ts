@@ -46,6 +46,9 @@ export const FUNNEL_EXEMPT_PREFIXES: readonly string[] = [
   // the write ports to a running job. The rest of `jobs` is checked like any other library.
   'libs/engine/jobs/src/runner.ts',
   'libs/engine/jobs/src/types.ts',
+  // The ConnectionManager is plumbing like the runner: it hands the role leases to the executor's
+  // context and to nothing else. The rest of svc-connections is checked like any other service.
+  'libs/engine/svc-connections/src/internal/connection-manager/',
   'libs/engine/persistence/',
   'libs/engine/adapter-',
   'libs/engine/net-',

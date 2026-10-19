@@ -39,6 +39,7 @@
       "@app/ports/testing": ["./libs/engine/ports/src/testing/index.ts"],
       "@app/secrets": ["./libs/engine/secrets/src/index.ts"],
       "@app/semantics": ["./libs/shared/semantics/src/index.ts"],
+      "@app/svc-connections": ["./libs/engine/svc-connections/src/index.ts"],
       "@app/testkit": ["./libs/testkit/src/index.ts"],
       "@app/transport": ["./libs/engine/transport/src/index.ts"],
       "@app/ui-data": ["./libs/ui/data/src/index.ts"],

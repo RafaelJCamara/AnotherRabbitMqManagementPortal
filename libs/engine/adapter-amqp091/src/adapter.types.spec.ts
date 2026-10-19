@@ -8,6 +8,7 @@ import type {
   ConfirmedCopyProof,
   DestructiveConsentProof,
   ObserveLease,
+  OpenedConnection,
   PeekLease,
   PublishLease,
   SafeReturnProof,
@@ -21,6 +22,7 @@ import type {
   connectPublish,
   connectSource,
   ControlLease,
+  OpenedLease,
 } from './index.ts';
 import type { connectControl } from './connect.ts';
 
@@ -35,6 +37,22 @@ declare const safeReturn: SafeReturnProof;
 declare const streamCredit: StreamCreditProof;
 
 describe('the adapter hands out exactly the lease of the role', () => {
+  it('M0-43 an opened lease is what the ConnectionManager asks of an Amqp091Connector', () => {
+    // The composition root wraps `connectPeek` and the others as the connector; it needs no cast.
+    expectTypeOf<OpenedLease<PeekLease>>().toExtend<
+      OpenedConnection<PeekLease>
+    >();
+    expectTypeOf<OpenedLease<SourceLease>>().toExtend<
+      OpenedConnection<SourceLease>
+    >();
+    expectTypeOf<OpenedLease<PublishLease>>().toExtend<
+      OpenedConnection<PublishLease>
+    >();
+    expectTypeOf<OpenedLease<ObserveLease>>().toExtend<
+      OpenedConnection<ObserveLease>
+    >();
+  });
+
   it('AC-1 each connect function returns the port lease and nothing wider', () => {
     type Lease<F extends (...args: never[]) => Promise<{ lease: unknown }>> =
       Awaited<ReturnType<F>>['lease'];

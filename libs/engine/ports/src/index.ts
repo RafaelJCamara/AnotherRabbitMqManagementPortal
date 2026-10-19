@@ -18,8 +18,15 @@ export type {
   TypedHeaderValue,
 } from './amqp091.ts';
 export type {
+  Amqp091Connector,
+  ConnectorEvent,
+  ConnectorRequest,
+  OpenedConnection,
+} from './amqp091-connector.ts';
+export type {
   ConnectionManager,
   ConnectionRole,
+  ConnectionUsage,
   Principal,
   RoleBudget,
 } from './connection-manager.ts';

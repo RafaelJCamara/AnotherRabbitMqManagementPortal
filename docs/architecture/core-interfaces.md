@@ -173,12 +173,13 @@ export interface ObserveLease {
   ackTap(tag: bigint, multiple: boolean): void; release(): Promise<void>;
 }
 export type ConnectionRole = 'control' | 'peek' | 'source' | 'publish' | 'observe';
-export interface ConnectionManager {
-  peek(c: ConnectionId, p: Principal, s: AbortSignal): Promise<PeekLease>;
-  source(c: ConnectionId, p: Principal, s: AbortSignal): Promise<SourceLease>;
-  publish(c: ConnectionId, p: Principal, s: AbortSignal): Promise<PublishLease>;
-  observe(c: ConnectionId, p: Principal, s: AbortSignal): Promise<ObserveLease>;
-  budget(c: ConnectionId): Array<{ role: ConnectionRole; inUse: number; max: number; queued: number }>;
+export interface ConnectionManager {   // vhost added by the critique fix; budgets keyed by (connection, vhost, role); M0-43
+  peek(c: ConnectionId, vhost: string, p: Principal, s: AbortSignal): Promise<PeekLease>;
+  source(c: ConnectionId, vhost: string, p: Principal, s: AbortSignal): Promise<SourceLease>;
+  publish(c: ConnectionId, vhost: string, p: Principal, s: AbortSignal): Promise<PublishLease>;
+  observe(c: ConnectionId, vhost: string, p: Principal, s: AbortSignal): Promise<ObserveLease>;
+  budget(c: ConnectionId, vhost: string): Array<{ role: ConnectionRole; vhost: string; inUse: number; max: number; queued: number; etaMs: number | null }>;
+  usage(c: ConnectionId): { inUse: number; max: number; queued: number; brokerMax: number | null };   // "the tool uses X of Y connections" (A-10)
 }
 export interface MgmtReadPort {
   get<T>(r: { connectionId: ConnectionId; path: string; query?: Record<string, string | number | boolean>; schema: z.ZodType<T>; lane: 'interactive' | 'live' | 'background' }, s: AbortSignal): Promise<T>;

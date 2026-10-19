@@ -19,6 +19,13 @@ function listFlag(name: string, fallback: string): string[] {
 
 const dialects = listFlag('dialects', 'sqlite,pg');
 const pgVersions = listFlag('pg-versions', '16,18');
+/** `--filter="job store"` runs only the tests whose name contains the text (`nx run jobs:it`). */
+const filterArgument = process.argv.find((value) =>
+  value.startsWith('--filter='),
+);
+const filter = filterArgument
+  ?.slice('--filter='.length)
+  .replace(/^["']|["']$/g, '');
 
 const unknown = dialects.filter((name) => !KNOWN_DIALECTS.includes(name));
 if (unknown.length > 0 || dialects.length === 0) {
@@ -40,7 +47,13 @@ const vitest = join(
 );
 const result = spawnSync(
   process.execPath,
-  [vitest, 'run', '--config', 'libs/engine/persistence/vitest.it.config.mts'],
+  [
+    vitest,
+    'run',
+    '--config',
+    'libs/engine/persistence/vitest.it.config.mts',
+    ...(filter === undefined || filter === '' ? [] : ['-t', filter]),
+  ],
   {
     stdio: 'inherit',
     env: {

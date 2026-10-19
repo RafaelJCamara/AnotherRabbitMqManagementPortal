@@ -4,6 +4,7 @@
 import { readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
+import { jobStoreContract } from '@app/ports/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { PersistenceHandle } from '../database';
@@ -13,6 +14,7 @@ import { SchemaTooNewError } from '../migrate/errors';
 import { createMigrationRunner } from '../migrate/runner';
 import { migrations } from '../migrations';
 import { migration0001Core } from '../migrations/0001_core';
+import { createRepositories } from '../repos';
 import {
   startPostgres,
   type PostgresContainer,
@@ -135,6 +137,16 @@ describe.each(targets)('$name', (target) => {
       const handle = await fresh();
       await createMigrationRunner({ handle }).migrate();
       return handle;
+    },
+  });
+
+  // The JobStore contract of M0-31 (`pnpm nx run jobs:it` selects these by "job store").
+  jobStoreContract({
+    name: target.name,
+    open: async () => {
+      const handle = await fresh();
+      await createMigrationRunner({ handle }).migrate();
+      return createRepositories(handle).jobs;
     },
   });
 

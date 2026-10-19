@@ -7,6 +7,8 @@ export type {
   DataKeysTable,
   Database,
   IdempotencyKeysTable,
+  JobEventsTable,
+  JobsTable,
   PersistenceHandle,
   PlansTable,
   ReceiptsTable,

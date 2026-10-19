@@ -5,6 +5,7 @@ import type {
   AuditRepository,
   DataKeyRepository,
   IdempotencyRepository,
+  JobStore,
   PlanRepository,
   ReceiptRepository,
 } from '@app/ports';
@@ -93,4 +94,6 @@ export interface Repositories {
   readonly receipts: ReceiptRepository;
   /** Wrapped data keys (M0-22). The port is @app/ports'; @app/secrets owns the cryptography. */
   readonly dataKeys: DataKeyRepository;
+  /** Durable jobs (M0-31). The port is @app/ports'; `@app/jobs` owns the policy. */
+  readonly jobs: JobStore;
 }

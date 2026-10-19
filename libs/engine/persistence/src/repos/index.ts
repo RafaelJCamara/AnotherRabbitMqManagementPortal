@@ -3,6 +3,7 @@ import { createAuditRepository, createReceiptRepository } from './audit';
 import { createBlobRepository } from './blobs';
 import { createConnectionProfileRepository } from './connection-profiles';
 import { createDataKeyRepository } from './data-keys';
+import { createJobStore } from './jobs';
 import { createIdempotencyRepository, createPlanRepository } from './plans';
 import type { Repositories } from './ports';
 import { createSettingsRepository } from './settings';
@@ -27,5 +28,6 @@ export function createRepositories(
     audit: createAuditRepository(handle.db),
     receipts: createReceiptRepository(handle.db),
     dataKeys: createDataKeyRepository(handle.db),
+    jobs: createJobStore(handle.db, handle.dialect),
   };
 }

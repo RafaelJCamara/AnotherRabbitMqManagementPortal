@@ -141,6 +141,42 @@ export interface DataKeysTable {
   retired_at: number | null;
 }
 
+/** jobs (M0-31): durable jobs; see 0005_jobs. `input`, `checkpoint` and `result` are ciphertext. */
+export interface JobsTable {
+  id: string;
+  type: string;
+  version: number;
+  state: string;
+  state_reason: string | null;
+  principal_id: string;
+  on_behalf_of_id: string | null;
+  plan_hash: string | null;
+  idempotency_key: string;
+  concurrency_key: string | null;
+  /** 0 or 1. */
+  resumable: number;
+  input: Uint8Array;
+  checkpoint: Uint8Array | null;
+  result: Uint8Array | null;
+  lease_owner: string | null;
+  lease_until: number | null;
+  attempts: number;
+  created_at: number;
+  updated_at: number;
+}
+
+/** job_events (M0-31): every state change of a job, in order. */
+export interface JobEventsTable {
+  job_id: string;
+  seq: number;
+  at: number;
+  from_state: string | null;
+  to_state: string;
+  reason: string | null;
+  attempt: number;
+  owner: string | null;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -152,6 +188,8 @@ export interface Database {
   audit_events: AuditEventsTable;
   receipts: ReceiptsTable;
   data_keys: DataKeysTable;
+  jobs: JobsTable;
+  job_events: JobEventsTable;
 }
 
 /** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */

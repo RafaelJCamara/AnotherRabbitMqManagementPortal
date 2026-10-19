@@ -42,6 +42,10 @@ const FUNNEL_MARKERS: readonly string[] = ['implementAction', 'defineJob'];
 export const FUNNEL_EXEMPT_PREFIXES: readonly string[] = [
   'libs/engine/ports/',
   'libs/engine/kernel/',
+  // The job runner is plumbing like the executor: it builds `JobContext.executorWrite` and hands
+  // the write ports to a running job. The rest of `jobs` is checked like any other library.
+  'libs/engine/jobs/src/runner.ts',
+  'libs/engine/jobs/src/types.ts',
   'libs/engine/persistence/',
   'libs/engine/adapter-',
   'libs/engine/net-',

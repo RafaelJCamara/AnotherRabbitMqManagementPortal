@@ -1,0 +1,37 @@
+{
+  "name": "jobs",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/jobs/src",
+  "projectType": "library",
+  "tags": ["type:kernel", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/jobs/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/jobs/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/jobs/vitest.config.mts"
+      }
+    },
+    "it": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node libs/engine/persistence/src/it/run.ts --filter=\"job store\"",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

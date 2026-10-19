@@ -10,8 +10,6 @@ import type {
   Risk,
 } from '@app/contracts';
 
-import type { Principal } from './connection-manager.ts';
-
 /** A window over an ordered collection. `nextCursor` is absent on the last window. */
 export interface Window<T> {
   items: readonly T[];
@@ -24,42 +22,166 @@ export interface WindowQuery {
   cursor?: string;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Jobs (M0-31, ADR-015). The JobRunner (`@app/jobs`) owns the policy (sealing, leases, drain,
+// resume rules); this port only stores rows and compare-and-sets them. Every write that a running
+// job makes is fenced by its lease, so a runner that lost the job cannot change it.
+// ---------------------------------------------------------------------------------------------
+
+export type JobState =
+  | 'queued'
+  | 'running'
+  | 'paused'
+  | 'paused-interrupted'
+  | 'awaiting-credentials'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled';
+
+/** One stored job. The three `Uint8Array` members are ciphertext the runner made; never read here. */
 export interface JobRecord {
-  id: JobId;
-  type: string;
-  state:
-    | 'queued'
-    | 'running'
-    | 'paused'
-    | 'paused-interrupted'
-    | 'awaiting-credentials'
-    | 'succeeded'
-    | 'failed'
-    | 'cancelled';
-  principal: Principal;
-  planHash?: string;
-  idempotencyKey: string;
-  leaseOwner?: string;
-  leaseUntil?: number;
-  attempts: number;
-  checkpoint?: unknown;
+  readonly id: JobId;
+  readonly type: string;
+  readonly version: number;
+  readonly state: JobState;
+  /** Why the job is in this state: a short fixed phrase or an error code, never message text. */
+  readonly stateReason: string | null;
+  /** The requester: idempotency keys are scoped to it. The principal itself is inside `input`. */
+  readonly principalId: string;
+  readonly onBehalfOfId: string | null;
+  readonly planHash: string | null;
+  readonly idempotencyKey: string;
+  readonly concurrencyKey: string | null;
+  readonly resumable: boolean;
+  /** Ciphertext over the requester, the bound fields above and the input. */
+  readonly input: Uint8Array;
+  readonly checkpoint: Uint8Array | null;
+  readonly result: Uint8Array | null;
+  readonly leaseOwner: string | null;
+  readonly leaseUntil: number | null;
+  /** Claims so far. A lease is one attempt; writes of an older attempt are refused. */
+  readonly attempts: number;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+export interface NewJob {
+  readonly id: JobId;
+  readonly type: string;
+  readonly version: number;
+  readonly principalId: string;
+  readonly onBehalfOfId: string | null;
+  readonly planHash: string | null;
+  readonly idempotencyKey: string;
+  readonly concurrencyKey: string | null;
+  readonly resumable: boolean;
+  readonly input: Uint8Array;
+}
+
+/** What a claim hands out and every fenced write presents: this owner, this attempt, this job. */
+export interface JobLease {
+  readonly id: JobId;
+  readonly owner: string;
+  readonly attempt: number;
+}
+
+/** The states a running job can be released into. */
+export type JobReleaseState =
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+  | 'paused'
+  | 'paused-interrupted'
+  | 'awaiting-credentials';
+
+/** One state change of a job, in the order it happened. */
+export interface JobEventRecord {
+  readonly jobId: JobId;
+  /** 1, 2, 3, ... per job. */
+  readonly seq: number;
+  readonly at: number;
+  readonly fromState: JobState | null;
+  readonly toState: JobState;
+  readonly reason: string | null;
+  readonly attempt: number;
+  readonly owner: string | null;
 }
 
 export interface JobStore {
-  create(record: Omit<JobRecord, 'id' | 'state' | 'attempts'>): Promise<JobId>;
-  /** Claims one runnable job for `owner` (`FOR UPDATE SKIP LOCKED` on Postgres). */
+  /**
+   * Stores a new `queued` job. A job with the same `principalId` and `idempotencyKey` already there
+   * is returned as it is, with `created: false`, and nothing is stored.
+   */
+  create(
+    job: NewJob,
+    now: number,
+  ): Promise<{ job: JobRecord; created: boolean }>;
+  get(id: JobId): Promise<JobRecord | undefined>;
+  /**
+   * Claims the oldest `queued` job of one of `types` for `owner` (`FOR UPDATE SKIP LOCKED` on
+   * Postgres), skipping a job whose `concurrencyKey` a running job holds. The job is `running`,
+   * `attempts` is one higher and the lease ends at `now + leaseMs`.
+   */
   claim(
     owner: string,
     leaseMs: number,
     types: readonly string[],
+    now: number,
   ): Promise<JobRecord | undefined>;
-  heartbeat(id: JobId, owner: string, leaseMs: number): Promise<boolean>;
-  saveCheckpoint(id: JobId, checkpoint: unknown): Promise<void>;
-  setState(
+  /** Extends the lease. False when the lease is expired, or the job is no longer this attempt's. */
+  heartbeat(lease: JobLease, leaseMs: number, now: number): Promise<boolean>;
+  /** Fenced like `heartbeat`. Returns false and stores nothing when the lease is not held. */
+  saveCheckpoint(
+    lease: JobLease,
+    checkpoint: Uint8Array,
+    now: number,
+  ): Promise<boolean>;
+  /**
+   * Ends this attempt: the job takes `state`, the lease is cleared, and a final state also drops
+   * the checkpoint. Fenced by owner, attempt and `running`; an expired but unreaped lease may still
+   * release (nobody else holds the job).
+   */
+  finish(
+    lease: JobLease,
+    state: JobReleaseState,
+    reason: string | null,
+    now: number,
+    result?: Uint8Array,
+  ): Promise<boolean>;
+  /**
+   * Moves a job that is not running: `from` lists the states it may be in (never `running`).
+   * False when the job is in none of them.
+   */
+  transition(
     id: JobId,
-    state: JobRecord['state'],
-    reason?: string,
-  ): Promise<void>;
+    from: readonly JobState[],
+    to: 'queued' | 'paused' | 'cancelled',
+    reason: string | null,
+    now: number,
+  ): Promise<boolean>;
+  /**
+   * Running jobs become `paused-interrupted` and lose their lease: those whose lease ended
+   * (`expired`), or every running job (`all`, for an engine that just started and is the only
+   * one). At most `limit`; returns how many.
+   */
+  interruptRunning(
+    scope: 'expired' | 'all',
+    now: number,
+    limit: number,
+  ): Promise<number>;
+  /** Jobs in any of `states`, oldest first, after `page.cursor`; the repository clamps the limit. */
+  list(
+    states: readonly JobState[],
+    page: WindowQuery,
+  ): Promise<Window<JobRecord>>;
+  /** The state changes of a job with `seq` greater than `afterSeq`; at most `limit` (clamped). */
+  events(
+    id: JobId,
+    afterSeq: number,
+    limit: number,
+  ): Promise<readonly JobEventRecord[]>;
+  /** Deletes at most `limit` finished jobs last touched before `cutoff` (retention). */
+  purgeFinishedBefore(cutoff: number, limit: number): Promise<number>;
 }
 
 export type JournalState =

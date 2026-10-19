@@ -1,0 +1,581 @@
+// The LabScenario DSL (M0-15): a scenario is data, a list of steps (declare, publish, get, consume,
+// settle, observe), checked when it is defined and run against a broker host that does what the
+// steps say, including what a product must never do. Running one yields the evidence's `steps` and
+// `observations`; nothing in a scenario names a registry cell or reads the registry (ADR-007).
+//
+// A step records only the fields its operation defines: queue and channel aliases, message ids,
+// tags, counts, byte sizes and the broker's answers. Never a body, a header, a URL or a login.
+import type {
+  QueueType,
+  RawDelivery,
+  SettleAction,
+  SettleOutcome,
+} from './driver/amqp091-raw.ts';
+import type { HttpRawResponse } from './driver/http-raw.ts';
+import {
+  CF_ID,
+  type EvidenceObservation,
+  type EvidenceStep,
+  type Json,
+} from './record/evidence.ts';
+
+export type AckMode =
+  | 'ack_requeue_true'
+  | 'ack_requeue_false'
+  | 'reject_requeue_true'
+  | 'reject_requeue_false';
+
+export type LabStep =
+  | {
+      readonly op: 'declareQueue';
+      readonly queue: string;
+      readonly type: QueueType;
+      readonly durable: boolean;
+      readonly arguments: Readonly<Record<string, Json>>;
+    }
+  | { readonly op: 'openChannel'; readonly channel: string }
+  | { readonly op: 'closeChannel'; readonly channel: string }
+  | {
+      readonly op: 'publish';
+      readonly queue: string;
+      readonly messageId: string;
+      readonly body: string;
+    }
+  | {
+      readonly op: 'get';
+      readonly as: string;
+      readonly queue: string;
+      readonly noAck: boolean;
+      readonly channel: string;
+    }
+  | {
+      readonly op: 'consume';
+      readonly as: string;
+      readonly queue: string;
+      readonly count: number;
+      readonly channel: string;
+    }
+  | {
+      readonly op: 'settle';
+      readonly target: { readonly ref: string } | { readonly tag: number };
+      /** Defaults to the channel the delivery came on; name another to settle from the wrong one. */
+      readonly channel: string | undefined;
+      readonly action: SettleAction;
+    }
+  | { readonly op: 'recover'; readonly channel: string }
+  | {
+      readonly op: 'mgmtGet';
+      readonly as: string;
+      readonly queue: string;
+      readonly count: number;
+      readonly ackmode: AckMode;
+    }
+  | {
+      readonly op: 'observe';
+      readonly name: string;
+      readonly queue: string;
+      readonly channel: string;
+    };
+
+export interface LabScenario {
+  readonly cfId: string;
+  readonly title: string;
+  readonly protocol: 'amqp091';
+  readonly steps: readonly LabStep[];
+}
+
+const MAIN = 'main';
+
+export const declareQueue = (
+  queue: string,
+  options: {
+    type?: QueueType;
+    durable?: boolean;
+    arguments?: Record<string, Json>;
+  } = {},
+): LabStep => ({
+  op: 'declareQueue',
+  queue,
+  type: options.type ?? 'classic',
+  durable: options.durable ?? true,
+  arguments: options.arguments ?? {},
+});
+export const openChannel = (channel: string): LabStep => ({
+  op: 'openChannel',
+  channel,
+});
+export const closeChannel = (channel: string): LabStep => ({
+  op: 'closeChannel',
+  channel,
+});
+export const publish = (
+  queue: string,
+  messageId: string,
+  body = messageId,
+): LabStep => ({ op: 'publish', queue, messageId, body });
+export const get = (
+  as: string,
+  queue: string,
+  options: { noAck?: boolean; channel?: string } = {},
+): LabStep => ({
+  op: 'get',
+  as,
+  queue,
+  noAck: options.noAck ?? false,
+  channel: options.channel ?? MAIN,
+});
+export const consume = (
+  as: string,
+  queue: string,
+  count: number,
+  options: { channel?: string } = {},
+): LabStep => ({
+  op: 'consume',
+  as,
+  queue,
+  count,
+  channel: options.channel ?? MAIN,
+});
+/** Settles a delivery by its alias (`d1`, or `c.0` for the first delivery of consume `c`), or by a raw tag. */
+export const settle = (
+  target: string | number,
+  action: SettleAction,
+  options: { channel?: string } = {},
+): LabStep => ({
+  op: 'settle',
+  target: typeof target === 'number' ? { tag: target } : { ref: target },
+  channel: options.channel,
+  action,
+});
+export const recover = (channel = MAIN): LabStep => ({
+  op: 'recover',
+  channel,
+});
+export const mgmtGet = (
+  as: string,
+  queue: string,
+  options: { count?: number; ackmode?: AckMode } = {},
+): LabStep => ({
+  op: 'mgmtGet',
+  as,
+  queue,
+  count: options.count ?? 1,
+  ackmode: options.ackmode ?? 'ack_requeue_true',
+});
+/** Drains the queue (acknowledgement off) and records, for every message published to it, what was found. */
+export const observe = (
+  name: string,
+  queue: string,
+  options: { channel?: string } = {},
+): LabStep => ({
+  op: 'observe',
+  name,
+  queue,
+  channel: options.channel ?? MAIN,
+});
+
+const ALIAS = /^[a-z][a-z0-9-]*$/;
+
+/** Checks a scenario once, when it is written: a mistake is an error here, not a half-run on a broker. */
+export function defineScenario(scenario: LabScenario): LabScenario {
+  const fail = (index: number, message: string): never => {
+    throw new Error(`${scenario.cfId} step ${String(index)}: ${message}`);
+  };
+  if (!CF_ID.test(scenario.cfId)) {
+    throw new Error(`"${scenario.cfId}" is not a conformance id`);
+  }
+  if (scenario.steps.length === 0)
+    throw new Error(`${scenario.cfId} has no steps`);
+  const queues = new Set<string>();
+  const channels = new Set<string>([MAIN]);
+  const refs = new Set<string>();
+  const published = new Set<string>();
+  const addRef = (index: number, ref: string): void => {
+    if (refs.has(ref)) fail(index, `the alias "${ref}" is used twice`);
+    refs.add(ref);
+  };
+  scenario.steps.forEach((step, index) => {
+    const needQueue = (queue: string): void => {
+      if (!queues.has(queue))
+        fail(index, `queue "${queue}" is not declared yet`);
+    };
+    const needChannel = (channel: string): void => {
+      if (!channels.has(channel))
+        fail(index, `channel "${channel}" is not open`);
+    };
+    switch (step.op) {
+      case 'declareQueue':
+        if (!ALIAS.test(step.queue))
+          fail(index, `queue alias "${step.queue}" is not lower-case words`);
+        queues.add(step.queue);
+        break;
+      case 'openChannel':
+        if (!ALIAS.test(step.channel) || channels.has(step.channel)) {
+          fail(index, `channel "${step.channel}" is invalid or already open`);
+        }
+        channels.add(step.channel);
+        break;
+      case 'closeChannel':
+        needChannel(step.channel);
+        break;
+      case 'publish':
+        needQueue(step.queue);
+        if (published.has(step.messageId))
+          fail(index, `message id "${step.messageId}" is used twice`);
+        published.add(step.messageId);
+        break;
+      case 'get':
+        needQueue(step.queue);
+        needChannel(step.channel);
+        if (!ALIAS.test(step.as))
+          fail(index, `alias "${step.as}" is not lower-case words`);
+        addRef(index, step.as);
+        break;
+      case 'consume':
+        needQueue(step.queue);
+        needChannel(step.channel);
+        if (!ALIAS.test(step.as) || step.count < 1)
+          fail(index, 'a consume needs an alias and a count of at least 1');
+        for (let n = 0; n < step.count; n += 1)
+          addRef(index, `${step.as}.${String(n)}`);
+        break;
+      case 'settle':
+        if ('ref' in step.target && !refs.has(step.target.ref)) {
+          fail(
+            index,
+            `"${step.target.ref}" was not delivered by an earlier step`,
+          );
+        }
+        if (step.channel !== undefined) needChannel(step.channel);
+        break;
+      case 'recover':
+        needChannel(step.channel);
+        break;
+      case 'mgmtGet':
+        needQueue(step.queue);
+        if (!ALIAS.test(step.as) || step.count < 1)
+          fail(index, 'a mgmtGet needs an alias and a count of at least 1');
+        addRef(index, step.as);
+        break;
+      case 'observe':
+        needQueue(step.queue);
+        needChannel(step.channel);
+        break;
+    }
+  });
+  return scenario;
+}
+
+/** What a scenario needs from a broker; `Amqp091Raw` plus `httpRaw` provide it. */
+export interface ScenarioHost {
+  openChannel(name: string): Promise<void>;
+  closeChannel(name: string): Promise<void>;
+  declareQueue(
+    queue: string,
+    options: {
+      type: QueueType;
+      durable: boolean;
+      arguments: Readonly<Record<string, unknown>>;
+    },
+  ): Promise<void>;
+  deleteQueue(queue: string): Promise<void>;
+  publish(
+    queue: string,
+    message: { messageId: string; body: Buffer },
+  ): Promise<void>;
+  get(
+    channel: string,
+    queue: string,
+    noAck: boolean,
+  ): Promise<RawDelivery | null>;
+  consume(
+    channel: string,
+    queue: string,
+    count: number,
+  ): Promise<RawDelivery[]>;
+  settle(
+    channel: string,
+    tag: number,
+    action: SettleAction,
+  ): Promise<SettleOutcome>;
+  recover(channel: string): Promise<void>;
+  management(call: {
+    method: 'POST';
+    path: string;
+    body: unknown;
+  }): Promise<HttpRawResponse>;
+}
+
+export interface ScenarioRun {
+  readonly steps: EvidenceStep[];
+  readonly observations: EvidenceObservation[];
+}
+
+interface Held {
+  readonly tag: number;
+  readonly channel: string;
+}
+
+const deliveryJson = (delivery: RawDelivery): Record<string, Json> => ({
+  messageId: delivery.messageId,
+  deliveryTag: delivery.tag,
+  redelivered: delivery.redelivered,
+  messageCount: delivery.messageCount,
+  'x-delivery-count': delivery.xDeliveryCount,
+  'x-acquired-count': delivery.xAcquiredCount,
+});
+
+/** The most a single observe drains: a queue that holds more is an error, not a partial record. */
+export const DRAIN_LIMIT = 200;
+
+/**
+ * Runs the steps in order against the host. Queues are created under a name that carries `runId`
+ * (so two runs never meet) and deleted at the end, whatever happened; the records use the aliases.
+ */
+export async function runScenario(
+  host: ScenarioHost,
+  scenario: LabScenario,
+  runId: string,
+  drainLimit = DRAIN_LIMIT,
+): Promise<ScenarioRun> {
+  const physical = (queue: string): string =>
+    `lab-${scenario.cfId.toLowerCase()}-${runId}-${queue}`;
+  const steps: EvidenceStep[] = [];
+  const observations: EvidenceObservation[] = [];
+  const held = new Map<string, Held>();
+  const declared: string[] = [];
+  const publishedTo = new Map<string, string[]>();
+
+  const run = async (
+    step: LabStep,
+  ): Promise<{ args: Record<string, Json>; result: Record<string, Json> }> => {
+    switch (step.op) {
+      case 'declareQueue':
+        await host.declareQueue(physical(step.queue), step);
+        declared.push(step.queue);
+        return {
+          args: {
+            queue: step.queue,
+            type: step.type,
+            durable: step.durable,
+            arguments: { ...step.arguments },
+          },
+          result: { ok: true },
+        };
+      case 'openChannel':
+        await host.openChannel(step.channel);
+        return { args: { channel: step.channel }, result: { ok: true } };
+      case 'closeChannel':
+        await host.closeChannel(step.channel);
+        return { args: { channel: step.channel }, result: { ok: true } };
+      case 'publish': {
+        const body = Buffer.from(step.body);
+        await host.publish(physical(step.queue), {
+          messageId: step.messageId,
+          body,
+        });
+        publishedTo.set(step.queue, [
+          ...(publishedTo.get(step.queue) ?? []),
+          step.messageId,
+        ]);
+        return {
+          args: {
+            queue: step.queue,
+            messageId: step.messageId,
+            bytes: body.length,
+          },
+          result: { confirmed: true },
+        };
+      }
+      case 'get': {
+        const delivery = await host.get(
+          step.channel,
+          physical(step.queue),
+          step.noAck,
+        );
+        if (delivery !== null) {
+          held.set(step.as, { tag: delivery.tag, channel: step.channel });
+        }
+        return {
+          args: {
+            as: step.as,
+            queue: step.queue,
+            noAck: step.noAck,
+            channel: step.channel,
+          },
+          result:
+            delivery === null
+              ? { empty: true }
+              : { empty: false, ...deliveryJson(delivery) },
+        };
+      }
+      case 'consume': {
+        const deliveries = await host.consume(
+          step.channel,
+          physical(step.queue),
+          step.count,
+        );
+        deliveries.forEach((delivery, n) => {
+          held.set(`${step.as}.${String(n)}`, {
+            tag: delivery.tag,
+            channel: step.channel,
+          });
+        });
+        return {
+          args: {
+            as: step.as,
+            queue: step.queue,
+            count: step.count,
+            channel: step.channel,
+          },
+          result: {
+            deliveries: deliveries.map((delivery, n) => ({
+              ref: `${step.as}.${String(n)}`,
+              ...deliveryJson(delivery),
+            })),
+          },
+        };
+      }
+      case 'settle': {
+        const source =
+          'ref' in step.target ? held.get(step.target.ref) : undefined;
+        if ('ref' in step.target && source === undefined) {
+          throw new Error(
+            `"${step.target.ref}" was not delivered (nothing came back from the broker)`,
+          );
+        }
+        const tag =
+          'tag' in step.target ? step.target.tag : (source?.tag ?? -1);
+        const channel = step.channel ?? source?.channel ?? MAIN;
+        const outcome = await host.settle(channel, tag, step.action);
+        return {
+          args: {
+            target: 'ref' in step.target ? step.target.ref : null,
+            deliveryTag: tag,
+            channel,
+            action: step.action.kind,
+            requeue: 'requeue' in step.action ? step.action.requeue : null,
+            multiple:
+              'multiple' in step.action
+                ? (step.action.multiple ?? false)
+                : null,
+          },
+          result: {
+            channelOpen: outcome.channelOpen,
+            closed: outcome.channelOpen
+              ? null
+              : { code: outcome.closed.code, text: outcome.closed.text },
+          },
+        };
+      }
+      case 'recover':
+        await host.recover(step.channel);
+        return { args: { channel: step.channel }, result: { ok: true } };
+      case 'mgmtGet': {
+        const response = await host.management({
+          method: 'POST',
+          path: `/api/queues/%2F/${encodeURIComponent(physical(step.queue))}/get`,
+          body: { count: step.count, ackmode: step.ackmode, encoding: 'auto' },
+        });
+        const messages = Array.isArray(response.json)
+          ? (response.json as unknown[])
+          : [];
+        return {
+          args: {
+            as: step.as,
+            queue: step.queue,
+            count: step.count,
+            ackmode: step.ackmode,
+          },
+          result: {
+            status: response.status,
+            messages: messages.map((message): Json => {
+              const record = message as {
+                redelivered?: unknown;
+                payload_bytes?: unknown;
+                message_count?: unknown;
+                properties?: { message_id?: unknown };
+              };
+              return {
+                messageId:
+                  typeof record.properties?.message_id === 'string'
+                    ? record.properties.message_id
+                    : null,
+                redelivered: record.redelivered === true,
+                payloadBytes:
+                  typeof record.payload_bytes === 'number'
+                    ? record.payload_bytes
+                    : null,
+                messageCount:
+                  typeof record.message_count === 'number'
+                    ? record.message_count
+                    : null,
+              };
+            }),
+          },
+        };
+      }
+      case 'observe': {
+        const expected = publishedTo.get(step.queue) ?? [];
+        const found = new Map<string, EvidenceObservation>();
+        for (let position = 0; ; position += 1) {
+          const delivery = await host.get(
+            step.channel,
+            physical(step.queue),
+            true,
+          );
+          if (delivery === null) break;
+          if (position >= drainLimit) {
+            throw new Error(
+              `the queue holds more than ${String(drainLimit)} messages`,
+            );
+          }
+          const id = delivery.messageId;
+          if (id === null || !expected.includes(id) || found.has(id)) {
+            throw new Error(
+              `the queue held a message this scenario did not publish (id ${JSON.stringify(id)})`,
+            );
+          }
+          found.set(id, {
+            name: step.name,
+            messageId: id,
+            survived: true,
+            position,
+            redelivered: delivery.redelivered,
+            'x-delivery-count': delivery.xDeliveryCount,
+            'x-acquired-count': delivery.xAcquiredCount,
+          });
+        }
+        for (const id of expected) {
+          observations.push(
+            found.get(id) ?? {
+              name: step.name,
+              messageId: id,
+              survived: false,
+              position: null,
+              redelivered: null,
+              'x-delivery-count': null,
+              'x-acquired-count': null,
+            },
+          );
+        }
+        return {
+          args: { name: step.name, queue: step.queue, channel: step.channel },
+          result: { drained: found.size, published: expected.length },
+        };
+      }
+    }
+  };
+
+  try {
+    for (const [index, step] of scenario.steps.entries()) {
+      const { args, result } = await run(step);
+      steps.push({ index, op: step.op, args, result });
+    }
+  } finally {
+    for (const queue of declared) {
+      await host.deleteQueue(physical(queue)).catch(() => undefined);
+    }
+  }
+  return { steps, observations };
+}

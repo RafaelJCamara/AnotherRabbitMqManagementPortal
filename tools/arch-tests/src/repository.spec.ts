@@ -8,6 +8,7 @@ import { registeredActions } from './registered-actions.ts';
 import {
   checkMutationFunnel,
   checkProofMinting,
+  checkRecorderIndependence,
   findActionSites,
 } from './rules.ts';
 import { listSources } from './sources.ts';
@@ -33,6 +34,20 @@ describe('architecture: the real tree', () => {
 
   it('A-9 settlement proofs are minted only where the amendment allows', () => {
     expect(checkProofMinting(sources)).toEqual([]);
+  });
+
+  it('M0-15 AC-2 apps/conformance/src/record (and the driver, the DSL and the scenarios) import nothing from @app/semantics', () => {
+    const paths = sources.map((source) => source.path);
+
+    // The generators' end-to-end copy of the workspace has no apps/conformance; the real tree has
+    // it, and then the files the rule is about must be where it looks (a moved folder must not
+    // make the rule pass for want of anything to check).
+    if (paths.some((path) => path.startsWith('apps/conformance/'))) {
+      expect(paths).toContain('apps/conformance/src/record/record.ts');
+      expect(paths).toContain('apps/conformance/src/driver/amqp091-raw.ts');
+      expect(paths).toContain('apps/conformance/src/dsl.ts');
+    }
+    expect(checkRecorderIndependence(sources)).toEqual([]);
   });
 
   it('AC-2 plan() of every registered action passes against write ports that throw', async () => {

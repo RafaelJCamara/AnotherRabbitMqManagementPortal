@@ -8,9 +8,11 @@ describe('arch-tests public API', () => {
     expect(Object.keys(api).sort()).toEqual([
       'FUNNEL_EXEMPT_PREFIXES',
       'PROOF_MINTING_PREFIXES',
+      'RECORDER_PREFIXES',
       'SCAN_ROOTS',
       'checkMutationFunnel',
       'checkProofMinting',
+      'checkRecorderIndependence',
       'findActionSites',
       'isActionModule',
       'listSources',

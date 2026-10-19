@@ -51,4 +51,4 @@ await broker.stop();
 
 ## Not in this work item
 
-Alpha images (4.4, 5.0, 4.3.7), the Keycloak variant, the conformance CI workflows and the lab driver are tracked in [docs/open-questions.md](../../docs/open-questions.md) (OQ-80 to OQ-88) and the work items that own them (M0-15, M0-42).
+Alpha images (4.4, 5.0, 4.3.7), the Keycloak variant, and the conformance CI workflows are tracked in [docs/open-questions.md](../../docs/open-questions.md) (OQ-80 to OQ-88) and the work items that own them (M0-42). The lab driver and the evidence recorder (M0-15) live in [apps/conformance](../../apps/conformance/README.md); it reaches only brokers this lab created.

@@ -299,6 +299,9 @@ catalogs:
     release-please:
       specifier: 17.11.2
       version: 17.11.2
+    rhea:
+      specifier: 3.0.5
+      version: 3.0.5
     rxjs:
       specifier: 7.8.2
       version: 7.8.2
@@ -364,6 +367,9 @@ importers:
       pino:
         specifier: 'catalog:'
         version: 10.4.0
+      rhea:
+        specifier: 'catalog:'
+        version: 3.0.5(supports-color@7.2.0)
       rxjs:
         specifier: 'catalog:'
         version: 7.8.2
@@ -5484,6 +5490,9 @@ packages:
 
   rfdc@1.4.1:
     resolution: {integrity: sha512-q1b3N5QkRUWUl7iyylaaj3kOpIT0N2i9MqIEQXP73GVsN9cw3fdx8X63cEmWhJGi2PPCF23Ijp7ktmd39rawIA==}
+
+  rhea@3.0.5:
+    resolution: {integrity: sha512-Ye1gzqH9DoCGMTaSfLfGmDdoderMshyVU5rdFES+D3N1U5PASZcNCKqhWJJUOOj8INtdrIPOfDALrRcoRRL7jw==}
 
   rolldown@1.2.14:
     resolution: {integrity: sha512-eTBTTqMR6uHKLgcUqpJP8ntzDI6V4LYA8negAMBEI7gkgVvOdrx6VsvS2Ym+83KhOPdLCHWJu0w7UQFJZhHKNw==}
@@ -11869,6 +11878,12 @@ snapshots:
   reusify@1.1.0: {}
 
   rfdc@1.4.1: {}
+
+  rhea@3.0.5(supports-color@7.2.0):
+    dependencies:
+      debug: 4.4.3(supports-color@7.2.0)
+    transitivePeerDependencies:
+      - supports-color
 
   rolldown@1.2.14:
     dependencies:

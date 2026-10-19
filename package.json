@@ -65,6 +65,7 @@
     "kysely": "catalog:",
     "pg": "catalog:",
     "pino": "catalog:",
+    "rhea": "catalog:",
     "rxjs": "catalog:",
     "ws": "catalog:",
     "zod": "catalog:"

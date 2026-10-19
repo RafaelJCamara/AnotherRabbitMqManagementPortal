@@ -1,5 +1,7 @@
 // The architecture rules. Each takes the repository's sources and returns the violations; an empty
 // list is a pass. They read syntax only, so they run in milliseconds and on any file.
+import { posix } from 'node:path';
+
 import { readFacts, type FileFacts } from './facts.ts';
 import type { SourceFile } from './sources.ts';
 
@@ -148,6 +150,52 @@ export function checkProofMinting(
         rule: 'proof-forgery',
         path: file.path,
         message: `casts a value to ${forged.sort().join(', ')}; a settlement proof comes from a mint function, never from a type assertion (A-9)`,
+      });
+    }
+  }
+  return violations;
+}
+
+// ---------------------------------------------------------------------------------------------
+// I-14 / ADR-007: the evidence recorder is independent of the semantics registry
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The code that records lab evidence (M0-15). It must not know the registry, or the evidence could
+ * be shaped to match a cell instead of observed: so these files import no `@app/*` package at all
+ * (which also lets Node run them without a build) and no file outside `apps/conformance/src`.
+ */
+export const RECORDER_PREFIXES: readonly string[] = [
+  'apps/conformance/src/record/',
+  'apps/conformance/src/driver/',
+  'apps/conformance/src/scenarios/',
+  'apps/conformance/src/dsl.ts',
+];
+
+const RECORDER_ROOT = 'apps/conformance/src/';
+
+/** I-14: no recorder file imports the registry, any other workspace package, or a file of another project. */
+export function checkRecorderIndependence(
+  files: readonly SourceFile[],
+): ArchViolation[] {
+  const violations: ArchViolation[] = [];
+  for (const file of files) {
+    if (isSpec(file.path) || !under(file.path, RECORDER_PREFIXES)) continue;
+    const bad = [...readFacts(file.path, file.text).moduleSpecifiers]
+      .filter((specifier) => {
+        if (specifier.startsWith('@app/')) return true;
+        if (!specifier.startsWith('.')) return false;
+        const target = posix.normalize(
+          posix.join(posix.dirname(file.path), specifier),
+        );
+        return !target.startsWith(RECORDER_ROOT);
+      })
+      .sort();
+    if (bad.length > 0) {
+      violations.push({
+        rule: 'recorder-independence',
+        path: file.path,
+        message: `imports ${bad.join(', ')}; the evidence recorder reads nothing from the registry or any other project, so evidence cannot be shaped to fit a cell (I-14, ADR-007)`,
       });
     }
   }

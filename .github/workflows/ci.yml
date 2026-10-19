@@ -116,6 +116,31 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+  # M0-15: the evidence recorder and the raw lab drivers against a real lab broker (RabbitMQ 4.3.6).
+  # The run is not the `conformance-record` workflow (M0-71), so its artefact is stamped `local`: it
+  # is kept for review as a build artifact and is never written to testing/lab-evidence (A-20).
+  conformance-record:
+    name: conformance record (CF-SMOKE-01 on 4.3.6)
+    needs: gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm nx run conformance:it --versions=4.3.6
+      - run: pnpm nx run conformance:record --cells=CF-SMOKE-01 --versions=4.3.6 --out=dist/conformance-record
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: conformance-record-local
+          path: dist/conformance-record
+          if-no-files-found: ignore
+          retention-days: 7
+
   toolchain:
     name: toolchain (${{ matrix.os }})
     needs: gates

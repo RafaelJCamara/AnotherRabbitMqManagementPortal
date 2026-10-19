@@ -186,8 +186,13 @@ const confinement = [
     only: ['libs/engine/adapter-amqp091', 'apps/conformance'],
   },
   {
+    // apps/conformance: the lab driver speaks raw AMQP 1.0 to broker-lab brokers (M0-15, OQ-420).
     names: ['rhea'],
-    only: ['libs/engine/adapter-amqp10', 'testing/oracle-amqp10'],
+    only: [
+      'libs/engine/adapter-amqp10',
+      'testing/oracle-amqp10',
+      'apps/conformance',
+    ],
   },
   {
     names: ['undici'],

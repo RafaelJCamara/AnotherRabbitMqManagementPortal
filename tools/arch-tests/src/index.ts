@@ -8,10 +8,12 @@ export {
 export {
   checkMutationFunnel,
   checkProofMinting,
+  checkRecorderIndependence,
   findActionSites,
   FUNNEL_EXEMPT_PREFIXES,
   isActionModule,
   PROOF_MINTING_PREFIXES,
+  RECORDER_PREFIXES,
   type ActionSite,
   type ArchViolation,
 } from './rules.ts';

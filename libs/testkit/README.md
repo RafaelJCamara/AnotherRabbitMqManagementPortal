@@ -17,6 +17,7 @@ Tags: `type:test`, `runtime:node`.
 The containers are driven through the `docker` CLI (no npm container library, OQ-80). Ports are published on loopback on random host ports, so parallel worktrees do not collide. Broker tests run on Linux only (blueprint section 12).
 
 `src/broker-lab-cli.ts` is the command line behind the `broker-lab` targets; Node runs it directly (erasable TypeScript only, no build).
+- `src/it/run-record.ts` is the command line behind `conformance:record` (M0-15): it starts a broker per version and runs the recorder of `apps/conformance` against it, handing the broker over in `LAB_BROKER`. `src/it/conformance.it.ts` (`pnpm nx run conformance:it`) runs the recorder and the raw drivers on a real broker. Neither writes `testing/lab-evidence/**`.
 
 ## Invariants
 

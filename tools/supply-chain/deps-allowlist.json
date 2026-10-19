@@ -163,6 +163,10 @@
       "reason": "Release PRs and changelog from Conventional Commits.",
       "ref": "M0-06"
     },
+    "rhea": {
+      "reason": "AMQP 1.0 client of the conformance lab driver (apps/conformance driver/amqp10-raw.ts) and, later, of libs/engine/adapter-amqp10 (ADR-011); exact pin 3.0.5, no git source; confined by eslint.config.mjs.",
+      "ref": "M0-15"
+    },
     "rxjs": { "reason": "Angular peer dependency.", "ref": "ADR-032" },
     "starlight-openapi": {
       "reason": "Renders the OpenAPI document in the docs site.",

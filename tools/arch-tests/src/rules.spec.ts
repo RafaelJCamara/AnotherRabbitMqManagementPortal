@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkMutationFunnel,
   checkProofMinting,
+  checkRecorderIndependence,
   findActionSites,
 } from './rules.ts';
 import type { SourceFile } from './sources.ts';
@@ -266,5 +267,86 @@ describe('plan purity: finding the action sites', () => {
       { path: 'libs/engine/svc-a/src/actions/two.ts', calls: 2 },
       { path: 'apps/engine/src/modules/core.ts', calls: 1 },
     ]);
+  });
+});
+
+describe('I-14 the evidence recorder is independent of the registry', () => {
+  const planted = (path: string, specifier: string) =>
+    file(
+      path,
+      `import { registryData } from '${specifier}';\nexport const x = registryData;`,
+    );
+
+  it('AC-2 fails a recorder file that imports @app/semantics, however it is spelled', () => {
+    const files = [
+      planted('apps/conformance/src/record/record.ts', '@app/semantics'),
+      planted(
+        'apps/conformance/src/record/write.ts',
+        '@app/semantics/registry',
+      ),
+      planted('apps/conformance/src/driver/amqp091-raw.ts', '@app/semantics'),
+      planted('apps/conformance/src/dsl.ts', '@app/semantics'),
+      planted(
+        'apps/conformance/src/scenarios/cf-smoke-01.ts',
+        '@app/semantics',
+      ),
+      file(
+        'apps/conformance/src/record/evidence.ts',
+        `export const lazy = () => import('@app/semantics');`,
+      ),
+      file(
+        'apps/conformance/src/record/cli.ts',
+        `export { registryData } from '@app/semantics';`,
+      ),
+      file(
+        'apps/conformance/src/record/secrets.ts',
+        `export type R = import('@app/semantics').Registry;`,
+      ),
+      file(
+        'apps/conformance/src/record/provenance.ts',
+        `const r = require('@app/semantics');\nexport default r;`,
+      ),
+    ];
+
+    const violations = checkRecorderIndependence(files);
+
+    expect(paths(violations)).toEqual(files.map((entry) => entry.path));
+    expect(violations[0]).toMatchObject({ rule: 'recorder-independence' });
+  });
+
+  it('fails a relative import into the registry or another project, and any other workspace package', () => {
+    const files = [
+      planted(
+        'apps/conformance/src/record/a.ts',
+        '../../../../libs/shared/semantics/src/index.ts',
+      ),
+      planted(
+        'apps/conformance/src/driver/b.ts',
+        '../../../../libs/testkit/src/index.ts',
+      ),
+      planted('apps/conformance/src/record/c.ts', '@app/testkit'),
+    ];
+
+    expect(paths(checkRecorderIndependence(files))).toEqual(
+      files.map((entry) => entry.path),
+    );
+  });
+
+  it('passes imports inside the recorder, packages from node_modules and specs', () => {
+    const files = [
+      file(
+        'apps/conformance/src/record/record.ts',
+        `import { z } from 'zod';\nimport { a } from '../driver/amqp091-raw.ts';\nimport { b } from './evidence.ts';\nimport 'node:fs';\nexport const x = [z, a, b];`,
+      ),
+      planted('apps/conformance/src/record/record.spec.ts', '@app/semantics'),
+      // The cells compare the registry with evidence: they are outside the recorder.
+      planted(
+        'apps/conformance/src/cells/registry-links.spec.ts',
+        '@app/semantics',
+      ),
+      planted('libs/shared/semantics/src/audit.ts', '@app/semantics'),
+    ];
+
+    expect(checkRecorderIndependence(files)).toEqual([]);
   });
 });

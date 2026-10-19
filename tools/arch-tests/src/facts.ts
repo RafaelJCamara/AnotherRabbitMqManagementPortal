@@ -13,6 +13,8 @@ export interface FileFacts {
   calls: Map<string, number>;
   /** Target types of `as T` and `<T>x` assertions. */
   assertedTypes: Set<string>;
+  /** The module of every `import`, `export ... from`, `import('x')` and `require('x')`. */
+  moduleSpecifiers: Set<string>;
 }
 
 function calleeName(expression: ts.LeftHandSideExpression): string | undefined {
@@ -41,9 +43,34 @@ export function readFacts(path: string, text: string): FileFacts {
     members: new Set(),
     calls: new Map(),
     assertedTypes: new Set(),
+    moduleSpecifiers: new Set(),
   };
 
   const visit = (node: ts.Node): void => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier !== undefined &&
+      ts.isStringLiteralLike(node.moduleSpecifier)
+    ) {
+      facts.moduleSpecifiers.add(node.moduleSpecifier.text);
+    } else if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) &&
+          node.expression.text === 'require')) &&
+      node.arguments[0] !== undefined &&
+      ts.isStringLiteralLike(node.arguments[0])
+    ) {
+      facts.moduleSpecifiers.add(node.arguments[0].text);
+    } else if (ts.isImportTypeNode(node)) {
+      const { argument } = node;
+      if (
+        ts.isLiteralTypeNode(argument) &&
+        ts.isStringLiteral(argument.literal)
+      ) {
+        facts.moduleSpecifiers.add(argument.literal.text);
+      }
+    }
     if (ts.isImportSpecifier(node)) {
       facts.importedNames.add((node.propertyName ?? node.name).text);
     } else if (ts.isIdentifier(node)) {

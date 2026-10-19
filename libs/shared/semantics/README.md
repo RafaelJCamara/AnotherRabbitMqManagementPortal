@@ -4,7 +4,7 @@
 
 Tags: `type:pure`, `runtime:isomorphic`, `trust:critical` (a human CODEOWNERS sign-off is required).
 
-This package is the mechanism plus the data. M0-13 ships the hazards, capabilities, warnings, peek caps, tap rules and provider presets (see "The M0-13 data tables"). The cells (settle matrix, counters, DLX carry-over, delayed retry) arrive with M0-12; until then every cell lookup is a gap.
+This package is the mechanism plus the data. M0-12 ships the 137 cells (see "The M0-12 cells"); M0-13 ships the hazards, capabilities, warnings, peek caps, tap rules and provider presets (see "The M0-13 data tables").
 
 ## Public API
 
@@ -17,7 +17,7 @@ This package is the mechanism plus the data. M0-13 ships the hazards, capabiliti
 | Doom guard   | `isDoomed(era, counters, limit)`, `DeliveryLimit`                                                                                               | `src/doomed.ts`     |
 | Tables       | `WarningDefSchema`, `GateRuleSchema`, `PeekCapRowSchema`, `TapRuleSchema`, `HazardRuleSchema`, `CapabilityRuleSchema`, `ProviderPresetSchema`, `presetIdFor` and their types | `src/{warnings,gates,caps,tap-rules,hazards,capabilities,provider-presets}.ts` |
 | Audit        | `auditCells(cells, { require, evidenceExists })`                                                                                                | `src/audit.ts`      |
-| Data         | `registryData`, `SEMANTICS_VERSION`, `settleMatrix`                                                                                             | `src/data/`         |
+| Data         | `registryData`, `SEMANTICS_VERSION`, `settleMatrix` (the other cell tables are inside `registryData`)                                          | `src/data/`         |
 
 ## How the lookups fail
 
@@ -47,6 +47,20 @@ Files in `src/data/`; every claim in them is read from the fact sheet (`docs/res
 
 The texts use `{{name}}` placeholders (Transloco syntax); the planner fills them. They never say a classic or quorum read is non-destructive or read-only (DC-15); the `@app/honest-wording` rule lints the JSON file and a spec repeats the banned terms.
 
+## The M0-12 cells
+
+Files in `src/data/`; every value is read from the fact sheet (b.1, b.2, b.4, b.5) and cited with an `RS@<tag>:<path>` source reference (`citations.ts`). All 137 cells are `code-derived` with empty `evidence`; the lab (M0-38 to M0-40) records the evidence and a human approves it.
+
+| File                      | Cells | What it holds                                                                                                              | Conformance ids         |
+| ------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `settle-matrix.data.ts`   | 39    | The requeue family (`nack`, `reject`, `released`, `modified`, HTTP `/get` nack) for 3.13, 4.0-4.2 and 4.3 (delayed retry `disabled`) | CF-SETTLE-*, CF-STAMP-01 |
+| `delayed-retry.data.ts`   | 36    | The same family on 4.3 with `x-delayed-retry-type` `all`, `failed` and `returned` (position `delayed` or `head`)             | CF-DR-*                  |
+| `dlx-carryover.data.ts`   | 7     | The dead-letter family (`no_requeue`, `rejected`, 3.13 `modified(df=false)`); the carry-over facts are in citations and ids   | CF-CARRY-*, CF-SETTLE-06 |
+| `counters.data.ts`        | 55    | Broker-side events that move the counters: close, TCP loss, partition, AMQP 1.0 detach, consumer timeout                    | CF-DOWN-*                |
+
+Key convention: `limit` is in the key when the effect depends on it (`unset` exists on 3.13 only; from 4.0 an unlimited queue is `minus1`), `delayedRetry` is in the key on 4.3 only, and a key the fact sheet does not settle has no cell, so its lookup is a `SemanticsGapError` (classic queues, streams, era 4.4, the 3.13 detach row, 4.3 events under an active delayed-retry mode). Lookups are exact; the caller builds the whole key. The judgement calls are OQ-390 to OQ-399.
+
+`src/data/cells.data.spec.ts` holds an oracle written from the fact sheet rows that answers for every possible key (era x queue type x protocol x action x limit x delayed retry): a settled key must have exactly the described cell and every other key must be a gap, so a changed value, a dropped cell or an extra cell fails. `apps/conformance/src/cells/registry-links.spec.ts` checks that every conformance id of a cell has a lab-cell stub.
 ## The era resolver
 
 `resolveEra` (blueprint 5.2, fact sheet b.8) resolves the semantics era and, separately, how far the build is verified.
@@ -70,7 +84,7 @@ A cell starts `code-derived`: cited, linked to the conformance ids that will rec
 
 ## Adding a cell
 
-Use the `semantics-cell` generator (skill `/new-semantics-cell`); it appends a `code-derived` cell with a null effect to `src/data/settle-matrix.data.ts`. Fill in the effect and citations from the fact sheet, then `pnpm nx run semantics:audit-cells --require=citations,conformance`.
+Use the `semantics-cell` generator (skill `/new-semantics-cell`); it appends a `code-derived` cell with a null effect to `src/data/settle-matrix.data.ts` (move it to the file of its family, for example `counters.data.ts`). Fill in the effect and citations from the fact sheet (the shared sources are in `citations.ts`), run `conformance-cell` for its CF id, then `pnpm nx run semantics:audit-cells --require=citations,conformance`.
 
 ## Proof commands
 

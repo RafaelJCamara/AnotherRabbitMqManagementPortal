@@ -1,0 +1,43 @@
+{
+  "name": "ui-design",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/design/src",
+  "projectType": "library",
+  "tags": ["type:ui-design", "runtime:browser", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "ngc -p libs/ui/design/tsconfig.lib.json --noEmit",
+          "ngc -p libs/ui/design/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "dependsOn": ["test-components"],
+      "options": {
+        "command": "vitest run --config libs/ui/design/vitest.config.mts"
+      }
+    },
+    "test-components": {
+      "executor": "@angular/build:unit-test",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "buildTarget": "web:build:development",
+        "tsConfig": "libs/ui/design/tsconfig.spec.json",
+        "runner": "vitest",
+        "watch": false,
+        "include": ["components/**/*.spec.ts"]
+      }
+    }
+  }
+}

@@ -1,0 +1,167 @@
+/*
+ * Design tokens (blueprint 10). One CSS custom property per decision, three themes and two
+ * densities. Every token is prefixed `--ds-` so it cannot collide with a Tailwind theme variable;
+ * tailwind-preset.css maps the names Tailwind wants onto these.
+ *
+ * Rules the token tests (tokens.spec.ts) hold this file to:
+ *   - Colours are plain hex values, and every theme sets every colour token. A theme never
+ *     inherits a colour from another one, so a forgotten token cannot slip through at the wrong
+ *     contrast.
+ *   - Every `--ds-color-text*` token reads at 4.5:1 or better on every `--ds-color-surface*`
+ *     token, and every `--ds-color-on-X` on its `--ds-color-X`. The high-contrast theme reaches
+ *     7:1 for all of them.
+ *   - `--ds-color-border-strong` and `--ds-color-focus-ring` reach 3:1 on every surface.
+ *   - Comfortable density keeps every `--ds-target-*` size and the row height at 24 px or more;
+ *     compact density (opt-in) keeps rows at 22 to 24 px and type at 12 to 13 px.
+ *
+ * ThemeService sets `data-theme` and `data-density` on the root element. Without the attributes
+ * the light theme and the comfortable density apply.
+ */
+
+/* Light. */
+:root:not([data-theme]),
+:root[data-theme='light'] {
+  color-scheme: light;
+  --ds-color-surface: #ffffff;
+  --ds-color-surface-raised: #f4f5f7;
+  --ds-color-surface-sunken: #e9ebef;
+  --ds-color-text: #14171a;
+  --ds-color-text-muted: #444b54;
+  --ds-color-text-link: #0a4cad;
+  --ds-color-text-danger: #a8201a;
+  --ds-color-text-warning: #7a4100;
+  --ds-color-text-success: #17652a;
+  --ds-color-border: #c3c8d0;
+  --ds-color-border-strong: #6b7480;
+  --ds-color-focus-ring: #0a4cad;
+  --ds-color-accent: #0a4cad;
+  --ds-color-on-accent: #ffffff;
+  --ds-color-danger: #a8201a;
+  --ds-color-on-danger: #ffffff;
+  --ds-color-warning: #ffd966;
+  --ds-color-on-warning: #3b2300;
+  --ds-color-success: #17652a;
+  --ds-color-on-success: #ffffff;
+  --ds-color-info: #0a4cad;
+  --ds-color-on-info: #ffffff;
+  --ds-color-env-prod: #a8201a;
+  --ds-color-on-env-prod: #ffffff;
+  --ds-color-env-staging: #ffd966;
+  --ds-color-on-env-staging: #3b2300;
+  --ds-color-env-test: #0a4cad;
+  --ds-color-on-env-test: #ffffff;
+  --ds-color-env-dev: #17652a;
+  --ds-color-on-env-dev: #ffffff;
+  --ds-color-env-local: #444b54;
+  --ds-color-on-env-local: #ffffff;
+}
+
+/* Dark. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ds-color-surface: #14171c;
+  --ds-color-surface-raised: #1c2027;
+  --ds-color-surface-sunken: #0d0f12;
+  --ds-color-text: #eceff3;
+  --ds-color-text-muted: #b0b7c1;
+  --ds-color-text-link: #8fb8ff;
+  --ds-color-text-danger: #ffb3ad;
+  --ds-color-text-warning: #f7c566;
+  --ds-color-text-success: #8fdc9f;
+  --ds-color-border: #3a414c;
+  --ds-color-border-strong: #6f7885;
+  --ds-color-focus-ring: #8fb8ff;
+  --ds-color-accent: #8fb8ff;
+  --ds-color-on-accent: #0a1a33;
+  --ds-color-danger: #ffb3ad;
+  --ds-color-on-danger: #3a0b08;
+  --ds-color-warning: #f7c566;
+  --ds-color-on-warning: #2e1c00;
+  --ds-color-success: #8fdc9f;
+  --ds-color-on-success: #06240f;
+  --ds-color-info: #8fb8ff;
+  --ds-color-on-info: #0a1a33;
+  --ds-color-env-prod: #ffb3ad;
+  --ds-color-on-env-prod: #3a0b08;
+  --ds-color-env-staging: #f7c566;
+  --ds-color-on-env-staging: #2e1c00;
+  --ds-color-env-test: #8fb8ff;
+  --ds-color-on-env-test: #0a1a33;
+  --ds-color-env-dev: #8fdc9f;
+  --ds-color-on-env-dev: #06240f;
+  --ds-color-env-local: #b0b7c1;
+  --ds-color-on-env-local: #14171c;
+}
+
+/* High contrast: black ground, 7:1 or better for all text. */
+:root[data-theme='high-contrast'] {
+  color-scheme: dark;
+  --ds-color-surface: #000000;
+  --ds-color-surface-raised: #0a0a0a;
+  --ds-color-surface-sunken: #000000;
+  --ds-color-text: #ffffff;
+  --ds-color-text-muted: #e6e6e6;
+  --ds-color-text-link: #a8cbff;
+  --ds-color-text-danger: #ffc2bd;
+  --ds-color-text-warning: #ffd980;
+  --ds-color-text-success: #a6f0b4;
+  --ds-color-border: #b3b3b3;
+  --ds-color-border-strong: #ffffff;
+  --ds-color-focus-ring: #ffff66;
+  --ds-color-accent: #a8cbff;
+  --ds-color-on-accent: #000000;
+  --ds-color-danger: #ffc2bd;
+  --ds-color-on-danger: #000000;
+  --ds-color-warning: #ffd980;
+  --ds-color-on-warning: #000000;
+  --ds-color-success: #a6f0b4;
+  --ds-color-on-success: #000000;
+  --ds-color-info: #a8cbff;
+  --ds-color-on-info: #000000;
+  --ds-color-env-prod: #ffc2bd;
+  --ds-color-on-env-prod: #000000;
+  --ds-color-env-staging: #ffd980;
+  --ds-color-on-env-staging: #000000;
+  --ds-color-env-test: #a8cbff;
+  --ds-color-on-env-test: #000000;
+  --ds-color-env-dev: #a6f0b4;
+  --ds-color-on-env-dev: #000000;
+  --ds-color-env-local: #e6e6e6;
+  --ds-color-on-env-local: #000000;
+  --ds-focus-ring-width: 3px;
+}
+
+/* Comfortable density: the default. Pointer targets are at least 24 px (WCAG 2.2, 2.5.8). */
+:root,
+:root[data-density='comfortable'] {
+  --ds-font-family-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ds-font-family-mono:
+    ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  --ds-font-size: 14px;
+  --ds-row-height: 32px;
+  --ds-target-size: 28px;
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-radius: 4px;
+  --ds-focus-ring-width: 2px;
+  --ds-motion-duration: 150ms;
+}
+
+/* Compact density (opt-in): the IDE-style rows of blueprint 10. */
+:root[data-density='compact'] {
+  --ds-font-size: 12px;
+  --ds-row-height: 24px;
+  --ds-target-size: 24px;
+  --ds-space-1: 2px;
+  --ds-space-2: 4px;
+  --ds-space-3: 8px;
+  --ds-space-4: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-motion-duration: 0ms;
+  }
+}

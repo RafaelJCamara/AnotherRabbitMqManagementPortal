@@ -1,0 +1,51 @@
+/*
+ * Tailwind 4 preset: maps the Tailwind theme variables onto the design tokens, so `bg-surface`,
+ * `text-muted` and `border-strong` follow the active theme and density. `inline` makes Tailwind
+ * emit `var(--ds-...)` in the utilities instead of copying the value, which is what lets
+ * `data-theme` switch them at run time.
+ *
+ * Tailwind is not a dependency of the workspace yet (OQ-340), so this file is checked only for
+ * consistency with tokens.css (tokens.spec.ts): every mapped token exists and every colour token
+ * is mapped. Import it after Tailwind: `@import 'tailwindcss'; @import '<this file>';`.
+ */
+@theme inline {
+  --color-surface: var(--ds-color-surface);
+  --color-surface-raised: var(--ds-color-surface-raised);
+  --color-surface-sunken: var(--ds-color-surface-sunken);
+  --color-text: var(--ds-color-text);
+  --color-text-muted: var(--ds-color-text-muted);
+  --color-text-link: var(--ds-color-text-link);
+  --color-text-danger: var(--ds-color-text-danger);
+  --color-text-warning: var(--ds-color-text-warning);
+  --color-text-success: var(--ds-color-text-success);
+  --color-border: var(--ds-color-border);
+  --color-border-strong: var(--ds-color-border-strong);
+  --color-focus-ring: var(--ds-color-focus-ring);
+  --color-accent: var(--ds-color-accent);
+  --color-on-accent: var(--ds-color-on-accent);
+  --color-danger: var(--ds-color-danger);
+  --color-on-danger: var(--ds-color-on-danger);
+  --color-warning: var(--ds-color-warning);
+  --color-on-warning: var(--ds-color-on-warning);
+  --color-success: var(--ds-color-success);
+  --color-on-success: var(--ds-color-on-success);
+  --color-info: var(--ds-color-info);
+  --color-on-info: var(--ds-color-on-info);
+  --color-env-prod: var(--ds-color-env-prod);
+  --color-on-env-prod: var(--ds-color-on-env-prod);
+  --color-env-staging: var(--ds-color-env-staging);
+  --color-on-env-staging: var(--ds-color-on-env-staging);
+  --color-env-test: var(--ds-color-env-test);
+  --color-on-env-test: var(--ds-color-on-env-test);
+  --color-env-dev: var(--ds-color-env-dev);
+  --color-on-env-dev: var(--ds-color-on-env-dev);
+  --color-env-local: var(--ds-color-env-local);
+  --color-on-env-local: var(--ds-color-on-env-local);
+  --font-sans: var(--ds-font-family-ui);
+  --font-mono: var(--ds-font-family-mono);
+  --radius-ds: var(--ds-radius);
+  --spacing-ds-1: var(--ds-space-1);
+  --spacing-ds-2: var(--ds-space-2);
+  --spacing-ds-3: var(--ds-space-3);
+  --spacing-ds-4: var(--ds-space-4);
+}

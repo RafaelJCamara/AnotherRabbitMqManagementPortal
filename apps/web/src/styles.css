@@ -1,1 +1,10 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global styles: the design tokens, then the page defaults that follow the active theme. */
+@import '../../../libs/ui/design/src/tokens.css';
+
+body {
+  margin: 0;
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text);
+  font-family: var(--ds-font-family-ui);
+  font-size: var(--ds-font-size);
+}

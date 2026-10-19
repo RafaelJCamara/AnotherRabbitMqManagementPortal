@@ -1,0 +1,36 @@
+{
+  "name": "web-gallery-check",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/web-gallery-check",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*"],
+      "options": {
+        "command": "node --test tools/web-gallery-check/check-no-gallery.test.mjs"
+      }
+    },
+    "gallery-absent": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*",
+        "^production",
+        "{workspaceRoot}/apps/web/project.json",
+        "{workspaceRoot}/libs/ui/design/src/**/*"
+      ],
+      "options": {
+        "commands": [
+          "nx run web:build:production --output-path=dist/gallery-check/production",
+          "nx run web:build:development --output-path=dist/gallery-check/development",
+          "node tools/web-gallery-check/check-no-gallery.mjs dist/gallery-check/production/browser dist/gallery-check/development/browser"
+        ],
+        "parallel": false
+      }
+    }
+  }
+}

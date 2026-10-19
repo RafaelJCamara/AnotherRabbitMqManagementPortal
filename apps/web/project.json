@@ -37,12 +37,19 @@
               "maximumError": "8kb"
             }
           ],
-          "outputHashing": "all"
+          "optimization": {
+            "scripts": true,
+            "styles": { "minify": true, "inlineCritical": false },
+            "fonts": false
+          },
+          "outputHashing": "all",
+          "define": { "__DEV_GALLERY__": "false" }
         },
         "development": {
           "optimization": false,
           "extractLicenses": false,
-          "sourceMap": true
+          "sourceMap": true,
+          "define": { "__DEV_GALLERY__": "true" }
         }
       }
     },

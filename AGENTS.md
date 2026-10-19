@@ -39,7 +39,7 @@ An agent task may not break one. "Today" means the check exists in this reposito
 
 Nx 23.3 + pnpm 12.14 workspace with `@app/*` path aliases. Layout: [docs/architecture/repo-layout.md](docs/architecture/repo-layout.md).
 
-- Present now: `apps/engine`, `apps/web`, `apps/docs`, `libs/shared/contracts`, `libs/shared/domain-model`, `libs/shared/semantics` (registry core, no data yet), `libs/engine/live` (the live hub, ticket store and topic registry), `libs/engine/kernel` (with the `BrokerScheduler`, the `ActionExecutor`, the audit chain, receipts, the prod lock and the `DrainCoordinator`), `libs/engine/jobs` (`JobRunner`, token bucket, `defineJob`), `libs/engine/ports`, `libs/engine/persistence`, `libs/engine/net-dialer`, `libs/engine/net-truststore`, `libs/engine/secrets`, `libs/engine/adapter-amqp091`, `libs/engine/transport` (Fastify router, guards, static UI), `libs/shared/live-protocol`, `libs/testkit` (broker-lab helpers, `createTestEngine`, port fakes), `testing/broker-lab` (broker images), and tooling in `tools/{eslint-rules,lint-selftest,supply-chain,agent-hooks,api-docs,work-graph,semantics-audit,platform-lane,arch-tests}`. Everything else in the blueprint is built by later work packages.
+- Present now: `apps/engine`, `apps/web`, `apps/docs`, `libs/shared/contracts`, `libs/shared/domain-model`, `libs/shared/semantics` (registry core, no data yet), `libs/engine/live` (the live hub, ticket store and topic registry), `libs/engine/kernel` (with the `BrokerScheduler`, the `ActionExecutor`, the audit chain, receipts, the prod lock and the `DrainCoordinator`), `libs/engine/jobs` (`JobRunner`, token bucket, `defineJob`), `libs/engine/ports`, `libs/engine/persistence`, `libs/engine/net-dialer`, `libs/engine/net-truststore`, `libs/engine/secrets`, `libs/engine/adapter-amqp091`, `libs/engine/transport` (Fastify router, guards, static UI), `libs/shared/live-protocol`, `libs/ui/design` (tokens, themes, `ThemeService`, `<app-gated>`, env chrome, verification banner), `libs/testkit` (broker-lab helpers, `createTestEngine`, port fakes), `testing/broker-lab` (broker images), and tooling in `tools/{eslint-rules,lint-selftest,supply-chain,agent-hooks,api-docs,work-graph,semantics-audit,platform-lane,arch-tests,web-gallery-check}`. Everything else in the blueprint is built by later work packages.
 - Every project carries a layer tag `type:*` and a runtime tag `runtime:*` in its `project.json`; `trust:critical` marks paths that need human CODEOWNERS sign-off (blueprint §2.1).
 
 | From | May import |
@@ -124,6 +124,7 @@ Run everything from the repository root.
 | Broker lab (needs a Docker daemon, Linux for CI) | `pnpm nx run broker-lab:verify --versions=3.13.7,4.0.9,4.1.8,4.2.9,4.3.6` (`--variants=plain,tls,oauth --nodes=1,3` for the variants) |
 | Formatting | `pnpm format:check` / `pnpm format` |
 | Architecture tests (mutation funnel I-2, proof minting A-9, plan-purity manifest) | `pnpm nx test arch-tests` |
+| Dev gallery absent from the production web build | `pnpm nx run web-gallery-check:gallery-absent` |
 | Action layer (ActionExecutor, PlanStore) | `pnpm nx test kernel --testNamePattern=executor` |
 | Planned | `pnpm nx run conformance:test --versions=...`, `pnpm nx e2e e2e-web`, `pnpm nx run perf:smoke` |
 

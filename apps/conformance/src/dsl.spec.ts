@@ -1,3 +1,8 @@
+import { createHash } from 'node:crypto';
+import { EventEmitter } from 'node:events';
+
+import type { ChannelModel } from 'amqplib';
+import type { Connection } from 'rhea';
 import { describe, expect, it } from 'vitest';
 
 import type { RawDelivery } from './driver/amqp091-raw.ts';
@@ -12,24 +17,38 @@ import {
   declareQueue,
   defineScenario,
   get,
+  grantCredit,
   mgmtGet,
   mgmtQueue,
   observe,
   openChannel,
   openConnection,
+  openReceiver,
   publish,
+  receive,
   recover,
   ref,
   runScenario,
   settle,
+  settleAmqp10,
   tryGet,
   wait,
+  type Amqp10Host,
   type LabStep,
   type RunClock,
 } from './dsl.ts';
 import { sealArtefact } from './record/evidence.ts';
+import { openLabHost } from './record/record.ts';
 import { findSecrets } from './record/secrets.ts';
-import { DIGEST, localProvenance, MemoryHost, VERSION } from './testing/lab.ts';
+import { SCENARIOS } from './scenarios/index.ts';
+import { recordOnEra, type Era } from './testing/era-broker.ts';
+import {
+  DIGEST,
+  localProvenance,
+  MemoryHost,
+  mintEndpoint,
+  VERSION,
+} from './testing/lab.ts';
 
 const scenario = (...steps: LabStep[]) =>
   defineScenario({
@@ -1249,4 +1268,273 @@ describe('refusals recorded by the DSL (M0-41 slice A)', () => {
       ).rejects.toBe(failure);
     }
   });
+});
+
+// ---------------------------------------------------------------------------------------------
+// AMQP 1.0 steps (M0-38 slice D). Every artefact below is written by hand or produced by the
+// MemoryHost or a scripted stand-in; none comes from the era broker.
+
+const MODIFY = {
+  kind: 'modify',
+  deliveryFailed: true,
+  undeliverableHere: false,
+} as const;
+
+/** Two returns of one message: released-and-failed first (its count rises), accepted second. */
+const twoRounds = () =>
+  scenario(
+    declareQueue('q', { type: 'quorum' }),
+    publish('q', 'm1', 'secret-body-text'),
+    openReceiver('r', 'q'),
+    grantCredit('r'),
+    receive('d1', 'r'),
+    settleAmqp10('d1', MODIFY),
+    grantCredit('r'),
+    receive('d2', 'r'),
+    settleAmqp10('d2', { kind: 'accept' }),
+  );
+
+describe('AMQP 1.0 steps', () => {
+  it('AC-17 AMQP 1.0 steps are checked when the scenario is defined and credit is one', () => {
+    const opened = [
+      declareQueue('q', { type: 'quorum' }),
+      openReceiver('r', 'q'),
+    ];
+    const taken = [...opened, grantCredit('r'), receive('d', 'r')];
+    const accept = { kind: 'accept' } as const;
+    const cases: [LabStep[], RegExp][] = [
+      [[openReceiver('r', 'q')], /queue "q" is not declared yet/],
+      [[...opened, openReceiver('r', 'q')], /invalid or already open/],
+      [[declareQueue('q'), grantCredit('r')], /receiver "r" is not open/],
+      [[...opened, receive('d', 'r')], /has no credit/],
+      // Credit above one: a second grant before a receive used the first.
+      [
+        [...opened, grantCredit('r'), grantCredit('r')],
+        /already holds a credit/,
+      ],
+      [[...taken, receive('e', 'r')], /has no credit/],
+      [
+        [...taken, settleAmqp10('d', { kind: 'nack' } as never)],
+        /"nack" is not an AMQP 1.0 outcome/,
+      ],
+      [
+        [...taken, settleAmqp10('d', { kind: 'modify' } as never)],
+        /states both deliveryFailed and undeliverableHere/,
+      ],
+      [[...opened, settleAmqp10('x', accept)], /"x" was not received/],
+      [
+        [...taken, settleAmqp10('d', accept), settleAmqp10('d', accept)],
+        /"d" is already settled/,
+      ],
+      [
+        [
+          ...opened,
+          publish('q', 'm1'),
+          get('d', 'q'),
+          grantCredit('r'),
+          receive('d', 'r'),
+        ],
+        /alias "d" is invalid or used twice/,
+      ],
+    ];
+    for (const [steps, message] of cases) {
+      expect(() => scenario(...steps)).toThrow(message);
+    }
+    // The error names the step, before any broker is involved.
+    expect(() => scenario(...opened, receive('d', 'r'))).toThrow(/step 2:/);
+    expect(() => scenario(...taken, settleAmqp10('d', MODIFY))).not.toThrow();
+    // There is no credit count to give.
+    expect(grantCredit.length).toBe(1);
+    expect(grantCredit('r')).toEqual({ op: 'grantCredit', receiver: 'r' });
+  });
+  it('AC-18 an AMQP 1.0 settle is recorded by outcome and a receive by message id and delivery count', async () => {
+    // The DSL on the MemoryHost: what is recorded, and the order the host was asked in.
+    const host = new MemoryHost();
+    const done = await runScenario(host, twoRounds(), 'abcd1234');
+    expect(
+      done.steps.slice(2).map(({ op, args, result }) => [op, args, result]),
+    ).toEqual([
+      ['openReceiver', { receiver: 'r', queue: 'q' }, { ok: true }],
+      ['grantCredit', { receiver: 'r' }, { ok: true }],
+      [
+        'receive',
+        { as: 'd1', receiver: 'r' },
+        { empty: false, messageId: 'm1', 'delivery-count': 0 },
+      ],
+      [
+        'settleAmqp10',
+        {
+          target: 'd1',
+          outcome: 'modify',
+          deliveryFailed: true,
+          undeliverableHere: false,
+        },
+        { ok: true },
+      ],
+      ['grantCredit', { receiver: 'r' }, { ok: true }],
+      [
+        'receive',
+        { as: 'd2', receiver: 'r' },
+        { empty: false, messageId: 'm1', 'delivery-count': 1 },
+      ],
+      ['settleAmqp10', { target: 'd2', outcome: 'accept' }, { ok: true }],
+    ]);
+    expect(host.amqp10Calls).toEqual([
+      'open r lab-cf-test-01-abcd1234-q',
+      'credit r 1',
+      'settle modify',
+      'credit r 1',
+      'settle accept',
+    ]);
+    // Never a body, and an empty receive is a record, not an error.
+    expect(JSON.stringify(done.steps)).not.toContain('secret-body-text');
+    // The recorded settle follows the written disposition: the host's settle resolves late and the
+    // queue is deleted (the step after) only once it has.
+    const late = new MemoryHost();
+    const log: string[] = [];
+    const inner = late.amqp10;
+    Object.assign(late, {
+      amqp10: {
+        ...late.amqp10,
+        settleDelivery: async (
+          ...args: Parameters<Amqp10Host['settleDelivery']>
+        ) => {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          await inner.settleDelivery(...args);
+          log.push('disposition written');
+        },
+      },
+    });
+    const deleteQueue = late.deleteQueue.bind(late);
+    late.deleteQueue = (queue) => {
+      log.push('after the settle');
+      return deleteQueue(queue);
+    };
+    await runScenario(late, twoRounds(), 'abcd1234');
+    expect(log.slice(-3)).toEqual([
+      'disposition written',
+      'disposition written',
+      'after the settle',
+    ]);
+
+    // The real host maps each step to the driver once: one receiver with no credit and no
+    // auto-accept, a credit of one, the flags as asked, and the receiver goes with the connection.
+    const disposed: unknown[][] = [];
+    const attached: unknown[] = [];
+    const credits: number[] = [];
+    let closes = 0;
+    let rheaCloses = 0;
+    const receiverStub = Object.assign(new EventEmitter(), {
+      add_credit: (credit: number) => {
+        credits.push(credit);
+        setImmediate(() => {
+          receiverStub.emit('message', {
+            message: { message_id: 'm1', body: 'x', delivery_count: 4 },
+            delivery: {
+              accept: () => disposed.push(['accept']),
+              release: () => disposed.push(['release']),
+              reject: () => disposed.push(['reject']),
+              modified: (flags: unknown) => disposed.push(['modified', flags]),
+            },
+          });
+        });
+      },
+    });
+    const connection = Object.assign(new EventEmitter(), {
+      open_receiver: (options: unknown) => {
+        attached.push(options);
+        return receiverStub;
+      },
+      close: () => {
+        rheaCloses += 1;
+        connection.emit('connection_close');
+      },
+    });
+    const live = await openLabHost(
+      await mintEndpoint(),
+      {
+        connect: () => {
+          return Promise.resolve(
+            Object.assign(new EventEmitter(), {
+              connection: { serverProperties: {} },
+              createChannel: () => Promise.resolve(new EventEmitter()),
+              close: () => {
+                closes += 1;
+                return Promise.resolve();
+              },
+            }) as unknown as ChannelModel,
+          );
+        },
+      },
+      {
+        rhea: {
+          connect: () => {
+            setImmediate(() => connection.emit('connection_open', {}));
+            return connection as unknown as Connection;
+          },
+        },
+        timeoutMs: 1_000,
+      },
+    );
+    // Not opened until a receiver is asked for.
+    expect(rheaCloses).toBe(0);
+    await live.amqp10?.openReceiver('r', 'lab-q');
+    await live.amqp10?.grantCredit('r');
+    const delivery = await live.amqp10?.receive('r');
+    expect(delivery).toMatchObject({ messageId: 'm1', deliveryCount: 4 });
+    await live.amqp10?.settleDelivery(delivery ?? missing('delivery'), MODIFY);
+    expect(attached).toEqual([
+      {
+        source: { address: '/queues/lab-q' },
+        autoaccept: false,
+        credit_window: 0,
+      },
+    ]);
+    expect(credits).toEqual([1]);
+    // rhea had written the disposition when the host's settle resolved.
+    expect(disposed).toEqual([
+      ['modified', { delivery_failed: true, undeliverable_here: false }],
+    ]);
+    await live.close();
+    expect(rheaCloses).toBe(1);
+    expect(closes).toBe(1);
+  });
+});
+
+const missing = (what: string): never => {
+  throw new Error(`${what} is missing`);
+};
+
+/** Per scenario: the sha256 (first 16 digits) of the three per-era hashes (3.13, 4.0-4.2, 4.3) of its recorded `steps`, taken on the base before the AMQP 1.0 steps. */
+const BEFORE: Readonly<Record<string, string>> = {
+  'CF-SMOKE-01': 'fea4a0d561452f7a',
+  'CF-STAMP-01': '5c15951f974956a2',
+  'CF-CARRY-01': '79fc50a6b6b3a554',
+  'CF-CARRY-03': 'a4bad255f5c3b327',
+  'CF-DOWN-01': '946ef12018167f41',
+  'CF-DR-01': '677842f1dbfba064',
+  'CF-DR-02': 'a00c84e422433514',
+  'CF-SETTLE-01': 'c23deb0ffba07d41',
+  'CF-SETTLE-02': '37a3458071d212a1',
+  'CF-SETTLE-05': '540f023fd7e65557',
+};
+
+describe('the AMQP 1.0 steps leave every other scenario as it was', () => {
+  it('AC-19 existing scenarios record exactly what they did before the AMQP 1.0 steps', async () => {
+    const eras: Era[] = ['3.13', '4.0-4.2', '4.3'];
+    const sha = (text: string) =>
+      createHash('sha256').update(text).digest('hex').slice(0, 16);
+    const now: Record<string, string> = {};
+    for (const [cfId] of Object.entries(BEFORE)) {
+      // A scenario another slice adds later has no baseline here; it cannot change by this slice.
+      const scenario = SCENARIOS.find((item) => item.cfId === cfId);
+      const hashes: string[] = [];
+      for (const era of eras) {
+        const artefact = await recordOnEra(era, scenario ?? missing(cfId));
+        hashes.push(sha(JSON.stringify(artefact.steps)));
+      }
+      now[cfId] = sha(hashes.join(','));
+    }
+    expect(now).toEqual(BEFORE);
+  }, 120_000);
 });

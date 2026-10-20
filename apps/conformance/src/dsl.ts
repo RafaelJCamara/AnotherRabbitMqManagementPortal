@@ -12,9 +12,11 @@ import type {
   SettleAction,
   SettleOutcome,
 } from './driver/amqp091-raw.ts';
+import type { Amqp10Delivery, Amqp10Outcome } from './driver/amqp10-raw.ts';
 import type { HttpRawResponse } from './driver/http-raw.ts';
 import {
   CF_ID,
+  type EvidenceBody,
   type EvidenceObservation,
   type EvidenceStep,
   type Json,
@@ -167,13 +169,33 @@ export type LabStep =
       readonly channel: string;
       /** Aliases of the queues whose published messages may be found here (dead letters arrive from others). */
       readonly from?: readonly string[];
+    }
+  /** AMQP 1.0: a receiver with no credit and no automatic acceptance. */
+  | {
+      readonly op: 'openReceiver';
+      readonly receiver: string;
+      readonly queue: string;
+    }
+  /** Exactly one credit; there is no count to give. */
+  | { readonly op: 'grantCredit'; readonly receiver: string }
+  /** The one delivery the credit allows: records message id and `delivery-count`, never a body. */
+  | {
+      readonly op: 'receive';
+      readonly as: string;
+      readonly receiver: string;
+    }
+  /** One of the four AMQP 1.0 outcomes; recorded after the disposition was written. */
+  | {
+      readonly op: 'settleAmqp10';
+      readonly target: string;
+      readonly outcome: Amqp10Outcome;
     };
 
 export interface LabScenario {
   readonly cfId: string;
   readonly title: string;
   /** The protocol of the action under test (the evidence enum), not of the publish and the drain. */
-  readonly protocol: 'amqp091' | 'http';
+  readonly protocol: EvidenceBody['protocol'];
   readonly steps: readonly LabStep[];
 }
 
@@ -333,6 +355,25 @@ export const observe = (
   ...(options.from === undefined ? {} : { from: options.from }),
 });
 
+export const openReceiver = (receiver: string, queue: string): LabStep => ({
+  op: 'openReceiver',
+  receiver,
+  queue,
+});
+export const grantCredit = (receiver: string): LabStep => ({
+  op: 'grantCredit',
+  receiver,
+});
+export const receive = (as: string, receiver: string): LabStep => ({
+  op: 'receive',
+  as,
+  receiver,
+});
+export const settleAmqp10 = (
+  target: string,
+  outcome: Amqp10Outcome,
+): LabStep => ({ op: 'settleAmqp10', target, outcome });
+
 const ALIAS = /^[a-z][a-z0-9-]*$/;
 
 /** Checks a scenario once, when it is written: a mistake is an error here, not a half-run on a broker. */
@@ -353,8 +394,13 @@ export function defineScenario(scenario: LabScenario): LabScenario {
   const channelOn = new Map<string, string>([[MAIN, MAIN]]);
   const refs = new Set<string>();
   const published = new Set<string>();
+  /** Receiver alias to whether its one credit is outstanding (granted and not yet used by a receive). */
+  const receivers = new Map<string, boolean>();
+  /** AMQP 1.0 deliveries by alias, and whether each was settled. */
+  const received = new Map<string, boolean>();
   const addRef = (index: number, ref: string): void => {
-    if (refs.has(ref)) fail(index, `the alias "${ref}" is used twice`);
+    if (refs.has(ref) || received.has(ref))
+      fail(index, `the alias "${ref}" is used twice`);
     refs.add(ref);
   };
   scenario.steps.forEach((step, index) => {
@@ -533,13 +579,88 @@ export function defineScenario(scenario: LabScenario): LabScenario {
             );
         }
         break;
+      case 'openReceiver':
+        needQueue(step.queue);
+        if (!ALIAS.test(step.receiver) || receivers.has(step.receiver)) {
+          fail(index, `receiver "${step.receiver}" is invalid or already open`);
+        }
+        receivers.set(step.receiver, false);
+        break;
+      case 'grantCredit':
+        if (!receivers.has(step.receiver))
+          fail(index, `receiver "${step.receiver}" is not open`);
+        if (receivers.get(step.receiver) === true) {
+          fail(
+            index,
+            `receiver "${step.receiver}" already holds a credit; a receive must come before the next (credit is one)`,
+          );
+        }
+        receivers.set(step.receiver, true);
+        break;
+      case 'receive':
+        if (!receivers.has(step.receiver))
+          fail(index, `receiver "${step.receiver}" is not open`);
+        if (receivers.get(step.receiver) !== true) {
+          fail(
+            index,
+            `receiver "${step.receiver}" has no credit; a grantCredit must come before a receive`,
+          );
+        }
+        if (!ALIAS.test(step.as) || refs.has(step.as) || received.has(step.as))
+          fail(index, `alias "${step.as}" is invalid or used twice`);
+        received.set(step.as, false);
+        receivers.set(step.receiver, false);
+        break;
+      case 'settleAmqp10': {
+        const kind = step.outcome.kind as string;
+        if (!['accept', 'release', 'reject', 'modify'].includes(kind)) {
+          fail(
+            index,
+            `"${kind}" is not an AMQP 1.0 outcome (accept, release, reject or modify)`,
+          );
+        }
+        if (
+          step.outcome.kind === 'modify' &&
+          (typeof step.outcome.deliveryFailed !== 'boolean' ||
+            typeof step.outcome.undeliverableHere !== 'boolean')
+        ) {
+          fail(
+            index,
+            'a modify outcome states both deliveryFailed and undeliverableHere',
+          );
+        }
+        const settled = received.get(step.target);
+        if (settled === undefined) {
+          fail(
+            index,
+            `"${step.target}" was not received by an earlier receive step`,
+          );
+        }
+        if (settled === true)
+          fail(index, `"${step.target}" is already settled`);
+        received.set(step.target, true);
+        break;
+      }
     }
   });
   return scenario;
 }
 
+/** The AMQP 1.0 half of a host (`Amqp10Raw` provides it); a host without one fails a run that uses 1.0 steps. */
+export interface Amqp10Host {
+  openReceiver(receiver: string, queue: string): Promise<void>;
+  grantCredit(receiver: string): Promise<void>;
+  /** The next delivery, or null when none came in the time allowed. */
+  receive(receiver: string): Promise<Amqp10Delivery | null>;
+  settleDelivery(
+    delivery: Amqp10Delivery,
+    outcome: Amqp10Outcome,
+  ): Promise<void>;
+}
+
 /** What a scenario needs from a broker; `Amqp091Raw` plus `httpRaw` provide it. */
 export interface ScenarioHost {
+  readonly amqp10?: Amqp10Host;
   /** Opens a connection of its own, beside the default `main`; the broker sees a second client. */
   openConnection(name: string): Promise<void>;
   /** Graceful `connection.close`; the channels on it go with it. */
@@ -691,6 +812,15 @@ export async function runScenario(
   const resolve = (value: Json | Ref): Json =>
     isRef(value) ? physical(value.$ref) : value;
   const publishedTo = new Map<string, string[]>();
+  const delivered10 = new Map<string, Amqp10Delivery>();
+  const amqp10 = (): Amqp10Host => {
+    if (host.amqp10 === undefined) {
+      throw new Error(
+        `${scenario.cfId} uses AMQP 1.0 steps and this host has no AMQP 1.0 connection`,
+      );
+    }
+    return host.amqp10;
+  };
 
   const run = async (
     step: LabStep,
@@ -986,6 +1116,55 @@ export async function runScenario(
               };
             }),
           },
+        };
+      }
+      case 'openReceiver':
+        await amqp10().openReceiver(step.receiver, physical(step.queue));
+        return {
+          args: { receiver: step.receiver, queue: step.queue },
+          result: { ok: true },
+        };
+      case 'grantCredit':
+        await amqp10().grantCredit(step.receiver);
+        // The count is not an argument: it is one, whatever a scenario would like.
+        return { args: { receiver: step.receiver }, result: { ok: true } };
+      case 'receive': {
+        const delivery = await amqp10().receive(step.receiver);
+        if (delivery !== null) delivered10.set(step.as, delivery);
+        // The message id and the header's counter only: no body, no other property.
+        return {
+          args: { as: step.as, receiver: step.receiver },
+          result:
+            delivery === null
+              ? { empty: true }
+              : {
+                  empty: false,
+                  messageId: delivery.messageId,
+                  'delivery-count': delivery.deliveryCount,
+                },
+        };
+      }
+      case 'settleAmqp10': {
+        const delivery = delivered10.get(step.target);
+        if (delivery === undefined) {
+          throw new Error(
+            `"${step.target}" was not delivered (nothing came back from the broker)`,
+          );
+        }
+        // Recorded only after the host reports the disposition written.
+        await amqp10().settleDelivery(delivery, step.outcome);
+        return {
+          args: {
+            target: step.target,
+            outcome: step.outcome.kind,
+            ...(step.outcome.kind === 'modify'
+              ? {
+                  deliveryFailed: step.outcome.deliveryFailed,
+                  undeliverableHere: step.outcome.undeliverableHere,
+                }
+              : {}),
+          },
+          result: { ok: true },
         };
       }
       case 'observe': {

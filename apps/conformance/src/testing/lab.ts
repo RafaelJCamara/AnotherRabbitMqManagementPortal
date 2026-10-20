@@ -8,6 +8,7 @@ import type {
   SettleAction,
   SettleOutcome,
 } from '../driver/amqp091-raw.ts';
+import type { Amqp10Host } from '../dsl.ts';
 import {
   verifyLabEndpoint,
   type Docker,
@@ -98,6 +99,8 @@ export const pinned = PINNED;
 interface Message {
   id: string;
   redelivered: boolean;
+  /** AMQP 1.0 header `delivery-count`; only a modify with delivery-failed raises it. */
+  deliveryCount?: number;
 }
 
 /** A classic-queue broker in memory. `served` is what it reports as its version. */
@@ -119,6 +122,62 @@ export class MemoryHost implements RecordHost {
   #tag = 0;
   closedCount = 0;
   failOn: string | undefined;
+  /** What the AMQP 1.0 half was asked, in order (`credit r 1`, `settle accept`, ...). */
+  readonly amqp10Calls: string[] = [];
+  readonly #receivers = new Map<string, { queue: string; credit: number }>();
+  readonly #held10: { queue: string; message: Message }[] = [];
+
+  /** The AMQP 1.0 half of the host: a quorum-like queue, one credit per receive, the four outcomes. */
+  readonly amqp10: Amqp10Host = {
+    openReceiver: (receiver, queue) => {
+      this.amqp10Calls.push(`open ${receiver} ${queue}`);
+      this.#receivers.set(receiver, { queue, credit: 0 });
+      return Promise.resolve();
+    },
+    grantCredit: (receiver) => {
+      this.amqp10Calls.push(`credit ${receiver} 1`);
+      const state = this.#receivers.get(receiver);
+      if (state !== undefined) state.credit += 1;
+      return Promise.resolve();
+    },
+    receive: (receiver) => {
+      const state = this.#receivers.get(receiver);
+      const message =
+        state === undefined || state.credit < 1
+          ? undefined
+          : this.queues.get(state.queue)?.shift();
+      if (state === undefined || message === undefined)
+        return Promise.resolve(null);
+      state.credit -= 1;
+      this.#held10.push({ queue: state.queue, message });
+      return Promise.resolve({
+        ref: this.#held10.length - 1,
+        messageId: message.id,
+        bytes: message.id.length,
+        deliveryCount: message.deliveryCount ?? 0,
+      });
+    },
+    settleDelivery: (delivery, outcome) => {
+      this.amqp10Calls.push(`settle ${outcome.kind}`);
+      const held = this.#held10[delivery.ref];
+      if (held === undefined)
+        return Promise.reject(new Error('never received'));
+      const { queue, message } = held;
+      const failed = outcome.kind === 'modify' && outcome.deliveryFailed;
+      const dropped =
+        outcome.kind === 'accept' ||
+        outcome.kind === 'reject' ||
+        (outcome.kind === 'modify' && outcome.undeliverableHere);
+      if (!dropped) {
+        this.queues.get(queue)?.unshift({
+          id: message.id,
+          redelivered: true,
+          deliveryCount: (message.deliveryCount ?? 0) + (failed ? 1 : 0),
+        });
+      }
+      return Promise.resolve();
+    },
+  };
 
   constructor(
     public served: string | null = VERSION,

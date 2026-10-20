@@ -3,9 +3,15 @@
 // check them for secrets, seal them and write them. All artefacts of a run are built before the
 // first file is written, so a failing scenario leaves nothing half recorded.
 import { Amqp091Raw, type RawDeps } from '../driver/amqp091-raw.ts';
+import { Amqp10Raw, type Amqp10Deps } from '../driver/amqp10-raw.ts';
 import { httpRaw } from '../driver/http-raw.ts';
 import type { LabEndpoint } from '../driver/lab-endpoint.ts';
-import { runScenario, type LabScenario, type ScenarioHost } from '../dsl.ts';
+import {
+  runScenario,
+  type Amqp10Host,
+  type LabScenario,
+  type ScenarioHost,
+} from '../dsl.ts';
 import {
   EvidenceError,
   sealArtefact,
@@ -21,14 +27,51 @@ export interface RecordHost extends ScenarioHost {
   close(): Promise<void>;
 }
 
-/** The real host: raw AMQP 0-9-1 and raw management HTTP against an endpoint broker-lab created. */
+/**
+ * The real host: raw AMQP 0-9-1 and raw management HTTP against an endpoint broker-lab created, and
+ * raw AMQP 1.0 on the same endpoint's AMQP port. The 1.0 connection opens at the first receiver, so
+ * a scenario without 1.0 steps opens exactly the connections it did before.
+ */
 export async function openLabHost(
   endpoint: LabEndpoint,
   deps: RawDeps = {},
+  deps10: Amqp10Deps = {},
 ): Promise<RecordHost> {
   // Amqp091Raw.open and httpRaw each refuse an endpoint broker-lab did not create.
   const raw = await Amqp091Raw.open(endpoint, deps);
+  let raw10: Amqp10Raw | undefined;
+  const taken = new Map<string, number>();
+  const connected10 = (): Amqp10Raw => {
+    if (raw10 === undefined)
+      throw new Error('no AMQP 1.0 receiver was opened yet');
+    return raw10;
+  };
+  const amqp10: Amqp10Host = {
+    async openReceiver(receiver, queue) {
+      raw10 ??= await Amqp10Raw.open(endpoint, deps10);
+      // The queue's address in the 4.x style (`/queues/<name>`); how 3.13 is addressed is slice E's call.
+      raw10.openReceiver(receiver, `/queues/${queue}`);
+    },
+    grantCredit(receiver) {
+      // The one place a credit is granted, and it is one: the DSL has no count to pass.
+      return Promise.resolve().then(() => {
+        connected10().addCredit(receiver, 1);
+      });
+    },
+    async receive(receiver) {
+      const before = taken.get(receiver) ?? 0;
+      const all = await connected10().receive(receiver, before + 1);
+      const next = all[before];
+      if (next === undefined) return null;
+      taken.set(receiver, before + 1);
+      return next;
+    },
+    async settleDelivery(delivery, outcome) {
+      await connected10().settle(delivery, outcome);
+    },
+  };
   return {
+    amqp10,
     openConnection: (name) => raw.openConnection(name),
     closeConnection: (name) => raw.closeConnection(name),
     openChannel: (name, connection) => raw.openChannel(name, connection),
@@ -60,7 +103,14 @@ export async function openLabHost(
         ? served
         : null;
     },
-    close: () => raw.close(),
+    async close() {
+      // The receivers go with the 1.0 connection; the 0-9-1 connection closes whatever happened.
+      try {
+        await raw10?.close();
+      } finally {
+        await raw.close();
+      }
+    },
   };
 }
 

@@ -20,11 +20,13 @@ The workflows only **run** the conformance harness. They never record evidence (
 | `src/report-cli.ts` | The nightly `report` job: reads the `leg-*` statuses and the job results, writes the step summary and `dist/nightly-report.md`, exit 1 when a blocking leg did not succeed. |
 | `src/lab-versions.ts` | The lab versions of `testing/broker-lab/versions.json`, exact `major.minor.patch` only.                                                                                                                                              |
 
+| `src/cli.spec.ts` | Runs `verdict-cli`, `report-cli` and `plan-cli` as processes: environment in, exit code, `$GITHUB_OUTPUT` and step summary out (an unreadable input fails closed; a refused shard count writes nothing). |
+
 The CLIs use Node built-ins only (erasable TypeScript), so a workflow step runs them with `node` and no build.
 
 ## Public API
 
-- `planConformance(input)`, `CONFORMANCE_PROJECTS`, `WATCHED_PATHS`; types `Plan`, `PlanInput`, `MatrixEntry`.
+- `planConformance(input)`, `CONFORMANCE_PROJECTS` (pinned by a test), `WATCHED_PATHS`, `printableName`; types `Plan`, `PlanInput`, `MatrixEntry`.
 - `verdict(input)`, `parseAffected`, `parseJobResult`, `JOB_RESULTS`; types `Verdict`, `VerdictInput`, `JobResult`.
 - `planNightly`, `nightlyLegs`, `nightlyReport`, `legName`, `parseNightlyPlan`, `parseLegResult`, `NIGHTLY_NODE_VERSIONS`; types `NightlyPlan`, `NightlyLeg`, `NightlyEntry`, `LegInputs`, `Runtime`.
 - `parseLabVersions`, `readLabVersions`, `EXACT_VERSION`.
@@ -35,6 +37,8 @@ The CLIs use Node built-ins only (erasable TypeScript), so a workflow step runs 
 - I-14: nothing here records evidence or reads or writes `testing/lab-evidence`.
 - The nightly never shows a leg that did not run as a pass: an unreported leg is `did not run`, a job that failed while its legs claim success gets its own row, and the Electron leg and an empty alpha list are listed as `not available`.
 - A required check always reports: an unaffected change passes with a reason, and a plan, lab or affected value that cannot be read fails.
+- A file name is repository content: it reaches the job log and the step summary only through `printableName`, which turns control, format and line-separator characters into `?`, so a name cannot start a log line or a workflow command.
+- Every run outside a pull request is its own concurrency group (the commit), never cancelled, so each commit that lands on `main` gets its `conformance` run (`pr.concurrency` pins the group).
 - The matrix is never skipped on doubt: an unreachable base, a failed Nx query or an unknown changed-file list means affected.
 
 ## Proof commands

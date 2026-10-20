@@ -52,6 +52,16 @@ export interface Plan {
 
 const MAX_FILE_REASONS = 5;
 
+/**
+ * A file name as it may appear in a reason, which `plan-cli.ts` prints to the job log and writes to
+ * the step summary. A name is repository content (a pull request can choose it), and git allows a
+ * newline in one, so a name could start a new log line (`::error::...`, a workflow command) or move
+ * the text with a control or direction character. Control, format and line-separator characters
+ * become `?`; the name is otherwise kept.
+ */
+export const printableName = (file: string): string =>
+  file.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, '?');
+
 export function planConformance(input: PlanInput): Plan {
   const { affectedProjects, changedFiles, versions, shards } = input;
   if (!Number.isInteger(shards) || shards < 1) {
@@ -87,7 +97,7 @@ export function planConformance(input: PlanInput): Plan {
     WATCHED_PATHS.some((prefix) => file.startsWith(prefix)),
   );
   for (const file of watched.slice(0, MAX_FILE_REASONS)) {
-    reasons.push(`${file} changed`);
+    reasons.push(`${printableName(file)} changed`);
   }
   if (watched.length > MAX_FILE_REASONS) {
     reasons.push(

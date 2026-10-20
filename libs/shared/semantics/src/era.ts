@@ -22,7 +22,15 @@ export interface EraInputs {
   readonly nodeVersions: readonly (SemVer | null)[];
   /** The `rabbitmq_4.3.0` feature flag; 'unknown' when it could not be read. */
   readonly ff43Enabled: boolean | 'unknown';
-  /** The Machine Version each quorum-queue member reports (fact sheet 0.13). May be empty. */
+  /**
+   * The `rabbitmq_4.4.0` feature flag (amendment A-23); 'unknown' when it could not be read. Only
+   * consulted when every node is 4.4 or later; a 4.3 cluster ignores it.
+   */
+  readonly ff44Enabled: boolean | 'unknown';
+  /**
+   * The Machine Version each quorum-queue member reports (fact sheet 0.13). May be empty, which
+   * means "not probed" and never demotes. 4.3 needs 8 or more, 4.4 needs 9 or more.
+   */
   readonly qqMachineVersions: readonly number[];
   readonly build: Build;
   /** Broker versions with a green conformance run, as `major.minor.patch` (for example "4.3.6"). */
@@ -40,6 +48,15 @@ export interface EraResolution {
 
 /** The quorum-queue Machine Version that 4.3 behaviour needs (fact sheet 0.13). */
 const MIN_QQ_MACHINE_VERSION_FOR_4_3 = 8;
+
+/**
+ * The 4.4 evidence, from amendment A-23: the feature flag and the quorum-queue Machine Version.
+ * UNVERIFIED against the v4.4.x source: the repository shows the flag name and the number only in
+ * A-23 and the new-broker-release runbook, and the fact sheet says "9 on main", not on the v4.4.x
+ * branch (OQ-622). Both stay in these two constants so a reading of the source changes one place.
+ */
+const FF_4_4_NAME = 'rabbitmq_4.4.0';
+const MIN_QQ_MACHINE_VERSION_FOR_4_4 = 9;
 
 /**
  * The last patch that was published as an open-source release for each series whose community
@@ -123,7 +140,10 @@ function resolveVerification(
  *  2. any node below 4.3 gives 4.0-4.2;
  *  3. otherwise the cluster is 4.3 (4.4 when every node is 4.4 or later), unless the evidence is
  *     incomplete: an unreadable node version, an unknown or commercial build, the `rabbitmq_4.3.0`
- *     flag not proven enabled, or a quorum-queue member below Machine Version 8 all give 4.0-4.2.
+ *     flag not proven enabled, or a quorum-queue member below Machine Version 8 all give 4.0-4.2;
+ *  4. a cluster that passed rule 3 as 4.4 stays 4.4 only with the `rabbitmq_4.4.0` flag positively
+ *     enabled and no quorum-queue member below Machine Version 9; a disabled or unknown flag or a
+ *     lower Machine Version gives 4.3 (OQ-623). The 4.4 flag never rescues missing 4.3 evidence.
  */
 export function resolveEra(input: EraInputs): EraResolution {
   const reasons: string[] = [];
@@ -200,11 +220,38 @@ export function resolveEra(input: EraInputs): EraResolution {
     }
   }
 
+  if (era === '4.4') {
+    // Every node is 4.4 or later and the 4.3 evidence holds; 4.4 needs its own positive evidence.
+    const missing: string[] = [];
+    if (input.ff44Enabled === false) {
+      missing.push(`the ${FF_4_4_NAME} feature flag is not enabled`);
+    } else if (input.ff44Enabled === 'unknown') {
+      missing.push(`the ${FF_4_4_NAME} feature flag state is unknown`);
+    }
+    const low = input.qqMachineVersions.find(
+      (machineVersion) => machineVersion < MIN_QQ_MACHINE_VERSION_FOR_4_4,
+    );
+    if (low !== undefined) {
+      missing.push(
+        `a quorum-queue member reports Machine Version ${String(low)}, below ${String(MIN_QQ_MACHINE_VERSION_FOR_4_4)}`,
+      );
+    }
+    if (missing.length > 0) {
+      era = '4.3';
+      caution.push(
+        ...missing,
+        'every node is 4.4 or later, but the 4.4 evidence is incomplete, so the cluster keeps the rules of 4.3',
+      );
+    }
+  }
+
   if (caution.length === 0) {
     reasons.push(
-      ERA_RANK[era] >= ERA_RANK['4.3']
-        ? 'the rabbitmq_4.3.0 flag is enabled and no quorum-queue member is below the required Machine Version'
-        : 'no sign of newer behaviour in the cluster',
+      era === '4.4'
+        ? `the ${FF_4_4_NAME} flag is enabled and no quorum-queue member reports a lower Machine Version than 4.4 needs`
+        : ERA_RANK[era] >= ERA_RANK['4.3']
+          ? 'the rabbitmq_4.3.0 flag is enabled and no quorum-queue member is below the required Machine Version'
+          : 'no sign of newer behaviour in the cluster',
     );
   }
 

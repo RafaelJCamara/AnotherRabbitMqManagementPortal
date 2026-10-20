@@ -45,7 +45,7 @@ const versions =
     ?.slice('--versions='.length)
     .split(',')
     .filter((version) => version !== '') ?? [];
-/** The era the registry resolves for a plain release, with positive evidence for 4.3 (I-3: the registry decides). */
+/** The era the registry resolves for a plain release, with positive evidence for 4.3 and 4.4 (I-3: the registry decides). */
 const eraOf = (version: string): string | undefined => {
   const parsed = parseSemVer(version);
   return parsed === null
@@ -53,6 +53,7 @@ const eraOf = (version: string): string | undefined => {
     : semanticsRegistry.resolveEra({
         nodeVersions: [parsed],
         ff43Enabled: true,
+        ff44Enabled: true,
         qqMachineVersions: [],
         build: 'oss',
         lastVerified: [],

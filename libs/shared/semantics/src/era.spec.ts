@@ -18,12 +18,19 @@ function cluster(
   return {
     nodeVersions: versions.map((text) => (text === null ? null : v(text))),
     ff43Enabled: true,
+    ff44Enabled: true,
     qqMachineVersions: [8],
     build: 'oss',
     lastVerified: VERIFIED,
     ...overrides,
   };
 }
+
+/** All the evidence 4.3 and 4.4 need; nodes are given by the test. */
+const FULL_EVIDENCE: Partial<EraInputs> = {
+  ff44Enabled: true,
+  qqMachineVersions: [9],
+};
 
 const mentions = (reasons: readonly string[], text: string): boolean =>
   reasons.some((reason) => reason.includes(text));
@@ -191,32 +198,114 @@ describe('resolveEra: mixed and newer clusters', () => {
     expect(result.era).toBe('3.13');
     expect(result.conservative).toBe(true);
   });
+});
 
-  it('resolves a cluster that is entirely 4.4 to 4.4, still unverified', () => {
-    const result = resolveEra(
-      cluster(['4.4.0-alpha.1a2b3c', '4.4.0-alpha.1a2b3c']),
+/** A cluster of two 4.4.0 nodes with every piece of 4.4 evidence present. */
+function cluster44(overrides: Partial<EraInputs> = {}): EraInputs {
+  return cluster(['4.4.0', '4.4.0'], {
+    ff44Enabled: true,
+    qqMachineVersions: [9, 9],
+    ...overrides,
+  });
+}
+
+describe('resolveEra: the 4.4 evidence (M0-75, amendment A-23)', () => {
+  it('AC-1 all nodes 4.4, flag enabled and Machine Version 9 resolve to 4.4', () => {
+    const result = resolveEra(cluster44());
+
+    expect(result.era).toBe('4.4');
+    expect(result.conservative).toBe(false);
+    expect(mentions(result.reasons, 'keeps the rules')).toBe(false);
+    expect(mentions(result.reasons, 'not enabled')).toBe(false);
+  });
+
+  it('AC-2 a disabled rabbitmq_4.4.0 flag demotes 4.4 to 4.3 with the reason', () => {
+    const result = resolveEra(cluster44({ ff44Enabled: false }));
+
+    expect(result.era).toBe('4.3');
+    expect(result.conservative).toBe(true);
+    expect(
+      mentions(result.reasons, 'rabbitmq_4.4.0 feature flag is not enabled'),
+    ).toBe(true);
+  });
+
+  it('AC-3 an unknown rabbitmq_4.4.0 flag state demotes 4.4 to 4.3', () => {
+    const result = resolveEra(cluster44({ ff44Enabled: 'unknown' }));
+
+    expect(result.era).toBe('4.3');
+    expect(result.conservative).toBe(true);
+    expect(
+      mentions(result.reasons, 'rabbitmq_4.4.0 feature flag state is unknown'),
+    ).toBe(true);
+  });
+
+  it('AC-4 a quorum-queue member below Machine Version 9 demotes 4.4 to 4.3', () => {
+    const result = resolveEra(cluster44({ qqMachineVersions: [9, 8] }));
+
+    expect(result.era).toBe('4.3');
+    expect(result.conservative).toBe(true);
+    expect(mentions(result.reasons, 'Machine Version 8, below 9')).toBe(true);
+  });
+
+  it('AC-5 only a cluster whose every node qualifies resolves to 4.4', () => {
+    const mixed = resolveEra(cluster(['4.4.0', '4.3.6'], FULL_EVIDENCE));
+    const unreadable = resolveEra(cluster(['4.4.0', null], FULL_EVIDENCE));
+
+    expect(mixed.era).toBe('4.3');
+    expect(mentions(mixed.reasons, 'mixed versions')).toBe(true);
+    expect(unreadable.era).not.toBe('4.4');
+    expect(mentions(unreadable.reasons, 'could not be read')).toBe(true);
+  });
+
+  it('AC-6 the 4.3 evidence rules still apply first for a 4.4 cluster', () => {
+    const noFlag = resolveEra(cluster44({ ff43Enabled: false }));
+    const lowMachineVersion = resolveEra(
+      cluster44({ qqMachineVersions: [9, 7] }),
+    );
+
+    expect(noFlag.era).toBe('4.0-4.2');
+    expect(lowMachineVersion.era).toBe('4.0-4.2');
+    expect(mentions(noFlag.reasons, 'rabbitmq_4.3.0')).toBe(true);
+  });
+
+  it('AC-7 a 4.3.6 cluster ignores the 4.4 flag', () => {
+    const unknown = resolveEra(
+      cluster(['4.3.6'], { ff44Enabled: 'unknown', qqMachineVersions: [] }),
+    );
+    const disabled = resolveEra(
+      cluster(['4.3.6'], { ff44Enabled: false, qqMachineVersions: [] }),
+    );
+
+    expect(unknown).toMatchObject({
+      era: '4.3',
+      conservative: false,
+      verification: 'verified',
+    });
+    expect(disabled).toEqual(unknown);
+    expect(mentions(unknown.reasons, 'rabbitmq_4.4.0')).toBe(false);
+  });
+
+  it('AC-8 a 4.4 pre-release resolves to 4.4 but is never verified', () => {
+    const alpha = ['4.4.0-alpha.1a2b3c'];
+    const result = resolveEra(cluster(alpha, FULL_EVIDENCE));
+    const alsoListed = resolveEra(
+      cluster(alpha, { ...FULL_EVIDENCE, lastVerified: ['4.4.0'] }),
     );
 
     expect(result.era).toBe('4.4');
     expect(result.verification).toBe('unverified-minor');
+    // OQ-643: with 4.4.0 itself verified, a 4.4 pre-release is the same series, so unverified-patch.
+    expect(alsoListed.era).toBe('4.4');
+    expect(alsoListed.verification).toBe('unverified-patch');
   });
 
-  it('does not reach 4.4 while one node is still 4.3', () => {
-    const result = resolveEra(cluster(['4.4.0', '4.3.6']));
+  it('does not demote 4.4 for Machine Versions that were not probed (an empty list)', () => {
+    const result = resolveEra(cluster44({ qqMachineVersions: [] }));
 
-    expect(result.era).toBe('4.3');
-    expect(result.conservative).toBe(true);
-  });
-
-  it('needs the same positive evidence for 4.4 as for 4.3', () => {
-    const result = resolveEra(
-      cluster(['4.4.0', '4.4.0'], { ff43Enabled: false }),
-    );
-
-    expect(result.era).toBe('4.0-4.2');
+    expect(result.era).toBe('4.4');
+    expect(result.conservative).toBe(false);
   });
 });
-
 describe('resolveEra: verification', () => {
   it('is verified only for the exact version of every node', () => {
     expect(resolveEra(cluster(['4.3.6', '4.3.6'])).verification).toBe(

@@ -67,6 +67,7 @@ Key convention: `limit` is in the key when the effect depends on it (`unset` exi
 
 - Any node below 4.0 gives 3.13; any node below 4.3 gives 4.0-4.2.
 - Otherwise 4.3 (4.4 when every node is 4.4 or later), but only on positive evidence. These all give 4.0-4.2: the `rabbitmq_4.3.0` flag not enabled or unknown, any quorum-queue member with Machine Version below 8, an unreadable node version, a commercial or unknown build, or a version that has no public release tag.
+- A cluster that passes that as 4.4 stays 4.4 only with the `rabbitmq_4.4.0` flag positively enabled (`ff44Enabled`) and no quorum-queue member below Machine Version 9 (amendment A-23, OQ-623). A disabled or unknown flag, or a member below 9, gives 4.3 with the reason; an empty Machine Version list (not probed) does not demote; a 4.3 cluster never reads the flag; the 4.4 flag never rescues missing 4.3 evidence. The flag name and the number 9 come from A-23 and are not yet checked against the v4.4.x source (OQ-622, OQ-644).
 - `conservative` is true whenever the answer is lower than the version numbers say, the cluster mixes eras, or the build is not a known open-source release.
 - `verification` is the weakest across nodes: `verified` (exact version in `lastVerified`), `unverified-patch` (same minor), `unverified-minor`, or `unknown-build`. A pre-release is never `verified`. The last public patch of each retired series (3.13.7, 4.0.9, 4.1.8, 4.2.9) is in `src/era.ts`: later patches such as 4.2.10 are commercial-only and so unknown builds.
 

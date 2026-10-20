@@ -13,10 +13,11 @@ export interface LabVersion {
 export const eraOfVersion = (version: string): string => {
   const parsed = parseSemVer(version);
   if (parsed === null) throw new Error(`"${version}" is not a broker version`);
-  // Plain version numbers with positive evidence for 4.3: this asks which behaviour the release has.
+  // Plain version numbers with positive evidence for 4.3 and 4.4: this asks which behaviour the release has.
   return semanticsRegistry.resolveEra({
     nodeVersions: [parsed],
     ff43Enabled: true,
+    ff44Enabled: true,
     qqMachineVersions: [],
     build: 'oss',
     lastVerified: [],

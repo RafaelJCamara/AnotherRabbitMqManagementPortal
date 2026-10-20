@@ -61,7 +61,7 @@ Step 13 of the fact sheet (write-shaped probes on demand) is not part of this pa
 | `policies.operator-edit` | operator-policy changes are `disabled` or `unknown` (Amazon MQ: the reason carries the HTTP 405 remediation) | provider documentation, or probe step 5 |
 | `amqp.peek`, `amqp.tap`, `amqp.publish`, `amqp.replay` | the AMQP handshake did not succeed | probe step 12 |
 
-`eraOf` calls `registry.resolveEra` (I-3) and adds the engine-side reasons (not RabbitMQ, Machine Versions not probed). `allowedActions` is computed by `profile.get` for the calling principal: the actions whose permission the `Authorizer` grants (exactly `allowed: true`) and whose features, from `featuresOf` (empty by default, OQ-484), are all open. It is never cached or fingerprinted.
+`eraOf` passes the `rabbitmq_4.3.0` and `rabbitmq_4.4.0` flag states (absent or unreadable is `unknown`) to `registry.resolveEra` (I-3), so a 4.4 cluster without the 4.4 flag shows as 4.3 with the reason, and adds the engine-side reasons (not RabbitMQ, Machine Versions not probed). `allowedActions` is computed by `profile.get` for the calling principal: the actions whose permission the `Authorizer` grants (exactly `allowed: true`) and whose features, from `featuresOf` (empty by default, OQ-484), are all open. It is never cached or fingerprinted.
 
 ## Invariants
 

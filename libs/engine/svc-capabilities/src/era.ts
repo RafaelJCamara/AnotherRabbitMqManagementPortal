@@ -8,6 +8,8 @@ export interface EraInput {
   readonly nodeVersions: readonly (SemVer | null)[];
   /** State of the `rabbitmq_4.3.0` feature flag; 'unknown' when it could not be read. */
   readonly ff43: 'enabled' | 'disabled' | 'unknown';
+  /** State of the `rabbitmq_4.4.0` feature flag (amendment A-23); 'unknown' when it could not be read. */
+  readonly ff44: 'enabled' | 'disabled' | 'unknown';
   readonly build: Build;
   /** Whether the product is RabbitMQ or a distribution of it. */
   readonly family: boolean;
@@ -24,6 +26,8 @@ export function eraOf(
     nodeVersions: input.nodeVersions,
     ff43Enabled:
       input.ff43 === 'unknown' ? 'unknown' : input.ff43 === 'enabled',
+    ff44Enabled:
+      input.ff44 === 'unknown' ? 'unknown' : input.ff44 === 'enabled',
     qqMachineVersions: [],
     build: input.build,
     lastVerified: input.lastVerified,

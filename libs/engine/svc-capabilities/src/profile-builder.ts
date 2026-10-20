@@ -114,6 +114,7 @@ export function buildProfile(input: BuildInput): BrokerProfile {
       : ('commercial-or-unknown' as const);
   const featureFlags = flagsOf(facts.featureFlags);
   const ff43 = featureFlags['rabbitmq_4.3.0'];
+  const ff44 = featureFlags['rabbitmq_4.4.0'];
 
   const statsDisabled = overview?.disable_stats ?? product !== 'lavinmq';
   const stats = {
@@ -130,6 +131,7 @@ export function buildProfile(input: BuildInput): BrokerProfile {
   const { era, verification } = eraOf({
     nodeVersions: Object.values(versions.perNode),
     ff43: ff43 === 'enabled' || ff43 === 'disabled' ? ff43 : 'unknown',
+    ff44: ff44 === 'enabled' || ff44 === 'disabled' ? ff44 : 'unknown',
     build,
     family,
     product,

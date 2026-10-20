@@ -1,6 +1,8 @@
 // The coverage gate: which registry cells have recorded, agreeing evidence on every lab version of
 // their era? Offline: it evaluates the recorded legs only (evidence and registry); the live leg is
-// `conformance:test --versions=...`.
+// `conformance:test --versions=...`. The operational facts that no cell names (ops-facts.ts, M0-41) are counted
+// too: a recorded contradiction always fails; with `--strict` so does an id without a scenario or a judging fact,
+// and a fact without confirming evidence on every lab version it applies to.
 //
 // Always failing (a registry that claims more than the lab shows):
 //   - a cell names a conformance id that has no lab-cell spec;
@@ -14,9 +16,13 @@ import type { SemanticsCell } from '@app/semantics';
 import type { LabScenario } from '../dsl.ts';
 import { readEvidenceFile } from './evidence-store.ts';
 import type { LabVersion } from './lab-versions.ts';
+import { factCoverage, type OpsFact } from './ops-facts.ts';
 import { evaluate, type CellResult, type Projection } from './three-way.ts';
 
 export interface CoverageInput {
+  /** The facts no cell names (ops-facts.ts) and the ids the gate counts for them; none by default. */
+  readonly facts?: readonly OpsFact[];
+  readonly opsIds?: readonly string[];
   readonly cells: readonly SemanticsCell[];
   readonly versions: readonly LabVersion[];
   readonly scenarios: readonly LabScenario[];
@@ -91,6 +97,17 @@ export function coverageGate(input: CoverageInput): Coverage {
     confirmedBy.set(cell.id, new Set());
   }
 
+  const ops = factCoverage({
+    facts: input.facts ?? [],
+    ids: input.opsIds ?? [],
+    versions: input.versions,
+    scenarioIds,
+    evidenceRoot: input.evidenceRoot,
+    strict: input.strict,
+  });
+  for (const cfId of ops.withoutScenario) withoutScenario.add(cfId);
+  results.push(...ops.results);
+
   for (const result of results) {
     if (result.verdict === 'fail') {
       failures.push(
@@ -119,6 +136,7 @@ export function coverageGate(input: CoverageInput): Coverage {
     }
   }
 
+  failures.push(...ops.failures);
   return {
     results,
     failures,

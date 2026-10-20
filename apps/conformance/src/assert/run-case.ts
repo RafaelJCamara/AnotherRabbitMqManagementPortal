@@ -6,6 +6,12 @@ import { SCENARIOS } from '../scenarios/index.ts';
 import { EVIDENCE_ROOT, readEvidenceFile } from './evidence-store.ts';
 import type { LabVersion } from './lab-versions.ts';
 import { runLive, type LiveBroker } from './live.ts';
+import {
+  appliesToVersion,
+  evaluateFact,
+  OPS_FACTS,
+  type OpsFact,
+} from './ops-facts.ts';
 import { PROJECTIONS } from './projections.ts';
 import {
   assertResult,
@@ -20,6 +26,8 @@ export interface CaseOptions {
   readonly cells?: readonly SemanticsCell[];
   readonly scenarios?: readonly LabScenario[];
   readonly projections?: Readonly<Record<string, Projection>>;
+  /** The facts no cell names (ops-facts.ts); an id with a fact is judged by `evaluateFact`, not by a cell. */
+  readonly facts?: readonly OpsFact[];
 }
 
 /** The results for `cfId` on `lab`. The live leg runs only when `broker` is the lab broker of this version. */
@@ -38,17 +46,35 @@ export async function evaluateCase(
     scenario !== undefined
       ? await runLive(broker, scenario)
       : null;
+  const file = readEvidenceFile(
+    options.evidenceRoot ?? EVIDENCE_ROOT,
+    lab.version,
+    cfId,
+  );
+  const facts = (options.facts ?? OPS_FACTS).filter(
+    (fact) => fact.cfId === cfId,
+  );
+  if (facts.length > 0) {
+    return facts
+      .filter((fact) => appliesToVersion(fact, lab.version))
+      .flatMap((fact) =>
+        evaluateFact({
+          fact,
+          version: lab.version,
+          era: lab.era,
+          pin: lab.digest,
+          file,
+          live,
+        }),
+      );
+  }
   return evaluate({
     cfId,
     version: lab.version,
     era: lab.era,
     pin: lab.digest,
     cells: options.cells ?? registryData.cells,
-    file: readEvidenceFile(
-      options.evidenceRoot ?? EVIDENCE_ROOT,
-      lab.version,
-      cfId,
-    ),
+    file,
     live,
     projection: (options.projections ?? PROJECTIONS)[cfId],
   });
@@ -69,7 +95,8 @@ export function settleCase(
     if (result.verdict !== 'pass') log(formatResult(result));
   }
   for (const result of results) assertResult(result, { strict });
-  return results.some((result) => result.verdict === 'unverified')
+  return results.length === 0 ||
+    results.some((result) => result.verdict === 'unverified')
     ? 'unverified'
     : 'pass';
 }

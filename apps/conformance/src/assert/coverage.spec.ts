@@ -13,11 +13,19 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { cfSmoke01 } from '../scenarios/cf-smoke-01.ts';
 import { SCENARIOS } from '../scenarios/index.ts';
 import { sealArtefact, type EvidenceProvenance } from '../record/evidence.ts';
-import { runScenario } from '../dsl.ts';
+import { runScenario, type LabScenario } from '../dsl.ts';
 import { DIGEST, MemoryHost, VERSION } from '../testing/lab.ts';
+import {
+  artefactFile,
+  OPS_DIGEST,
+  OPS_CI,
+  refusalFact,
+  refusedGet,
+} from '../testing/ops-artefacts.ts';
 import { coverageGate, type CoverageInput } from './coverage.ts';
 import { main } from './coverage-cli.ts';
 import { labVersions, type LabVersion } from './lab-versions.ts';
+import { OPS_CF_IDS } from './ops-facts.ts';
 import { PROJECTIONS, projectSmoke01 } from './projections.ts';
 
 const CI: EvidenceProvenance = {
@@ -291,5 +299,108 @@ describe('coverage command', () => {
     quiet();
 
     expect(main(['--loose'])).toBe(2);
+  });
+});
+
+describe('operational facts', () => {
+  const ids = ['CF-OPS-SAC-01', 'CF-OPS-STREAM-01', 'CF-OPS-UPGRADE-01'];
+  const labs: LabVersion[] = [
+    { version: '4.3.6', digest: OPS_DIGEST, era: '4.3' },
+    { version: '4.2.9', digest: OPS_DIGEST, era: '4.0-4.2' },
+  ];
+  const ops = (change: Partial<CoverageInput> = {}): CoverageInput =>
+    input({
+      cells: [],
+      versions: labs,
+      // CF-OPS-STREAM-01 has neither a scenario nor a fact; CF-OPS-UPGRADE-01 applies to 4.3.6 only.
+      scenarios: [ids[0], ids[2]].map(
+        (cfId) => ({ ...cfSmoke01, cfId }) as LabScenario,
+      ),
+      facts: [
+        refusalFact('CF-OPS-SAC-01'),
+        refusalFact('CF-OPS-UPGRADE-01', { appliesTo: ['4.3.6'] }),
+      ],
+      opsIds: ids,
+      ...change,
+    });
+  const tree = (entries: [string, string, number][]): string => {
+    const root = mkdtempSync(join(tmpdir(), 'conformance-ops-'));
+    roots.push(root);
+    for (const [version, cfId, code] of entries) {
+      mkdirSync(join(root, version), { recursive: true });
+      const file = artefactFile(cfId, refusedGet(code), OPS_CI, version);
+      if (file.kind === 'present')
+        writeFileSync(join(root, file.path), file.text);
+    }
+    return root;
+  };
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+  const NO_FACT = 'CF-OPS-STREAM-01: no fact judges it';
+  const NO_SCENARIO = 'CF-OPS-STREAM-01: no scenario can record it';
+
+  it('AC-7 the coverage gate counts the operational facts and fails a recorded contradiction', () => {
+    const none = join(tmpdir(), 'conformance-ops-none');
+    const lenient = coverageGate(ops({ evidenceRoot: none }));
+    const strict = coverageGate(ops({ evidenceRoot: none, strict: true }));
+    const bad = tree([
+      ['4.2.9', 'CF-OPS-SAC-01', 405],
+      ['4.3.6', 'CF-OPS-SAC-01', 406],
+    ]);
+
+    // Without evidence the facts are unverified and fail only the release gate; 4.2.9 is not asked
+    // about CF-OPS-UPGRADE-01.
+    expect(lenient.failures).toEqual([]);
+    expect(lenient.totals).toMatchObject({ results: 3, unverified: 3 });
+    expect(strict.failures.map((f) => f.split(': not confirmed')[0])).toEqual([
+      NO_SCENARIO,
+      NO_FACT,
+      'ops:cf-ops-sac-01-refused on 4.3.6 (CF-OPS-SAC-01)',
+      'ops:cf-ops-sac-01-refused on 4.2.9 (CF-OPS-SAC-01)',
+      'ops:cf-ops-upgrade-01-refused on 4.3.6 (CF-OPS-UPGRADE-01)',
+    ]);
+    // A recorded contradiction fails with and without --strict.
+    for (const strictRun of [false, true]) {
+      const run = coverageGate(ops({ evidenceRoot: bad, strict: strictRun }));
+      expect(run.totals.failed).toBe(1);
+      expect(run.failures.join('\n')).toContain(
+        'ops:cf-ops-sac-01-refused on 4.3.6 (CF-OPS-SAC-01): the recorded evidence contradicts the fact',
+      );
+    }
+  });
+
+  it('AC-7 agreeing evidence confirms a fact on every version it applies to; a fact that applies to no lab version fails strict', () => {
+    const agree = tree([
+      ['4.3.6', 'CF-OPS-SAC-01', 405],
+      ['4.2.9', 'CF-OPS-SAC-01', 405],
+      ['4.3.6', 'CF-OPS-UPGRADE-01', 405],
+    ]);
+    const confirmed = coverageGate(ops({ evidenceRoot: agree, strict: true }));
+    const old = ops({
+      versions: labs.slice(1),
+      evidenceRoot: agree,
+      strict: true,
+    });
+
+    expect(confirmed.totals.confirmed).toBe(3);
+    expect(confirmed.failures).toEqual([NO_SCENARIO, NO_FACT]);
+    expect(coverageGate(old).failures).toContain(
+      'ops:cf-ops-upgrade-01-refused: applies to no lab version',
+    );
+  });
+
+  it('AC-7 the command counts all eight operational ids', () => {
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    expect(main(['--strict', `--evidence-root=${tree([])}`])).toBe(1);
+    const shown = error.mock.calls.map((call) => String(call[0])).join('\n');
+    for (const id of OPS_CF_IDS) {
+      expect(shown).toContain(`${id}: no scenario can record it`);
+      expect(shown).toContain(`${id}: no fact judges it`);
+    }
   });
 });

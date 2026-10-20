@@ -70,6 +70,8 @@ export interface CellResult {
   readonly verdict: Verdict;
   /** Why the verdict is not `pass`; empty for a pass. */
   readonly reasons: readonly string[];
+  /** Set for a fact that no cell names (ops-facts.ts): `cellId` is the fact id and `registry` its expectation. */
+  readonly fact?: { readonly source: string };
 }
 
 /** The part of a cell's effect that an artefact shows. Fields it does not show are left out. */
@@ -276,7 +278,7 @@ export function evaluate(input: EvaluateInput): CellResult[] {
 
 export function formatResult(result: CellResult): string {
   const lines = [
-    `${result.cfId} on ${result.version} (cell ${result.cellId ?? 'none'}): ${result.verdict}`,
+    `${result.cfId} on ${result.version} (${result.fact === undefined ? 'cell' : 'fact'} ${result.cellId ?? 'none'}): ${result.verdict}`,
     ...result.reasons.map((reason) => `  - ${reason}`),
   ];
   if (result.live.state === 'mismatch') {
@@ -287,11 +289,15 @@ export function formatResult(result: CellResult): string {
   }
   if (result.registry.state === 'mismatch') {
     lines.push(
-      'registry cell vs recorded evidence:',
-      formatDiffs(result.registry.diffs, {
-        expected: 'registry',
-        actual: 'evidence',
-      }),
+      result.fact === undefined
+        ? 'registry cell vs recorded evidence:'
+        : `fact (${result.fact.source}) vs recorded evidence:`,
+      formatDiffs(
+        result.registry.diffs,
+        result.fact === undefined
+          ? { expected: 'registry', actual: 'evidence' }
+          : { expected: 'expected', actual: 'observed' },
+      ),
     );
   }
   return lines.join('\n');

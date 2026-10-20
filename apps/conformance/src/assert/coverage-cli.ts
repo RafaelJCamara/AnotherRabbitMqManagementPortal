@@ -10,6 +10,7 @@ import { SCENARIOS } from '../scenarios/index.ts';
 import { coverageGate } from './coverage.ts';
 import { EVIDENCE_ROOT } from './evidence-store.ts';
 import { labVersions } from './lab-versions.ts';
+import { OPS_CF_IDS, OPS_FACTS } from './ops-facts.ts';
 import { PROJECTIONS } from './projections.ts';
 
 const CELLS_DIR = fileURLToPath(new URL('../cells/', import.meta.url));
@@ -32,6 +33,8 @@ export function main(argv: readonly string[]): number {
     cells: registryData.cells,
     versions: labVersions(),
     scenarios: SCENARIOS,
+    facts: OPS_FACTS,
+    opsIds: OPS_CF_IDS,
     projections: PROJECTIONS,
     evidenceRoot,
     hasStub: (cfId) =>

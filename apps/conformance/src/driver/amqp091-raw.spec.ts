@@ -7,7 +7,7 @@ import type { ChannelModel } from 'amqplib';
 import { describe, expect, it } from 'vitest';
 
 import { mintEndpoint } from '../testing/lab.ts';
-import { Amqp091Raw } from './amqp091-raw.ts';
+import { Amqp091Raw, replyName } from './amqp091-raw.ts';
 import { ForeignEndpointError, type LabEndpoint } from './lab-endpoint.ts';
 
 class FakeChannel extends EventEmitter {
@@ -64,8 +64,11 @@ class FakeChannel extends EventEmitter {
     this.record('bindQueue', queue, exchange, key);
     return Promise.resolve({});
   }
+  /** Called by `get`; a test makes the broker refuse the get here. */
+  onGet: (() => Promise<unknown>) | undefined;
   get(queue: string, options: unknown): Promise<unknown> {
     this.record('get', queue, options);
+    if (this.onGet !== undefined) return this.onGet();
     return Promise.resolve(this.gets.length > 0 ? this.gets.shift() : false);
   }
   ack(message: { fields: { deliveryTag: number } }, multiple: boolean): void {
@@ -654,6 +657,127 @@ describe('publish', () => {
     model.close = () => Promise.reject(new Error('already closed'));
 
     await expect(raw.close()).resolves.toBeUndefined();
+  });
+});
+
+describe('refusals reported by the raw driver (M0-41 slice A)', () => {
+  it('AC-3 a refusal is reported at the level the broker closed, and a dead connection is passed over', async () => {
+    const models = [new FakeModel(), new FakeModel()];
+    let made = 0;
+    const raw = await Amqp091Raw.open(await mintEndpoint(), {
+      connect: () => {
+        made += 1;
+        return Promise.resolve(models[made - 1] as unknown as ChannelModel);
+      },
+    });
+    const [primary, second] = models as [FakeModel, FakeModel];
+    const channel = main(primary);
+
+    // Not a broker reply: a socket error (a string code) or a failure with no reason is rethrown,
+    // and a connection error without a numeric code does not make the connection dead.
+    primary.emit(
+      'error',
+      Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }),
+    );
+    channel.onGet = () => Promise.reject(new Error('read ECONNRESET'));
+    await expect(raw.tryGet('main', 'q', false)).rejects.toThrow(
+      'read ECONNRESET',
+    );
+    channel.onGet = undefined;
+
+    // Channel level: the broker closed one channel; the reply name is read, its text is not kept.
+    await raw.openChannel('side');
+    const side = primary.channels[2];
+    if (side === undefined) throw new Error('no side channel');
+    side.onGet = () => {
+      side.emit(
+        'error',
+        Object.assign(
+          new Error(
+            "Channel closed by server: 405 (RESOURCE-LOCKED) with message \"RESOURCE_LOCKED - cannot obtain access to locked queue 'lab-q-9f3' in vhost '/'\"",
+          ),
+          { code: 405 },
+        ),
+      );
+      side.closed = true;
+      return Promise.reject(
+        new Error('Channel ended, no reply will be forthcoming'),
+      );
+    };
+    const channelLevel = await raw.tryGet('side', 'lab-q-9f3', false);
+    expect(channelLevel).toEqual({
+      refused: true,
+      refusal: { level: 'channel', code: 405, reply: 'RESOURCE_LOCKED' },
+    });
+    expect(JSON.stringify(channelLevel)).not.toContain('lab-q-9f3');
+    // The channel stays closed; a second get on it was never answered by the broker, so it aborts.
+    await expect(raw.tryGet('side', 'q', false)).rejects.toThrow(
+      /closed before the get/,
+    );
+
+    // Connection level: every channel of `probe` dies with it, and each reads as refused.
+    await raw.openConnection('probe');
+    await raw.openChannel('p1', 'probe');
+    await raw.openChannel('p2', 'probe');
+    const [p1, p2] = second.channels;
+    if (p1 === undefined || p2 === undefined)
+      throw new Error('no probe channels');
+    p1.onGet = () => {
+      second.emit(
+        'error',
+        Object.assign(
+          new Error(
+            'Connection closed: 540 (NOT-IMPLEMENTED) with message "NOT_IMPLEMENTED - basic.get is not supported for stream \'lab-q-9f3\'"',
+          ),
+          { code: 540 },
+        ),
+      );
+      p1.emit('close');
+      p2.emit('close');
+      return Promise.reject(
+        new Error('Channel ended, no reply will be forthcoming'),
+      );
+    };
+    const expected = {
+      refused: true,
+      refusal: { level: 'connection', code: 540, reply: 'NOT_IMPLEMENTED' },
+    };
+    expect(await raw.tryGet('p1', 'lab-q-9f3', false)).toEqual(expected);
+    expect(await raw.tryGet('p2', 'lab-q-9f3', false)).toEqual(expected);
+    expect(p2.calls.some((call) => call[0] === 'get')).toBe(false);
+    expect(await raw.settle('p2', 1, { kind: 'ack' })).toEqual({
+      channelOpen: false,
+      closed: { code: null, text: 'closed with its connection' },
+    });
+
+    // The dead connection is passed over, and `main` is unaffected.
+    await expect(raw.closeConnection('probe')).resolves.toBeUndefined();
+    expect(second.closedCount).toBe(0);
+    channel.gets = [message(5)];
+    expect(await raw.tryGet('main', 'q', false)).toMatchObject({
+      refused: false,
+      value: { tag: 5 },
+    });
+    expect(await raw.tryGet('main', 'q', false)).toEqual({
+      refused: false,
+      value: null,
+    });
+    await expect(raw.close()).resolves.toBeUndefined();
+    expect([primary.closedCount, second.closedCount]).toEqual([1, 0]);
+
+    // A name is read only from the library's own wording of a close.
+    expect(
+      replyName(
+        'Channel closed by server: 406 (PRECONDITION-FAILED) with message "x"',
+      ),
+    ).toBe('PRECONDITION_FAILED');
+    for (const text of [
+      'boom',
+      'closed: 405 (lower-case)',
+      'Channel closed by server: 405 with message "x"',
+    ]) {
+      expect(replyName(text)).toBe('unparsed');
+    }
   });
 });
 

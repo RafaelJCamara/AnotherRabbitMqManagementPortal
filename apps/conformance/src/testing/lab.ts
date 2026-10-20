@@ -3,6 +3,7 @@
 // queue (requeue goes back to the head and is flagged redelivered; an unknown tag closes the
 // channel with 406). Nothing here is used by the recorder itself.
 import type {
+  Attempt,
   RawDelivery,
   SettleAction,
   SettleOutcome,
@@ -224,6 +225,14 @@ export class MemoryHost implements RecordHost {
       xDeliveryCount: null,
       xAcquiredCount: null,
     });
+  }
+  /** Never refuses: a refusal is scripted by a test that overrides this (hand-written, not modelled here). */
+  async tryGet(
+    channel: string,
+    queue: string,
+    noAck: boolean,
+  ): Promise<Attempt<RawDelivery | null>> {
+    return { refused: false, value: await this.get(channel, queue, noAck) };
   }
   consume(
     channel: string,

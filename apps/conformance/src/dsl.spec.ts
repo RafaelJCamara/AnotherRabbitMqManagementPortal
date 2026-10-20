@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import type { RawDelivery } from './driver/amqp091-raw.ts';
 import {
+  type Attempt,
   awaitReady,
   bindQueue,
   clockClass,
@@ -21,6 +23,7 @@ import {
   ref,
   runScenario,
   settle,
+  tryGet,
   wait,
   type LabStep,
   type RunClock,
@@ -989,5 +992,224 @@ describe('the dead-letter foundation of the DSL (M0-40)', () => {
     );
     expect(settled.steps[3]?.result).toMatchObject({ channelOpen: true });
     expect(settled.steps[3]?.args).not.toHaveProperty('optional');
+  });
+});
+
+/** Answers a tryGet from a hand-written script and keeps what the DSL asked the host to declare. */
+class RefusalHost extends MemoryHost {
+  readonly answers: (() => Promise<Attempt<RawDelivery | null>>)[] = [];
+  readonly declaredWith: (boolean | undefined)[] = [];
+  override tryGet(): Promise<Attempt<RawDelivery | null>> {
+    const next = this.answers.shift();
+    if (next === undefined) throw new Error('no scripted answer');
+    return next();
+  }
+  override declareQueue(
+    queue: string,
+    options?: { exclusive?: boolean },
+  ): Promise<void> {
+    this.declaredWith.push(options?.exclusive);
+    return super.declareQueue(queue);
+  }
+}
+
+/** A broker reply that also carries the text the real driver never passes on (it names this run's queue). */
+const refusal = (
+  level: 'channel' | 'connection',
+  code: number,
+  reply: string,
+  queue: string,
+): (() => Promise<Attempt<RawDelivery | null>>) => {
+  const withText = { level, code, reply, text: `locked: queue '${queue}'` };
+  return () => Promise.resolve({ refused: true, refusal: withText });
+};
+
+describe('refusals recorded by the DSL (M0-41 slice A)', () => {
+  it('AC-1 a refusal-tolerant get and an exclusive queue can be declared, and a mistake is an error when the scenario is defined', async () => {
+    const valid = [
+      declareQueue('q', { durable: false, exclusive: true }),
+      openConnection('other'),
+      openChannel('o', { connection: 'other' }),
+      publish('q', 'm1'),
+      tryGet('own', 'q'),
+      tryGet('theirs', 'q', { channel: 'o', noAck: true }),
+    ];
+    expect(() => scenario(...valid)).not.toThrow();
+
+    const mistakes: [string, LabStep[], RegExp][] = [
+      [
+        'a tryGet of an undeclared queue',
+        [tryGet('t', 'q')],
+        /step 0: queue "q" is not declared yet/,
+      ],
+      [
+        'a tryGet on a channel of a closed connection',
+        [
+          declareQueue('q'),
+          openConnection('other'),
+          openChannel('o', { connection: 'other' }),
+          closeConnection('other'),
+          tryGet('t', 'q', { channel: 'o' }),
+        ],
+        /step 4: channel "o" is on connection "other", which is closed/,
+      ],
+      [
+        'an exclusive quorum queue',
+        [
+          declareQueue('q', {
+            type: 'quorum',
+            durable: false,
+            exclusive: true,
+          }),
+        ],
+        /step 0: an exclusive queue is classic and not durable/,
+      ],
+      [
+        'an exclusive durable queue',
+        [declareQueue('q', { exclusive: true })],
+        /step 0: an exclusive queue is classic and not durable/,
+      ],
+    ];
+    for (const [, steps, message] of mistakes) {
+      expect(() => scenario(...steps)).toThrow(message);
+    }
+
+    // Only an exclusive queue says so: every other declare keeps the step it always had.
+    expect(declareQueue('q')).not.toHaveProperty('exclusive');
+    const host = new RefusalHost();
+    const result = await run(
+      host,
+      declareQueue('x', { durable: false, exclusive: true }),
+      declareQueue('y'),
+    );
+    expect(host.declaredWith).toEqual([true, undefined]);
+    expect(result.steps[0]?.args).toMatchObject({ exclusive: true });
+    expect(result.steps[1]?.args).not.toHaveProperty('exclusive');
+  });
+
+  it("AC-2 a refusal is recorded as level, code and reply name and never as the broker's text", async () => {
+    const steps = [
+      declareQueue('q', { type: 'quorum' }),
+      tryGet('first', 'q'),
+      tryGet('second', 'q'),
+      tryGet('third', 'q'),
+    ];
+    const once = async (runId: string) => {
+      const host = new RefusalHost();
+      host.answers.push(
+        refusal('channel', 405, 'RESOURCE_LOCKED', `lab-cf-test-01-${runId}-q`),
+        refusal(
+          'connection',
+          540,
+          'NOT_IMPLEMENTED',
+          `lab-cf-test-01-${runId}-q`,
+        ),
+        // A reply that is not a name (it carries run text) is recorded as unparsed, whatever the host says.
+        refusal('channel', 406, `PRECONDITION_FAILED - lab-${runId}`, 'q'),
+      );
+      return runScenario(host, scenario(...steps), runId);
+    };
+
+    const first = await once('abcd1234');
+    const second = await once('ffff0000');
+
+    expect(first.steps[1]?.result).toEqual({
+      outcome: 'refused',
+      level: 'channel',
+      code: 405,
+      reply: 'RESOURCE_LOCKED',
+    });
+    expect(first.steps[2]?.result).toEqual({
+      outcome: 'refused',
+      level: 'connection',
+      code: 540,
+      reply: 'NOT_IMPLEMENTED',
+    });
+    expect(first.steps[3]?.result).toMatchObject({
+      code: 406,
+      reply: 'unparsed',
+    });
+    expect(first.steps[1]?.args).toEqual({
+      as: 'first',
+      queue: 'q',
+      noAck: false,
+      channel: 'main',
+    });
+    const text = JSON.stringify(first);
+    expect(text).not.toContain('locked:');
+    expect(text).not.toContain('abcd1234');
+    expect(JSON.stringify(second)).toBe(text);
+    const artefact = sealArtefact({
+      schemaVersion: 1,
+      cfId: 'CF-TEST-01',
+      title: 'a test scenario',
+      protocol: 'amqp091',
+      brokerVersion: VERSION,
+      imageDigest: DIGEST,
+      steps: first.steps,
+      observations: first.observations,
+      provenance: localProvenance,
+    });
+    expect(findSecrets(artefact, ['guest'])).toEqual([]);
+  });
+
+  it('AC-4 only a reply from the broker is a refusal; anything else aborts the run', async () => {
+    const delivery: RawDelivery = {
+      tag: 1,
+      redelivered: false,
+      messageId: 'm1',
+      bytes: 2,
+      messageCount: 0,
+      xDeliveryCount: null,
+      xAcquiredCount: 3,
+    };
+    const host = new RefusalHost();
+    host.answers.push(
+      () => Promise.resolve({ refused: false, value: delivery }),
+      () => Promise.resolve({ refused: false, value: null }),
+    );
+    const normal = await runScenario(
+      host,
+      scenario(
+        declareQueue('q'),
+        tryGet('a', 'q'),
+        tryGet('b', 'q'),
+        settle('a', { kind: 'ack' }),
+      ),
+      'abcd1234',
+    );
+    expect(normal.steps[1]?.result).toEqual({
+      outcome: 'delivery',
+      messageId: 'm1',
+      deliveryTag: 1,
+      redelivered: false,
+      messageCount: 0,
+      'x-delivery-count': null,
+      'x-acquired-count': 3,
+    });
+    expect(normal.steps[2]?.result).toEqual({ outcome: 'empty' });
+    // The delivery is held under its alias: the settle targets its tag on the channel it came on
+    // (the host never gave out tag 1, so it closes the channel, which is what the record shows).
+    expect(normal.steps[3]?.args).toMatchObject({
+      target: 'a',
+      deliveryTag: 1,
+      channel: 'main',
+    });
+
+    // A socket error or a timeout is no reply from the broker: the run fails and records nothing.
+    for (const failure of [
+      Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }),
+      new Error('timed out'),
+    ]) {
+      const broken = new RefusalHost();
+      broken.answers.push(() => Promise.reject(failure));
+      await expect(
+        runScenario(
+          broken,
+          scenario(declareQueue('q'), tryGet('t', 'q')),
+          'abcd1234',
+        ),
+      ).rejects.toBe(failure);
+    }
   });
 });

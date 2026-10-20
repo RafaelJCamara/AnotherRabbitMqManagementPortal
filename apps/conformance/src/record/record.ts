@@ -41,6 +41,7 @@ export async function openLabHost(
     bindQueue: (queue, exchange, key) => raw.bindQueue(queue, exchange, key),
     publish: (queue, message) => raw.publish(queue, message),
     get: (channel, queue, noAck) => raw.get(channel, queue, noAck),
+    tryGet: (channel, queue, noAck) => raw.tryGet(channel, queue, noAck),
     consume: (channel, queue, count, cancel) =>
       raw.consume(channel, queue, count, undefined, cancel),
     settle: (channel, tag, action) => raw.settle(channel, tag, action),

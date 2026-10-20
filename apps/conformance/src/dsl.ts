@@ -6,6 +6,7 @@
 // A step records only the fields its operation defines: queue and channel aliases, message ids,
 // tags, counts, byte sizes and the broker's answers. Never a body, a header, a URL or a login.
 import type {
+  Attempt,
   QueueType,
   RawDelivery,
   SettleAction,
@@ -18,6 +19,8 @@ import {
   type EvidenceStep,
   type Json,
 } from './record/evidence.ts';
+
+export type { Attempt, Refusal } from './driver/amqp091-raw.ts';
 
 export type AckMode =
   | 'ack_requeue_true'
@@ -58,6 +61,8 @@ export type LabStep =
       readonly queue: string;
       readonly type: QueueType;
       readonly durable: boolean;
+      /** Owned by `main`; classic and non-durable only. Present only when set, so older records stay as they were. */
+      readonly exclusive?: true;
       /** A value may be a `Ref` to an exchange or queue declared earlier (dead-letter topology). */
       readonly arguments: Readonly<Record<string, Json | Ref>>;
     }
@@ -112,6 +117,18 @@ export type LabStep =
       readonly noAck: boolean;
       readonly channel: string;
     }
+  /**
+   * A `basic.get` whose refusal is an answer: a reply the broker closed the channel or the
+   * connection with is recorded as level, code and reply name (never its text). Anything else that
+   * goes wrong, such as a socket error, aborts the run.
+   */
+  | {
+      readonly op: 'tryGet';
+      readonly as: string;
+      readonly queue: string;
+      readonly noAck: boolean;
+      readonly channel: string;
+    }
   | {
       readonly op: 'consume';
       readonly as: string;
@@ -161,6 +178,8 @@ export const declareQueue = (
   options: {
     type?: QueueType;
     durable?: boolean;
+    /** Classic and non-durable only (checked when the scenario is defined). */
+    exclusive?: boolean;
     arguments?: Record<string, Json | Ref>;
   } = {},
 ): LabStep => ({
@@ -168,6 +187,7 @@ export const declareQueue = (
   queue,
   type: options.type ?? 'classic',
   durable: options.durable ?? true,
+  ...(options.exclusive === true ? { exclusive: true as const } : {}),
   arguments: options.arguments ?? {},
 });
 export const openConnection = (connection: string): LabStep => ({
@@ -223,6 +243,18 @@ export const get = (
   options: { noAck?: boolean; channel?: string } = {},
 ): LabStep => ({
   op: 'get',
+  as,
+  queue,
+  noAck: options.noAck ?? false,
+  channel: options.channel ?? MAIN,
+});
+/** Like `get`, but a broker refusal is recorded as the step's answer instead of aborting the run. */
+export const tryGet = (
+  as: string,
+  queue: string,
+  options: { noAck?: boolean; channel?: string } = {},
+): LabStep => ({
+  op: 'tryGet',
   as,
   queue,
   noAck: options.noAck ?? false,
@@ -344,6 +376,12 @@ export function defineScenario(scenario: LabScenario): LabScenario {
       case 'declareQueue':
         if (!ALIAS.test(step.queue))
           fail(index, `queue alias "${step.queue}" is not lower-case words`);
+        if (
+          step.exclusive === true &&
+          (step.type !== 'classic' || step.durable)
+        ) {
+          fail(index, 'an exclusive queue is classic and not durable');
+        }
         for (const value of Object.values(step.arguments)) {
           if (isRef(value)) needTarget(value.$ref);
         }
@@ -445,6 +483,7 @@ export function defineScenario(scenario: LabScenario): LabScenario {
         }
         break;
       case 'get':
+      case 'tryGet':
         needQueue(step.queue);
         needChannel(step.channel);
         if (!ALIAS.test(step.as))
@@ -508,6 +547,8 @@ export interface ScenarioHost {
     options: {
       type: QueueType;
       durable: boolean;
+      /** Present only for an exclusive queue (owned by `main`). */
+      exclusive?: boolean;
       arguments: Readonly<Record<string, unknown>>;
     },
   ): Promise<void>;
@@ -524,6 +565,12 @@ export interface ScenarioHost {
     queue: string,
     noAck: boolean,
   ): Promise<RawDelivery | null>;
+  /** `get` that reports a reply the broker closed the channel or connection with, instead of throwing. */
+  tryGet(
+    channel: string,
+    queue: string,
+    noAck: boolean,
+  ): Promise<Attempt<RawDelivery | null>>;
   consume(
     channel: string,
     queue: string,
@@ -600,6 +647,9 @@ export function clockClass(
   return at > now ? 'future' : 'past';
 }
 
+/** A reply name as the broker spells it (`RESOURCE_LOCKED`); anything else is recorded as `unparsed`. */
+const REPLY_NAME = /^[A-Z][A-Z_]*$/;
+
 /** The most a single observe drains: a queue that holds more is an error, not a partial record. */
 export const DRAIN_LIMIT = 200;
 
@@ -674,6 +724,7 @@ export async function runScenario(
             queue: step.queue,
             type: step.type,
             durable: step.durable,
+            ...(step.exclusive === true ? { exclusive: true } : {}),
             arguments: Object.fromEntries(
               Object.entries(step.arguments).map(([name, value]) => [
                 name,
@@ -805,6 +856,39 @@ export async function runScenario(
             delivery === null
               ? { empty: true }
               : { empty: false, ...deliveryJson(delivery) },
+        };
+      }
+      case 'tryGet': {
+        const attempt = await host.tryGet(
+          step.channel,
+          physical(step.queue),
+          step.noAck,
+        );
+        const args = {
+          as: step.as,
+          queue: step.queue,
+          noAck: step.noAck,
+          channel: step.channel,
+        };
+        if (attempt.refused) {
+          // Three fields, each checked: nothing else the host passed can reach the record.
+          const { level, code, reply } = attempt.refusal;
+          return {
+            args,
+            result: {
+              outcome: 'refused',
+              level: level === 'connection' ? 'connection' : 'channel',
+              code: count(code),
+              reply: REPLY_NAME.test(reply) ? reply : 'unparsed',
+            },
+          };
+        }
+        const delivery = attempt.value;
+        if (delivery === null) return { args, result: { outcome: 'empty' } };
+        held.set(step.as, { tag: delivery.tag, channel: step.channel });
+        return {
+          args,
+          result: { outcome: 'delivery', ...deliveryJson(delivery) },
         };
       }
       case 'consume': {

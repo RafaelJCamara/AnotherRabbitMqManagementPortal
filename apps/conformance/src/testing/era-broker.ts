@@ -6,6 +6,7 @@
 // NOTHING about RabbitMQ: only evidence recorded by CI on a real lab broker proves a broker fact.
 // It is test code; nothing in the recorder uses it.
 import type {
+  Attempt,
   RawDelivery,
   SettleAction,
   SettleOutcome,
@@ -231,6 +232,14 @@ ext_delayed_at is read against it. */
     this.#tag += 1;
     if (!noAck) this.#held.set(this.#tag, { queue, message });
     return Promise.resolve(this.#deliver(this.#tag, message, ready.length));
+  }
+  /** This broker never refuses a get. */
+  async tryGet(
+    channel: string,
+    queue: string,
+    noAck: boolean,
+  ): Promise<Attempt<RawDelivery | null>> {
+    return { refused: false, value: await this.get(channel, queue, noAck) };
   }
   async consume(
     channel: string,

@@ -49,6 +49,20 @@ export type SettleOutcome =
       readonly closed: { readonly code: number | null; readonly text: string };
     };
 
+/**
+ * A broker's reply to a request that failed: the level it closed (one channel, or the connection
+ * and so every channel on it), the numeric reply code and the upper-case reply name. Never the
+ * broker's text, which carries run-unique queue names (M0-41 Q-9). `unparsed` when no name was read.
+ */
+export interface Refusal {
+  readonly level: 'channel' | 'connection';
+  readonly code: number | null;
+  readonly reply: string;
+}
+export type Attempt<T> =
+  | { readonly refused: false; readonly value: T }
+  | { readonly refused: true; readonly refusal: Refusal };
+
 export interface RawDeps {
   readonly connect?: (options: Options.Connect) => Promise<ChannelModel>;
 }
@@ -64,6 +78,8 @@ interface ChannelState {
 interface ConnectionState {
   readonly model: ChannelModel;
   open: boolean;
+  /** Set when the broker closed the connection with a reply of its own (a socket error sets nothing). */
+  dead?: { readonly code: number; readonly reply: string };
 }
 
 const MAIN = 'main';
@@ -88,6 +104,19 @@ const closeInfo = (error: unknown): { code: number | null; text: string } => {
     text: error instanceof Error ? error.message : String(error),
   };
 };
+
+/**
+ * The reply name of a close the library worded as `Channel closed by server: 405 (RESOURCE-LOCKED)
+ * with message "..."` (or `Connection closed: ...`), as `RESOURCE_LOCKED`. Only that name is read:
+ * the rest of the text carries run-unique names and never leaves this function.
+ */
+export function replyName(text: string): string {
+  const match =
+    /^(?:Channel|Connection) closed(?: by server)?: \d+ \(([A-Z][A-Z-]*)\)/.exec(
+      text,
+    );
+  return match?.[1] === undefined ? 'unparsed' : match[1].replaceAll('-', '_');
+}
 
 function toDelivery(message: GetMessage | Message): RawDelivery {
   const headers = message.properties.headers as
@@ -122,9 +151,26 @@ export class Amqp091Raw {
   }
 
   #adopt(name: string, model: ChannelModel): void {
+    const state: ConnectionState = { model, open: true };
     // A connection the broker drops must not crash the process; the next call fails instead.
-    model.on('error', () => undefined);
-    this.#connections.set(name, { model, open: true });
+    // A close that carries a broker reply (a numeric code) is kept; a socket error carries none.
+    const onClose = (error: unknown): void => {
+      const { code, text } = closeInfo(error);
+      if (code === null || state.dead !== undefined) return;
+      state.dead = { code, reply: replyName(text) };
+      state.open = false;
+      for (const channel of this.#channels.values()) {
+        if (
+          channel.connection === name &&
+          (channel.closed?.code ?? null) === null
+        ) {
+          channel.closed = { code: null, text: 'closed with its connection' };
+        }
+      }
+    };
+    model.on('error', onClose);
+    model.on('close', onClose);
+    this.#connections.set(name, state);
   }
 
   /** Connects to a broker that testing/broker-lab created; any other endpoint is refused. */
@@ -174,6 +220,8 @@ export class Amqp091Raw {
     if (name === MAIN) {
       throw new Error('the main connection is never closed by a scenario');
     }
+    // A connection the broker already closed (a refused get) has nothing left to close.
+    if (this.#connections.get(name)?.dead !== undefined) return;
     const connection = this.#connection(name);
     // Marked first: the library's own 'close' events would otherwise name no reason.
     for (const state of this.#channels.values()) {
@@ -211,13 +259,15 @@ export class Amqp091Raw {
     options: {
       readonly type: QueueType;
       readonly durable: boolean;
+      /** Owned by the connection that declares it (`main`); another connection is refused. */
+      readonly exclusive?: boolean;
       readonly arguments: Readonly<Record<string, unknown>>;
     },
   ): Promise<void> {
     await this.#run(ADMIN, (channel) =>
       channel.assertQueue(queue, {
         durable: options.durable,
-        exclusive: false,
+        exclusive: options.exclusive ?? false,
         autoDelete: false,
         arguments: { ...options.arguments, 'x-queue-type': options.type },
       }),
@@ -306,6 +356,63 @@ export class Amqp091Raw {
       channel.get(queue, { noAck }),
     );
     return message === false ? null : toDelivery(message);
+  }
+
+  /**
+   * `basic.get` where a refusal is an answer to record, not a failure: a reply the broker closed the
+   * channel or the whole connection with. Only a broker reply (a numeric code) counts; a socket
+   * error, a timeout or a channel that was already closed before the call is rethrown, so a run
+   * aborts rather than record something the broker never said (fail closed).
+   */
+  async tryGet(
+    channelName: string,
+    queue: string,
+    noAck: boolean,
+  ): Promise<Attempt<RawDelivery | null>> {
+    const state = this.#state(channelName);
+    const connection = this.#connections.get(state.connection);
+    const dead = (): Attempt<never> | undefined =>
+      connection?.dead === undefined
+        ? undefined
+        : {
+            refused: true,
+            refusal: {
+              level: 'connection',
+              code: connection.dead.code,
+              reply: connection.dead.reply,
+            },
+          };
+    // Every channel of a connection the broker closed is refused with that connection's reply.
+    const before = dead();
+    if (before !== undefined) return before;
+    if (state.closed !== undefined) {
+      throw new Error(`channel "${channelName}" was closed before the get`);
+    }
+    try {
+      const message = await state.channel.get(queue, { noAck });
+      return {
+        refused: false,
+        value: message === false ? null : toDelivery(message),
+      };
+    } catch (error) {
+      // The broker's reason comes in a separate event; wait for it as `#run` does.
+      await new Promise((resolve) => setImmediate(resolve));
+      const after = dead();
+      if (after !== undefined) return after;
+      // Re-read: the channel's 'error' event has set it since the check above.
+      const { closed } = this.#state(channelName);
+      if (closed !== undefined && closed.code !== null) {
+        return {
+          refused: true,
+          refusal: {
+            level: 'channel',
+            code: closed.code,
+            reply: replyName(closed.text),
+          },
+        };
+      }
+      throw error;
+    }
   }
 
   /** Messages ready in the queue, from a passive declare on the admin channel (the broker answers at once). */

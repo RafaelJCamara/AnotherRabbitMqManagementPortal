@@ -21,7 +21,7 @@ export const PR_WORKFLOW_PATH = '.github/workflows/conformance-pr.yml';
 
 /**
  * The conformance CI workflows that must stay read-only, with the triggers each may have.
- * Slice B adds conformance-nightly.yml, slice C mutation-nightly.yml.
+ * Slice C adds mutation-nightly.yml.
  */
 export interface WorkflowConfig {
   readonly path: string;
@@ -36,7 +36,20 @@ export const PR_CONFIG: WorkflowConfig = {
   continueOnErrorJobs: [],
 };
 
-export const CONFORMANCE_WORKFLOWS: readonly WorkflowConfig[] = [PR_CONFIG];
+export const NIGHTLY_WORKFLOW_PATH =
+  '.github/workflows/conformance-nightly.yml';
+
+/** The nightly: `alpha` (non-release builds) is the one job that may fail without failing the run. */
+export const NIGHTLY_CONFIG: WorkflowConfig = {
+  path: NIGHTLY_WORKFLOW_PATH,
+  triggers: ['schedule', 'workflow_dispatch'],
+  continueOnErrorJobs: ['alpha'],
+};
+
+export const CONFORMANCE_WORKFLOWS: readonly WorkflowConfig[] = [
+  PR_CONFIG,
+  NIGHTLY_CONFIG,
+];
 
 export const WORKFLOW_RULES = [
   'wf.parse',
@@ -67,6 +80,16 @@ export const PR_RULES = [
   'pr.node-override',
   'pr.lab-command',
   'pr.plan-command',
+] as const;
+
+export const NIGHTLY_RULES = [
+  'nightly.schedule',
+  'nightly.jobs',
+  'nightly.plan',
+  'nightly.release',
+  'nightly.alpha',
+  'nightly.leg-status',
+  'nightly.report',
 ] as const;
 
 export interface ConformanceViolation {
@@ -495,6 +518,239 @@ export function checkPrWorkflow(file: WorkflowFile): ConformanceViolation[] {
     );
   }
   return out;
+}
+
+const matrixOf = (job: Dict): string => {
+  const matrix = asRecord(job.strategy).matrix;
+  return typeof matrix === 'string' ? stripExpression(matrix) : '';
+};
+
+/** The legs of a matrix job (`release` or `alpha`) in conformance-nightly.yml. */
+function checkLegJob(
+  name: 'release' | 'alpha',
+  job: Dict,
+  fail: (rule: (typeof NIGHTLY_RULES)[number], message: string) => void,
+): void {
+  const rule = name === 'release' ? 'nightly.release' : 'nightly.alpha';
+  const jobSteps = steps(job);
+  if (
+    job.needs !== 'plan' ||
+    matrixOf(job) !== `fromJSON(needs.plan.outputs.${name})`
+  ) {
+    fail(
+      rule,
+      `the ${name} job needs plan and its matrix is exactly \`\${{ fromJSON(needs.plan.outputs.${name}) }}\``,
+    );
+  }
+  if (asRecord(job.strategy)['fail-fast'] !== false) {
+    fail(
+      rule,
+      `the ${name} matrix must set fail-fast: false, so every leg reports`,
+    );
+  }
+  const expectedIf =
+    name === 'alpha' ? "needs.plan.outputs.has_alpha == 'true'" : '';
+  if (
+    stripExpression(typeof job.if === 'string' ? job.if : '') !== expectedIf
+  ) {
+    fail(
+      rule,
+      name === 'alpha'
+        ? "the alpha job runs only `if: needs.plan.outputs.has_alpha == 'true'`"
+        : 'the release job has no `if`: it always runs, and a failure turns the run red',
+    );
+  }
+  // Node: exactly the plan's, through the setup action's input, never a range of ours.
+  const setups = jobSteps.filter(
+    (step) => usesOf(step) === './.github/actions/setup',
+  );
+  const setupWith = asRecord(setups[0]?.with);
+  if (
+    setups.length !== 1 ||
+    !sameSet(Object.keys(setupWith), ['node-version']) ||
+    stripExpression(String(setupWith['node-version'])) !== 'matrix.node' ||
+    jobSteps.some((step) => usesOf(step).startsWith('actions/setup-node@'))
+  ) {
+    fail(
+      rule,
+      `the ${name} job gets its Node only from \`node-version: \${{ matrix.node }}\` of the setup action`,
+    );
+  }
+  const runs = jobSteps.filter((step) =>
+    runOf(step).includes('conformance:test'),
+  );
+  const command = runs[0];
+  if (
+    runs.length !== 1 ||
+    normal(runOf(command ?? {})) !==
+      'pnpm nx run conformance:test --versions="$VERSION"' ||
+    stripExpression(String(asRecord(command?.env).VERSION)) !== 'matrix.version'
+  ) {
+    fail(
+      rule,
+      `the ${name} job runs only \`pnpm nx run conformance:test --versions="$VERSION"\`, with VERSION from the matrix`,
+    );
+  }
+  // Each leg keeps its own status, even when it failed, under the name the report looks for.
+  const statusStep = jobSteps.find((step) =>
+    runOf(step).includes('dist/leg/result'),
+  );
+  const upload = jobSteps.find((step) =>
+    usesOf(step).startsWith('actions/upload-artifact@'),
+  );
+  if (
+    statusStep === undefined ||
+    stripExpression(String(statusStep.if)) !== 'always()' ||
+    stripExpression(String(asRecord(statusStep.env).RESULT)) !== 'job.status' ||
+    upload === undefined ||
+    stripExpression(String(upload.if)) !== 'always()' ||
+    asRecord(upload.with).name !==
+      `leg-node-\${{ matrix.node }}-${name}-\${{ matrix.version }}` ||
+    asRecord(upload.with).path !== 'dist/leg/result' ||
+    asRecord(upload.with)['if-no-files-found'] !== 'error' ||
+    jobSteps.indexOf(upload) < jobSteps.indexOf(statusStep)
+  ) {
+    fail(
+      'nightly.leg-status',
+      `the ${name} job must write its status (job.status) and upload it as leg-node-<node>-${name}-<version> in steps that run \`if: always()\``,
+    );
+  }
+}
+
+/** The shape of conformance-nightly.yml. */
+export function checkNightlyWorkflow(
+  file: WorkflowFile,
+): ConformanceViolation[] {
+  const doc = parseDocument(file);
+  if (isViolation(doc)) return [doc];
+  const out: ConformanceViolation[] = [];
+  const fail = (
+    rule: (typeof NIGHTLY_RULES)[number],
+    message: string,
+  ): void => {
+    out.push({ rule, message });
+  };
+
+  const schedule = asRecord(doc.on).schedule;
+  if (
+    !Array.isArray(schedule) ||
+    schedule.length !== 1 ||
+    !/^\S+( \S+){4}$/.test(String(asRecord(schedule[0]).cron))
+  ) {
+    fail(
+      'nightly.schedule',
+      'the workflow has exactly one cron schedule (five fields)',
+    );
+  }
+
+  const jobs = asRecord(doc.jobs);
+  if (!sameSet(Object.keys(jobs), ['plan', 'release', 'alpha', 'report'])) {
+    fail(
+      'nightly.jobs',
+      `the jobs must be plan, release, alpha and report, not ${Object.keys(jobs).join(', ')}`,
+    );
+  }
+
+  const plan = asRecord(jobs.plan);
+  const planRuns = steps(plan)
+    .map(runOf)
+    .filter((run) => run !== '');
+  const planSetup = steps(plan).filter(
+    (step) => usesOf(step) === './.github/actions/setup',
+  );
+  if (
+    planRuns.length !== 1 ||
+    normal(planRuns[0] ?? '') !==
+      'node tools/conformance-ci/src/nightly-plan-cli.ts' ||
+    !sameSet(Object.keys(asRecord(plan.outputs)), [
+      'release',
+      'alpha',
+      'has_alpha',
+    ]) ||
+    planSetup.length !== 1 ||
+    planSetup.some((step) => step.with !== undefined)
+  ) {
+    fail(
+      'nightly.plan',
+      'the plan job runs `node tools/conformance-ci/src/nightly-plan-cli.ts` after the plain setup action and exposes release, alpha and has_alpha',
+    );
+  }
+
+  checkLegJob('release', asRecord(jobs.release), fail);
+  checkLegJob('alpha', asRecord(jobs.alpha), fail);
+  if (asRecord(jobs.alpha)['continue-on-error'] !== true) {
+    fail(
+      'nightly.alpha',
+      'the alpha job must set `continue-on-error: true`: non-release builds may fail without failing the run',
+    );
+  }
+  if ('continue-on-error' in asRecord(jobs.release)) {
+    fail(
+      'nightly.release',
+      'the release job must not set continue-on-error: a failure on either Node turns the run red',
+    );
+  }
+
+  // The report: always, after everything, from the legs' own statuses; its exit code is the run's.
+  const report = asRecord(jobs.report);
+  const reportNeeds = Array.isArray(report.needs)
+    ? report.needs
+    : [report.needs];
+  const reportRuns = steps(report)
+    .map(runOf)
+    .filter((run) => run !== '');
+  const reportEnv = asRecord(
+    steps(report).find((step) => 'PLAN_RESULT' in asRecord(step.env))?.env,
+  );
+  const download = steps(report).find((step) =>
+    usesOf(step).startsWith('actions/download-artifact@'),
+  );
+  const reportUpload = steps(report).find((step) =>
+    usesOf(step).startsWith('actions/upload-artifact@'),
+  );
+  const expected: Record<string, string> = {
+    PLAN_RESULT: 'needs.plan.result',
+    PLAN_RELEASE: 'needs.plan.outputs.release',
+    PLAN_ALPHA: 'needs.plan.outputs.alpha',
+    RELEASE_RESULT: 'needs.release.result',
+    ALPHA_RESULT: 'needs.alpha.result',
+  };
+  if (
+    stripExpression(typeof report.if === 'string' ? report.if : '') !==
+      'always()' ||
+    !sameSet(
+      reportNeeds.filter((n): n is string => typeof n === 'string'),
+      ['plan', 'release', 'alpha'],
+    ) ||
+    reportRuns.length !== 1 ||
+    normal(reportRuns[0] ?? '') !==
+      'node tools/conformance-ci/src/report-cli.ts' ||
+    Object.entries(expected).some(
+      ([key, value]) => stripExpression(String(reportEnv[key])) !== value,
+    ) ||
+    asRecord(download?.with).pattern !== 'leg-*' ||
+    asRecord(download?.with).path !== 'dist/legs' ||
+    stripExpression(String(reportUpload?.if)) !== 'always()' ||
+    asRecord(reportUpload?.with).name !== 'conformance-nightly-report' ||
+    asRecord(reportUpload?.with).path !== 'dist/nightly-report.md' ||
+    steps(report).some((step) =>
+      /^(\.\/\.github\/actions\/setup|pnpm\/)/.test(usesOf(step)),
+    )
+  ) {
+    fail(
+      'nightly.report',
+      'the report job runs `if: always()` after plan, release and alpha, installs nothing, downloads leg-* into dist/legs, runs report-cli.ts with the job results and uploads conformance-nightly-report',
+    );
+  }
+  return out;
+}
+
+/** Every rule that applies to conformance-nightly.yml. */
+export function checkNightly(file: WorkflowFile): ConformanceViolation[] {
+  return [
+    ...checkWorkflow(file, NIGHTLY_CONFIG),
+    ...checkNightlyWorkflow(file),
+  ];
 }
 
 /** Every rule that applies to conformance-pr.yml. */

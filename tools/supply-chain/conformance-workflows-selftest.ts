@@ -1,5 +1,6 @@
 // Self-test for the hardening check of the conformance CI workflows
-// (`nx run supply-chain:conformance-workflows-selftest`, M0-42). The real workflows must pass;
+// (`nx run supply-chain:conformance-workflows-selftest`, M0-42). The real workflows
+// (conformance-pr.yml and conformance-nightly.yml) must pass;
 // every mutation below plants one weakening in a copy of one of them and the check must name the
 // rule. The mutations start from the real file, so a rename in the workflow that makes a mutation a
 // no-op fails the test instead of silently weakening it.
@@ -11,10 +12,14 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   CONFORMANCE_WORKFLOWS,
+  NIGHTLY_CONFIG,
+  NIGHTLY_RULES,
+  NIGHTLY_WORKFLOW_PATH,
   PR_CONFIG,
   PR_RULES,
   PR_WORKFLOW_PATH,
   WORKFLOW_RULES,
+  checkNightly,
   checkPr,
   checkWorkflow,
 } from './conformance-workflows.ts';
@@ -443,6 +448,322 @@ function sharedMutations(): Mutation[] {
   ];
 }
 
+const NIGHTLY_STEP = '      - name: Plan the legs';
+const RELEASE_COMMAND =
+  'run: pnpm nx run conformance:test --versions="$VERSION"';
+
+/** The planted violations of the shared rules, as they read in conformance-nightly.yml. */
+function nightlySharedMutations(): Mutation[] {
+  const insert = (step: string): string => `${step}\n${NIGHTLY_STEP}`;
+  return [
+    {
+      name: 'write-all at the top',
+      from: 'permissions: {}',
+      to: 'permissions: write-all',
+      rule: 'wf.permissions',
+    },
+    {
+      name: 'a job may write contents',
+      from: 'contents: read # checkout only\n',
+      to: 'contents: write # checkout only\n',
+      rule: 'wf.permissions',
+    },
+    {
+      name: 'a job gets an id token',
+      from: 'contents: read # checkout only\n',
+      to: 'contents: read # checkout only\n      id-token: write\n',
+      rule: 'wf.permissions',
+    },
+    {
+      name: 'a moving runner label',
+      from: 'runs-on: ubuntu-24.04',
+      to: 'runs-on: ubuntu-latest',
+      rule: 'wf.job-shape',
+    },
+    {
+      name: 'no time limit',
+      from: '    timeout-minutes: 15\n',
+      to: '',
+      rule: 'wf.job-shape',
+    },
+    {
+      name: 'a repository secret',
+      from: 'VERSION: ${{ matrix.version }}',
+      to: 'VERSION: ${{ secrets.PAT }}',
+      rule: 'wf.secrets',
+    },
+    {
+      name: 'the workflow token',
+      from: 'RESULT: ${{ job.status }}',
+      to: 'RESULT: ${{ github.token }}',
+      rule: 'wf.secrets',
+    },
+    {
+      name: 'the recorder',
+      from: RELEASE_COMMAND,
+      to: 'run: pnpm nx run conformance:record --cells="CF-SMOKE-01" --versions="$VERSION"',
+      rule: 'wf.recorder',
+    },
+    {
+      name: 'a copy into the evidence tree',
+      from: NIGHTLY_STEP,
+      to: insert('      - run: cp -R dist/x testing/lab-evidence/'),
+      rule: 'wf.recorder',
+    },
+    {
+      name: 'a push',
+      from: NIGHTLY_STEP,
+      to: insert('      - run: git push origin HEAD:main'),
+      rule: 'wf.write',
+    },
+    {
+      name: 'a commit',
+      from: NIGHTLY_STEP,
+      to: insert('      - run: git commit -am x'),
+      rule: 'wf.write',
+    },
+    {
+      name: 'gh',
+      from: NIGHTLY_STEP,
+      to: insert('      - run: gh issue create --title x'),
+      rule: 'wf.write',
+    },
+    {
+      name: 'github-script',
+      from: NIGHTLY_STEP,
+      to: insert(`      - uses: actions/github-script@${SHA} # v7.0.0`),
+      rule: 'wf.github-script',
+    },
+    {
+      name: 'a pull_request_target trigger',
+      from: 'on:\n  schedule:',
+      to: 'on:\n  pull_request_target:\n  schedule:',
+      rule: 'wf.triggers',
+    },
+    {
+      name: 'a push trigger',
+      from: 'on:\n  schedule:',
+      to: 'on:\n  push:\n  schedule:',
+      rule: 'wf.triggers',
+    },
+    {
+      name: 'the release job continues on error',
+      from: '    timeout-minutes: 90\n',
+      to: '    timeout-minutes: 90\n    continue-on-error: true\n',
+      rule: 'wf.continue-on-error',
+    },
+    {
+      name: 'a step continues on error',
+      from: '      - name: Keep the status of this leg\n',
+      to: '      - name: Keep the status of this leg\n        continue-on-error: true\n',
+      rule: 'wf.continue-on-error',
+    },
+    {
+      name: 'the report job continues on error',
+      from: '    timeout-minutes: 10\n',
+      to: '    timeout-minutes: 10\n    continue-on-error: true\n',
+      rule: 'wf.continue-on-error',
+    },
+    {
+      name: 'the alpha job continues on error only when it says true',
+      from: '    continue-on-error: true #',
+      to: "    continue-on-error: ${{ matrix.version != '0.0.0' }} #",
+      rule: 'wf.continue-on-error',
+    },
+    {
+      name: 'an expression in the report run block',
+      from: 'run: node tools/conformance-ci/src/report-cli.ts',
+      to: 'run: node tools/conformance-ci/src/report-cli.ts ${{ needs.release.result }}',
+      rule: 'wf.expression-in-run',
+    },
+    {
+      name: 'a plan output read from the event',
+      from: 'PLAN_ALPHA: ${{ needs.plan.outputs.alpha }}',
+      to: 'PLAN_ALPHA: ${{ github.event.inputs.alpha }}',
+      rule: 'wf.expression-source',
+    },
+    {
+      name: 'a checkout of another ref',
+      from: 'persist-credentials: false\n      - uses: ./.github/actions/setup\n      - name: Plan',
+      to: 'persist-credentials: false\n          ref: ${{ github.sha }}\n      - uses: ./.github/actions/setup\n      - name: Plan',
+      rule: 'wf.checkout',
+    },
+    {
+      name: 'an action pinned by tag',
+      from: 'actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2',
+      to: 'actions/download-artifact@v8',
+      rule: 'wf.pinned',
+    },
+    {
+      name: 'a workflow that does not parse',
+      from: 'permissions: {}',
+      to: 'permissions: [unclosed',
+      rule: 'wf.parse',
+    },
+  ];
+}
+
+void test('conformance-nightly.yml keeps the shape of the nightly', () => {
+  const nightly = read(NIGHTLY_WORKFLOW_PATH);
+  const check = (text: string) =>
+    checkNightly({ path: NIGHTLY_WORKFLOW_PATH, text });
+  assert.deepEqual(check(nightly), []);
+  assert.deepEqual(check(nightly.replace(/\n/g, '\r\n')), []);
+  assert.match(nightly, /^name: conformance-nightly$/m);
+  plant(nightly, check, [
+    {
+      name: 'no schedule',
+      from: "  schedule:\n    - cron: '17 2 * * *'\n",
+      to: '',
+      rule: 'nightly.schedule',
+    },
+    {
+      name: 'two schedules',
+      from: "    - cron: '17 2 * * *'\n",
+      to: "    - cron: '17 2 * * *'\n    - cron: '17 3 * * *'\n",
+      rule: 'nightly.schedule',
+    },
+    {
+      name: 'a fifth job',
+      from: '\n  report:\n',
+      to: '\n  extra:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 1\n    steps:\n      - run: echo hi\n\n  report:\n',
+      rule: 'nightly.jobs',
+    },
+    {
+      name: 'the plan runs something else',
+      from: 'run: node tools/conformance-ci/src/nightly-plan-cli.ts',
+      to: 'run: echo planned',
+      rule: 'nightly.plan',
+    },
+    {
+      name: 'a Node override on the plan job',
+      from: '      - uses: ./.github/actions/setup\n      - name: Plan the legs',
+      to: '      - uses: ./.github/actions/setup\n        with:\n          node-version: 20\n      - name: Plan the legs',
+      rule: 'nightly.plan',
+    },
+    {
+      name: 'a literal Node range for the release legs',
+      from: 'node-version: ${{ matrix.node }}',
+      to: "node-version: '>=24'",
+      rule: 'nightly.release',
+    },
+    {
+      name: 'a setup-node step on the release job',
+      from: '      - name: Run the conformance cells on one broker version',
+      to: `      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0\n        with:\n          node-version: 20\n      - name: Run the conformance cells on one broker version`,
+      rule: 'nightly.release',
+    },
+    {
+      name: 'a literal node list for the release legs',
+      from: 'matrix: ${{ fromJSON(needs.plan.outputs.release) }}',
+      to: "matrix:\n        version: ['4.3.6']\n        node: ['24.22.0', '26.12.0']",
+      rule: 'nightly.release',
+    },
+    {
+      name: 'the release legs stop at the first failure',
+      from: 'fail-fast: false',
+      to: 'fail-fast: true',
+      rule: 'nightly.release',
+    },
+    {
+      name: 'the release job can be skipped',
+      from: '    needs: plan\n    runs-on',
+      to: "    needs: plan\n    if: github.event_name == 'schedule'\n    runs-on",
+      rule: 'nightly.release',
+    },
+    {
+      name: 'the release legs do not fail the run',
+      from: '    timeout-minutes: 90\n',
+      to: '    timeout-minutes: 90\n    continue-on-error: true\n',
+      rule: 'nightly.release',
+    },
+    {
+      name: 'the release command is another command',
+      from: RELEASE_COMMAND,
+      to: `${RELEASE_COMMAND} --non-blocking=$VERSION`,
+      rule: 'nightly.release',
+    },
+    {
+      name: 'the alpha job cannot fail',
+      from: '    continue-on-error: true # the only job that may fail without failing the run; the report lists it\n',
+      to: '',
+      rule: 'nightly.alpha',
+    },
+    {
+      name: 'the alpha job runs with no alpha build',
+      from: "    if: needs.plan.outputs.has_alpha == 'true'\n",
+      to: '',
+      rule: 'nightly.alpha',
+    },
+    {
+      name: 'the alpha matrix is the release matrix',
+      from: 'matrix: ${{ fromJSON(needs.plan.outputs.alpha) }}',
+      to: 'matrix: ${{ fromJSON(needs.plan.outputs.release) }}',
+      rule: 'nightly.alpha',
+    },
+    {
+      name: 'a leg status written only on success',
+      from: '      - name: Keep the status of this leg\n        if: always()\n',
+      to: '      - name: Keep the status of this leg\n',
+      rule: 'nightly.leg-status',
+    },
+    {
+      name: 'a leg status that is a constant',
+      from: 'RESULT: ${{ job.status }}',
+      to: 'RESULT: success',
+      rule: 'nightly.leg-status',
+    },
+    {
+      name: 'a leg uploaded under another name',
+      from: 'name: leg-node-${{ matrix.node }}-release-${{ matrix.version }}',
+      to: 'name: leg-release-${{ matrix.version }}',
+      rule: 'nightly.leg-status',
+    },
+    {
+      name: 'a leg upload that is skipped after a failure',
+      from: '      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n        if: always()\n        with:\n          name: leg-node-${{ matrix.node }}-release',
+      to: '      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n        with:\n          name: leg-node-${{ matrix.node }}-release',
+      rule: 'nightly.leg-status',
+    },
+    {
+      name: 'a report that can be skipped',
+      from: '    needs: [plan, release, alpha]\n    if: always()\n',
+      to: '    needs: [plan, release, alpha]\n',
+      rule: 'nightly.report',
+    },
+    {
+      name: 'a report that does not wait for alpha',
+      from: 'needs: [plan, release, alpha]',
+      to: 'needs: [plan, release]',
+      rule: 'nightly.report',
+    },
+    {
+      name: 'a report that reads no legs',
+      from: 'pattern: leg-*',
+      to: 'pattern: nothing-*',
+      rule: 'nightly.report',
+    },
+    {
+      name: 'a report that ignores the release result',
+      from: 'RELEASE_RESULT: ${{ needs.release.result }}',
+      to: 'RELEASE_RESULT: ${{ needs.alpha.result }}',
+      rule: 'nightly.report',
+    },
+    {
+      name: 'a report that installs the workspace',
+      from: '      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0\n        with:\n          node-version-file: .nvmrc\n',
+      to: '      - uses: ./.github/actions/setup\n',
+      rule: 'nightly.report',
+    },
+    {
+      name: 'a report that is not uploaded',
+      from: 'name: conformance-nightly-report',
+      to: 'name: other',
+      rule: 'nightly.report',
+    },
+  ]);
+});
+
 void test('AC-6 no conformance workflow can record evidence, write, or hide a failure', () => {
   assert.ok(CONFORMANCE_WORKFLOWS.length > 0);
   for (const config of CONFORMANCE_WORKFLOWS) {
@@ -451,9 +772,11 @@ void test('AC-6 no conformance workflow can record evidence, write, or hide a fa
       checkWorkflow({ path: config.path, text: candidate }, config);
     assert.deepEqual(check(text), [], `${config.path} breaks a rule`);
     assert.deepEqual(check(text.replace(/\n/g, '\r\n')), []);
-    if (config === PR_CONFIG) {
-      plant(text, check, sharedMutations());
-    }
+    plant(
+      text,
+      check,
+      config === PR_CONFIG ? sharedMutations() : nightlySharedMutations(),
+    );
   }
   // No planted violation may weaken the real files: the workflow list covers the new workflows.
   assert.ok(
@@ -489,7 +812,7 @@ void test('AC-6 no conformance workflow can record evidence, write, or hide a fa
 });
 
 void test('every rule of the check is exercised by at least one planted violation', () => {
-  for (const rule of [...WORKFLOW_RULES, ...PR_RULES]) {
+  for (const rule of [...WORKFLOW_RULES, ...PR_RULES, ...NIGHTLY_RULES]) {
     assert.ok(fired.has(rule), `no planted violation fires ${rule}`);
   }
 });

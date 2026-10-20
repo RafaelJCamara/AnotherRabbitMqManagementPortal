@@ -1,0 +1,163 @@
+# M0-42 (invariant I-14, amendments A-1 and A-23): the conformance matrix every night, wider than
+# the pull request gate. It RUNS the three-way harness; it never records evidence (that is
+# conformance-record.yml, amendment A-20), never writes to testing/lab-evidence, and holds no
+# write token and no secret.
+#
+#   - `release`: every pinned lab broker version on the Node of `.nvmrc` (24.22.0) and on Node
+#     26.12.0, exact versions from the plan, through the `node-version` input of the `setup`
+#     action. A failure on either Node turns the run red (Q-7).
+#   - `alpha`: non-release builds. It may fail (`continue-on-error` on this job only) and its
+#     failure is listed as `fail` in the report. The list is empty until the source and pinning
+#     rule of non-release builds are settled (OQ-81), so the job is skipped and the report says
+#     "not available"; nothing changes `profile.verification` automatically (blueprint 5.2).
+#   - The Electron-runtime leg has no job: the test-fused Electron binary does not exist before M2
+#     (Q-6), and the report lists it as "not available" rather than leaving it out or passing it.
+#   - Every leg uploads its own status (`leg-node-<node>-<channel>-<version>`); `report` reads them
+#     with the job results, writes the step summary and the `conformance-nightly-report` artifact,
+#     and fails when a blocking leg did not succeed or never reported. A leg that did not run is
+#     never shown as a pass.
+#   - A cell with no recorded evidence is `unverified`: shown and skipped, never green, never a
+#     failure; `--strict` is not used here (Q-4).
+#   - No expression is interpolated into a `run:` block. tools/supply-chain/conformance-workflows.ts
+#     pins all of this.
+name: conformance-nightly
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: conformance-nightly
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read # checkout only
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+      alpha: ${{ steps.plan.outputs.alpha }}
+      has_alpha: ${{ steps.plan.outputs.has_alpha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Plan the legs
+        id: plan
+        run: node tools/conformance-ci/src/nightly-plan-cli.ts
+
+  release:
+    name: release ${{ matrix.version }} on node ${{ matrix.node }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read # checkout only; the brokers are local containers
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.release) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Run the conformance cells on one broker version
+        env:
+          VERSION: ${{ matrix.version }}
+        run: pnpm nx run conformance:test --versions="$VERSION"
+      - name: Keep the status of this leg
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          mkdir -p dist/leg
+          printf '%s\n' "$RESULT" > dist/leg/result
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: leg-node-${{ matrix.node }}-release-${{ matrix.version }}
+          path: dist/leg/result
+          if-no-files-found: error
+          retention-days: 7
+
+  alpha:
+    name: alpha ${{ matrix.version }} on node ${{ matrix.node }}
+    needs: plan
+    if: needs.plan.outputs.has_alpha == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    continue-on-error: true # the only job that may fail without failing the run; the report lists it
+    permissions:
+      contents: read # checkout only; the brokers are local containers
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.alpha) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Run the conformance cells on one non-release build
+        env:
+          VERSION: ${{ matrix.version }}
+        run: pnpm nx run conformance:test --versions="$VERSION"
+      - name: Keep the status of this leg
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          mkdir -p dist/leg
+          printf '%s\n' "$RESULT" > dist/leg/result
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: leg-node-${{ matrix.node }}-alpha-${{ matrix.version }}
+          path: dist/leg/result
+          if-no-files-found: error
+          retention-days: 7
+
+  report:
+    name: report
+    needs: [plan, release, alpha]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: leg-*
+          path: dist/legs
+      - name: Build the report
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          PLAN_RELEASE: ${{ needs.plan.outputs.release }}
+          PLAN_ALPHA: ${{ needs.plan.outputs.alpha }}
+          RELEASE_RESULT: ${{ needs.release.result }}
+          ALPHA_RESULT: ${{ needs.alpha.result }}
+        run: node tools/conformance-ci/src/report-cli.ts
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: conformance-nightly-report
+          path: dist/nightly-report.md
+          if-no-files-found: error
+          retention-days: 30

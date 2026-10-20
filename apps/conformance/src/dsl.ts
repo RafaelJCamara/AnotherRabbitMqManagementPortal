@@ -172,7 +172,8 @@ export type LabStep =
 export interface LabScenario {
   readonly cfId: string;
   readonly title: string;
-  readonly protocol: 'amqp091';
+  /** The protocol of the action under test (the evidence enum), not of the publish and the drain. */
+  readonly protocol: 'amqp091' | 'http';
   readonly steps: readonly LabStep[];
 }
 

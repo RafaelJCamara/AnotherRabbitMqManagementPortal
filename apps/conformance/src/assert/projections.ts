@@ -41,4 +41,6 @@ export const PROJECTIONS: Readonly<Record<string, Projection>> = {
   'CF-DR-01': projectDr01,
   'CF-DR-02': projectDr02,
   'CF-SETTLE-01': projectSettle('CF-SETTLE-01'),
+  'CF-SETTLE-02': projectSettle('CF-SETTLE-02'),
+  'CF-SETTLE-05': projectSettle('CF-SETTLE-05'),
 };

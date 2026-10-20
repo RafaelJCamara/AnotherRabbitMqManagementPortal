@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { PROJECTIONS } from '../assert/projections.ts';
 import { SCENARIOS } from '../scenarios/index.ts';
 
-const WIRED = ['CF-SETTLE-01'];
+const WIRED = ['CF-SETTLE-01', 'CF-SETTLE-02', 'CF-SETTLE-05'];
 const REPO = join(import.meta.dirname, '..', '..', '..', '..');
 const SETTLE =
   /^apps\/conformance\/src\/(scenarios\/(cf-settle-|settle-return)|assert\/projections-settle)/;

@@ -13,11 +13,15 @@ type Count = number | null;
 type Shape = readonly ['head' | 'tail' | 'gone', Count, Count];
 /** Rounds of a crossing queue: how many were taken, in how many of them the message was `m1`, whether it is gone. */
 type Rounds = readonly [total: number, held: number, gone: boolean];
-/** `over`: another shape, by queue (`fin-consume`) or for both paths of a limit (`minus1`). */
+/**
+ * `over`: another shape, by queue (`fin-consume`) or for both paths of a limit (`minus1`).
+ * `cf`: the id whose scenario the artefact stands for (CF-SETTLE-05 returns by the management get).
+ */
 interface Extra {
   over?: Record<string, Shape> | undefined;
   fin?: Rounds | undefined;
   unset?: Rounds | undefined;
+  cf?: 'CF-SETTLE-01' | 'CF-SETTLE-02' | 'CF-SETTLE-05' | undefined;
 }
 
 const head = (dc: Count, ac: Count): Shape => ['head', dc, ac];
@@ -51,17 +55,31 @@ const drain = (q: string, [place, dc, ac]: Shape) => [
   ),
   obs(q, 't', { position: Number(place === 'head') }),
 ];
+/** A management get answers with a list and no counter headers (they come from the drain). */
+const answer = (messageId: string, status = 200): Record<string, Json> => ({
+  status,
+  messages: status === 200 ? [{ messageId, redelivered: false }] : [],
+});
+
 function artefact(
   base: Shape,
-  { over = {}, fin = [3, 3, true], unset = [21, 21, false] }: Extra = {},
+  {
+    over = {},
+    fin = [3, 3, true],
+    unset = [21, 21, false],
+    cf = 'CF-SETTLE-01',
+  }: Extra = {},
 ) {
   type Rec = Record<string, Json>;
+  const http = cf === 'CF-SETTLE-05';
   const steps: { op: string; args: Rec; result: Rec }[] = [];
   const step = (op: string, args: Rec, result: Rec) =>
     steps.push({ op, args, result });
   const observations: ReturnType<typeof drain> = [];
   for (const l of ['unset', 'fin', 'minus1']) {
-    for (const path of ['get', 'consume'] as const) {
+    for (const path of http
+      ? (['http'] as const)
+      : (['get', 'consume'] as const)) {
       const q = `${l}-${path}`;
       // A get says `empty: false`; the deliveries of a consume carry no such field.
       const d = {
@@ -69,11 +87,15 @@ function artefact(
         'x-delivery-count': null,
         'x-acquired-count': null,
       };
-      step(
-        path,
-        { as: `${q}-d`, queue: q },
-        path === 'get' ? { ...d, empty: false } : { deliveries: [d] },
-      );
+      if (path === 'http') {
+        step('mgmtGet', { as: `${q}-d`, queue: q }, answer(`${q}-m1`));
+      } else {
+        step(
+          path,
+          { as: `${q}-d`, queue: q },
+          path === 'get' ? { ...d, empty: false } : { deliveries: [d] },
+        );
+      }
       observations.push(...drain(q, over[q] ?? over[l] ?? base));
     }
   }
@@ -85,19 +107,17 @@ function artefact(
     step('declareQueue', { queue: q, arguments: args }, { ok: true });
     for (let n = 0; n < total; n += 1) {
       const messageId = `${q}-${n < held ? 'm1' : 't'}`;
-      step(
-        'get',
-        { as: `${q}-r${String(n + 1)}`, queue: q },
-        { empty: false, messageId },
-      );
+      const as = `${q}-r${String(n + 1)}`;
+      if (http) step('mgmtGet', { as, queue: q }, answer(messageId));
+      else step('get', { as, queue: q }, { empty: false, messageId });
     }
     observations.push(...drain(q, gone ? GONE : head(null, null)));
   }
   return sealArtefact({
     schemaVersion: 1,
-    cfId: 'CF-SETTLE-01',
+    cfId: cf,
     title: 'hand-written',
-    protocol: 'amqp091',
+    protocol: http ? 'http' : 'amqp091',
     brokerVersion: '4.3.6',
     imageDigest: DIGEST,
     steps: steps.map((step, index) => ({ index, ...step })),
@@ -107,19 +127,58 @@ function artefact(
 }
 
 type Limit = SemanticsCell['key']['limit'];
-const cellOf = (era: string, limit: Limit) => {
+const cellOf = (
+  era: string,
+  limit: Limit,
+  cf: `CF-${string}` = 'CF-SETTLE-01',
+) => {
   const found = registryData.cells.find(
     (c) =>
-      c.conformance.includes('CF-SETTLE-01') &&
-      c.key.era === era &&
-      c.key.limit === limit,
+      c.conformance.includes(cf) && c.key.era === era && c.key.limit === limit,
   );
   if (found === undefined) throw new Error(`no cell ${era} ${String(limit)}`);
   return found;
 };
 const project = projectSettle('CF-SETTLE-01');
-const seen = (era: string, limit: Limit, base: Shape, extra?: Extra) =>
-  project(artefact(base, extra), cellOf(era, limit));
+const seen = (era: string, limit: Limit, base: Shape, extra?: Extra) => {
+  const cf = extra?.cf ?? 'CF-SETTLE-01';
+  return projectSettle(cf)(artefact(base, extra), cellOf(era, limit, cf));
+};
+
+/**
+ * Every cell of an id, from the shape each era shows (`ac` is the 4.3 shape, `fin` its finite
+ * rounds): what the artefact projects is non-empty and the registry cell holds all of it.
+ */
+function confirmsEveryCell(
+  cf: NonNullable<Extra['cf']>,
+  ac: Shape,
+  fin: Rounds,
+) {
+  const cases = [
+    ['3.13', 'unset', tail(1, null)],
+    ['3.13', 'finite', ONE],
+    ['3.13', 'minus1', ONE, { over: { minus1: GONE } }],
+    ['4.0-4.2', 'finite', ONE],
+    ['4.0-4.2', 'minus1', tail(1, null)],
+    ['4.3', 'finite', ac, { fin }],
+    ['4.3', 'minus1', ac],
+  ] as const;
+  for (const [era, limit, base, extra = {}] of cases) {
+    const observed = seen(era, limit, base, { ...extra, cf });
+    expect(observed, `${cf} ${era} ${limit}`).not.toBeNull();
+    // The rounds speak for every cell except one a return that leaves the delivery count alone cannot decide.
+    const leftOut =
+      cellOf(era, limit, cf).effect?.countsTowardLimit === 'if-dc-gt-limit';
+    expect(
+      observed !== null && 'countsTowardLimit' in observed,
+      `${cf} ${era} ${limit} countsTowardLimit`,
+    ).toBe(!leftOut);
+    expect(
+      cellOf(era, limit, cf).effect,
+      `${cf} ${era} ${limit}`,
+    ).toMatchObject(observed ?? {});
+  }
+}
 
 describe('the CF-SETTLE-01 projection', () => {
   it('AC-1 the recorded counters, position and survival of a nack confirm the finite-limit cells of every era', () => {
@@ -210,7 +269,7 @@ describe('the CF-SETTLE-01 projection', () => {
     expect(counts('4.3', 'minus1')).toBe('no');
   });
 
-  it('AC-9 diverging get and consume paths are not averaged away: neither is chosen', () => {
+  it('AC-9 diverging get and consume paths, and an unreadable management answer, are not averaged away: neither is chosen', () => {
     const speaks = (era: string, limit: Limit, extra?: Extra) =>
       seen(era, limit, ONE, extra) !== null;
     // Where the message landed differs on the fin paths, the counters after the return on the minus1 paths.
@@ -222,5 +281,54 @@ describe('the CF-SETTLE-01 projection', () => {
     expect(speaks('4.0-4.2', 'finite', { over })).toBe(false);
     expect(speaks('4.0-4.2', 'minus1', { over })).toBe(false);
     expect(speaks('3.13', 'unset', { over })).toBe(true);
+
+    // CF-SETTLE-05 has the one `http` path: the management answer must be a 200 that took `m1`.
+    const cf = 'CF-SETTLE-05';
+    const seenHttp = (result?: Record<string, Json>) => {
+      const run = artefact(ONE, { cf });
+      const steps = run.steps.map((s) =>
+        result !== undefined && s.args.as === 'fin-http-d'
+          ? { ...s, result }
+          : s,
+      );
+      return projectSettle(cf)({ ...run, steps }, cellOf('3.13', 'finite', cf));
+    };
+    confirmsEveryCell(cf, head(0, 1), KEPT);
+    expect(seenHttp()).toMatchObject({ position: 'head' });
+    for (const result of [
+      // A failed answer that still lists the message is no return.
+      { ...answer('fin-http-m1'), status: 500 },
+      answer('fin-http-t'),
+      { status: 200, messages: [] },
+    ]) {
+      expect(seenHttp(result), JSON.stringify(result)).toBeNull();
+    }
+  });
+
+  it('AC-15 reject and nack are different actions: on 4.3 reject raises the delivery count and nack does not', () => {
+    // 4.3, otherwise equal artefacts: the delivery count moves on a reject, not on a nack.
+    const cf = 'CF-SETTLE-02';
+    const reject = seen('4.3', 'finite', head(1, 1), { cf });
+    const nack = seen('4.3', 'finite', head(0, 1), { fin: KEPT });
+    expect(reject).toEqual({
+      ...{ deltaAC: 1, deltaDC: 1, countsTowardLimit: 'yes' },
+      position: 'head',
+      destructive: false,
+    });
+    expect(nack).toMatchObject({ deltaAC: 1, deltaDC: 0 });
+    // Each artefact confirms its own cell and contradicts the other action's.
+    expect(cellOf('4.3', 'finite', cf).effect).toMatchObject(reject ?? {});
+    expect(cellOf('4.3', 'finite').effect).not.toMatchObject(reject ?? {});
+    expect(cellOf('4.3', 'finite', cf).effect).not.toMatchObject(nack ?? {});
+    // An artefact of the other id is nobody's evidence.
+    const nacked = artefact(head(0, 1), { fin: KEPT });
+    expect(projectSettle(cf)(nacked, cellOf('4.3', 'finite', cf))).toBeNull();
+    confirmsEveryCell(cf, head(1, 1), [3, 3, true]);
+    // A reject raises the delivery count, so surviving the limit plus one returns is `no` (a nack leaves it out).
+    const survived = seen('4.3', 'finite', head(1, 1), { cf, fin: KEPT });
+    expect(survived?.countsTowardLimit).toBe('no');
+    expect(cellOf('4.3', 'finite', cf).effect?.countsTowardLimit).not.toBe(
+      'no',
+    );
   });
 });

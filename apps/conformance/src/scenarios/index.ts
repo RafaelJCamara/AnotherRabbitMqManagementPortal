@@ -7,6 +7,8 @@ import { cfDown01 } from './cf-down-01.ts';
 import { cfDr01 } from './cf-dr-01.ts';
 import { cfDr02 } from './cf-dr-02.ts';
 import { cfSettle01 } from './cf-settle-01.ts';
+import { cfSettle02 } from './cf-settle-02.ts';
+import { cfSettle05 } from './cf-settle-05.ts';
 import { cfSmoke01 } from './cf-smoke-01.ts';
 import { cfStamp01 } from './cf-stamp-01.ts';
 
@@ -19,6 +21,8 @@ export const SCENARIOS: readonly LabScenario[] = [
   cfDr01,
   cfDr02,
   cfSettle01,
+  cfSettle02,
+  cfSettle05,
 ];
 
 /** The scenarios whose ids match the patterns (`CF-SMOKE-01`, or `CF-SETTLE-*`). Unmatched patterns throw. */

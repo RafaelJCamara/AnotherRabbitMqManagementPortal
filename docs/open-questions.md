@@ -675,7 +675,7 @@ Things on `main` that only a maintainer can settle. They are not decided here. O
 
 The four specs were approved by the maintainer with their defaults (`docs/specs/M0-39.md`, `M0-40.md`, `M0-51.md`, `M0-53.md`). Each question in their "Risks / questions" sections is recorded below as a row, so the maintainer can answer here. Every row is **open - working default in use**: the default named is what the spec assumes and what an implementation session follows until the row is answered; nothing here decides a question. A row that repeats an existing question points to it, and the answer goes there.
 
-Ids: M0-39 Q-1 to Q-11 are OQ-500 to OQ-510 (Q-n is OQ-(499+n)); M0-40 Q-1 to Q-14 are OQ-511 to OQ-524 (Q-n is OQ-(510+n)); M0-51 questions 1 to 16 are OQ-525 to OQ-540 (n is OQ-(524+n)); M0-53 Q-1 to Q-16 are OQ-541 to OQ-556 (Q-n is OQ-(540+n)). OQ-557 to OQ-559 are unused. OQ-560 to OQ-599 are reserved for the M0-38 and M0-41 sections. (The first plan was to start M0-40, M0-51 and M0-53 at OQ-510, OQ-520 and OQ-540; their question counts do not fit those starts without overlap, so the ranges are contiguous instead.)
+Ids: M0-39 Q-1 to Q-11 are OQ-500 to OQ-510 (Q-n is OQ-(499+n)); M0-40 Q-1 to Q-14 are OQ-511 to OQ-524 (Q-n is OQ-(510+n)); M0-51 questions 1 to 16 are OQ-525 to OQ-540 (n is OQ-(524+n)); M0-53 Q-1 to Q-16 are OQ-541 to OQ-556 (Q-n is OQ-(540+n)). OQ-557 to OQ-559 were used by the M0-40 and M0-39 slice A work (new questions found while implementing). OQ-560 to OQ-599 are reserved for the M0-38 and M0-41 sections. (The first plan was to start M0-40, M0-51 and M0-53 at OQ-510, OQ-520 and OQ-540; their question counts do not fit those starts without overlap, so the ranges are contiguous instead.)
 
 ### M0-39: DOWN paths lab cells
 

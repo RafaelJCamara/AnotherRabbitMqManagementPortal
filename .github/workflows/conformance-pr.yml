@@ -1,0 +1,100 @@
+# M0-42 (invariant I-14, amendments A-1 and A-23): the conformance matrix on every change that can
+# affect it. It RUNS the three-way harness; it never records evidence (that is conformance-record.yml,
+# amendment A-20), never writes to testing/lab-evidence, and holds no write token and no secret.
+#
+#   - `plan` decides whether the change is affected (Nx affected projects plus a few watched files)
+#     and plans one job per (lab broker version, shard). Any doubt (base unreachable, Nx failed)
+#     counts as affected: the matrix is never skipped on doubt.
+#   - `lab` runs `conformance:test` for one version and one shard on the Node of `.nvmrc`
+#     (the workflow passes no Node override to the `setup` action).
+#   - `conformance` is the required check. It runs `if: always()` and passes only when the plan
+#     succeeded and either the change is unaffected (the lab job was skipped) or every lab job
+#     succeeded. It installs nothing.
+#   - A cell with no recorded evidence is `unverified`: shown, never green, never a failure (Q-4).
+#     The lab runs the pinned images from Docker Hub on hosted runners (Q-1).
+#   - The maintainer lands on `main` without pull requests, so the workflow also runs on push to
+#     `main`. The check blocks a merge only when a maintainer sets `conformance` as a required status
+#     check in the repository settings (Q-2).
+#   - No expression is interpolated into a `run:` block: values reach shell code only as
+#     environment variables. tools/supply-chain/conformance-workflows.ts pins all of this.
+name: conformance-pr
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: conformance-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read # checkout only
+    outputs:
+      affected: ${{ steps.plan.outputs.affected }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the base commit is needed to diff against
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Plan the matrix
+        id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.sha }}
+          SHARDS: '2'
+        run: node tools/conformance-ci/src/plan-cli.ts
+
+  lab:
+    name: lab ${{ matrix.version }} ${{ matrix.shard }}
+    needs: plan
+    if: needs.plan.outputs.affected == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read # checkout only; the brokers are local containers
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Run the conformance cells on one broker version and shard
+        env:
+          VERSION: ${{ matrix.version }}
+          SHARD: ${{ matrix.shard }}
+        run: pnpm nx run conformance:test --versions="$VERSION" --shard="$SHARD"
+
+  conformance:
+    name: conformance
+    needs: [plan, lab]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read # checkout only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Decide the required check
+        env:
+          AFFECTED: ${{ needs.plan.outputs.affected }}
+          PLAN_RESULT: ${{ needs.plan.result }}
+          LAB_RESULT: ${{ needs.lab.result }}
+        run: node tools/conformance-ci/src/verdict-cli.ts

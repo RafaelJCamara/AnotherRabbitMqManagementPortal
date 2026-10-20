@@ -51,7 +51,7 @@ jobs:
       - name: Gates self-tests (planted violations)
         if: runner.os == 'Linux'
         run: |
-          pnpm nx run-many -t gates-selftest actions-pinned-selftest workflow-hardening-selftest -p supply-chain
+          pnpm nx run-many -t gates-selftest actions-pinned-selftest workflow-hardening-selftest conformance-workflows-selftest -p supply-chain
           pnpm nx run work-graph:test
 
   affected:

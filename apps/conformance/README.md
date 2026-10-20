@@ -61,6 +61,9 @@ pnpm nx run conformance:coverage [--strict]                                # the
 - The coverage gate (`coverage.ts`) always fails a cell that names a conformance id without a lab-cell spec, any recorded leg that disagrees, and a cell with a lab status that recorded evidence does not confirm on every lab version of its era. `--strict` also fails any cell without confirming evidence on every lab version of its era, and any id with no scenario (the release gate: no Tier-1 claim and no "lab-verified" badge without a green run over every cell).
 - The status of a cell flips only with evidence: that is the `semantics-evidence` check ([tools/semantics-evidence](../../tools/semantics-evidence/README.md)), not this project.
 
+## Conformance in CI (M0-42)
+
+`.github/workflows/conformance-pr.yml` runs this suite on every change that can affect it: the `plan` job (`tools/conformance-ci`) decides from the Nx affected projects (`semantics`, `conformance`, `adapter-amqp091`, `adapter-mgmt-http`, `broker-lab`, `testkit`) and a few watched files, then the `lab` job runs `pnpm nx run conformance:test --versions="$VERSION" --shard="$SHARD"` for each of the five pinned lab versions in 2 shards on the Node of `.nvmrc`. The job named `conformance` is the required check: it always reports, passes an unaffected change with a reason, and fails when the plan or any lab job did not succeed. A cell with no recorded evidence is `unverified` (shown, skipped, never green, never a failure); `--strict` is the release gate and is not used there. The workflows run the suite and never record evidence: only `conformance-record.yml` does (`tools/supply-chain/conformance-workflows-selftest.ts` pins this). Dry run of the plan: `pnpm nx run conformance-ci:plan --base=origin/main`.
 ## Public API
 
 - Nothing is exported from `src/index.ts`; the suite is the specs in `src/cells/`, and the recorder is run as a command.

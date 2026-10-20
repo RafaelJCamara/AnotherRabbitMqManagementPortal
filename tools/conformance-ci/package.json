@@ -1,0 +1,6 @@
+{
+  "name": "@app/conformance-ci-tools",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0"
+}

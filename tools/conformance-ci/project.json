@@ -1,0 +1,38 @@
+{
+  "name": "conformance-ci",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/conformance-ci/src",
+  "projectType": "library",
+  "tags": ["type:test", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p tools/conformance-ci/tsconfig.lib.json --noEmit",
+          "tsc -p tools/conformance-ci/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config tools/conformance-ci/vitest.config.mts"
+      }
+    },
+    "plan": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node tools/conformance-ci/src/plan-cli.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

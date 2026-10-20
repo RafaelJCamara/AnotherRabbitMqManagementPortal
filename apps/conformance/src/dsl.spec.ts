@@ -5,11 +5,9 @@ import {
   type Attempt,
   awaitReady,
   bindQueue,
-  clockClass,
   closeChannel,
   closeConnection,
   consume,
-  countClass,
   declareExchange,
   declareQueue,
   defineScenario,
@@ -920,13 +918,7 @@ describe('the dead-letter foundation of the DSL (M0-40)', () => {
       bytes: 7,
       headers: { 'x-delivery-count': 99 },
     });
-    expect(first.steps[3]?.result).toEqual({
-      status: 200,
-      messagesReady: 'nonzero',
-      messagesUnacknowledged: 'absent',
-      messagesDelayed: 'nonzero',
-      nextDelayedAt: 'future',
-    });
+    expect(first.steps[3]?.result).toEqual({ status: 200 });
     expect(slept).toEqual([2500]);
     const text = JSON.stringify(first);
     for (const leaked of ['12:00:05', 'a-queue-name', 'rabbit@', 'payload']) {
@@ -958,72 +950,61 @@ describe('the dead-letter foundation of the DSL (M0-40)', () => {
     }
   });
 
-  it('AC-2 (M0-40, clock class) reduces a clock value to its class and never keeps it', () => {
-    const now = 1_000_000;
-    expect(clockClass(undefined, now)).toBe('absent');
-    expect(clockClass(null, now)).toBe('absent');
-    expect(clockClass(now + 1, now)).toBe('future');
-    expect(clockClass(now, now)).toBe('past');
-    expect(clockClass(new Date(now - 1).toISOString(), now)).toBe('past');
-    expect(clockClass('not a date', now)).toBe('unparsed');
-    expect(clockClass({ at: 1 }, now)).toBe('unparsed');
-  });
-
-  it('AC-1 (M0-FIX-1) a queue-stats step records the class of each count, never its value', async () => {
+  it('AC-1 (M0-FIX-1) a queue-stats step records the status of the read and nothing from the statistics', async () => {
     const steps = [declareQueue('q', { type: 'quorum' }), mgmtQueue('s', 'q')];
     const clock: RunClock = {
       now: () => Date.parse('2026-10-20T12:00:00.000Z'),
       sleep: () => Promise.resolve(),
     };
-    const recorded = async (managementJson: Record<string, unknown>) => {
+    class Unknown extends MemoryHost {
+      override management(): Promise<{ status: number; json: unknown }> {
+        return Promise.resolve({ status: 404, json: {} });
+      }
+    }
+    const recorded = async (managementJson: unknown, unknown = false) => {
       const result = await runScenario(
-        new MemoryHost(VERSION, { managementJson }),
+        unknown
+          ? new Unknown(VERSION)
+          : new MemoryHost(VERSION, { managementJson }),
         scenario(...steps),
         'abcd1234',
         200,
         clock,
       );
-      return result.steps[1]?.result;
+      return result.steps[1];
     };
 
-    // The same class at two moments of a refresh (a stale 1 and a fresh 7) is one record.
-    const stale = await recorded({
+    const once = await recorded({
       messages_ready: 1,
       messages_unacknowledged: 0,
       messages_delayed: 1,
+      next_delayed_at: '2026-10-20T12:00:05.000Z',
     });
-    const fresh = await recorded({
-      messages_ready: 7,
-      messages_unacknowledged: 0,
-      messages_delayed: 3,
+    expect(once).toMatchObject({
+      op: 'mgmtQueue',
+      args: { as: 's', queue: 'q' },
+      result: { status: 200 },
     });
-    expect(stale).toEqual({
-      status: 200,
-      messagesReady: 'nonzero',
-      messagesUnacknowledged: 'zero',
-      messagesDelayed: 'nonzero',
-      nextDelayedAt: 'absent',
-    });
-    expect(JSON.stringify(fresh)).toBe(JSON.stringify(stale));
-    // A count that changes class changes the record.
-    expect(
-      await recorded({
-        messages_ready: 1,
-        messages_unacknowledged: 0,
-        messages_delayed: 0,
-      }),
-    ).toMatchObject({ messagesDelayed: 'zero' });
-    // Nothing that is not a whole count of at least 0 is read as one.
-    for (const value of [undefined, null, -1, 1.5, '3', Number.NaN, {}]) {
-      expect(countClass(value), typeof value).toBe('absent');
+    expect(Object.keys(once?.result ?? {})).toEqual(['status']);
+    // Whatever the statistics said at that moment, the record is the same, byte for byte: another
+    // value, another class, a refresh that had not happened yet (no fields), or no object at all.
+    const text = JSON.stringify(once);
+    for (const body of [
+      { messages_ready: 7, messages_unacknowledged: 3, messages_delayed: 3 },
+      { messages_ready: 0, messages_unacknowledged: 0, messages_delayed: 0 },
+      { messages_ready: 'many', next_delayed_at: 1 },
+      {},
+      [],
+      null,
+      'text',
+    ]) {
+      expect(JSON.stringify(await recorded(body)), JSON.stringify(body)).toBe(
+        text,
+      );
     }
-    expect([countClass(0), countClass(1), countClass(2 ** 40)]).toEqual([
-      'zero',
-      'nonzero',
-      'nonzero',
-    ]);
+    // The status of the answer is what is recorded: a queue the broker does not know is a 404.
+    expect((await recorded({}, true))?.result).toEqual({ status: 404 });
   });
-
   it('AC-7 an optional settle skips a delivery that never came and says so, while a plain settle still refuses', async () => {
     const empty = [declareQueue('q'), get('d', 'q')];
     const skipped = await run(

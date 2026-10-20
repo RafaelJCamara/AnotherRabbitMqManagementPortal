@@ -38,7 +38,7 @@ const waits = (artefact: EvidenceArtefact) =>
 const ERA: Era = '4.3';
 
 describe('CF-DR-01', () => {
-  it('AC-6 a nack-peek on delayed-retry all hides the message for about min and the stats show it', async () => {
+  it('AC-6 a nack-peek on delayed-retry all hides the message for about min', async () => {
     const artefact = await recordOnEra(ERA, cfDr01);
     expect(waits(artefact)).toEqual([...WAITS_MS]);
     for (const leg of DR_LEGS) {
@@ -52,15 +52,12 @@ describe('CF-DR-01', () => {
             ? [`${queue}-t`, null, `${queue}-m`]
             : [`${queue}-m`, `${queue}-t`, null],
         );
-        expect(stat(artefact, queue, 'now'), queue).toMatchObject(
-          hidden
-            ? { messagesDelayed: 'nonzero', nextDelayedAt: 'future' }
-            : { messagesDelayed: 'zero', nextDelayedAt: 'absent' },
-        );
-        expect(stat(artefact, queue, 'end'), queue).toMatchObject({
-          messagesDelayed: 'zero',
-          nextDelayedAt: 'absent',
-        });
+        // The stats are read at each slot and only the status of the read is recorded.
+        for (const slot of SLOTS) {
+          expect(stat(artefact, queue, slot), `${queue} ${slot}`).toEqual({
+            status: 200,
+          });
+        }
       }
     }
     // The projection speaks for the 0-9-1 nack and the HTTP read of a finite-limit queue under
@@ -85,13 +82,14 @@ describe('CF-DR-01', () => {
   });
 
   it('AC-2 (M0-FIX-1) CF-DR-01 records the same artefact whatever the statistics said at the moment of the read', async () => {
-    // The statistics refresh on their own interval, so a count read at a fixed moment can be a
-    // stale one. Here every count is another number of the same class (times 3), or the delayed
-    // count is held at 0 (another class).
-    class Skewed extends EraBroker {
+    // The statistics refresh on their own interval and may not be emitted yet, so what a read at a
+    // fixed moment shows differs between two runs of one broker. Here the stats a broker answers
+    // are replaced by another value, another class, or nothing at all.
+    class Stats extends EraBroker {
       constructor(
-        private readonly scale: number,
-        private readonly delayed?: number,
+        private readonly change: (
+          stats: Record<string, unknown>,
+        ) => Record<string, unknown>,
       ) {
         super(ERA);
       }
@@ -101,15 +99,10 @@ describe('CF-DR-01', () => {
         if (typeof json !== 'object' || json === null || Array.isArray(json)) {
           return answer;
         }
-        const stats = { ...(json as Record<string, unknown>) };
-        for (const key of ['messages_ready', 'messages_unacknowledged']) {
-          if (typeof stats[key] === 'number') stats[key] *= this.scale;
-        }
-        if (typeof stats.messages_delayed === 'number') {
-          stats.messages_delayed =
-            this.delayed ?? stats.messages_delayed * this.scale;
-        }
-        return { ...answer, json: stats };
+        return {
+          ...answer,
+          json: this.change(json as Record<string, unknown>),
+        };
       }
     }
     const recorded = async (broker: EraBroker) => {
@@ -127,26 +120,29 @@ describe('CF-DR-01', () => {
     };
 
     const plain = await recorded(new EraBroker(ERA));
-    expect(await recorded(new Skewed(3))).toBe(plain);
-    expect(await recorded(new Skewed(1, 0))).not.toBe(plain);
-    // The stats steps are in the record, as classes only.
+    const scaled = (stats: Record<string, unknown>) =>
+      Object.fromEntries(
+        Object.entries(stats).map(([key, value]) => [
+          key,
+          typeof value === 'number' ? value * 3 + 1 : value,
+        ]),
+      );
+    for (const change of [
+      scaled, // another value, and for a zero another class
+      () => ({}), // before the first emission: no statistic at all
+      () => ({ messages_delayed: 0, next_delayed_at: 1 }), // a stale zero
+    ]) {
+      expect(await recorded(new Stats(change))).toBe(plain);
+    }
+    // The stats steps are in the record (one per queue and slot), with the status alone.
     const stats = (
       JSON.parse(plain) as {
         steps: { op: string; result: Record<string, unknown> }[];
       }
     ).steps.filter((step) => step.op === 'mgmtQueue');
     expect(stats.length).toBe(DR_LEGS.length * DR_TYPES.length * SLOTS.length);
-    for (const step of stats) {
-      for (const key of [
-        'messagesReady',
-        'messagesUnacknowledged',
-        'messagesDelayed',
-      ]) {
-        expect(['zero', 'nonzero', 'absent'], key).toContain(step.result[key]);
-      }
-    }
+    for (const step of stats) expect(step.result).toEqual({ status: 200 });
   });
-
   const roots: string[] = [];
   afterAll(() => {
     for (const root of roots) rmSync(root, { recursive: true, force: true });
@@ -175,11 +171,10 @@ describe('CF-DR-01', () => {
           firsts.every((id) => id?.endsWith('-m')),
           era,
         ).toBe(true);
-        // CF-DR-01 reads the stats; an era without delayed retry reports no delayed count at all.
+        // CF-DR-01 reads the stats at every slot, on every era; none of what they say is recorded.
         if (scenario === cfDr01) {
-          expect(stat(artefact, 'nack-all', 'now'), era).toMatchObject({
-            messagesDelayed: 'absent',
-            nextDelayedAt: 'absent',
+          expect(stat(artefact, 'nack-all', 'now'), era).toEqual({
+            status: 200,
           });
         }
 

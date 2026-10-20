@@ -6,7 +6,9 @@
 // queue holding a message `m` and, behind it, a message `t` that tells where `m` lands. `m` is
 // returned, then every queue is read right away, after 2.5 s and after about 6 s (the minimum is
 // 5 s), each read with `basic.get` and with the stats of the queue. The window is bracketed by
-// fixed waits, never measured; `next_delayed_at` is recorded only as a class (OQ-519, OQ-558).
+// fixed waits, never measured. Only the status of a stats read is recorded: the statistics refresh
+// on their own interval, so what they show at a fixed moment is not reproducible (OQ-632, OQ-647;
+// freshness of `messages_delayed` and `next_delayed_at`: OQ-519, OQ-558). The evidence is the reads.
 import {
   declareQueue,
   defineScenario,

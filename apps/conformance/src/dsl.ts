@@ -80,9 +80,10 @@ export type LabStep =
   /** A fixed pause, recorded as an argument: never a measured time. */
   | { readonly op: 'wait'; readonly ms: number }
   /**
-   * `GET /api/queues/%2F/<queue>`: the class of each count (`zero`, `nonzero`, `absent`) and the class
-   * of `next_delayed_at`, never a number or a clock value (the statistics refresh on their own
-   * interval, so a value read at a fixed moment differs run to run; OQ-632).
+   * `GET /api/queues/%2F/<queue>`: records the HTTP status and nothing from the body. The statistics
+   * (counts, `next_delayed_at`) refresh on their own interval and may not exist yet, so a value, a
+   * class of it or a clock value read at a fixed moment differs between two runs of one broker
+   * (OQ-632, OQ-647); the evidence for a hidden message is the `basic.get` reads, not these.
    */
   | {
       readonly op: 'mgmtQueue';
@@ -633,37 +634,6 @@ const count = (value: unknown): number | null =>
     ? value
     : null;
 
-/**
- * The class of a statistics count the broker reported: never the number, because a statistic read at
- * a fixed moment may fall before or after a refresh and so differ between two runs (OQ-632). Anything
- * that is not a whole number of at least 0 (a missing field, a string) is `absent`.
- */
-export function countClass(value: unknown): 'zero' | 'nonzero' | 'absent' {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    return 'absent';
-  }
-  return value === 0 ? 'zero' : 'nonzero';
-}
-
-/**
- * The class of a clock value the broker reported (`next_delayed_at`): never the value itself, so a
- * live replay can equal the evidence. A number is read as epoch milliseconds, a string as a date.
- */
-export function clockClass(
-  value: unknown,
-  now: number,
-): 'absent' | 'future' | 'past' | 'unparsed' {
-  if (value === undefined || value === null) return 'absent';
-  const at =
-    typeof value === 'number'
-      ? value
-      : typeof value === 'string'
-        ? Date.parse(value)
-        : Number.NaN;
-  if (!Number.isFinite(at)) return 'unparsed';
-  return at > now ? 'future' : 'past';
-}
-
 /** A reply name as the broker spells it (`RESOURCE_LOCKED`); anything else is recorded as `unparsed`. */
 const REPLY_NAME = /^[A-Z][A-Z_]*$/;
 
@@ -792,19 +762,12 @@ export async function runScenario(
           method: 'GET',
           path: `/api/queues/%2F/${encodeURIComponent(physical(step.queue))}`,
         });
-        const stats =
-          typeof response.json === 'object' && response.json !== null
-            ? (response.json as Record<string, unknown>)
-            : {};
+        // Only the status: the statistics in the body refresh on their own interval (about 5 s) and
+        // may not have been emitted at all yet, so no number, class or clock value of them is
+        // recorded (OQ-632, OQ-647). The step proves the management API answered at this moment.
         return {
           args: { as: step.as, queue: step.queue },
-          result: {
-            status: response.status,
-            messagesReady: countClass(stats.messages_ready),
-            messagesUnacknowledged: countClass(stats.messages_unacknowledged),
-            messagesDelayed: countClass(stats.messages_delayed),
-            nextDelayedAt: clockClass(stats.next_delayed_at, clock.now()),
-          },
+          result: { status: response.status },
         };
       }
       case 'openChannel':

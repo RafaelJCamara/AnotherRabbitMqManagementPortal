@@ -69,8 +69,10 @@ export const WORKFLOW_RULES = [
 
 export const PR_RULES = [
   'pr.triggers',
+  'pr.concurrency',
   'pr.jobs',
   'pr.check-name',
+  'pr.check-unique',
   'pr.check-always',
   'pr.check-needs',
   'pr.check-command',
@@ -386,6 +388,24 @@ export function checkPrWorkflow(file: WorkflowFile): ConformanceViolation[] {
     );
   }
 
+  // Concurrency: a pull request is one group (a new push replaces the run); every other run is its
+  // own commit's group and is never cancelled, so no commit that lands on main loses its
+  // `conformance` run to a later one (a group holds one running and one pending run, and the
+  // pending one is dropped when another arrives).
+  const concurrency = asRecord(doc.concurrency);
+  if (
+    typeof concurrency.group !== 'string' ||
+    normal(concurrency.group) !==
+      'conformance-pr-${{ github.event.pull_request.number || github.sha }}' ||
+    stripExpression(String(concurrency['cancel-in-progress'])) !==
+      "github.event_name == 'pull_request'"
+  ) {
+    fail(
+      'pr.concurrency',
+      "the concurrency group must be `conformance-pr-${{ github.event.pull_request.number || github.sha }}` (one group per commit outside a pull request) with `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`",
+    );
+  }
+
   const jobs = asRecord(doc.jobs);
   if (!sameSet(Object.keys(jobs), ['plan', 'lab', 'conformance'])) {
     fail(
@@ -520,6 +540,14 @@ export function checkPrWorkflow(file: WorkflowFile): ConformanceViolation[] {
   return out;
 }
 
+/**
+ * The run text of the step that keeps a leg's status (whitespace collapsed): the status word, from
+ * the environment, in the file the report reads. Pinned whole, so a leg cannot write a constant, a
+ * second line or another path without the check naming it.
+ */
+export const LEG_STATUS_RUN =
+  'mkdir -p dist/leg printf \'%s\\n\' "$RESULT" > dist/leg/result';
+
 const matrixOf = (job: Dict): string => {
   const matrix = asRecord(job.strategy).matrix;
   return typeof matrix === 'string' ? stripExpression(matrix) : '';
@@ -600,6 +628,7 @@ function checkLegJob(
   );
   if (
     statusStep === undefined ||
+    normal(runOf(statusStep)) !== LEG_STATUS_RUN ||
     stripExpression(String(statusStep.if)) !== 'always()' ||
     stripExpression(String(asRecord(statusStep.env).RESULT)) !== 'job.status' ||
     upload === undefined ||
@@ -612,7 +641,7 @@ function checkLegJob(
   ) {
     fail(
       'nightly.leg-status',
-      `the ${name} job must write its status (job.status) and upload it as leg-node-<node>-${name}-<version> in steps that run \`if: always()\``,
+      `the ${name} job must write its status (job.status) with exactly \`${LEG_STATUS_RUN}\` and upload it as leg-node-<node>-${name}-<version> in steps that run \`if: always()\``,
     );
   }
 }
@@ -741,6 +770,48 @@ export function checkNightlyWorkflow(
       'nightly.report',
       'the report job runs `if: always()` after plan, release and alpha, installs nothing, downloads leg-* into dist/legs, runs report-cli.ts with the job results and uploads conformance-nightly-report',
     );
+  }
+  return out;
+}
+
+/** The name of the required check, which only `conformance-pr.yml` may produce. */
+const REQUIRED_CHECK = 'conformance';
+
+/**
+ * Across every workflow file: no workflow other than `conformance-pr.yml` has a job that reports as
+ * the required check `conformance`, whether by its key or by its `name:`. A second job of that name
+ * would satisfy the required check without running the matrix. The comparison ignores case and
+ * surrounding space, and a `name:` that is nothing but an expression is flagged too (it could
+ * evaluate to it).
+ */
+export function checkSingleConformanceJob(
+  files: readonly WorkflowFile[],
+): ConformanceViolation[] {
+  const out: ConformanceViolation[] = [];
+  for (const file of files) {
+    if (file.path === PR_WORKFLOW_PATH) continue;
+    const doc = parseDocument(file);
+    if (isViolation(doc)) {
+      out.push({
+        rule: 'pr.check-unique',
+        message: `${file.path}: ${doc.message}`,
+      });
+      continue;
+    }
+    for (const [key, raw] of Object.entries(asRecord(doc.jobs))) {
+      const name = asRecord(raw).name;
+      const reports = typeof name === 'string' ? name : key;
+      if (
+        key.toLowerCase() === REQUIRED_CHECK ||
+        reports.trim().toLowerCase() === REQUIRED_CHECK ||
+        (typeof name === 'string' && /^\s*\$\{\{[\s\S]*\}\}\s*$/.test(name))
+      ) {
+        out.push({
+          rule: 'pr.check-unique',
+          message: `${file.path}: job ${key} would report as \`${REQUIRED_CHECK}\`; only ${PR_WORKFLOW_PATH} may define that check`,
+        });
+      }
+    }
   }
   return out;
 }

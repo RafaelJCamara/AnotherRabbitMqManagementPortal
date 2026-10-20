@@ -67,8 +67,7 @@
         "{projectRoot}/conformance-workflows-selftest.ts",
         "{projectRoot}/actions-pinned.ts",
         "{projectRoot}/shared.ts",
-        "{workspaceRoot}/.github/workflows/conformance-*.yml",
-        "{workspaceRoot}/.github/workflows/mutation-*.yml",
+        "{workspaceRoot}/.github/workflows/*.yml",
         "{workspaceRoot}/.github/actions/setup/action.yml"
       ],
       "options": {

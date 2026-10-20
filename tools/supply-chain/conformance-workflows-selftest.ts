@@ -7,11 +7,12 @@
 //
 // AC-5 and AC-6 are one test each (the work package's acceptance criteria quote these names).
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   CONFORMANCE_WORKFLOWS,
+  LEG_STATUS_RUN,
   NIGHTLY_CONFIG,
   NIGHTLY_RULES,
   NIGHTLY_WORKFLOW_PATH,
@@ -21,6 +22,7 @@ import {
   WORKFLOW_RULES,
   checkNightly,
   checkPr,
+  checkSingleConformanceJob,
   checkWorkflow,
 } from './conformance-workflows.ts';
 import type { WorkflowConfig } from './conformance-workflows.ts';
@@ -808,6 +810,220 @@ void test('AC-6 no conformance workflow can record evidence, write, or hide a fa
     checkWorkflow({ path: PR_WORKFLOW_PATH, text: conditional }, lenient).some(
       (v) => v.rule === 'wf.continue-on-error',
     ),
+  );
+});
+
+void test('AC-6 (M0-FIX-1) the run text of the nightly leg-status step is pinned', () => {
+  const nightly = read(NIGHTLY_WORKFLOW_PATH);
+  const check = (text: string) =>
+    checkNightly({ path: NIGHTLY_WORKFLOW_PATH, text });
+  assert.deepEqual(check(nightly), []);
+  assert.equal(
+    LEG_STATUS_RUN,
+    'mkdir -p dist/leg printf \'%s\\n\' "$RESULT" > dist/leg/result',
+  );
+  const line = '          printf \'%s\\n\' "$RESULT" > dist/leg/result\n';
+  const mkdir = '          mkdir -p dist/leg\n';
+  const edits: [name: string, from: string, to: string][] = [
+    [
+      'a constant instead of the job status',
+      line,
+      "          printf '%s\\n' success > dist/leg/result\n",
+    ],
+    [
+      'another file than the report reads',
+      line,
+      '          printf \'%s\\n\' "$RESULT" > dist/leg/status\n',
+    ],
+    [
+      'an append instead of a write',
+      line,
+      '          printf \'%s\\n\' "$RESULT" >> dist/leg/result\n',
+    ],
+    [
+      'a second line after it',
+      line,
+      `${line}          echo done >> dist/leg/result\n`,
+    ],
+    ['a trailing command', line, `${line.trimEnd()} || true\n`],
+    ['no directory made', mkdir, ''],
+    [
+      'the status word swapped for a pipeline',
+      line,
+      '          echo "$RESULT" | tr a-z A-Z > dist/leg/result\n',
+    ],
+  ];
+  // Both legs carry the step; the release job's comes first in the file and the alpha job's last.
+  for (const [name, from, to] of edits) {
+    const first = nightly.indexOf(from);
+    const last = nightly.lastIndexOf(from);
+    assert.ok(
+      first >= 0 && last > first,
+      `${name}: the step is not in both jobs`,
+    );
+    for (const [leg, at] of [
+      ['release', first],
+      ['alpha', last],
+    ] as const) {
+      const text = nightly.slice(0, at) + to + nightly.slice(at + from.length);
+      const rules = new Set(check(text).map((v) => v.rule));
+      for (const rule of rules) fired.add(rule);
+      assert.ok(
+        rules.has('nightly.leg-status'),
+        `${name} (${leg}): expected nightly.leg-status, got [${[...rules].sort().join(', ')}]`,
+      );
+    }
+  }
+  // Whitespace and line endings do not matter; the words do.
+  assert.deepEqual(check(nightly.replace(/\n/g, '\r\n')), []);
+  assert.deepEqual(
+    check(
+      nightly.replaceAll(
+        line,
+        '          printf   \'%s\\n\'   "$RESULT"   > dist/leg/result\n',
+      ),
+    ),
+    [],
+  );
+});
+
+void test('AC-9 (M0-FIX-1) a push is its own concurrency group, so no intermediate commit loses its run', () => {
+  assert.deepEqual(checkPrText(pr), []);
+  const group =
+    '  group: conformance-pr-${{ github.event.pull_request.number || github.sha }}\n';
+  const cancel =
+    "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n";
+  plant(pr, checkPrText, [
+    {
+      name: 'every push to main shares the group of its ref',
+      from: group,
+      to: '  group: conformance-pr-${{ github.event.pull_request.number || github.ref }}\n',
+      rule: 'pr.concurrency',
+    },
+    {
+      name: 'one group for the whole workflow',
+      from: group,
+      to: '  group: conformance-pr\n',
+      rule: 'pr.concurrency',
+    },
+    {
+      name: 'a pull request group that is the commit (a new push no longer replaces the run)',
+      from: group,
+      to: '  group: conformance-pr-${{ github.sha }}\n',
+      rule: 'pr.concurrency',
+    },
+    {
+      name: 'no group at all',
+      from: group,
+      to: '',
+      rule: 'pr.concurrency',
+    },
+    {
+      name: 'a later push cancels the run of the commit before it',
+      from: cancel,
+      to: '  cancel-in-progress: true\n',
+      rule: 'pr.concurrency',
+    },
+    {
+      name: 'a pull request run is never replaced',
+      from: cancel,
+      to: '  cancel-in-progress: false\n',
+      rule: 'pr.concurrency',
+    },
+    {
+      name: 'no cancel-in-progress',
+      from: cancel,
+      to: '',
+      rule: 'pr.concurrency',
+    },
+  ]);
+  // The comment that explains the group is not part of the pin.
+  assert.deepEqual(
+    checkPrText(pr.replace('  # A pull request is one group', '  # one group')),
+    [],
+  );
+});
+
+void test('AC-11 (M0-FIX-1) only conformance-pr.yml defines a job named conformance', () => {
+  const directory = join(root, '.github', 'workflows');
+  const files = readdirSync(directory)
+    .filter((name) => /\.ya?ml$/.test(name))
+    .map((name) => ({
+      path: `.github/workflows/${name}`,
+      text: read(`.github/workflows/${name}`),
+    }));
+  assert.ok(
+    files.some((file) => file.path === PR_WORKFLOW_PATH),
+    'conformance-pr.yml is among the files read',
+  );
+  assert.ok(files.length > 3, 'the workflow directory was read');
+  assert.deepEqual(checkSingleConformanceJob(files), []);
+
+  const job = (extra: string): string =>
+    `name: other\non: [workflow_dispatch]\npermissions: {}\njobs:\n${extra}`;
+  const planted: [name: string, text: string][] = [
+    [
+      'a job keyed conformance',
+      job('  conformance:\n    runs-on: ubuntu-24.04\n    steps: []\n'),
+    ],
+    [
+      'a job keyed conformance under another display name (the id is reserved too)',
+      job(
+        '  conformance:\n    name: something else\n    runs-on: ubuntu-24.04\n    steps: []\n',
+      ),
+    ],
+    [
+      'a job named conformance',
+      job(
+        '  gate:\n    name: conformance\n    runs-on: ubuntu-24.04\n    steps: []\n',
+      ),
+    ],
+    [
+      'a job named Conformance, padded',
+      job(
+        "  gate:\n    name: ' Conformance '\n    runs-on: ubuntu-24.04\n    steps: []\n",
+      ),
+    ],
+    [
+      'a job keyed Conformance',
+      job('  Conformance:\n    runs-on: ubuntu-24.04\n    steps: []\n'),
+    ],
+    [
+      'a job whose name is only an expression',
+      job(
+        '  gate:\n    name: ${{ vars.CHECK }}\n    runs-on: ubuntu-24.04\n    steps: []\n',
+      ),
+    ],
+    ['a copy of the required check under another file name', pr],
+    ['a file that does not parse', 'jobs: [unclosed'],
+  ];
+  for (const [name, text] of planted) {
+    const found = checkSingleConformanceJob([
+      ...files,
+      { path: '.github/workflows/planted.yml', text },
+    ]);
+    for (const violation of found) fired.add(violation.rule);
+    assert.deepEqual(
+      found.map((violation) => violation.rule),
+      ['pr.check-unique'],
+      name,
+    );
+    assert.match(found[0]?.message ?? '', /planted\.yml/, name);
+  }
+  // Names that merely contain the word, or an expression inside a longer name, are not the check.
+  const harmless = checkSingleConformanceJob([
+    {
+      path: '.github/workflows/planted.yml',
+      text: job(
+        '  conformance-record:\n    name: conformance record on ${{ matrix.version }}\n    runs-on: ubuntu-24.04\n    steps: []\n',
+      ),
+    },
+  ]);
+  assert.deepEqual(harmless, []);
+  // The required check's own file is the one place the job belongs.
+  assert.deepEqual(
+    checkSingleConformanceJob([{ path: PR_WORKFLOW_PATH, text: pr }]),
+    [],
   );
 });
 

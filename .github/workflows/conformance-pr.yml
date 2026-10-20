@@ -28,7 +28,9 @@ on:
 permissions: {}
 
 concurrency:
-  group: conformance-pr-${{ github.event.pull_request.number || github.ref }}
+  # A pull request is one group (a new push replaces the run); a push to main or a dispatch is its
+  # own commit's group and is never cancelled, so no commit on main loses its run to a later one.
+  group: conformance-pr-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -51,7 +51,7 @@ Step 13 of the fact sheet (write-shaped probes on demand) is not part of this pa
 
 ## Gates, era and allowedActions (M0-46)
 
-`BrokerProfile.gates` has one decision for every id of `FEATURES`, computed in `src/gates` before the fingerprint, so a changed gate makes a bound plan stale (`PLAN_STALE`). Fail closed: a gate is open only on positive evidence, a closed one always has a `reason` and a `source`, and a decision that cannot be reached is closed. A provider preset that blocks a feature outranks what the probe saw. A failed AMQP handshake contributes its failure class only, never the broker's text (I-10). A registry gate row can close an open gate; no row is not a reason to close (the shipped table is empty). Hazards close nothing (OQ-483).
+`BrokerProfile.gates` has one decision for every id of `FEATURES`, computed in `src/gates` before the fingerprint, so a changed gate makes a bound plan stale (`PLAN_STALE`). Fail closed: a gate is open only on positive evidence, a closed one always has a `reason` and a `source`, and a decision that cannot be reached is closed, and its `source` names the class of the error that closed it (`svc-capabilities gates (TypeError)`: the constructor name, never the message, I-10; a thrown non-error reads `non-error`). A missing handshake closes the four `amqp.*` gates with "the AMQP handshake did not run". A provider preset that blocks a feature outranks what the probe saw. A failed AMQP handshake contributes its failure class only, never the broker's text (I-10). A registry gate row can close an open gate; no row is not a reason to close (the shipped table is empty). Hazards close nothing (OQ-483).
 
 | Feature | Closed when | Source |
 | --- | --- | --- |
@@ -76,7 +76,7 @@ Open questions: OQ-470 to OQ-479 and OQ-480 to OQ-487 in [docs/open-questions.md
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p svc-capabilities
-pnpm nx test svc-capabilities --testNamePattern=gates   # M0-46: AC-1 to AC-11
+pnpm nx test svc-capabilities --testNamePattern=gates   # M0-46: AC-1 to AC-11; M0-FIX-1: AC-12, AC-13
 pnpm nx test svc-capabilities                 # fixtures of RabbitMQ 3.13.7 to 4.3.6 (statistics on and off) and LavinMQ 2.10.2
 pnpm nx run svc-capabilities:it '--versions=3.13.7,4.0.9,4.1.8,4.2.9,4.3.6'   # real brokers, adapter, SQLite; needs Docker and openssl
 ```

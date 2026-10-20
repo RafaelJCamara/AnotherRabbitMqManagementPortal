@@ -194,6 +194,37 @@ describe('gates and the AMQP handshake', () => {
     }
     expect(JSON.stringify(failed.profile.gates)).not.toContain('hunter2');
   });
+
+  it('AC-12 (M0-FIX-1) a missing AMQP handshake closes the four amqp gates', async () => {
+    const { profile, facts } = await probeBroker(brokerRoutes('4.3.6'));
+    // The probe never ran step 12: the facts carry no handshake result at all.
+    const withoutHandshake = { ...facts };
+    delete withoutHandshake.amqp;
+    const rebuilt = buildProfile({
+      connectionId: profile.connectionId,
+      probedAt: 5_000,
+      facts: withoutHandshake,
+      registry: semanticsRegistry,
+      lastVerified: [],
+    });
+
+    for (const id of FEATURES_AMQP) {
+      expect(gate(rebuilt, id), id).toEqual({
+        enabled: false,
+        reason: 'the AMQP handshake did not run',
+        source: 'probe step 12 (amqp-handshake)',
+      });
+      // With the handshake the same broker opens them: the closure is the missing result alone.
+      expect(gate(profile, id), id).toEqual({ enabled: true, mode: 'full' });
+    }
+    // Nothing else moves: the other gates are those of the same broker with a handshake.
+    for (const id of FEATURES.filter(
+      (feature) => !FEATURES_AMQP.includes(feature),
+    )) {
+      expect(gate(rebuilt, id), id).toEqual(gate(profile, id));
+    }
+    expect(rebuilt.fingerprint).not.toBe(profile.fingerprint);
+  });
 });
 
 describe('gates are part of the profile', () => {
@@ -273,6 +304,70 @@ describe('gates are part of the profile', () => {
       enabled: false,
       reason: 'row says no',
       source: 'semantics registry gate row',
+    });
+  });
+
+  it('AC-13 (M0-FIX-1) an unreachable decision stays closed and names the error class, never its message', () => {
+    const profile = sampleProfile();
+    const facts = { overviews: [], amqp: { ok: true as const } };
+    const secret = 'ACCESS_REFUSED hunter2 at amqp://guest:hunter2@mq.example';
+    const throwing = (thrown: () => unknown) => ({
+      ...semanticsRegistry,
+      providerPreset: () => {
+        throw thrown();
+      },
+    });
+    const sources = (registry: typeof semanticsRegistry) => {
+      const gates = computeGates({ profile, facts, registry });
+      expect(Object.keys(gates)).toEqual(FEATURES);
+      for (const [id, decision] of Object.entries(gates)) {
+        // Closed, with the fixed reason; the message of the error is nowhere in the decision.
+        expect(decision.enabled, id).toBe(false);
+        expect(decision.reason, id).toBe(
+          'this feature could not be decided, so it stays closed',
+        );
+        expect(JSON.stringify(decision), id).not.toContain('hunter2');
+      }
+      return [...new Set(Object.values(gates).map((entry) => entry.source))];
+    };
+
+    expect(sources(throwing(() => new TypeError(secret)))).toEqual([
+      'svc-capabilities gates (TypeError)',
+    ]);
+    // A class of our own is named as it is called.
+    class ProbeBoom extends Error {}
+    expect(sources(throwing(() => new ProbeBoom(secret)))).toEqual([
+      'svc-capabilities gates (ProbeBoom)',
+    ]);
+    // A thrown value that is not an error has no class to name.
+    expect(sources(throwing(() => secret))).toEqual([
+      'svc-capabilities gates (non-error)',
+    ]);
+    expect(sources(throwing(() => ({ message: secret })))).toEqual([
+      'svc-capabilities gates (non-error)',
+    ]);
+    // A class name that is not a plain identifier (anything can be assigned to it) is not quoted.
+    class Renamed extends Error {}
+    Object.defineProperty(Renamed, 'name', { value: `x y: ${secret}` });
+    expect(sources(throwing(() => new Renamed(secret)))).toEqual([
+      'svc-capabilities gates (Error)',
+    ]);
+
+    // The same when it is a registry gate row that throws, after the profile opened the gate.
+    const row = computeGates({
+      profile,
+      facts,
+      registry: {
+        ...semanticsRegistry,
+        gate: () => {
+          throw new RangeError(secret);
+        },
+      },
+    });
+    expect(row[FeatureIdSchema.parse('amqp.peek')]).toEqual({
+      enabled: false,
+      reason: 'this feature could not be decided, so it stays closed',
+      source: 'svc-capabilities gates (RangeError)',
     });
   });
 });

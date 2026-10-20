@@ -38,6 +38,27 @@ function decide(input: GateInput, feature: FeatureId): GateDecision {
   }
 }
 
+/**
+ * The class of a thrown value, and nothing else: the constructor name of an error, so a closed gate
+ * can say what kind of failure closed it without ever carrying the message, which may hold text of
+ * the broker or a credential (I-10). A name that is not a plain identifier (a class renamed at
+ * run time, minified or not, can hold anything) is `Error`; a thrown value that is not an error is
+ * `non-error`.
+ */
+export function errorClassOf(error: unknown): string {
+  if (!(error instanceof Error)) return 'non-error';
+  const name = (error.constructor as { name?: unknown }).name;
+  return typeof name === 'string' && /^[A-Za-z_$][\w$]{0,63}$/.test(name)
+    ? name
+    : 'Error';
+}
+
+/** The closed decision of a feature whose decision threw: still closed, now with the class of the failure. */
+const undecided = (error: unknown): GateDecision => ({
+  ...UNDECIDED,
+  source: `${UNDECIDED.source ?? 'svc-capabilities gates'} (${errorClassOf(error)})`,
+});
+
 /** Every id of FEATURES is in the result. A decision that cannot be reached is closed with a reason. */
 export function computeGates(
   input: GateInput,
@@ -46,8 +67,9 @@ export function computeGates(
   for (const feature of FEATURES) {
     try {
       gates[feature] = decide(input, feature);
-    } catch {
-      gates[feature] = UNDECIDED;
+    } catch (error) {
+      // Fail closed, never fail silently: the class of the error is in the decision's source.
+      gates[feature] = undecided(error);
     }
   }
   return gates;

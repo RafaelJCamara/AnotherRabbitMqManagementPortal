@@ -3,6 +3,6 @@
 import { describe, it } from 'vitest';
 
 describe('CF-DOWN-05', () => {
-  it.todo('the live run matches the recorded evidence');
-  it.todo('the registry cell matches the recorded evidence');
+  it.todo('slice D: the live run matches the recorded evidence');
+  it.todo('slice D: the registry cell matches the recorded evidence');
 });

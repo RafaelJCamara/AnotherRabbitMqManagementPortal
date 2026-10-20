@@ -4,6 +4,7 @@
 // here, and a registry cell whose id has none can never be better than `unverified`.
 import type { EvidenceArtefact } from '../record/evidence.ts';
 import { projectCarry01, projectCarry03 } from './projections-carry.ts';
+import { projectDown01 } from './projections-down.ts';
 import { projectStamp01 } from './projections-stamp.ts';
 import type { Observed, Projection } from './three-way.ts';
 
@@ -34,4 +35,5 @@ export const PROJECTIONS: Readonly<Record<string, Projection>> = {
   'CF-STAMP-01': projectStamp01,
   'CF-CARRY-01': projectCarry01,
   'CF-CARRY-03': projectCarry03,
+  'CF-DOWN-01': projectDown01,
 };

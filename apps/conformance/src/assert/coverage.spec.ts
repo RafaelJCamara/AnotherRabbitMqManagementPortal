@@ -1,17 +1,24 @@
 // The coverage gate over fake registries and fake evidence in temporary folders.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { SemanticsCell } from '@app/semantics';
+import { registryData, type SemanticsCell } from '@app/semantics';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { cfSmoke01 } from '../scenarios/cf-smoke-01.ts';
+import { SCENARIOS } from '../scenarios/index.ts';
 import { sealArtefact, type EvidenceProvenance } from '../record/evidence.ts';
 import { runScenario } from '../dsl.ts';
 import { DIGEST, MemoryHost, VERSION } from '../testing/lab.ts';
 import { coverageGate, type CoverageInput } from './coverage.ts';
 import { main } from './coverage-cli.ts';
-import type { LabVersion } from './lab-versions.ts';
-import { projectSmoke01 } from './projections.ts';
+import { labVersions, type LabVersion } from './lab-versions.ts';
+import { PROJECTIONS, projectSmoke01 } from './projections.ts';
 
 const CI: EvidenceProvenance = {
   kind: 'ci',
@@ -205,6 +212,45 @@ describe('coverage gate', () => {
     expect(confirmed.failures).toEqual([]);
   });
 
+  it('AC-14 the deferred DOWN ids are flagged as having no scenario', () => {
+    const deferred = ['02', '03', '04', '05', '06'].map((n) => `CF-DOWN-${n}`);
+    const real = (strict: boolean) =>
+      coverageGate({
+        cells: registryData.cells,
+        versions: labVersions(),
+        scenarios: SCENARIOS,
+        projections: PROJECTIONS,
+        evidenceRoot: join(tmpdir(), 'conformance-coverage-none'),
+        hasStub: () => true,
+        strict,
+      });
+
+    const strict = real(true);
+    for (const id of deferred) {
+      expect(strict.failures).toContain(`${id}: no scenario can record it`);
+      // Still a todo stub that names the follow-up slice, and no result for it is a pass.
+      const stub = readFileSync(
+        join(
+          import.meta.dirname,
+          '../cells',
+          `${id.toLowerCase()}.cell.spec.ts`,
+        ),
+        'utf8',
+      );
+      expect(stub).toMatch(/it\.todo\('slice [CD]: /);
+      const verdicts = strict.results.filter((r) => r.cfId === id);
+      expect(verdicts.map((r) => r.verdict)).not.toContain('pass');
+    }
+    expect(strict.failures.join()).not.toContain('CF-DOWN-01: no scenario');
+    // Without --strict they are counted and not a failure; the cells that name them are untouched.
+    expect(real(false).failures).toEqual([]);
+    expect(real(false).totals.withoutScenario).toBeGreaterThanOrEqual(5);
+    for (const named of registryData.cells.filter((c) =>
+      c.conformance.some((id) => deferred.includes(id)),
+    )) {
+      expect([named.status, named.evidence]).toEqual(['code-derived', []]);
+    }
+  });
   it('strict also fails a cell whose era has no lab version', () => {
     const coverage = coverageGate(
       input({

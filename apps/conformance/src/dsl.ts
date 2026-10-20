@@ -79,7 +79,11 @@ export type LabStep =
     }
   /** A fixed pause, recorded as an argument: never a measured time. */
   | { readonly op: 'wait'; readonly ms: number }
-  /** `GET /api/queues/%2F/<queue>`: counts and the class of `next_delayed_at`, never a clock value. */
+  /**
+   * `GET /api/queues/%2F/<queue>`: the class of each count (`zero`, `nonzero`, `absent`) and the class
+   * of `next_delayed_at`, never a number or a clock value (the statistics refresh on their own
+   * interval, so a value read at a fixed moment differs run to run; OQ-632).
+   */
   | {
       readonly op: 'mgmtQueue';
       readonly as: string;
@@ -623,10 +627,23 @@ const REAL_CLOCK: RunClock = {
     }),
 };
 
+/** A whole number of at least 0, or null: a reply code the broker sent (a protocol fact, not a statistic). */
 const count = (value: unknown): number | null =>
   typeof value === 'number' && Number.isInteger(value) && value >= 0
     ? value
     : null;
+
+/**
+ * The class of a statistics count the broker reported: never the number, because a statistic read at
+ * a fixed moment may fall before or after a refresh and so differ between two runs (OQ-632). Anything
+ * that is not a whole number of at least 0 (a missing field, a string) is `absent`.
+ */
+export function countClass(value: unknown): 'zero' | 'nonzero' | 'absent' {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    return 'absent';
+  }
+  return value === 0 ? 'zero' : 'nonzero';
+}
 
 /**
  * The class of a clock value the broker reported (`next_delayed_at`): never the value itself, so a
@@ -783,9 +800,9 @@ export async function runScenario(
           args: { as: step.as, queue: step.queue },
           result: {
             status: response.status,
-            messagesReady: count(stats.messages_ready),
-            messagesUnacknowledged: count(stats.messages_unacknowledged),
-            messagesDelayed: count(stats.messages_delayed),
+            messagesReady: countClass(stats.messages_ready),
+            messagesUnacknowledged: countClass(stats.messages_unacknowledged),
+            messagesDelayed: countClass(stats.messages_delayed),
             nextDelayedAt: clockClass(stats.next_delayed_at, clock.now()),
           },
         };

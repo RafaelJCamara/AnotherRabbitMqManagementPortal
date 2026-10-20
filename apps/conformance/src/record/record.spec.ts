@@ -303,6 +303,60 @@ describe('AC-2 the recorder reaches a broker only through an endpoint broker-lab
   });
 });
 
+describe('the real host passes a consume through to the driver', () => {
+  /** A connection whose channels record what the driver asks of them and deliver one message. */
+  const hostWithRecordingChannel = async () => {
+    const calls: string[] = [];
+    const channel = Object.assign(new EventEmitter(), {
+      prefetch: () => Promise.resolve(),
+      consume: (
+        queue: string,
+        onMessage: (message: unknown) => void,
+      ): Promise<{ consumerTag: string }> => {
+        calls.push(`consume ${queue}`);
+        queueMicrotask(() => {
+          onMessage({
+            fields: { deliveryTag: 1, redelivered: false },
+            properties: { messageId: 'm1', headers: {} },
+            content: Buffer.from('x'),
+          });
+        });
+        return Promise.resolve({ consumerTag: 'ctag-1' });
+      },
+      cancel: (tag: string): Promise<void> => {
+        calls.push(`cancel ${tag}`);
+        return Promise.resolve();
+      },
+    });
+    const model = Object.assign(new EventEmitter(), {
+      connection: { serverProperties: {} },
+      createChannel: () => Promise.resolve(channel),
+      close: () => Promise.resolve(),
+    });
+    const host = await openLabHost(await mintEndpoint(), {
+      connect: () => Promise.resolve(model as unknown as ChannelModel),
+    });
+    return { host, calls };
+  };
+
+  it('AC-4 (M0-FIX-1) the real host forwards the cancel flag to the driver', async () => {
+    const left = await hostWithRecordingChannel();
+    const kept = await left.host.consume('main', 'q', 1, false);
+    // No basic.cancel: the consumer stays active and its deliveries stay held.
+    expect(kept.map((item) => item.messageId)).toEqual(['m1']);
+    expect(left.calls).toEqual(['consume q']);
+
+    const cancelled = await hostWithRecordingChannel();
+    await cancelled.host.consume('main', 'q', 1, true);
+    expect(cancelled.calls).toEqual(['consume q', 'cancel ctag-1']);
+
+    // Left out, the flag means cancel (the driver's default), as every earlier scenario assumes.
+    const defaulted = await hostWithRecordingChannel();
+    await defaulted.host.consume('main', 'q', 1, undefined);
+    expect(defaulted.calls).toEqual(['consume q', 'cancel ctag-1']);
+  });
+});
+
 describe('the version a broker serves is read from HTTP and checked against AMQP', () => {
   let server: Server;
   let overview: { status: number; body: string };

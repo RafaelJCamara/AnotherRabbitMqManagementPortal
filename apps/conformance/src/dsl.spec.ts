@@ -9,6 +9,7 @@ import {
   closeChannel,
   closeConnection,
   consume,
+  countClass,
   declareExchange,
   declareQueue,
   defineScenario,
@@ -198,7 +199,7 @@ describe('defineScenario catches a mistake before any broker is involved', () =>
 });
 
 describe('runScenario records what happened', () => {
-  it('AC-1 CF-SMOKE-01 on a classic queue: nack with requeue returns the message first, redelivered', async () => {
+  it('AC-1 (M0-15) CF-SMOKE-01 on a classic queue: nack with requeue returns the message first, redelivered', async () => {
     const host = new MemoryHost();
 
     const result = await run(
@@ -801,7 +802,7 @@ const dlxSteps = (): LabStep[] => [
 ];
 
 describe('the dead-letter foundation of the DSL (M0-40)', () => {
-  it('AC-1 a dead-letter topology, waits and queue stats can be declared, and a mistake is an error when the scenario is defined', async () => {
+  it('AC-1 (M0-40) a dead-letter topology, waits and queue stats can be declared, and a mistake is an error when the scenario is defined', async () => {
     expect(() => scenario(...dlxSteps())).not.toThrow();
 
     const mistakes: [string, LabStep[], RegExp][] = [
@@ -880,7 +881,7 @@ describe('the dead-letter foundation of the DSL (M0-40)', () => {
     expect(host.calls).toContain('delete exchange lab-cf-test-01-abcd1234-dlx');
   });
 
-  it('AC-2 a run records only allow-listed fields and no clock value, so a live replay can equal the evidence', async () => {
+  it('AC-2 (M0-40) a run records only allow-listed fields and no clock value, so a live replay can equal the evidence', async () => {
     const steps = [
       declareQueue('q', { type: 'quorum' }),
       publish('q', 'm1', 'payload', { headers: { 'x-delivery-count': 99 } }),
@@ -921,9 +922,9 @@ describe('the dead-letter foundation of the DSL (M0-40)', () => {
     });
     expect(first.steps[3]?.result).toEqual({
       status: 200,
-      messagesReady: 1,
-      messagesUnacknowledged: null,
-      messagesDelayed: 1,
+      messagesReady: 'nonzero',
+      messagesUnacknowledged: 'absent',
+      messagesDelayed: 'nonzero',
       nextDelayedAt: 'future',
     });
     expect(slept).toEqual([2500]);
@@ -957,7 +958,7 @@ describe('the dead-letter foundation of the DSL (M0-40)', () => {
     }
   });
 
-  it('AC-2 reduces a clock value to its class and never keeps it', () => {
+  it('AC-2 (M0-40, clock class) reduces a clock value to its class and never keeps it', () => {
     const now = 1_000_000;
     expect(clockClass(undefined, now)).toBe('absent');
     expect(clockClass(null, now)).toBe('absent');
@@ -966,6 +967,61 @@ describe('the dead-letter foundation of the DSL (M0-40)', () => {
     expect(clockClass(new Date(now - 1).toISOString(), now)).toBe('past');
     expect(clockClass('not a date', now)).toBe('unparsed');
     expect(clockClass({ at: 1 }, now)).toBe('unparsed');
+  });
+
+  it('AC-1 (M0-FIX-1) a queue-stats step records the class of each count, never its value', async () => {
+    const steps = [declareQueue('q', { type: 'quorum' }), mgmtQueue('s', 'q')];
+    const clock: RunClock = {
+      now: () => Date.parse('2026-10-20T12:00:00.000Z'),
+      sleep: () => Promise.resolve(),
+    };
+    const recorded = async (managementJson: Record<string, unknown>) => {
+      const result = await runScenario(
+        new MemoryHost(VERSION, { managementJson }),
+        scenario(...steps),
+        'abcd1234',
+        200,
+        clock,
+      );
+      return result.steps[1]?.result;
+    };
+
+    // The same class at two moments of a refresh (a stale 1 and a fresh 7) is one record.
+    const stale = await recorded({
+      messages_ready: 1,
+      messages_unacknowledged: 0,
+      messages_delayed: 1,
+    });
+    const fresh = await recorded({
+      messages_ready: 7,
+      messages_unacknowledged: 0,
+      messages_delayed: 3,
+    });
+    expect(stale).toEqual({
+      status: 200,
+      messagesReady: 'nonzero',
+      messagesUnacknowledged: 'zero',
+      messagesDelayed: 'nonzero',
+      nextDelayedAt: 'absent',
+    });
+    expect(JSON.stringify(fresh)).toBe(JSON.stringify(stale));
+    // A count that changes class changes the record.
+    expect(
+      await recorded({
+        messages_ready: 1,
+        messages_unacknowledged: 0,
+        messages_delayed: 0,
+      }),
+    ).toMatchObject({ messagesDelayed: 'zero' });
+    // Nothing that is not a whole count of at least 0 is read as one.
+    for (const value of [undefined, null, -1, 1.5, '3', Number.NaN, {}]) {
+      expect(countClass(value), typeof value).toBe('absent');
+    }
+    expect([countClass(0), countClass(1), countClass(2 ** 40)]).toEqual([
+      'zero',
+      'nonzero',
+      'nonzero',
+    ]);
   });
 
   it('AC-7 an optional settle skips a delivery that never came and says so, while a plain settle still refuses', async () => {

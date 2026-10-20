@@ -144,6 +144,23 @@ describe.each(versions)('conformance:record against RabbitMQ %s', (version) => {
     expect(result.stdout).toContain(`down-determinism ok on ${version}`);
   }, 330_000);
 
+  it('AC-5 (M0-FIX-1) CF-DR-01 and CF-DR-02 are deterministic across two live runs', () => {
+    // Each scenario waits about 6 to 22 s on the broker's own clock, four times in all.
+    const result = spawnSync(
+      process.execPath,
+      ['apps/conformance/src/it/dr-determinism.ts'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 420_000,
+        env: { ...process.env, LAB_BROKER: labBroker(broker) },
+      },
+    );
+
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    expect(result.stdout).toContain(`dr-determinism ok on ${version}`);
+  }, 450_000);
+
   it('AC-2 refuses a listener that broker-lab did not create, even on the loopback address, and records nothing', async () => {
     const stranger: Server = createServer();
     await new Promise<void>((resolve) =>

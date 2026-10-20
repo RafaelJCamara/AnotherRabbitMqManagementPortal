@@ -1,9 +1,8 @@
-// The lab cells of M0-40 are wired to the harness and make no claim of their own: no registry cell
-// changes, no evidence file is created, and a recorded artefact that contradicts a cell fails it.
+// The lab cells of M0-40 are wired to the harness and make no claim of their own: the cells they name
+// stay consistent, and a recorded artefact that contradicts a cell fails it.
 // Slice A covers CF-STAMP-01, slice B CF-CARRY-01 and CF-CARRY-03, slice C CF-DR-01 and CF-DR-02;
 // CF-CARRY-02 follows with slice D.
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -12,7 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { registryData } from '@app/semantics';
+import { auditCells, registryData } from '@app/semantics';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { evaluateCase } from '../assert/run-case.ts';
@@ -35,7 +34,6 @@ const WIRED = [
   'CF-DR-01',
   'CF-DR-02',
 ];
-const REPO = join(import.meta.dirname, '..', '..', '..', '..');
 const LAB: LabVersion = {
   version: ERA_VERSION['4.3'],
   digest: DIGEST,
@@ -54,7 +52,11 @@ const emptyRoot = (): string => {
 };
 
 describe('the M0-40 lab cells', () => {
-  it('AC-11 the six lab cells are wired to the harness and no registry cell or evidence file changed', () => {
+  // The harness wiring is checked here. "This change adds or flips nothing" is checked against the
+  // base by `semantics-evidence:check --base` (I-14); a test cannot do it without git history, and a
+  // pinned status or an empty-evidence list would turn red the day a maintainer merges the evidence
+  // CI recorded. What stays true before and after that day is the cells' own consistency.
+  it('AC-3 (M0-FIX-1) the wired lab cells are consistent: a status and its evidence agree, whenever the evidence arrives', () => {
     for (const id of WIRED) {
       const stub = readFileSync(
         join(import.meta.dirname, `${id.toLowerCase()}.cell.spec.ts`),
@@ -67,20 +69,32 @@ describe('the M0-40 lab cells', () => {
       ).toContain(id);
       expect(PROJECTIONS[id], id).toBeTypeOf('function');
     }
-    // No cell naming these ids was touched: still code-derived, with no evidence listed.
     const named = registryData.cells.filter((cell) =>
       cell.conformance.some((id) => WIRED.includes(id)),
     );
     expect(named.length).toBeGreaterThan(0);
-    for (const cell of named) {
-      expect([cell.status, cell.evidence], cell.id).toEqual([
-        'code-derived',
-        [],
-      ]);
-    }
-    expect(existsSync(join(REPO, 'testing', 'lab-evidence'))).toBe(false);
-  });
+    expect(auditCells(named)).toEqual([]);
 
+    // The same audit refuses what it exists to refuse (proof the check above can fail).
+    const [template] = named;
+    if (template === undefined) throw new Error('no cell names a wired id');
+    const verifiedWithoutEvidence = {
+      ...template,
+      status: 'lab-verified' as const,
+      evidence: [],
+    };
+    const evidenceOfAnotherCase = {
+      ...template,
+      status: 'lab-verified' as const,
+      evidence: ['testing/lab-evidence/4.3.6/CF-SMOKE-01.json'],
+    };
+    expect(auditCells([verifiedWithoutEvidence]).map((f) => f.rule)).toEqual([
+      'status-evidence',
+    ]);
+    expect(auditCells([evidenceOfAnotherCase]).map((f) => f.rule)).toEqual([
+      'evidence-conformance',
+    ]);
+  });
   // A CI-stamped artefact (fabricated, in a temporary folder) that contradicts the 4.3 cell.
   const contradict = async (
     id: string,

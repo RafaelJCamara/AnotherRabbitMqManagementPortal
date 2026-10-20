@@ -19,7 +19,7 @@ class FakeChannel extends EventEmitter {
   closed = false;
   consumed: ((message: unknown) => void) | undefined;
   failAssert: Error | undefined;
-  /** Emitted as the channel 'error' event just after ssertQueue fails, as amqplib does. */
+  /** Emitted as the channel 'error' event just after assertQueue fails, as amqplib does. */
   closeReason: Error | undefined;
 
   private record(name: string, ...args: unknown[]): void {

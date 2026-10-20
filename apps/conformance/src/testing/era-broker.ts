@@ -99,7 +99,7 @@ interface Queue {
   readonly dlk: string | null;
   readonly retry: { type: string; min: number; max: number } | null;
   ready: Stored[];
-  /** Returned messages that are invisible until the virtual clock reaches t. */
+  /** Returned messages that are invisible until the virtual clock reaches `at`. */
   delayed: { message: Stored; at: number }[];
 }
 
@@ -120,8 +120,7 @@ export class EraBroker implements RecordHost {
   readonly #held = new Map<number, { queue: string; message: Stored }>();
   #tag = 0;
   #now = 1_700_000_000_000;
-  /** Virtual time: a wait moves it, nothing really sleeps, and 
-ext_delayed_at is read against it. */
+  /** Virtual time: a wait moves it, nothing really sleeps, and next_delayed_at is read against it. */
   readonly clock: RunClock = {
     now: () => this.#now,
     sleep: (ms) => {
@@ -297,7 +296,7 @@ ext_delayed_at is read against it. */
   recover(): Promise<void> {
     return Promise.resolve();
   }
-  /** GET /api/queues/%2F/<q> (counts) and POST .../get with ck_requeue_true (a nack-and-requeue read). */
+  /** GET /api/queues/%2F/<q> (counts) and POST .../get with ack_requeue_true (a nack-and-requeue read). */
   management(call: {
     method: string;
     path: string;

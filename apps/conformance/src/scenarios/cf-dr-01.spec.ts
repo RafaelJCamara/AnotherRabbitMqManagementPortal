@@ -9,10 +9,12 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { deliveredIds, projectDr01 } from '../assert/projections-dr.ts';
 import { evaluateCase } from '../assert/run-case.ts';
+import { runScenario } from '../dsl.ts';
 import type { EvidenceArtefact } from '../record/evidence.ts';
 import {
   CI_PROVENANCE,
   ERA_VERSION,
+  EraBroker,
   recordOnEra,
   type Era,
 } from '../testing/era-broker.ts';
@@ -52,11 +54,11 @@ describe('CF-DR-01', () => {
         );
         expect(stat(artefact, queue, 'now'), queue).toMatchObject(
           hidden
-            ? { messagesDelayed: 1, nextDelayedAt: 'future' }
-            : { messagesDelayed: 0, nextDelayedAt: 'absent' },
+            ? { messagesDelayed: 'nonzero', nextDelayedAt: 'future' }
+            : { messagesDelayed: 'zero', nextDelayedAt: 'absent' },
         );
         expect(stat(artefact, queue, 'end'), queue).toMatchObject({
-          messagesDelayed: 0,
+          messagesDelayed: 'zero',
           nextDelayedAt: 'absent',
         });
       }
@@ -79,6 +81,69 @@ describe('CF-DR-01', () => {
         deltaDC,
         destructive: false,
       });
+    }
+  });
+
+  it('AC-2 (M0-FIX-1) CF-DR-01 records the same artefact whatever the statistics said at the moment of the read', async () => {
+    // The statistics refresh on their own interval, so a count read at a fixed moment can be a
+    // stale one. Here every count is another number of the same class (times 3), or the delayed
+    // count is held at 0 (another class).
+    class Skewed extends EraBroker {
+      constructor(
+        private readonly scale: number,
+        private readonly delayed?: number,
+      ) {
+        super(ERA);
+      }
+      override async management(call: { method: string; path: string }) {
+        const answer = await super.management(call);
+        const json = answer.json;
+        if (typeof json !== 'object' || json === null || Array.isArray(json)) {
+          return answer;
+        }
+        const stats = { ...(json as Record<string, unknown>) };
+        for (const key of ['messages_ready', 'messages_unacknowledged']) {
+          if (typeof stats[key] === 'number') stats[key] *= this.scale;
+        }
+        if (typeof stats.messages_delayed === 'number') {
+          stats.messages_delayed =
+            this.delayed ?? stats.messages_delayed * this.scale;
+        }
+        return { ...answer, json: stats };
+      }
+    }
+    const recorded = async (broker: EraBroker) => {
+      const run = await runScenario(
+        broker,
+        cfDr01,
+        'r1',
+        undefined,
+        broker.clock,
+      );
+      return JSON.stringify({
+        steps: run.steps,
+        observations: run.observations,
+      });
+    };
+
+    const plain = await recorded(new EraBroker(ERA));
+    expect(await recorded(new Skewed(3))).toBe(plain);
+    expect(await recorded(new Skewed(1, 0))).not.toBe(plain);
+    // The stats steps are in the record, as classes only.
+    const stats = (
+      JSON.parse(plain) as {
+        steps: { op: string; result: Record<string, unknown> }[];
+      }
+    ).steps.filter((step) => step.op === 'mgmtQueue');
+    expect(stats.length).toBe(DR_LEGS.length * DR_TYPES.length * SLOTS.length);
+    for (const step of stats) {
+      for (const key of [
+        'messagesReady',
+        'messagesUnacknowledged',
+        'messagesDelayed',
+      ]) {
+        expect(['zero', 'nonzero', 'absent'], key).toContain(step.result[key]);
+      }
     }
   });
 
@@ -110,10 +175,13 @@ describe('CF-DR-01', () => {
           firsts.every((id) => id?.endsWith('-m')),
           era,
         ).toBe(true);
-        expect(
-          stat(artefact, 'nack-all', 'now')?.messagesDelayed ?? null,
-          era,
-        ).toBeNull();
+        // CF-DR-01 reads the stats; an era without delayed retry reports no delayed count at all.
+        if (scenario === cfDr01) {
+          expect(stat(artefact, 'nack-all', 'now'), era).toMatchObject({
+            messagesDelayed: 'absent',
+            nextDelayedAt: 'absent',
+          });
+        }
 
         // No registry cell of these eras names the id, so even CI-stamped evidence is `unverified`.
         expect(

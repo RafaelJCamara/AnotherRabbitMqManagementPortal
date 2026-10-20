@@ -55,8 +55,15 @@ export interface RawDeps {
 
 interface ChannelState {
   readonly channel: Channel;
+  /** The connection the channel belongs to. */
+  readonly connection: string;
   prefetch: number;
   closed?: { code: number | null; text: string };
+}
+
+interface ConnectionState {
+  readonly model: ChannelModel;
+  open: boolean;
 }
 
 const MAIN = 'main';
@@ -102,13 +109,22 @@ function toDelivery(message: GetMessage | Message): RawDelivery {
 }
 
 export class Amqp091Raw {
-  readonly #model: ChannelModel;
+  readonly #connect: () => Promise<ChannelModel>;
+  readonly #connections = new Map<string, ConnectionState>();
   readonly #channels = new Map<string, ChannelState>();
 
-  private constructor(model: ChannelModel) {
-    this.#model = model;
+  private constructor(
+    connect: () => Promise<ChannelModel>,
+    model: ChannelModel,
+  ) {
+    this.#connect = connect;
+    this.#adopt(MAIN, model);
+  }
+
+  #adopt(name: string, model: ChannelModel): void {
     // A connection the broker drops must not crash the process; the next call fails instead.
     model.on('error', () => undefined);
+    this.#connections.set(name, { model, open: true });
   }
 
   /** Connects to a broker that testing/broker-lab created; any other endpoint is refused. */
@@ -117,9 +133,10 @@ export class Amqp091Raw {
     deps: RawDeps = {},
   ): Promise<Amqp091Raw> {
     assertLabEndpoint(endpoint);
-    const connect = deps.connect ?? ((options) => amqplibConnect(options));
-    const raw = new Amqp091Raw(
-      await connect({
+    const connectWith = deps.connect ?? ((options) => amqplibConnect(options));
+    // Every connection of a run (the default one and any a scenario opens) is made the same way.
+    const connect = (): Promise<ChannelModel> =>
+      connectWith({
         protocol: 'amqp',
         hostname: endpoint.host,
         port: endpoint.amqpPort,
@@ -127,8 +144,8 @@ export class Amqp091Raw {
         password: endpoint.credentials.password,
         vhost: '/',
         heartbeat: 30,
-      }),
-    );
+      });
+    const raw = new Amqp091Raw(connect, await connect());
     await raw.openChannel(ADMIN);
     await raw.openChannel(MAIN);
     return raw;
@@ -136,18 +153,44 @@ export class Amqp091Raw {
 
   /** The version the broker reports in its connection properties. */
   serverVersion(): string | null {
-    const { version } = this.#model.connection.serverProperties as {
-      version?: unknown;
-    };
+    const { version } = this.#connection(MAIN).model.connection
+      .serverProperties as { version?: unknown };
     return typeof version === 'string' ? version : null;
   }
 
-  async openChannel(name: string): Promise<void> {
+  /** Opens a connection beside `main`, so a scenario can make one client go away while another watches. */
+  async openConnection(name: string): Promise<void> {
+    if (this.#connections.has(name)) {
+      throw new Error(`connection "${name}" is already used`);
+    }
+    this.#adopt(name, await this.#connect());
+  }
+
+  /**
+   * Closes a connection gracefully (`connection.close`); its channels go with it, and a later settle
+   * on one reports a closed channel. The default connection carries the lab's own channels and stays.
+   */
+  async closeConnection(name: string): Promise<void> {
+    if (name === MAIN) {
+      throw new Error('the main connection is never closed by a scenario');
+    }
+    const connection = this.#connection(name);
+    // Marked first: the library's own 'close' events would otherwise name no reason.
+    for (const state of this.#channels.values()) {
+      if (state.connection === name) {
+        state.closed ??= { code: null, text: 'closed with its connection' };
+      }
+    }
+    await connection.model.close();
+    connection.open = false;
+  }
+
+  async openChannel(name: string, connection = MAIN): Promise<void> {
     if (this.#channels.has(name)) {
       throw new Error(`channel "${name}" is already open`);
     }
-    const channel = await this.#model.createChannel();
-    const state: ChannelState = { channel, prefetch: 0 };
+    const channel = await this.#connection(connection).model.createChannel();
+    const state: ChannelState = { channel, connection, prefetch: 0 };
     channel.on('error', (error: Error) => {
       state.closed = closeInfo(error);
     });
@@ -192,9 +235,9 @@ export class Amqp091Raw {
   ): Promise<void> {
     let state = this.#channels.get(PUBLISHER);
     if (state === undefined) {
-      const channel = await this.#model.createConfirmChannel();
+      const channel = await this.#connection(MAIN).model.createConfirmChannel();
       channel.on('error', () => undefined);
-      state = { channel, prefetch: 0 };
+      state = { channel, connection: MAIN, prefetch: 0 };
       this.#channels.set(PUBLISHER, state);
     }
     const channel = state.channel as ConfirmChannel;
@@ -230,12 +273,25 @@ export class Amqp091Raw {
     return message === false ? null : toDelivery(message);
   }
 
-  /** Consumes with manual acknowledgement until `count` deliveries arrived, then cancels. */
+  /** Messages ready in the queue, from a passive declare on the admin channel (the broker answers at once). */
+  async readyCount(queue: string): Promise<number> {
+    const { messageCount } = await this.#run(ADMIN, (channel) =>
+      channel.checkQueue(queue),
+    );
+    return messageCount;
+  }
+
+  /**
+   * Consumes with manual acknowledgement until `count` deliveries arrived, then cancels. With
+   * `cancel` false no `basic.cancel` is sent: the consumer stays active (and the unacknowledged
+   * deliveries held) until its channel or connection closes.
+   */
   async consume(
     channelName: string,
     queue: string,
     count: number,
     timeoutMs = 10_000,
+    cancel = true,
   ): Promise<RawDelivery[]> {
     await this.#qos(channelName, count);
     const received: RawDelivery[] = [];
@@ -259,7 +315,9 @@ export class Amqp091Raw {
       await enough;
     } finally {
       clearTimeout(timer);
-      await this.#run(channelName, (channel) => channel.cancel(consumerTag));
+      if (cancel) {
+        await this.#run(channelName, (channel) => channel.cancel(consumerTag));
+      }
     }
     return received;
   }
@@ -301,8 +359,21 @@ export class Amqp091Raw {
     await this.#run(channelName, (channel) => channel.recover());
   }
 
+  /** Closes every connection still open, the ones a scenario opened first. */
   async close(): Promise<void> {
-    await this.#model.close().catch(() => undefined);
+    const open = [...this.#connections.values()].filter((item) => item.open);
+    for (const connection of open.reverse()) {
+      connection.open = false;
+      await connection.model.close().catch(() => undefined);
+    }
+  }
+
+  #connection(name: string): ConnectionState {
+    const connection = this.#connections.get(name);
+    if (!connection?.open) {
+      throw new Error(`connection "${name}" is not open`);
+    }
+    return connection;
   }
 
   /**

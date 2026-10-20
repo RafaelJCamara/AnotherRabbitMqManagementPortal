@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  awaitReady,
   closeChannel,
+  closeConnection,
   consume,
   declareQueue,
   defineScenario,
@@ -9,6 +11,7 @@ import {
   mgmtGet,
   observe,
   openChannel,
+  openConnection,
   publish,
   recover,
   runScenario,
@@ -613,5 +616,135 @@ describe('runScenario records what happened', () => {
       true,
       true,
     ]);
+  });
+});
+
+describe('DOWN-event steps: a second connection, a consumer left active, a bounded wait', () => {
+  it('AC-3 connection steps are checked when the scenario is defined', () => {
+    // A step on a connection that was never opened.
+    expect(() => scenario(openChannel('h', { connection: 'holder' }))).toThrow(
+      'CF-TEST-01 step 0: connection "holder" is not open',
+    );
+    expect(() => scenario(closeConnection('holder'))).toThrow(
+      /connection "holder" is not open/,
+    );
+    // A duplicate connection name, and the default one cannot be opened again.
+    expect(() =>
+      scenario(openConnection('holder'), openConnection('holder')),
+    ).toThrow('step 1: connection "holder" is invalid or already used');
+    expect(() => scenario(openConnection('main'))).toThrow(/already used/);
+    // The default connection is never closed.
+    expect(() => scenario(closeConnection('main'))).toThrow(
+      /main connection is never closed/,
+    );
+    // A channel on a closed connection, and a second close.
+    const opened = [openConnection('holder'), closeConnection('holder')];
+    expect(() =>
+      scenario(...opened, openChannel('h', { connection: 'holder' })),
+    ).toThrow(/connection "holder" is not open/);
+    expect(() => scenario(...opened, closeConnection('holder'))).toThrow(
+      /not open/,
+    );
+    // A channel that went with its connection cannot be used, but a settle may name it: the broker's
+    // answer (a closed channel) is the record.
+    const held = [
+      openConnection('holder'),
+      openChannel('h', { connection: 'holder' }),
+      declareQueue('q'),
+      publish('q', 'm1'),
+      get('d', 'q', { channel: 'h' }),
+      closeConnection('holder'),
+    ];
+    expect(() => scenario(...held, get('e', 'q', { channel: 'h' }))).toThrow(
+      /on connection "holder", which is closed/,
+    );
+    expect(() =>
+      scenario(...held, settle('d', { kind: 'ack' }, { channel: 'h' })),
+    ).not.toThrow();
+  });
+
+  it('AC-5 consume keeps its recorded shape by default and can leave the consumer active', async () => {
+    const steps = (...consumeStep: LabStep[]) => [
+      declareQueue('q'),
+      publish('q', 'm1'),
+      ...consumeStep,
+    ];
+    const byDefault = new MemoryHost();
+    const left = new MemoryHost();
+
+    const plain = await run(byDefault, ...steps(consume('c', 'q', 1)));
+    const active = await run(
+      left,
+      ...steps(consume('c', 'q', 1, { cancel: false })),
+    );
+
+    // Today's shape, byte for byte: no new key in the record, and the consumer is cancelled.
+    expect(JSON.stringify(plain.steps[2]?.args)).toBe(
+      '{"as":"c","queue":"q","count":1,"channel":"main"}',
+    );
+    expect(byDefault.consumers).toEqual([
+      { channel: 'main', queue: 'lab-cf-test-01-abcd1234-q', cancelled: true },
+    ]);
+    // Left active: the host is told, and the record says so.
+    expect(left.consumers[0]?.cancelled).toBe(false);
+    expect(JSON.stringify(active.steps[2]?.args)).toBe(
+      '{"as":"c","queue":"q","count":1,"channel":"main","cancel":false}',
+    );
+    expect(active.steps[2]?.result).toEqual(plain.steps[2]?.result);
+    // A scenario with no second connection records no connection or cancel key anywhere.
+    const smoke = await run(
+      new MemoryHost(),
+      openChannel('side'),
+      declareQueue('q'),
+      publish('q', 'm1'),
+      get('d', 'q', { channel: 'side' }),
+    );
+    expect(JSON.stringify(smoke.steps)).not.toMatch(/connection|cancel/);
+  });
+
+  it('AC-6 awaitReady is bounded, records the count and never a duration', async () => {
+    const counts = [3, 2, 2, 2, 2];
+    const host = new MemoryHost();
+    let polls = 0;
+    host.readyCount = () => Promise.resolve(counts[polls++] ?? 2);
+
+    const settled = await run(
+      host,
+      declareQueue('q'),
+      awaitReady('q', { stableFor: 3, timeoutMs: 5_000 }),
+    );
+
+    // Three equal polls in a row, not two: the first 2 follows a 3.
+    expect(polls).toBe(4);
+    expect(settled.steps[1]).toEqual({
+      index: 1,
+      op: 'awaitReady',
+      args: { queue: 'q', stableFor: 3 },
+      result: { ready: 2 },
+    });
+    expect(JSON.stringify(settled)).not.toMatch(/timeout|ms|duration|polls/i);
+
+    // A count that never settles fails the run, names the queue, and still deletes the queue.
+    const moving = new MemoryHost();
+    let n = 0;
+    moving.readyCount = () => Promise.resolve((n += 1));
+    await expect(
+      run(
+        moving,
+        declareQueue('q'),
+        awaitReady('q', { stableFor: 3, timeoutMs: 120 }),
+      ),
+    ).rejects.toThrow(
+      /queue "q" did not hold a steady ready count within the time allowed \(last count \d+\)/,
+    );
+    expect(moving.calls).toContain('delete lab-cf-test-01-abcd1234-q');
+    // A step that cannot be satisfied is refused before any broker is involved.
+    expect(() =>
+      scenario(declareQueue('q'), awaitReady('q', { stableFor: 0 })),
+    ).toThrow(/stableFor of at least 1/);
+    expect(() =>
+      scenario(declareQueue('q'), awaitReady('q', { timeoutMs: 0 })),
+    ).toThrow(/timeout of at least 1 ms/);
+    expect(() => scenario(awaitReady('q'))).toThrow(/not declared yet/);
   });
 });

@@ -29,13 +29,17 @@ export async function openLabHost(
   // Amqp091Raw.open and httpRaw each refuse an endpoint broker-lab did not create.
   const raw = await Amqp091Raw.open(endpoint, deps);
   return {
-    openChannel: (name) => raw.openChannel(name),
+    openConnection: (name) => raw.openConnection(name),
+    closeConnection: (name) => raw.closeConnection(name),
+    openChannel: (name, connection) => raw.openChannel(name, connection),
     closeChannel: (name) => raw.closeChannel(name),
+    readyCount: (queue) => raw.readyCount(queue),
     declareQueue: (queue, options) => raw.declareQueue(queue, options),
     deleteQueue: (queue) => raw.deleteQueue(queue),
     publish: (queue, message) => raw.publish(queue, message),
     get: (channel, queue, noAck) => raw.get(channel, queue, noAck),
-    consume: (channel, queue, count) => raw.consume(channel, queue, count),
+    consume: (channel, queue, count, cancel) =>
+      raw.consume(channel, queue, count, undefined, cancel),
     settle: (channel, tag, action) => raw.settle(channel, tag, action),
     recover: (channel) => raw.recover(channel),
     management: (call) => httpRaw(endpoint, call),

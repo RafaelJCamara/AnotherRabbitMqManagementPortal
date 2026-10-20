@@ -33,8 +33,24 @@ export type LabStep =
       readonly durable: boolean;
       readonly arguments: Readonly<Record<string, Json>>;
     }
-  | { readonly op: 'openChannel'; readonly channel: string }
+  | { readonly op: 'openConnection'; readonly connection: string }
+  /** Graceful: `connection.close` and its reply. Every channel of the connection goes with it. */
+  | { readonly op: 'closeConnection'; readonly connection: string }
+  | {
+      readonly op: 'openChannel';
+      readonly channel: string;
+      /** The connection the channel opens on; `main` unless a scenario opened another. */
+      readonly connection: string;
+    }
   | { readonly op: 'closeChannel'; readonly channel: string }
+  | {
+      readonly op: 'awaitReady';
+      readonly queue: string;
+      /** Poll the ready count until it has been the same this many polls in a row. */
+      readonly stableFor: number;
+      /** A hard bound: exceeding it fails the run and records nothing. Never recorded itself. */
+      readonly timeoutMs: number;
+    }
   | {
       readonly op: 'publish';
       readonly queue: string;
@@ -54,6 +70,8 @@ export type LabStep =
       readonly queue: string;
       readonly count: number;
       readonly channel: string;
+      /** Cancel the consumer once the deliveries arrived (the default); `false` leaves it active. */
+      readonly cancel: boolean;
     }
   | {
       readonly op: 'settle';
@@ -100,9 +118,21 @@ export const declareQueue = (
   durable: options.durable ?? true,
   arguments: options.arguments ?? {},
 });
-export const openChannel = (channel: string): LabStep => ({
+export const openConnection = (connection: string): LabStep => ({
+  op: 'openConnection',
+  connection,
+});
+export const closeConnection = (connection: string): LabStep => ({
+  op: 'closeConnection',
+  connection,
+});
+export const openChannel = (
+  channel: string,
+  options: { connection?: string } = {},
+): LabStep => ({
   op: 'openChannel',
   channel,
+  connection: options.connection ?? MAIN,
 });
 export const closeChannel = (channel: string): LabStep => ({
   op: 'closeChannel',
@@ -128,13 +158,28 @@ export const consume = (
   as: string,
   queue: string,
   count: number,
-  options: { channel?: string } = {},
+  options: { channel?: string; cancel?: boolean } = {},
 ): LabStep => ({
   op: 'consume',
   as,
   queue,
   count,
   channel: options.channel ?? MAIN,
+  cancel: options.cancel ?? true,
+});
+/**
+ * Waits until the broker has finished with what the scenario did to a queue: the ready count (a
+ * passive declare, which the broker answers at once) has not changed for `stableFor` polls in a row.
+ * It waits on broker state, not on a fixed time, and the record holds the count, never a duration.
+ */
+export const awaitReady = (
+  queue: string,
+  options: { stableFor?: number; timeoutMs?: number } = {},
+): LabStep => ({
+  op: 'awaitReady',
+  queue,
+  stableFor: options.stableFor ?? 5,
+  timeoutMs: options.timeoutMs ?? 30_000,
 });
 /** Settles a delivery by its alias (`d1`, or `c.0` for the first delivery of consume `c`), or by a raw tag. */
 export const settle = (
@@ -188,6 +233,9 @@ export function defineScenario(scenario: LabScenario): LabScenario {
     throw new Error(`${scenario.cfId} has no steps`);
   const queues = new Set<string>();
   const channels = new Set<string>([MAIN]);
+  /** Connection name to whether it is still open; a name is never reused. */
+  const connections = new Map<string, boolean>([[MAIN, true]]);
+  const channelOn = new Map<string, string>([[MAIN, MAIN]]);
   const refs = new Set<string>();
   const published = new Set<string>();
   const addRef = (index: number, ref: string): void => {
@@ -199,9 +247,17 @@ export function defineScenario(scenario: LabScenario): LabScenario {
       if (!queues.has(queue))
         fail(index, `queue "${queue}" is not declared yet`);
     };
-    const needChannel = (channel: string): void => {
+    // A settle may name a channel whose connection is gone (the broker's answer is the record).
+    const needChannel = (channel: string, settling = false): void => {
       if (!channels.has(channel))
         fail(index, `channel "${channel}" is not open`);
+      const on = channelOn.get(channel) ?? MAIN;
+      if (!settling && connections.get(on) !== true) {
+        fail(
+          index,
+          `channel "${channel}" is on connection "${on}", which is closed`,
+        );
+      }
     };
     switch (step.op) {
       case 'declareQueue':
@@ -209,14 +265,44 @@ export function defineScenario(scenario: LabScenario): LabScenario {
           fail(index, `queue alias "${step.queue}" is not lower-case words`);
         queues.add(step.queue);
         break;
+      case 'openConnection':
+        if (!ALIAS.test(step.connection) || connections.has(step.connection)) {
+          fail(
+            index,
+            `connection "${step.connection}" is invalid or already used`,
+          );
+        }
+        connections.set(step.connection, true);
+        break;
+      case 'closeConnection':
+        if (step.connection === MAIN)
+          fail(index, 'the main connection is never closed by a scenario');
+        if (connections.get(step.connection) !== true) {
+          fail(index, `connection "${step.connection}" is not open`);
+        }
+        connections.set(step.connection, false);
+        break;
       case 'openChannel':
         if (!ALIAS.test(step.channel) || channels.has(step.channel)) {
           fail(index, `channel "${step.channel}" is invalid or already open`);
         }
+        if (connections.get(step.connection) !== true) {
+          fail(index, `connection "${step.connection}" is not open`);
+        }
         channels.add(step.channel);
+        channelOn.set(step.channel, step.connection);
         break;
       case 'closeChannel':
         needChannel(step.channel);
+        break;
+      case 'awaitReady':
+        needQueue(step.queue);
+        if (!Number.isInteger(step.stableFor) || step.stableFor < 1) {
+          fail(index, 'an awaitReady needs a stableFor of at least 1');
+        }
+        if (!Number.isInteger(step.timeoutMs) || step.timeoutMs < 1) {
+          fail(index, 'an awaitReady needs a timeout of at least 1 ms');
+        }
         break;
       case 'publish':
         needQueue(step.queue);
@@ -246,7 +332,7 @@ export function defineScenario(scenario: LabScenario): LabScenario {
             `"${step.target.ref}" was not delivered by an earlier step`,
           );
         }
-        if (step.channel !== undefined) needChannel(step.channel);
+        if (step.channel !== undefined) needChannel(step.channel, true);
         break;
       case 'recover':
         needChannel(step.channel);
@@ -268,8 +354,14 @@ export function defineScenario(scenario: LabScenario): LabScenario {
 
 /** What a scenario needs from a broker; `Amqp091Raw` plus `httpRaw` provide it. */
 export interface ScenarioHost {
-  openChannel(name: string): Promise<void>;
+  /** Opens a connection of its own, beside the default `main`; the broker sees a second client. */
+  openConnection(name: string): Promise<void>;
+  /** Graceful `connection.close`; the channels on it go with it. */
+  closeConnection(name: string): Promise<void>;
+  openChannel(name: string, connection?: string): Promise<void>;
   closeChannel(name: string): Promise<void>;
+  /** Messages ready in the queue, from a passive declare. */
+  readyCount(queue: string): Promise<number>;
   declareQueue(
     queue: string,
     options: {
@@ -292,6 +384,7 @@ export interface ScenarioHost {
     channel: string,
     queue: string,
     count: number,
+    cancel?: boolean,
   ): Promise<RawDelivery[]>;
   settle(
     channel: string,
@@ -328,6 +421,35 @@ const deliveryJson = (delivery: RawDelivery): Record<string, Json> => ({
 /** The most a single observe drains: a queue that holds more is an error, not a partial record. */
 export const DRAIN_LIMIT = 200;
 
+/** The gap between two polls of `awaitReady`; it paces the polls and is never recorded. */
+export const AWAIT_POLL_MS = 50;
+
+/**
+ * Polls until the count has been the same `stableFor` times in a row and returns it. The loop is
+ * bounded by `timeoutMs`; an unsettled queue is an error naming it, so a run never hangs and never
+ * records a count the broker was still changing.
+ */
+async function untilStable(
+  poll: () => Promise<number>,
+  step: Extract<LabStep, { op: 'awaitReady' }>,
+): Promise<number> {
+  const deadline = Date.now() + step.timeoutMs;
+  let last = -1;
+  let same = 0;
+  for (;;) {
+    const count = await poll();
+    same = count === last ? same + 1 : 1;
+    last = count;
+    if (same >= step.stableFor) return count;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `queue "${step.queue}" did not hold a steady ready count within the time allowed (last count ${String(count)})`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, AWAIT_POLL_MS));
+  }
+}
+
 /**
  * Runs the steps in order against the host. Queues are created under a name that carries `runId`
  * (so two runs never meet) and deleted at the end, whatever happened; the records use the aliases.
@@ -362,12 +484,41 @@ export async function runScenario(
           },
           result: { ok: true },
         };
+      case 'openConnection':
+        await host.openConnection(step.connection);
+        return {
+          args: { connection: step.connection },
+          result: { ok: true },
+        };
+      case 'closeConnection':
+        await host.closeConnection(step.connection);
+        return {
+          args: { connection: step.connection },
+          result: { ok: true },
+        };
       case 'openChannel':
-        await host.openChannel(step.channel);
-        return { args: { channel: step.channel }, result: { ok: true } };
+        await host.openChannel(step.channel, step.connection);
+        // The default connection is not recorded, so a scenario without a second one records as before.
+        return {
+          args:
+            step.connection === MAIN
+              ? { channel: step.channel }
+              : { channel: step.channel, connection: step.connection },
+          result: { ok: true },
+        };
       case 'closeChannel':
         await host.closeChannel(step.channel);
         return { args: { channel: step.channel }, result: { ok: true } };
+      case 'awaitReady': {
+        const ready = await untilStable(
+          () => host.readyCount(physical(step.queue)),
+          step,
+        );
+        return {
+          args: { queue: step.queue, stableFor: step.stableFor },
+          result: { ready },
+        };
+      }
       case 'publish': {
         const body = Buffer.from(step.body);
         await host.publish(physical(step.queue), {
@@ -414,6 +565,7 @@ export async function runScenario(
           step.channel,
           physical(step.queue),
           step.count,
+          step.cancel,
         );
         deliveries.forEach((delivery, n) => {
           held.set(`${step.as}.${String(n)}`, {
@@ -427,6 +579,8 @@ export async function runScenario(
             queue: step.queue,
             count: step.count,
             channel: step.channel,
+            // Only a consumer left active is recorded, so the existing records stay as they were.
+            ...(step.cancel ? {} : { cancel: false }),
           },
           result: {
             deliveries: deliveries.map((delivery, n) => ({

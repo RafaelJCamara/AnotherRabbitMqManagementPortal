@@ -42,6 +42,12 @@ class FakeChannel extends EventEmitter {
     this.record('deleteQueue', queue);
     return Promise.resolve({});
   }
+  /** Messages checkQueue reports as ready. */
+  ready = 0;
+  checkQueue(queue: string): Promise<{ messageCount: number }> {
+    this.record('checkQueue', queue);
+    return Promise.resolve({ messageCount: this.ready });
+  }
   get(queue: string, options: unknown): Promise<unknown> {
     this.record('get', queue, options);
     return Promise.resolve(this.gets.length > 0 ? this.gets.shift() : false);
@@ -460,6 +466,30 @@ describe('the raw driver reads what the broker answers', () => {
     ]);
   });
 
+  it('consume without cancel sends no basic.cancel and leaves the consumer active', async () => {
+    const { raw, model } = await connectTo();
+    const channel = main(model);
+    const pending = raw.consume('main', 'q', 1, 5_000, false);
+    await listening(channel);
+    channel.consumed?.(message(1));
+
+    await pending;
+
+    expect(channel.calls).toEqual([
+      ['prefetch', 1],
+      ['consume', 'q'],
+    ]);
+  });
+
+  it('readyCount is a passive declare on the admin channel, which the broker answers at once', async () => {
+    const { raw, model } = await connectTo();
+    admin(model).ready = 7;
+
+    expect(await raw.readyCount('q')).toBe(7);
+    expect(admin(model).calls).toEqual([['checkQueue', 'q']]);
+    expect(main(model).calls).toEqual([]);
+  });
+
   it('consume gives up after the timeout and returns what arrived', async () => {
     const { raw } = await connectTo();
 
@@ -575,5 +605,56 @@ describe('publish', () => {
     model.close = () => Promise.reject(new Error('already closed'));
 
     await expect(raw.close()).resolves.toBeUndefined();
+  });
+});
+
+describe('AC-4 a second connection that can go away', () => {
+  it('AC-4 closing the holder connection leaves the observer connection usable and records the close', async () => {
+    const models = [new FakeModel(), new FakeModel()];
+    const options: unknown[] = [];
+    const raw = await Amqp091Raw.open(await mintEndpoint(), {
+      connect: (opts) => {
+        options.push(opts);
+        return Promise.resolve(
+          models[options.length - 1] as unknown as ChannelModel,
+        );
+      },
+    });
+    const [primary, second] = models as [FakeModel, FakeModel];
+    await raw.openConnection('holder');
+    await raw.openChannel('h', 'holder');
+    const holderChannel = second.channels[0];
+    if (holderChannel === undefined) throw new Error('no holder channel');
+    holderChannel.gets = [message(1)];
+    main(primary).gets = [message(2)];
+
+    // The holder's channel is on the second connection and holds a delivery.
+    expect(await raw.get('h', 'q', false)).toMatchObject({ tag: 1 });
+    expect(options).toHaveLength(2);
+    expect(options[1]).toEqual(options[0]);
+    await raw.closeConnection('holder');
+
+    expect([primary.closedCount, second.closedCount]).toEqual([0, 1]);
+    // The settle on the holder's channel reports the closure; it does not throw.
+    expect(await raw.settle('h', 1, { kind: 'ack' })).toEqual({
+      channelOpen: false,
+      closed: { code: null, text: 'closed with its connection' },
+    });
+    // The observer's connection still works: a get, a settle, a count and a declare.
+    expect(await raw.get('main', 'q', true)).toMatchObject({ tag: 2 });
+    expect(await raw.settle('main', 2, { kind: 'ack' })).toEqual({
+      channelOpen: true,
+    });
+    admin(primary).ready = 4;
+    expect(await raw.readyCount('q')).toBe(4);
+    // A name is used once; the default connection is never closed by a scenario.
+    await expect(raw.closeConnection('holder')).rejects.toThrow(/not open/);
+    await expect(raw.openConnection('holder')).rejects.toThrow(/already used/);
+    await expect(raw.closeConnection('main')).rejects.toThrow(/never closed/);
+    await expect(raw.openChannel('x', 'holder')).rejects.toThrow(/not open/);
+    await expect(raw.openChannel('y', 'nope')).rejects.toThrow(/not open/);
+
+    await raw.close();
+    expect([primary.closedCount, second.closedCount]).toEqual([1, 1]);
   });
 });

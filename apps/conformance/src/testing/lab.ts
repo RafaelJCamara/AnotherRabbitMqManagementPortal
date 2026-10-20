@@ -104,6 +104,12 @@ export class MemoryHost implements RecordHost {
   readonly queues = new Map<string, Message[]>();
   readonly calls: string[] = [];
   readonly managementCalls: unknown[] = [];
+  /** Connection name to whether it is open; `main` is always there. */
+  readonly connections = new Map<string, boolean>([['main', true]]);
+  /** Every consume the host was asked for, and whether the consumer was cancelled afterwards. */
+  readonly consumers: { channel: string; queue: string; cancelled: boolean }[] =
+    [];
+  readonly #channelOn = new Map<string, string>([['main', 'main']]);
   readonly #unacked = new Map<
     string,
     Map<number, { queue: string; message: Message }>
@@ -127,9 +133,42 @@ export class MemoryHost implements RecordHost {
     this.closedCount += 1;
     return Promise.resolve();
   }
-  openChannel(name: string): Promise<void> {
+  openConnection(name: string): Promise<void> {
+    if (this.connections.has(name)) {
+      return Promise.reject(new Error(`connection "${name}" is already used`));
+    }
+    this.connections.set(name, true);
+    return Promise.resolve();
+  }
+  /** Closes the connection; its channels report a closed channel to a settle, as the broker's would. */
+  closeConnection(name: string): Promise<void> {
+    if (this.connections.get(name) !== true) {
+      return Promise.reject(new Error(`connection "${name}" is not open`));
+    }
+    this.connections.set(name, false);
+    for (const [channel, on] of this.#channelOn) {
+      if (on === name) {
+        this.#closed.set(channel, {
+          code: 0,
+          text: 'closed with its connection',
+        });
+      }
+    }
+    return Promise.resolve();
+  }
+  openChannel(name: string, connection = 'main'): Promise<void> {
+    if (this.connections.get(connection) !== true) {
+      return Promise.reject(
+        new Error(`connection "${connection}" is not open`),
+      );
+    }
+    this.#channelOn.set(name, connection);
     this.#unacked.set(name, new Map());
     return Promise.resolve();
+  }
+  /** The ready count; a test replaces this to script a count that moves. */
+  readyCount(queue: string): Promise<number> {
+    return Promise.resolve(this.queues.get(queue)?.length ?? 0);
   }
   closeChannel(name: string): Promise<void> {
     this.#closed.set(name, { code: 0, text: 'closed by the client' });
@@ -178,7 +217,9 @@ export class MemoryHost implements RecordHost {
     channel: string,
     queue: string,
     count: number,
+    cancel = true,
   ): Promise<RawDelivery[]> {
+    this.consumers.push({ channel, queue, cancelled: cancel });
     const taken: Promise<RawDelivery | null>[] = [];
     for (let n = 0; n < count; n += 1)
       taken.push(this.get(channel, queue, false));

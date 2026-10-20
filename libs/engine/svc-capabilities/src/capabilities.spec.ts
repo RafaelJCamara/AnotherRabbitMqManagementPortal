@@ -691,7 +691,11 @@ describe('fingerprint and cache', () => {
     expect(first.output.changed).toBe(true);
     expect(second.output.changed).toBe(false);
     expect(first.output.steps.map((s) => s.id)).toEqual([...PROBE_STEP_IDS]);
-    expect(read.output.profile).toEqual(second.output.profile);
+    // No authorizer is wired in this spec, so nothing is allowed (M0-46); the rest is what was cached.
+    expect(read.output.profile).toEqual({
+      ...(second.output.profile as object),
+      allowedActions: [],
+    });
     expect(deps.profiles.rows.get('c1')?.fingerprint).toBe(
       (second.output.profile as { fingerprint: string }).fingerprint,
     );

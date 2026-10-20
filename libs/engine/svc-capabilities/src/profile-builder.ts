@@ -18,7 +18,9 @@ import {
 } from '@app/domain-model';
 import type { BrokerSemanticsRegistry } from '@app/semantics';
 
+import { eraOf } from './era';
 import { fingerprintOf } from './fingerprint';
+import { computeGates, type GateProfileInput } from './gates';
 import { isRabbitMqFamily, productOf, providerOf } from './probe/identify';
 import type { Facts } from './probe/types';
 
@@ -125,25 +127,15 @@ export function buildProfile(input: BuildInput): BrokerProfile {
     versions: { ...versions, build },
   };
 
-  const resolved = registry.resolveEra({
+  const { era, verification } = eraOf({
     nodeVersions: Object.values(versions.perNode),
-    ff43Enabled:
-      ff43 === 'enabled' ? true : ff43 === 'disabled' ? false : 'unknown',
-    qqMachineVersions: [],
+    ff43: ff43 === 'enabled' || ff43 === 'disabled' ? ff43 : 'unknown',
     build,
+    family,
+    product,
     lastVerified: input.lastVerified,
+    registry,
   });
-  const eraReasons = [...resolved.reasons];
-  if (!family) {
-    eraReasons.push(
-      `the product is ${product}: its version numbers are not RabbitMQ's, so no node has a RabbitMQ version`,
-    );
-  }
-  if (resolved.era === '4.3' || resolved.era === '4.4') {
-    eraReasons.push(
-      'quorum-queue Machine Versions were not probed; the era rests on node versions and the feature flag',
-    );
-  }
 
   const preset = registry.providerPreset({ provider, product }, versions.min);
   const names = new Set(
@@ -184,19 +176,15 @@ export function buildProfile(input: BuildInput): BrokerProfile {
     (overview?.listeners ?? []).map((listener) => listener.protocol),
   );
 
-  const draft: Omit<BrokerProfile, 'probedAt' | 'fingerprint'> = {
+  const draft: GateProfileInput = {
     schemaVersion: BROKER_PROFILE_SCHEMA_VERSION,
     connectionId: input.connectionId,
     semanticsVersion: registry.version,
     product,
     provider,
     versions: { ...versions, build },
-    era: {
-      value: resolved.era,
-      reasons: eraReasons,
-      conservative: resolved.conservative || !family,
-    },
-    verification: resolved.verification,
+    era,
+    verification,
     lbFronted: { value: balanced, evidence: lbEvidence },
     nodes:
       facts.nodes !== undefined
@@ -326,13 +314,16 @@ export function buildProfile(input: BuildInput): BrokerProfile {
       managedBy: 'provider' as const,
     })),
     hazards: registry.hazards(slice),
-    // The feature gates and the era's own rules are the next work package's (M0-46).
-    gates: {},
   };
 
-  return BrokerProfileSchema.parse({
+  // Gates are part of what the fingerprint covers: a changed gate makes a bound plan stale.
+  const decided = {
     ...draft,
+    gates: computeGates({ profile: draft, facts, registry }),
+  };
+  return BrokerProfileSchema.parse({
+    ...decided,
     probedAt: input.probedAt,
-    fingerprint: fingerprintOf(draft),
+    fingerprint: fingerprintOf(decided),
   });
 }

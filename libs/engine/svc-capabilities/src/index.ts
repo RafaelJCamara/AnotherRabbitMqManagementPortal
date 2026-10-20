@@ -3,6 +3,13 @@ export type { CapabilitiesModuleDeps } from './deps';
 export type { EngineModule } from './module';
 export { buildProfile, type BuildInput } from './profile-builder';
 export { canonicalJson, fingerprintOf } from './fingerprint';
+export { eraOf, type EraInput } from './era';
+export { computeGates, FEATURES, type GateInput } from './gates';
+export {
+  computeAllowedActions,
+  type ActionFeatures,
+  type AllowedActionsInput,
+} from './gates/allowed-actions';
 export { runProbe, type ProbeRun, type StepResult } from './probe/run';
 // Fakes for the ports of this module, for the architecture manifest and the HTTP specs.
 export {

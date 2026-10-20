@@ -1,15 +1,24 @@
 // profile.get: Read the cached BrokerProfile of a connection
-import { profileGet } from '@app/contracts';
+import { profileGet, registry as contractRegistry } from '@app/contracts';
 import { BrokerProfileSchema } from '@app/domain-model';
-import { AppError, implementAction, type ActionImpl } from '@app/kernel';
+import {
+  AppError,
+  denyAllAuthorizer,
+  implementAction,
+  type ActionImpl,
+} from '@app/kernel';
 
 import type { CapabilitiesModuleDeps } from '../deps';
+import {
+  computeAllowedActions,
+  DEFAULT_ACTION_FEATURES,
+} from '../gates/allowed-actions';
 import { requireVisible } from '../internal/visible';
 
 /** The ports this action reads through: a subset of the module's deps (src/deps.ts). */
 export type ProfileGetDeps = Pick<
   CapabilitiesModuleDeps,
-  'profiles' | 'connections'
+  'profiles' | 'connections' | 'authorizer' | 'featuresOf'
 >;
 
 export const createProfileGetAction = (
@@ -33,6 +42,16 @@ export const createProfileGetAction = (
             'The cached profile of this connection is out of date. Run the probe again.',
         });
       }
-      return { profile: profile.data };
+      // Per principal, so it is added here and never cached or fingerprinted.
+      const allowedActions = await computeAllowedActions({
+        profile: profile.data,
+        principal: ctx.principal,
+        mode: ctx.mode,
+        env: ctx.env,
+        authorizer: deps.authorizer ?? denyAllAuthorizer,
+        actions: contractRegistry.actions,
+        featuresOf: deps.featuresOf ?? DEFAULT_ACTION_FEATURES,
+      });
+      return { profile: { ...profile.data, allowedActions } };
     },
   });

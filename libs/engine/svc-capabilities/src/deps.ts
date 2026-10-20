@@ -1,3 +1,4 @@
+import type { Authorizer } from '@app/kernel';
 import type {
   BrokerProfileStore,
   BrokerWireProbe,
@@ -5,6 +6,8 @@ import type {
   MgmtReadPort,
 } from '@app/ports';
 import type { BrokerSemanticsRegistry } from '@app/semantics';
+
+import type { ActionFeatures } from './gates/allowed-actions';
 
 /**
  * The ports this module needs, injected by the composition root. Everything is read-only on the
@@ -25,4 +28,11 @@ export interface CapabilitiesModuleDeps {
   readonly lastVerified?: () => readonly string[];
   /** The semantics registry; the one this release ships when absent. */
   readonly registry?: BrokerSemanticsRegistry;
+  /**
+   * The authorizer the executor uses, so `profile.get` can tell a principal what it may call. Absent,
+   * the deny-all authorizer stands in and `allowedActions` is empty (deny by default, OQ-472).
+   */
+  readonly authorizer?: Authorizer;
+  /** Action id to the features it needs open; the table of `gates/allowed-actions.ts` when absent. */
+  readonly featuresOf?: ActionFeatures;
 }

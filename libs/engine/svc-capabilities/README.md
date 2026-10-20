@@ -10,11 +10,12 @@ Tags: `type:service`, `runtime:node`.
 - `CapabilitiesModuleDeps` (`src/deps.ts`): `mgmt` (`MgmtReadPort`, the BrokerScheduler's read wrapper: the module is never given a write port), `wire` (`BrokerWireProbe`: the TLS and AMQP handshakes), `profiles` (`BrokerProfileStore`: `repos.brokerProfiles` of persistence), `connections` (`ConnectionStore.get`, only to tell whether the caller may see the connection), and optionally `lastVerified` and `registry`.
 - `createCapabilitiesFakeDeps()` and the fakes in `src/testing.ts`: a scripted management API (it answers from a table by path and records every request), a fake wire probe, an in-memory cache.
 - `runProbe(env)`, `buildProfile(input)`, `fingerprintOf(profile)`: the probe, the facts-to-profile function and the fingerprint, for the composition root, tests and the diagnostics.
+- `computeGates(input)`, `FEATURES`, `computeAllowedActions(input)`, `eraOf(input)`: the gate map, the feature catalogue, the per-principal action list and the era step, for tests and the executor's profile hook.
 
 | Action | Kind and route | What it does |
 | --- | --- | --- |
 | `probe.run` | query, `POST /connections/{cid}/probe` | Runs the twelve steps, caches the `BrokerProfile`, and answers the profile, whether its fingerprint changed and how each step went. It is a query on purpose (OQ-470): it reads the broker and refreshes a cache. |
-| `profile.get` | query, `GET /connections/{cid}/profile` | The cached profile, or `NOT_FOUND` ("run the probe first"). No broker request. |
+| `profile.get` | query, `GET /connections/{cid}/profile` | The cached profile with `allowedActions` for the caller, or `NOT_FOUND` ("run the probe first"). No broker request. |
 
 ## The probe (fact sheet j.2)
 
@@ -48,6 +49,20 @@ Step 13 of the fact sheet (write-shaped probes on demand) is not part of this pa
 - **Fingerprint.** SHA-256 of the canonical JSON of the profile without `probedAt`: it follows what a decision reads, not the time of the probe or the order of the nodes.
 - **Statistics off** (OQ-431): the overview lists no listeners and the node list no plugins, so no metrics endpoint is guessed.
 
+## Gates, era and allowedActions (M0-46)
+
+`BrokerProfile.gates` has one decision for every id of `FEATURES`, computed in `src/gates` before the fingerprint, so a changed gate makes a bound plan stale (`PLAN_STALE`). Fail closed: a gate is open only on positive evidence, a closed one always has a `reason` and a `source`, and a decision that cannot be reached is closed. A provider preset that blocks a feature outranks what the probe saw. A failed AMQP handshake contributes its failure class only, never the broker's text (I-10). A registry gate row can close an open gate; no row is not a reason to close (the shipped table is empty). Hazards close nothing (OQ-483).
+
+| Feature | Closed when | Source |
+| --- | --- | --- |
+| `streams.browse` | the product is not RabbitMQ, the preset blocks streams, or the stream plugin was not seen | provider preset citation, or probe steps 6 and 7 |
+| `tap.firehose` | the firehose is not `tracing-plugin` (`runbook-only` and `none` are closed, the reason says which) | provider preset, or probe steps 7 and 10 |
+| `audit.event-exchange` | the preset blocks it, the plugin is on no node, or the plugin list is unknown (statistics off) | provider preset, or probe step 7 |
+| `policies.operator-edit` | operator-policy changes are `disabled` or `unknown` (Amazon MQ: the reason carries the HTTP 405 remediation) | provider documentation, or probe step 5 |
+| `amqp.peek`, `amqp.tap`, `amqp.publish`, `amqp.replay` | the AMQP handshake did not succeed | probe step 12 |
+
+`eraOf` calls `registry.resolveEra` (I-3) and adds the engine-side reasons (not RabbitMQ, Machine Versions not probed). `allowedActions` is computed by `profile.get` for the calling principal: the actions whose permission the `Authorizer` grants (exactly `allowed: true`) and whose features, from `featuresOf` (empty by default, OQ-484), are all open. It is never cached or fingerprinted.
+
 ## Invariants
 
 - **The probe never touches `MgmtWritePort` (I-2).** The module's deps hold `MgmtReadPort` only; the specs replay every golden fixture through a recording fake and assert every request is a GET.
@@ -55,12 +70,13 @@ Step 13 of the fact sheet (write-shaped probes on demand) is not part of this pa
 - A profile holds no secret: what a broker said about itself. Details of a failed step are reasons and counts, never the broker's text, a URL or a credential (I-10).
 - Bounded (I-6, I-7): 100 nodes, 500 feature flags, 200 extensions and managed objects, 16 metrics endpoints, 64 KiB of any script read.
 
-Open questions: OQ-470 to OQ-479 in [docs/open-questions.md](../../../docs/open-questions.md).
+Open questions: OQ-470 to OQ-479 and OQ-480 to OQ-487 in [docs/open-questions.md](../../../docs/open-questions.md).
 
 ## Proof commands
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p svc-capabilities
+pnpm nx test svc-capabilities --testNamePattern=gates   # M0-46: AC-1 to AC-11
 pnpm nx test svc-capabilities                 # fixtures of RabbitMQ 3.13.7 to 4.3.6 (statistics on and off) and LavinMQ 2.10.2
 pnpm nx run svc-capabilities:it '--versions=3.13.7,4.0.9,4.1.8,4.2.9,4.3.6'   # real brokers, adapter, SQLite; needs Docker and openssl
 ```

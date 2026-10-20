@@ -184,6 +184,18 @@ export class MemoryHost implements RecordHost {
     this.queues.delete(queue);
     return Promise.resolve();
   }
+  declareExchange(exchange: string): Promise<void> {
+    this.calls.push(`declare exchange ${exchange}`);
+    return Promise.resolve();
+  }
+  deleteExchange(exchange: string): Promise<void> {
+    this.calls.push(`delete exchange ${exchange}`);
+    return Promise.resolve();
+  }
+  bindQueue(queue: string, exchange: string, key: string): Promise<void> {
+    this.calls.push(`bind ${queue} ${exchange} ${key}`);
+    return Promise.resolve();
+  }
   publish(
     queue: string,
     message: { messageId: string; body: Buffer },

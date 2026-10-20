@@ -36,6 +36,9 @@ export async function openLabHost(
     readyCount: (queue) => raw.readyCount(queue),
     declareQueue: (queue, options) => raw.declareQueue(queue, options),
     deleteQueue: (queue) => raw.deleteQueue(queue),
+    declareExchange: (exchange, kind) => raw.declareExchange(exchange, kind),
+    deleteExchange: (exchange) => raw.deleteExchange(exchange),
+    bindQueue: (queue, exchange, key) => raw.bindQueue(queue, exchange, key),
     publish: (queue, message) => raw.publish(queue, message),
     get: (channel, queue, noAck) => raw.get(channel, queue, noAck),
     consume: (channel, queue, count, cancel) =>

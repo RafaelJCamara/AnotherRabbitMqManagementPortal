@@ -48,6 +48,22 @@ class FakeChannel extends EventEmitter {
     this.record('checkQueue', queue);
     return Promise.resolve({ messageCount: this.ready });
   }
+  assertExchange(
+    exchange: string,
+    kind: string,
+    options: unknown,
+  ): Promise<unknown> {
+    this.record('assertExchange', exchange, kind, options);
+    return Promise.resolve({});
+  }
+  deleteExchange(exchange: string): Promise<unknown> {
+    this.record('deleteExchange', exchange);
+    return Promise.resolve({});
+  }
+  bindQueue(queue: string, exchange: string, key: string): Promise<unknown> {
+    this.record('bindQueue', queue, exchange, key);
+    return Promise.resolve({});
+  }
   get(queue: string, options: unknown): Promise<unknown> {
     this.record('get', queue, options);
     return Promise.resolve(this.gets.length > 0 ? this.gets.shift() : false);
@@ -567,6 +583,20 @@ describe('the raw driver reads what the broker answers', () => {
 
     expect(admin(model).calls).toEqual([['deleteQueue', 'q']]);
   });
+
+  it('declares, binds and deletes an exchange on the admin channel (dead-letter topology)', async () => {
+    const { raw, model } = await connectTo();
+
+    await raw.declareExchange('dlx', 'direct');
+    await raw.bindQueue('dlq', 'dlx', 'dlq');
+    await raw.deleteExchange('dlx');
+
+    expect(admin(model).calls).toEqual([
+      ['assertExchange', 'dlx', 'direct', { durable: true, autoDelete: false }],
+      ['bindQueue', 'dlq', 'dlx', 'dlq'],
+      ['deleteExchange', 'dlx'],
+    ]);
+  });
 });
 
 describe('publish', () => {
@@ -582,6 +612,25 @@ describe('publish', () => {
       ['sendToQueue', 'q', 'more', { messageId: 'm2' }],
     ]);
     expect(main(model).calls).toEqual([]);
+  });
+
+  it('sends a copied x-delivery-count as the only header, and none when the scenario sets none', async () => {
+    const { raw, model } = await connectTo();
+
+    await raw.publish('q', {
+      messageId: 'm1',
+      body: Buffer.from('a'),
+      headers: { 'x-delivery-count': 99 },
+    });
+
+    expect(model.confirm[0]?.calls).toEqual([
+      [
+        'sendToQueue',
+        'q',
+        'a',
+        { messageId: 'm1', headers: { 'x-delivery-count': 99 } },
+      ],
+    ]);
   });
 
   it('fails when the broker does not confirm', async () => {

@@ -25,13 +25,60 @@ export type AckMode =
   | 'reject_requeue_true'
   | 'reject_requeue_false';
 
+/**
+ * A reference to a queue or an exchange declared earlier in the same scenario. Wherever an argument
+ * or a binding key takes one, it is replaced by the run-unique name when the step runs; the record
+ * keeps the alias, so a live replay can equal the evidence.
+ */
+export interface Ref {
+  readonly $ref: string;
+}
+export const ref = (alias: string): Ref => ({ $ref: alias });
+/** A ref as the record keeps it (its alias), a plain value as it is. */
+const plain = (value: Json | Ref): Json =>
+  isRef(value) ? { $ref: value.$ref } : value;
+const isRef = (value: unknown): value is Ref =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  Object.keys(value).length === 1 &&
+  typeof (value as { $ref?: unknown }).$ref === 'string';
+
+/** The only header a scenario may set on a message: a copied delivery counter (an integer constant). */
+export interface CopiedHeaders {
+  readonly 'x-delivery-count'?: number;
+}
+
+/** The longest fixed wait a step may ask for. */
+export const MAX_WAIT_MS = 60_000;
+
 export type LabStep =
   | {
       readonly op: 'declareQueue';
       readonly queue: string;
       readonly type: QueueType;
       readonly durable: boolean;
-      readonly arguments: Readonly<Record<string, Json>>;
+      /** A value may be a `Ref` to an exchange or queue declared earlier (dead-letter topology). */
+      readonly arguments: Readonly<Record<string, Json | Ref>>;
+    }
+  | {
+      readonly op: 'declareExchange';
+      readonly exchange: string;
+      readonly kind: 'direct' | 'fanout';
+    }
+  | {
+      readonly op: 'bindQueue';
+      readonly queue: string;
+      readonly exchange: string;
+      readonly key: string | Ref;
+    }
+  /** A fixed pause, recorded as an argument: never a measured time. */
+  | { readonly op: 'wait'; readonly ms: number }
+  /** `GET /api/queues/%2F/<queue>`: counts and the class of `next_delayed_at`, never a clock value. */
+  | {
+      readonly op: 'mgmtQueue';
+      readonly as: string;
+      readonly queue: string;
     }
   | { readonly op: 'openConnection'; readonly connection: string }
   /** Graceful: `connection.close` and its reply. Every channel of the connection goes with it. */
@@ -56,6 +103,7 @@ export type LabStep =
       readonly queue: string;
       readonly messageId: string;
       readonly body: string;
+      readonly headers?: CopiedHeaders;
     }
   | {
       readonly op: 'get';
@@ -93,6 +141,8 @@ export type LabStep =
       readonly name: string;
       readonly queue: string;
       readonly channel: string;
+      /** Aliases of the queues whose published messages may be found here (dead letters arrive from others). */
+      readonly from?: readonly string[];
     };
 
 export interface LabScenario {
@@ -109,7 +159,7 @@ export const declareQueue = (
   options: {
     type?: QueueType;
     durable?: boolean;
-    arguments?: Record<string, Json>;
+    arguments?: Record<string, Json | Ref>;
   } = {},
 ): LabStep => ({
   op: 'declareQueue',
@@ -138,11 +188,33 @@ export const closeChannel = (channel: string): LabStep => ({
   op: 'closeChannel',
   channel,
 });
+export const declareExchange = (
+  exchange: string,
+  kind: 'direct' | 'fanout' = 'direct',
+): LabStep => ({ op: 'declareExchange', exchange, kind });
+export const bindQueue = (
+  queue: string,
+  exchange: string,
+  key: string | Ref,
+): LabStep => ({ op: 'bindQueue', queue, exchange, key });
+export const wait = (ms: number): LabStep => ({ op: 'wait', ms });
+export const mgmtQueue = (as: string, queue: string): LabStep => ({
+  op: 'mgmtQueue',
+  as,
+  queue,
+});
 export const publish = (
   queue: string,
   messageId: string,
   body = messageId,
-): LabStep => ({ op: 'publish', queue, messageId, body });
+  options: { headers?: CopiedHeaders } = {},
+): LabStep => ({
+  op: 'publish',
+  queue,
+  messageId,
+  body,
+  ...(options.headers === undefined ? {} : { headers: options.headers }),
+});
 export const get = (
   as: string,
   queue: string,
@@ -211,12 +283,13 @@ export const mgmtGet = (
 export const observe = (
   name: string,
   queue: string,
-  options: { channel?: string } = {},
+  options: { channel?: string; from?: readonly string[] } = {},
 ): LabStep => ({
   op: 'observe',
   name,
   queue,
   channel: options.channel ?? MAIN,
+  ...(options.from === undefined ? {} : { from: options.from }),
 });
 
 const ALIAS = /^[a-z][a-z0-9-]*$/;
@@ -232,6 +305,7 @@ export function defineScenario(scenario: LabScenario): LabScenario {
   if (scenario.steps.length === 0)
     throw new Error(`${scenario.cfId} has no steps`);
   const queues = new Set<string>();
+  const exchanges = new Set<string>();
   const channels = new Set<string>([MAIN]);
   /** Connection name to whether it is still open; a name is never reused. */
   const connections = new Map<string, boolean>([[MAIN, true]]);
@@ -259,10 +333,17 @@ export function defineScenario(scenario: LabScenario): LabScenario {
         );
       }
     };
+    const needTarget = (alias: string): void => {
+      if (!queues.has(alias) && !exchanges.has(alias))
+        fail(index, `"${alias}" is not a queue or exchange declared yet`);
+    };
     switch (step.op) {
       case 'declareQueue':
         if (!ALIAS.test(step.queue))
           fail(index, `queue alias "${step.queue}" is not lower-case words`);
+        for (const value of Object.values(step.arguments)) {
+          if (isRef(value)) needTarget(value.$ref);
+        }
         queues.add(step.queue);
         break;
       case 'openConnection':
@@ -281,6 +362,40 @@ export function defineScenario(scenario: LabScenario): LabScenario {
           fail(index, `connection "${step.connection}" is not open`);
         }
         connections.set(step.connection, false);
+        break;
+      case 'declareExchange':
+        if (!ALIAS.test(step.exchange) || exchanges.has(step.exchange))
+          fail(
+            index,
+            `exchange "${step.exchange}" is invalid or already declared`,
+          );
+        exchanges.add(step.exchange);
+        break;
+      case 'bindQueue':
+        needQueue(step.queue);
+        if (!exchanges.has(step.exchange))
+          fail(index, `exchange "${step.exchange}" is not declared yet`);
+        if (isRef(step.key)) needTarget(step.key.$ref);
+        else if (step.key === '' || step.key.length > 255)
+          fail(index, 'a binding key is 1 to 255 characters');
+        break;
+      case 'wait':
+        if (
+          !Number.isInteger(step.ms) ||
+          step.ms < 0 ||
+          step.ms > MAX_WAIT_MS
+        ) {
+          fail(
+            index,
+            `a wait is a whole number of ms from 0 to ${String(MAX_WAIT_MS)}`,
+          );
+        }
+        break;
+      case 'mgmtQueue':
+        needQueue(step.queue);
+        if (!ALIAS.test(step.as))
+          fail(index, `alias "${step.as}" is not lower-case words`);
+        addRef(index, step.as);
         break;
       case 'openChannel':
         if (!ALIAS.test(step.channel) || channels.has(step.channel)) {
@@ -309,6 +424,22 @@ export function defineScenario(scenario: LabScenario): LabScenario {
         if (published.has(step.messageId))
           fail(index, `message id "${step.messageId}" is used twice`);
         published.add(step.messageId);
+        if (step.headers !== undefined) {
+          const entries = Object.entries(step.headers);
+          if (
+            entries.some(
+              ([name, value]) =>
+                name !== 'x-delivery-count' ||
+                !Number.isInteger(value) ||
+                (value as number) < 0,
+            )
+          ) {
+            fail(
+              index,
+              'the only header a publish may set is x-delivery-count, as a whole number',
+            );
+          }
+        }
         break;
       case 'get':
         needQueue(step.queue);
@@ -346,6 +477,13 @@ export function defineScenario(scenario: LabScenario): LabScenario {
       case 'observe':
         needQueue(step.queue);
         needChannel(step.channel);
+        for (const source of step.from ?? []) {
+          if (!queues.has(source))
+            fail(
+              index,
+              `observe names "${source}", which is not a declared queue`,
+            );
+        }
         break;
     }
   });
@@ -371,9 +509,12 @@ export interface ScenarioHost {
     },
   ): Promise<void>;
   deleteQueue(queue: string): Promise<void>;
+  declareExchange(exchange: string, kind: 'direct' | 'fanout'): Promise<void>;
+  deleteExchange(exchange: string): Promise<void>;
+  bindQueue(queue: string, exchange: string, key: string): Promise<void>;
   publish(
     queue: string,
-    message: { messageId: string; body: Buffer },
+    message: { messageId: string; body: Buffer; headers?: CopiedHeaders },
   ): Promise<void>;
   get(
     channel: string,
@@ -393,9 +534,9 @@ export interface ScenarioHost {
   ): Promise<SettleOutcome>;
   recover(channel: string): Promise<void>;
   management(call: {
-    method: 'POST';
+    method: 'GET' | 'PUT' | 'POST' | 'DELETE';
     path: string;
-    body: unknown;
+    body?: unknown;
   }): Promise<HttpRawResponse>;
 }
 
@@ -417,6 +558,44 @@ const deliveryJson = (delivery: RawDelivery): Record<string, Json> => ({
   'x-delivery-count': delivery.xDeliveryCount,
   'x-acquired-count': delivery.xAcquiredCount,
 });
+
+/** Time as a run sees it, so a test needs no real waiting and no real clock. */
+export interface RunClock {
+  now(): number;
+  sleep(ms: number): Promise<void>;
+}
+
+const REAL_CLOCK: RunClock = {
+  now: () => Date.now(),
+  sleep: (ms) =>
+    new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    }),
+};
+
+const count = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0
+    ? value
+    : null;
+
+/**
+ * The class of a clock value the broker reported (`next_delayed_at`): never the value itself, so a
+ * live replay can equal the evidence. A number is read as epoch milliseconds, a string as a date.
+ */
+export function clockClass(
+  value: unknown,
+  now: number,
+): 'absent' | 'future' | 'past' | 'unparsed' {
+  if (value === undefined || value === null) return 'absent';
+  const at =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Date.parse(value)
+        : Number.NaN;
+  if (!Number.isFinite(at)) return 'unparsed';
+  return at > now ? 'future' : 'past';
+}
 
 /** The most a single observe drains: a queue that holds more is an error, not a partial record. */
 export const DRAIN_LIMIT = 200;
@@ -459,6 +638,7 @@ export async function runScenario(
   scenario: LabScenario,
   runId: string,
   drainLimit = DRAIN_LIMIT,
+  clock: RunClock = REAL_CLOCK,
 ): Promise<ScenarioRun> {
   const physical = (queue: string): string =>
     `lab-${scenario.cfId.toLowerCase()}-${runId}-${queue}`;
@@ -466,6 +646,9 @@ export async function runScenario(
   const observations: EvidenceObservation[] = [];
   const held = new Map<string, Held>();
   const declared: string[] = [];
+  const declaredExchanges: string[] = [];
+  const resolve = (value: Json | Ref): Json =>
+    isRef(value) ? physical(value.$ref) : value;
   const publishedTo = new Map<string, string[]>();
 
   const run = async (
@@ -473,14 +656,27 @@ export async function runScenario(
   ): Promise<{ args: Record<string, Json>; result: Record<string, Json> }> => {
     switch (step.op) {
       case 'declareQueue':
-        await host.declareQueue(physical(step.queue), step);
+        await host.declareQueue(physical(step.queue), {
+          ...step,
+          arguments: Object.fromEntries(
+            Object.entries(step.arguments).map(([name, value]) => [
+              name,
+              resolve(value),
+            ]),
+          ),
+        });
         declared.push(step.queue);
         return {
           args: {
             queue: step.queue,
             type: step.type,
             durable: step.durable,
-            arguments: { ...step.arguments },
+            arguments: Object.fromEntries(
+              Object.entries(step.arguments).map(([name, value]) => [
+                name,
+                plain(value),
+              ]),
+            ),
           },
           result: { ok: true },
         };
@@ -496,6 +692,50 @@ export async function runScenario(
           args: { connection: step.connection },
           result: { ok: true },
         };
+      case 'declareExchange':
+        await host.declareExchange(physical(step.exchange), step.kind);
+        declaredExchanges.push(step.exchange);
+        return {
+          args: { exchange: step.exchange, kind: step.kind },
+          result: { ok: true },
+        };
+      case 'bindQueue':
+        await host.bindQueue(
+          physical(step.queue),
+          physical(step.exchange),
+          isRef(step.key) ? physical(step.key.$ref) : step.key,
+        );
+        return {
+          args: {
+            queue: step.queue,
+            exchange: step.exchange,
+            key: plain(step.key),
+          },
+          result: { ok: true },
+        };
+      case 'wait':
+        await clock.sleep(step.ms);
+        return { args: { ms: step.ms }, result: { ok: true } };
+      case 'mgmtQueue': {
+        const response = await host.management({
+          method: 'GET',
+          path: `/api/queues/%2F/${encodeURIComponent(physical(step.queue))}`,
+        });
+        const stats =
+          typeof response.json === 'object' && response.json !== null
+            ? (response.json as Record<string, unknown>)
+            : {};
+        return {
+          args: { as: step.as, queue: step.queue },
+          result: {
+            status: response.status,
+            messagesReady: count(stats.messages_ready),
+            messagesUnacknowledged: count(stats.messages_unacknowledged),
+            messagesDelayed: count(stats.messages_delayed),
+            nextDelayedAt: clockClass(stats.next_delayed_at, clock.now()),
+          },
+        };
+      }
       case 'openChannel':
         await host.openChannel(step.channel, step.connection);
         // The default connection is not recorded, so a scenario without a second one records as before.
@@ -524,6 +764,7 @@ export async function runScenario(
         await host.publish(physical(step.queue), {
           messageId: step.messageId,
           body,
+          ...(step.headers === undefined ? {} : { headers: step.headers }),
         });
         publishedTo.set(step.queue, [
           ...(publishedTo.get(step.queue) ?? []),
@@ -534,6 +775,9 @@ export async function runScenario(
             queue: step.queue,
             messageId: step.messageId,
             bytes: body.length,
+            ...(step.headers === undefined
+              ? {}
+              : { headers: Object.fromEntries(Object.entries(step.headers)) }),
           },
           result: { confirmed: true },
         };
@@ -670,7 +914,9 @@ export async function runScenario(
         };
       }
       case 'observe': {
-        const expected = publishedTo.get(step.queue) ?? [];
+        const expected = (step.from ?? [step.queue]).flatMap(
+          (source) => publishedTo.get(source) ?? [],
+        );
         const found = new Map<string, EvidenceObservation>();
         for (let position = 0; ; position += 1) {
           const delivery = await host.get(
@@ -714,7 +960,12 @@ export async function runScenario(
           );
         }
         return {
-          args: { name: step.name, queue: step.queue, channel: step.channel },
+          args: {
+            name: step.name,
+            queue: step.queue,
+            channel: step.channel,
+            ...(step.from === undefined ? {} : { from: [...step.from] }),
+          },
           result: { drained: found.size, published: expected.length },
         };
       }
@@ -729,6 +980,9 @@ export async function runScenario(
   } finally {
     for (const queue of declared) {
       await host.deleteQueue(physical(queue)).catch(() => undefined);
+    }
+    for (const exchange of declaredExchanges) {
+      await host.deleteExchange(physical(exchange)).catch(() => undefined);
     }
   }
   return { steps, observations };

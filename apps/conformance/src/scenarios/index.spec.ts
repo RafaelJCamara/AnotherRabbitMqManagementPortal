@@ -22,7 +22,10 @@ const ids = (list: readonly { cfId: string }[]) =>
 
 describe('the scenarios conformance:record can run', () => {
   it('CF-SMOKE-01 is registered, once', () => {
-    expect(ids(SCENARIOS)).toEqual(['CF-SMOKE-01']);
+    expect(ids(SCENARIOS).filter((id) => id === 'CF-SMOKE-01')).toEqual([
+      'CF-SMOKE-01',
+    ]);
+    expect(new Set(ids(SCENARIOS)).size).toBe(SCENARIOS.length);
     expect(selectScenarios(['CF-SMOKE-01'])).toEqual([cfSmoke01]);
   });
 

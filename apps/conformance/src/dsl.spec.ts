@@ -2,23 +2,32 @@ import { describe, expect, it } from 'vitest';
 
 import {
   awaitReady,
+  bindQueue,
+  clockClass,
   closeChannel,
   closeConnection,
   consume,
+  declareExchange,
   declareQueue,
   defineScenario,
   get,
   mgmtGet,
+  mgmtQueue,
   observe,
   openChannel,
   openConnection,
   publish,
   recover,
+  ref,
   runScenario,
   settle,
+  wait,
   type LabStep,
+  type RunClock,
 } from './dsl.ts';
-import { MemoryHost } from './testing/lab.ts';
+import { sealArtefact } from './record/evidence.ts';
+import { findSecrets } from './record/secrets.ts';
+import { DIGEST, localProvenance, MemoryHost, VERSION } from './testing/lab.ts';
 
 const scenario = (...steps: LabStep[]) =>
   defineScenario({
@@ -746,5 +755,213 @@ describe('DOWN-event steps: a second connection, a consumer left active, a bound
       scenario(declareQueue('q'), awaitReady('q', { timeoutMs: 0 })),
     ).toThrow(/timeout of at least 1 ms/);
     expect(() => scenario(awaitReady('q'))).toThrow(/not declared yet/);
+  });
+});
+
+/** Records what the DSL hands the host, so a test can see the names a ref was resolved to. */
+class TopologyHost extends MemoryHost {
+  readonly declared: { queue: string; arguments: Record<string, unknown> }[] =
+    [];
+  readonly bound: string[][] = [];
+  override declareQueue(
+    queue: string,
+    options?: { arguments?: Record<string, unknown> },
+  ): Promise<void> {
+    this.declared.push({ queue, arguments: { ...options?.arguments } });
+    return super.declareQueue(queue);
+  }
+  override bindQueue(
+    queue: string,
+    exchange: string,
+    key: string,
+  ): Promise<void> {
+    this.bound.push([queue, exchange, key]);
+    return super.bindQueue(queue, exchange, key);
+  }
+}
+
+const dlxSteps = (): LabStep[] => [
+  declareExchange('dlx'),
+  declareQueue('dlq', { type: 'quorum' }),
+  bindQueue('dlq', 'dlx', ref('dlq')),
+  declareQueue('src', {
+    type: 'quorum',
+    arguments: {
+      'x-dead-letter-exchange': ref('dlx'),
+      'x-dead-letter-routing-key': ref('dlq'),
+    },
+  }),
+  publish('src', 'm1'),
+  wait(10),
+  mgmtQueue('stats', 'dlq'),
+  observe('drain', 'dlq', { from: ['src'] }),
+];
+
+describe('the dead-letter foundation of the DSL (M0-40)', () => {
+  it('AC-1 a dead-letter topology, waits and queue stats can be declared, and a mistake is an error when the scenario is defined', async () => {
+    expect(() => scenario(...dlxSteps())).not.toThrow();
+
+    const mistakes: [string, LabStep[], RegExp][] = [
+      [
+        'a ref to something never declared',
+        [
+          declareQueue('src', {
+            arguments: { 'x-dead-letter-exchange': ref('dlx') },
+          }),
+        ],
+        /"dlx" is not a queue or exchange declared yet/,
+      ],
+      [
+        'a bind to an undeclared exchange',
+        [declareQueue('q'), bindQueue('q', 'dlx', 'k')],
+        /exchange "dlx" is not declared yet/,
+      ],
+      [
+        'a bind of an undeclared queue',
+        [declareExchange('dlx'), bindQueue('q', 'dlx', 'k')],
+        /queue "q" is not declared yet/,
+      ],
+      [
+        'a bind key that is a ref to nothing',
+        [
+          declareExchange('dlx'),
+          declareQueue('q'),
+          bindQueue('q', 'dlx', ref('nope')),
+        ],
+        /"nope" is not a queue or exchange/,
+      ],
+      [
+        'an exchange declared twice',
+        [declareExchange('dlx'), declareExchange('dlx')],
+        /invalid or already declared/,
+      ],
+      ['a negative wait', [wait(-1)], /whole number of ms/],
+      ['an oversized wait', [wait(60_001)], /whole number of ms/],
+      ['a fractional wait', [wait(1.5)], /whole number of ms/],
+      [
+        'queue stats of an undeclared queue',
+        [mgmtQueue('s', 'q')],
+        /queue "q" is not declared yet/,
+      ],
+      [
+        'a drain from an unknown alias',
+        [declareQueue('q'), observe('o', 'q', { from: ['nope'] })],
+        /"nope", which is not a declared queue/,
+      ],
+    ];
+    for (const [, steps, message] of mistakes) {
+      expect(() => scenario(...steps)).toThrow(message);
+    }
+
+    // A ref is resolved to the run-unique name only when the step runs; the record keeps the alias.
+    const host = new TopologyHost();
+    const result = await run(host, ...dlxSteps());
+    const source = host.declared.find((item) => item.queue.endsWith('-src'));
+    expect(source?.arguments).toEqual({
+      'x-dead-letter-exchange': 'lab-cf-test-01-abcd1234-dlx',
+      'x-dead-letter-routing-key': 'lab-cf-test-01-abcd1234-dlq',
+    });
+    expect(host.bound).toEqual([
+      [
+        'lab-cf-test-01-abcd1234-dlq',
+        'lab-cf-test-01-abcd1234-dlx',
+        'lab-cf-test-01-abcd1234-dlq',
+      ],
+    ]);
+    expect(result.steps[3]?.args).toMatchObject({
+      arguments: {
+        'x-dead-letter-exchange': { $ref: 'dlx' },
+        'x-dead-letter-routing-key': { $ref: 'dlq' },
+      },
+    });
+    expect(host.calls).toContain('delete exchange lab-cf-test-01-abcd1234-dlx');
+  });
+
+  it('AC-2 a run records only allow-listed fields and no clock value, so a live replay can equal the evidence', async () => {
+    const steps = [
+      declareQueue('q', { type: 'quorum' }),
+      publish('q', 'm1', 'payload', { headers: { 'x-delivery-count': 99 } }),
+      wait(2500),
+      mgmtQueue('stats', 'q'),
+    ];
+    const stats = {
+      name: 'a-queue-name',
+      messages_ready: 1,
+      messages_delayed: 1,
+      next_delayed_at: '2026-10-20T12:00:05.000Z',
+      node: 'rabbit@somewhere',
+    };
+    const slept: number[] = [];
+    const clock: RunClock = {
+      now: () => Date.parse('2026-10-20T12:00:00.000Z'),
+      sleep: (ms) => {
+        slept.push(ms);
+        return Promise.resolve();
+      },
+    };
+    const once = () =>
+      runScenario(
+        new MemoryHost(VERSION, { managementJson: stats }),
+        scenario(...steps),
+        'abcd1234',
+        200,
+        clock,
+      );
+
+    const first = await once();
+
+    expect(first.steps[1]?.args).toEqual({
+      queue: 'q',
+      messageId: 'm1',
+      bytes: 7,
+      headers: { 'x-delivery-count': 99 },
+    });
+    expect(first.steps[3]?.result).toEqual({
+      status: 200,
+      messagesReady: 1,
+      messagesUnacknowledged: null,
+      messagesDelayed: 1,
+      nextDelayedAt: 'future',
+    });
+    expect(slept).toEqual([2500]);
+    const text = JSON.stringify(first);
+    for (const leaked of ['12:00:05', 'a-queue-name', 'rabbit@', 'payload']) {
+      expect(text).not.toContain(leaked);
+    }
+    // Two runs of the same scenario against the same host give byte-identical records.
+    expect(JSON.stringify(await once())).toBe(text);
+    const artefact = sealArtefact({
+      schemaVersion: 1,
+      cfId: 'CF-TEST-01',
+      title: 'a test scenario',
+      protocol: 'amqp091',
+      brokerVersion: VERSION,
+      imageDigest: DIGEST,
+      steps: first.steps,
+      observations: first.observations,
+      provenance: localProvenance,
+    });
+    expect(findSecrets(artefact, ['guest'])).toEqual([]);
+    // Only a copied x-delivery-count, as a whole number, can be set on a message.
+    const other = { op: 'publish', queue: 'q', messageId: 'm9', body: 'x' };
+    for (const headers of [{ 'x-other': 1 }, { 'x-delivery-count': 1.5 }]) {
+      expect(() =>
+        scenario(declareQueue('q'), {
+          ...other,
+          headers,
+        } as unknown as LabStep),
+      ).toThrow(/only header a publish may set/);
+    }
+  });
+
+  it('AC-2 reduces a clock value to its class and never keeps it', () => {
+    const now = 1_000_000;
+    expect(clockClass(undefined, now)).toBe('absent');
+    expect(clockClass(null, now)).toBe('absent');
+    expect(clockClass(now + 1, now)).toBe('future');
+    expect(clockClass(now, now)).toBe('past');
+    expect(clockClass(new Date(now - 1).toISOString(), now)).toBe('past');
+    expect(clockClass('not a date', now)).toBe('unparsed');
+    expect(clockClass({ at: 1 }, now)).toBe('unparsed');
   });
 });

@@ -228,10 +228,40 @@ export class Amqp091Raw {
     await this.#run(ADMIN, (channel) => channel.deleteQueue(queue));
   }
 
-  /** Publishes to the default exchange on a confirm channel and waits for the broker's confirm. */
+  async declareExchange(
+    exchange: string,
+    kind: 'direct' | 'fanout',
+  ): Promise<void> {
+    await this.#run(ADMIN, (channel) =>
+      channel.assertExchange(exchange, kind, {
+        durable: true,
+        autoDelete: false,
+      }),
+    );
+  }
+
+  async deleteExchange(exchange: string): Promise<void> {
+    await this.#run(ADMIN, (channel) => channel.deleteExchange(exchange));
+  }
+
+  /** Binds a queue to an exchange; a `fanout` ignores the key. */
+  async bindQueue(queue: string, exchange: string, key: string): Promise<void> {
+    await this.#run(ADMIN, (channel) =>
+      channel.bindQueue(queue, exchange, key),
+    );
+  }
+
+  /**
+   * Publishes to the default exchange on a confirm channel and waits for the broker's confirm. The
+   * one header a message may carry is a copied `x-delivery-count` (a scenario constant).
+   */
   async publish(
     queue: string,
-    message: { readonly messageId: string; readonly body: Buffer },
+    message: {
+      readonly messageId: string;
+      readonly body: Buffer;
+      readonly headers?: { readonly 'x-delivery-count'?: number };
+    },
   ): Promise<void> {
     let state = this.#channels.get(PUBLISHER);
     if (state === undefined) {
@@ -245,7 +275,12 @@ export class Amqp091Raw {
       channel.sendToQueue(
         queue,
         message.body,
-        { messageId: message.messageId },
+        {
+          messageId: message.messageId,
+          ...(message.headers === undefined
+            ? {}
+            : { headers: { ...message.headers } }),
+        },
         (error: unknown) => {
           if (error) {
             reject(

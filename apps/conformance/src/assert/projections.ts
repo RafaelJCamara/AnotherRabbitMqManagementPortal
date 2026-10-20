@@ -3,6 +3,7 @@
 // never the registry's own words. The work package that writes a scenario writes its projection
 // here, and a registry cell whose id has none can never be better than `unverified`.
 import type { EvidenceArtefact } from '../record/evidence.ts';
+import { projectStamp01 } from './projections-stamp.ts';
 import type { Observed, Projection } from './three-way.ts';
 
 /**
@@ -29,4 +30,5 @@ export const projectSmoke01: Projection = (
 
 export const PROJECTIONS: Readonly<Record<string, Projection>> = {
   'CF-SMOKE-01': projectSmoke01,
+  'CF-STAMP-01': projectStamp01,
 };

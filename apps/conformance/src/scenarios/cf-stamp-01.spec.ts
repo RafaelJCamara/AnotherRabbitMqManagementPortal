@@ -41,6 +41,12 @@ const cellsOf = (era: Era): SemanticsCell[] =>
     (cell) => cell.conformance.includes('CF-STAMP-01') && cell.key.era === era,
   );
 
+/** The fields a cell claims that the era's headers cannot show, so the projection leaves them out (fact sheet b.1). */
+const UNSHOWN: Readonly<Record<Era, readonly string[]>> = {
+  '3.13': ['deltaAC'],
+  '4.0-4.2': ['deltaDC'],
+  '4.3': [],
+};
 const SPOKEN = ['deltaAC', 'deltaDC', 'position', 'destructive'] as const;
 
 describe('CF-STAMP-01', () => {
@@ -69,7 +75,11 @@ describe('CF-STAMP-01', () => {
         projected += 1;
         const effect = cell.effect as Record<string, unknown>;
         expect(observed, cell.id).toEqual(
-          Object.fromEntries(SPOKEN.map((field) => [field, effect[field]])),
+          Object.fromEntries(
+            SPOKEN.filter((field) => !UNSHOWN[era].includes(field)).map(
+              (field) => [field, effect[field]],
+            ),
+          ),
         );
       }
     }

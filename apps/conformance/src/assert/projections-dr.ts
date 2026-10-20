@@ -6,6 +6,7 @@
 // `minus1` cells, AMQP 1.0 cells and the `disabled` control get null (OQ-603, OQ-604).import type { SemanticsCell } from '@app/semantics';
 import type { SemanticsCell } from '@app/semantics';
 import type { EvidenceArtefact, Json } from '../record/evidence.ts';
+import { counterDeltas, countersOf } from './counters.ts';
 import type { Observed, Projection } from './three-way.ts';
 
 type Result = Readonly<Record<string, Json>>;
@@ -16,9 +17,6 @@ const getResult = (
 ): Result | undefined =>
   evidence.steps.find((step) => step.op === 'get' && step.args.as === alias)
     ?.result;
-
-const counter = (value: Json | undefined): number =>
-  typeof value === 'number' ? value : 0;
 
 /** The message id each `get` alias delivered, or null for an empty read. */
 export const deliveredIds = (
@@ -48,6 +46,7 @@ function landing(
   queue: string,
   slots: readonly string[],
   baselineAlias: string | null,
+  era: string,
 ): Observed | null {
   const reads = slots.map((slot) => getResult(evidence, `${queue}-${slot}`));
   const at = reads.findIndex((read) => read?.messageId === `${queue}-m`);
@@ -68,16 +67,11 @@ function landing(
       : reads.slice(0, at).every((read) => read?.empty === false)
         ? 'tail'
         : 'delayed';
-  // The schema types a delta as 0 or 1 (what the registry claims); the evidence is whatever the
-  // broker did, so a different delta is kept as it is and shows up as a field-level mismatch.
-  return {
-    deltaAC: (counter(delivered['x-acquired-count']) -
-      counter(earlier['x-acquired-count'])) as 0 | 1,
-    deltaDC: (counter(delivered['x-delivery-count']) -
-      counter(earlier['x-delivery-count'])) as 0 | 1,
-    position,
-    destructive: false,
-  };
+  // Which header is which counter depends on the era (fact sheet b.1); the earlier delivery is the
+  // same queue's, so a header it did not send is 0.
+  const deltas = counterDeltas(era, countersOf(earlier), countersOf(delivered));
+  if (deltas === null) return null;
+  return { ...deltas, position, destructive: false };
 }
 
 const covers = (cell: SemanticsCell, action: string, protocol: string) => {
@@ -101,10 +95,16 @@ export const projectDr01: Projection = (evidence, cell) => {
   if (delayedRetry === undefined) return null;
   if (covers(cell, 'amqp091.nack_requeue', 'amqp091')) {
     const queue = `nack-${delayedRetry}`;
-    return landing(evidence, queue, DR01_SLOTS, `${queue}-first`);
+    return landing(evidence, queue, DR01_SLOTS, `${queue}-first`, cell.key.era);
   }
   if (covers(cell, 'http.ack_requeue_true', 'http')) {
-    return landing(evidence, `http-${delayedRetry}`, DR01_SLOTS, null);
+    return landing(
+      evidence,
+      `http-${delayedRetry}`,
+      DR01_SLOTS,
+      null,
+      cell.key.era,
+    );
   }
   return null;
 };
@@ -121,5 +121,5 @@ export const projectDr02: Projection = (evidence, cell) => {
     return null;
   }
   const queue = `rej-${delayedRetry}`;
-  return landing(evidence, queue, DR02_SLOTS, `${queue}-first`);
+  return landing(evidence, queue, DR02_SLOTS, `${queue}-first`, cell.key.era);
 };

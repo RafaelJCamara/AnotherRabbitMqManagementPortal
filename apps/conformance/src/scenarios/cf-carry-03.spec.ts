@@ -10,11 +10,11 @@ import { cfCarry03, LIMIT, MESSAGE } from './cf-carry-03.ts';
 
 const CELL =
   'SEM-4.3-quorum-amqp091-amqp091.nack_requeue-limit-finite-delayed-disabled';
-/** Per era: the arrival count, then whether the message is in dlq and in dlq2 after its first return, its acquired count, the cells spoken for. */
+/** Per era: the arrival count, then whether the message is in dlq and in dlq2 after its first return, the x-delivery-count it shows there (the acquired count on 4.0-4.2, the delivery count on 3.13; no era sends an x-acquired-count here), the cells spoken for. */
 const EXPECTED: Readonly<
   Record<Era, [number | null, boolean, boolean, number | null, string[]]>
 > = {
-  '3.13': [null, true, false, null, []],
+  '3.13': [null, true, false, 1, []],
   '4.0-4.2': [null, true, false, 1, []],
   '4.3': [LIMIT + 1, false, true, null, [CELL]],
 };
@@ -22,7 +22,7 @@ const EXPECTED: Readonly<
 describe('CF-CARRY-03', () => {
   it('AC-5 a message dead-lettered at L+1 is dropped or re-dead-lettered by its first return on 4.3 and keeps a fresh budget on 4.0-4.2', async () => {
     for (const era of Object.keys(EXPECTED) as Era[]) {
-      const [arrival, inDlq, inDlq2, acquired, spokenIds] = EXPECTED[era];
+      const [arrival, inDlq, inDlq2, shown, spokenIds] = EXPECTED[era];
       const artefact = await recordOnEra(era, cfCarry03);
       // L + 1 returns: one fewer would not exceed the limit, and the run would not reach `dlq`.
       expect(
@@ -41,9 +41,8 @@ describe('CF-CARRY-03', () => {
         [seen('dlq-after-return')?.survived, seen('dlq2-final')?.survived],
         era,
       ).toEqual([inDlq, inDlq2]);
-      expect(seen('dlq-after-return')?.['x-acquired-count'], era).toBe(
-        acquired,
-      );
+      expect(seen('dlq-after-return')?.['x-delivery-count'], era).toBe(shown);
+      expect(seen('dlq-after-return')?.['x-acquired-count'], era).toBeNull();
 
       // Only the nack_requeue cell of a finite-limit queue without delayed retry is spoken for; the
       // other cells that name the id (partition, delayed retry, AMQP 1.0, HTTP) get nothing.

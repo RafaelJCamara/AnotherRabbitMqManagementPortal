@@ -3,14 +3,21 @@
 import { registryData, type SemanticsCell } from '@app/semantics';
 import { describe, expect, it } from 'vitest';
 
-import type { EvidenceArtefact } from '../record/evidence.ts';
+import {
+  sealArtefact,
+  type EvidenceArtefact,
+  type EvidenceObservation,
+  type EvidenceStep,
+} from '../record/evidence.ts';
 import { cfCarry01 } from '../scenarios/cf-carry-01.ts';
 import { cfCarry03 } from '../scenarios/cf-carry-03.ts';
 import { cfDr01 } from '../scenarios/cf-dr-01.ts';
 import { cfDr02 } from '../scenarios/cf-dr-02.ts';
-import { recordOnEra } from '../testing/era-broker.ts';
+import { ERA_VERSION, recordOnEra, type Era } from '../testing/era-broker.ts';
+import { DIGEST, localProvenance } from '../testing/lab.ts';
 import { projectCarry01, projectCarry03 } from './projections-carry.ts';
 import { projectDr01, projectDr02 } from './projections-dr.ts';
+import { projectStamp01 } from './projections-stamp.ts';
 
 const cellOf = (id: string): SemanticsCell => {
   const cell = registryData.cells.find((item) => item.id === id);
@@ -157,5 +164,217 @@ describe('the projections of the lab cells', () => {
     );
     expect(read('nack-all-end', { empty: true })).toBeNull();
     expect(read('nack-all-first', { empty: true })).toBeNull();
+  });
+});
+
+// The artefacts below are written by hand from the fact sheet (b.1), never recorded off the era
+// broker: the broker and the projections once shared one wrong belief about which header is which
+// counter, and the tests passed because both were wrong the same way.
+const artefactOf = (
+  era: Era,
+  cfId: `CF-${string}`,
+  steps: EvidenceStep[],
+  observations: EvidenceObservation[],
+): EvidenceArtefact =>
+  sealArtefact({
+    schemaVersion: 1,
+    cfId,
+    title: 'hand-written',
+    protocol: 'amqp091',
+    brokerVersion: ERA_VERSION[era],
+    imageDigest: DIGEST,
+    steps,
+    observations,
+    provenance: localProvenance,
+  });
+const getStep = (as: string, result: EvidenceStep['result']): EvidenceStep => ({
+  index: 0,
+  op: 'get',
+  args: { as },
+  result: { empty: false, ...result },
+});
+const seen = (
+  name: string,
+  messageId: string,
+  position: number | null,
+  dc: number | null,
+  ac: number | null,
+): EvidenceObservation => ({
+  name,
+  messageId,
+  survived: position !== null,
+  position,
+  redelivered: null,
+  'x-delivery-count': dc,
+  'x-acquired-count': ac,
+});
+
+type Counters = [dc: number | null, ac: number | null];
+/** The headers a returned message shows on its next delivery, per era. */
+const SENT: Readonly<Record<Era, Counters>> = {
+  '3.13': [1, null],
+  '4.0-4.2': [1, null],
+  '4.3': [0, 1],
+};
+/** The deltas that delivery gives: 4.0 to 4.2 show no delivery count, 3.13 no acquired count. */
+const DELTAS: Readonly<Record<Era, Record<string, number>>> = {
+  '3.13': { deltaDC: 1 },
+  '4.0-4.2': { deltaAC: 1 },
+  '4.3': { deltaAC: 1, deltaDC: 0 },
+};
+const ERAS: readonly Era[] = ['3.13', '4.0-4.2', '4.3'];
+const cellIn = (
+  cfId: `CF-${string}`,
+  era: Era,
+  action: string,
+  limit?: string,
+): SemanticsCell => {
+  const cell = registryData.cells.find(
+    (item) =>
+      item.conformance.includes(cfId) &&
+      item.key.era === era &&
+      item.key.action === action &&
+      item.key.limit === limit &&
+      (item.key.delayedRetry ?? 'disabled') === 'disabled',
+  );
+  if (cell === undefined) throw new Error(`no ${cfId} cell for ${era}`);
+  return cell;
+};
+
+const stampOf = (
+  era: Era,
+  control: Counters,
+  tail: number | null = 1,
+): EvidenceArtefact =>
+  artefactOf(
+    era,
+    'CF-STAMP-01',
+    [getStep('fin-first-control', { messageId: 'fin-control' })],
+    [
+      seen('fin-after-return', 'fin-control', 0, ...control),
+      seen('fin-after-return', 'fin-tail', tail, null, null),
+    ],
+  );
+
+/** Two quorum sources: the last delivery from each, and the dead letter that reached `dlq`. */
+const carryOf = (era: Era, second: Counters, dead: Counters) =>
+  artefactOf(
+    era,
+    'CF-CARRY-01',
+    ['qq-amo', 'qq-alo'].map((source) =>
+      getStep(`${source}-second`, {
+        messageId: `${source}-m`,
+        'x-delivery-count': second[0],
+        'x-acquired-count': second[1],
+      }),
+    ),
+    ['qq-amo', 'qq-alo'].flatMap((source) => [
+      seen(`${source}-after`, `${source}-m`, null, null, null),
+      seen('dlq-final', `${source}-m`, 0, ...dead),
+    ]),
+  );
+
+/** The earlier delivery of a queue's message and the read that shows it again after a return. */
+const returnedOf = (era: Era, queue: string, slot: string) =>
+  artefactOf(
+    era,
+    'CF-DR',
+    [
+      getStep(`${queue}-first`, { messageId: `${queue}-m` }),
+      getStep(`${queue}-${slot}`, {
+        messageId: `${queue}-m`,
+        'x-delivery-count': SENT[era][0],
+        'x-acquired-count': SENT[era][1],
+      }),
+    ],
+    [],
+  );
+
+describe('the projections read the counter headers per era', () => {
+  it('AC-4 the landed projections read the counter headers per era, not as 4.3 does', () => {
+    const dropped = { position: 'dlx-or-drop', destructive: true };
+    for (const era of ERAS) {
+      // CF-STAMP-01: the 4.2.9 result is AC from x-delivery-count and no deltaDC (the 4.3 reading
+      // would give deltaAC 0 and deltaDC 1), the 3.13.7 one is deltaDC and no deltaAC.
+      expect(
+        projectStamp01(
+          stampOf(era, SENT[era]),
+          cellIn('CF-STAMP-01', era, 'amqp091.nack_requeue', 'finite'),
+        ),
+        `${era} CF-STAMP-01`,
+      ).toStrictEqual({ ...DELTAS[era], position: 'head', destructive: false });
+
+      // CF-DR-01 and CF-DR-02 have 4.3 cells only: the key's era says how to read the artefact.
+      const landed = { ...DELTAS[era], position: 'head', destructive: false };
+      expect(
+        projectDr01(
+          returnedOf(era, 'nack-all', 'now'),
+          withKey(NACK_ALL, { era }),
+        ),
+        `${era} CF-DR-01`,
+      ).toStrictEqual(landed);
+      expect(
+        projectDr02(
+          returnedOf(era, 'rej-all', 'r1-p0'),
+          withKey(REJECT_ALL, { era }),
+        ),
+        `${era} CF-DR-02`,
+      ).toStrictEqual(landed);
+
+      // CF-CARRY-01: a dead letter that starts afresh says nothing about a delta, on any era.
+      expect(
+        projectCarry01(
+          carryOf(era, SENT[era], [null, null]),
+          cellIn('CF-CARRY-01', era, 'amqp091.no_requeue'),
+        ),
+        `${era} CF-CARRY-01 afresh`,
+      ).toStrictEqual(dropped);
+    }
+
+    // Across two queues a counter is projected only where both sides send its header. A dead
+    // letter that shows only the acquired count has no deltaDC (an absent header read as 0 gave a
+    // false deltaDC and a false `fail`: review finding B2).
+    const carry = (era: Era, second: Counters, dead: Counters) =>
+      projectCarry01(
+        carryOf(era, second, dead),
+        cellIn('CF-CARRY-01', era, 'amqp091.no_requeue'),
+      );
+    expect(carry('4.3', [0, 1], [1, 2])).toStrictEqual({
+      ...dropped,
+      deltaAC: 1,
+      deltaDC: 1,
+    });
+    expect(carry('4.3', [0, 1], [null, 2])).toStrictEqual({
+      ...dropped,
+      deltaAC: 1,
+    });
+    // A counter the dead letter does show is still projected on the older eras.
+    expect(carry('4.0-4.2', [1, null], [2, null])).toStrictEqual({
+      ...dropped,
+      deltaAC: 1,
+    });
+    expect(carry('3.13', [1, null], [2, null])).toStrictEqual({
+      ...dropped,
+      deltaDC: 1,
+    });
+  });
+
+  it('AC-4 a control message that left the queue is projected as removed and a lost tail says nothing', () => {
+    const cell = cellIn('CF-STAMP-01', '4.3', 'amqp091.nack_requeue', 'finite');
+    const lost = artefactOf(
+      '4.3',
+      'CF-STAMP-01',
+      [getStep('fin-first-control', { messageId: 'fin-control' })],
+      [
+        seen('fin-after-return', 'fin-control', null, null, null),
+        seen('fin-after-return', 'fin-tail', 0, null, null),
+      ],
+    );
+    expect(projectStamp01(lost, cell)).toStrictEqual({
+      position: 'removed',
+      destructive: true,
+    });
+    // The control message is there but the tail is not: the position cannot be told, so nothing.
+    expect(projectStamp01(stampOf('4.3', [0, 1], null), cell)).toBeNull();
   });
 });

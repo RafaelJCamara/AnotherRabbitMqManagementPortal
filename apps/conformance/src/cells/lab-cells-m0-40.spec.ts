@@ -89,6 +89,7 @@ describe('the M0-40 lab cells', () => {
       steps: EvidenceStep[];
       observations: EvidenceObservation[];
     }>,
+    eachCell = true,
   ): Promise<void> => {
     const run = await record();
     const artefact = sealArtefact({
@@ -122,12 +123,16 @@ describe('the M0-40 lab cells', () => {
     });
     const failed = contradicted.filter((result) => result.verdict === 'fail');
     expect(failed.length).toBeGreaterThan(0);
-    for (const result of failed) {
-      expect(result.registry.state).toBe('mismatch');
-      if (result.registry.state === 'mismatch') {
-        expect(result.registry.diffs.map((diff) => diff.path)).toContain(field);
-      }
-    }
+    const paths = failed.map((result) =>
+      result.registry.state === 'mismatch'
+        ? result.registry.diffs.map((diff) => diff.path)
+        : null,
+    );
+    // Every failure is a field-level mismatch; each one names the field, unless the artefact (an
+    // era's, read with that era's headers) also contradicts cells that do not claim this field.
+    expect(paths.every((list) => list !== null)).toBe(true);
+    for (const list of eachCell ? paths : []) expect(list).toContain(field);
+    expect(paths.some((list) => list?.includes(field))).toBe(true);
     expect(contradicted.some((result) => result.verdict === 'pass')).toBe(
       false,
     );
@@ -166,22 +171,27 @@ describe('the M0-40 lab cells', () => {
       );
       return { ...run, observations };
     });
-    // The era without delayed retry gives every message back at once and moves no dc on a reject,
-    // which contradicts the 4.3 cells' delayed position (CF-DR-01) and counter delta (CF-DR-02).
+    // The era without delayed retry gives every message back at once, which contradicts the 4.3
+    // cells' delayed position (CF-DR-01 and CF-DR-02); its counter headers differ too (fact sheet b.1).
     for (const [id, field] of [
       ['CF-DR-01', 'effect.position'],
-      ['CF-DR-02', 'effect.deltaDC'],
+      ['CF-DR-02', 'effect.position'],
     ] as const) {
-      await contradict(id, field, () => {
-        const broker = new EraBroker('4.0-4.2');
-        return runScenario(
-          broker,
-          scenarioOf(id),
-          'r1',
-          undefined,
-          broker.clock,
-        );
-      });
+      await contradict(
+        id,
+        field,
+        () => {
+          const broker = new EraBroker('4.0-4.2');
+          return runScenario(
+            broker,
+            scenarioOf(id),
+            'r1',
+            undefined,
+            broker.clock,
+          );
+        },
+        false,
+      );
     }
   });
 });

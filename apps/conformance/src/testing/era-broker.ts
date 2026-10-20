@@ -38,6 +38,10 @@ interface Behaviour {
   carries: boolean;
   /** The queue argument x-delayed-retry-type exists (4.3, fact sheet b.5); older eras ignore it. */
   delayedRetry: boolean;
+  /** The counter x-delivery-count shows (fact sheet b.1): the acquired count on 4.0 to 4.2. */
+  deliveryHeader: 'ac' | 'dc';
+  /** Whether a delivery carries x-acquired-count at all (4.3 only). */
+  sendsAcquired: boolean;
 }
 
 /** What the registry says a returned or dead-lettered quorum message does, per era. */
@@ -50,6 +54,8 @@ const BEHAVIOUR: Readonly<Record<Era, Behaviour>> = {
     defaultLimit: null,
     carries: false,
     delayedRetry: false,
+    deliveryHeader: 'dc',
+    sendsAcquired: false,
   },
   '4.0-4.2': {
     countsAsDelivery: false,
@@ -59,6 +65,8 @@ const BEHAVIOUR: Readonly<Record<Era, Behaviour>> = {
     defaultLimit: 20,
     carries: false,
     delayedRetry: false,
+    deliveryHeader: 'ac',
+    sendsAcquired: false,
   },
   '4.3': {
     countsAsDelivery: false,
@@ -68,6 +76,8 @@ const BEHAVIOUR: Readonly<Record<Era, Behaviour>> = {
     defaultLimit: 20,
     carries: true,
     delayedRetry: true,
+    deliveryHeader: 'dc',
+    sendsAcquired: true,
   },
 };
 
@@ -373,6 +383,7 @@ ext_delayed_at is read against it. */
   }
 
   #deliver(tag: number, message: Stored, left: number): RawDelivery {
+    const rules = BEHAVIOUR[this.era];
     const skew = this.options.skewed === message.id ? 1 : 0;
     const returned = message.ac > 0 || message.dc > 0;
     const keepCopied =
@@ -387,9 +398,10 @@ ext_delayed_at is read against it. */
       xDeliveryCount: keepCopied
         ? message.copied
         : returned
-          ? message.dc + skew
+          ? message[rules.deliveryHeader] + skew
           : null,
-      xAcquiredCount: message.ac > 0 ? message.ac + skew : null,
+      xAcquiredCount:
+        rules.sendsAcquired && message.ac > 0 ? message.ac + skew : null,
     };
   }
 }

@@ -3,10 +3,8 @@
 // (OQ-390, OQ-517), so only the fields the schema has are projected, and only those the artefact shows.
 import type { SemanticsCell } from '@app/semantics';
 import type { EvidenceArtefact } from '../record/evidence.ts';
+import { counterDeltas, countersOf } from './counters.ts';
 import type { Observed, Projection } from './three-way.ts';
-
-const count = (value: unknown): number =>
-  typeof value === 'number' ? value : 0;
 
 const stepResult = (evidence: EvidenceArtefact, alias: string) =>
   evidence.steps.find((step) => step.op === 'get' && step.args.as === alias)
@@ -26,12 +24,14 @@ const QUORUM_SOURCES = ['qq-amo', 'qq-alo'] as const;
 /**
  * What one quorum source shows. The message left the source, or it did not (then it is a return,
  * not a dead letter). The counter deltas are the counters the dead letter shows in `dlq` less those
- * of its last delivery from the source, and only when it shows any: a dead letter that starts
- * afresh says nothing about a delta.
+ * of its last delivery from the source, and only for a counter whose header both sides show: a dead
+ * letter that starts afresh (or an era without that counter) says nothing about a delta, and an absent
+ * header is never read as 0 across two queues.
  */
 function carry01Of(
   evidence: EvidenceArtefact,
   source: string,
+  era: string,
 ): Observed | null {
   const id = `${source}-m`;
   const second = stepResult(evidence, `${source}-second`);
@@ -52,21 +52,15 @@ function carry01Of(
     };
   }
   const left = { position: 'dlx-or-drop', destructive: true } as const;
-  if (
-    !dead.survived ||
-    (dead['x-delivery-count'] === null && dead['x-acquired-count'] === null)
-  ) {
-    return left;
-  }
-  return {
-    ...left,
-    deltaAC: (count(dead['x-acquired-count']) -
-      count(second['x-acquired-count'])) as 0 | 1,
-    deltaDC: (count(dead['x-delivery-count']) -
-      count(second['x-delivery-count'])) as 0 | 1,
-  };
+  if (!dead.survived) return left;
+  const deltas = counterDeltas(
+    era,
+    countersOf(second),
+    countersOf(dead),
+    'both-present',
+  );
+  return { ...left, ...deltas };
 }
-
 /** The quorum sources must show the same thing (the cell is strategy-agnostic, OQ-516), else nothing. */
 export const projectCarry01: Projection = (
   evidence: EvidenceArtefact,
@@ -80,7 +74,9 @@ export const projectCarry01: Projection = (
   ) {
     return null;
   }
-  const shown = QUORUM_SOURCES.map((source) => carry01Of(evidence, source));
+  const shown = QUORUM_SOURCES.map((source) =>
+    carry01Of(evidence, source, key.era),
+  );
   const [first, second] = shown;
   if (
     first === null ||

@@ -7,15 +7,13 @@
 // the `fin` queue). Any other cell (`minus1`, a delayed-retry type, another action) gets null.
 import type { SemanticsCell } from '@app/semantics';
 import type { EvidenceArtefact } from '../record/evidence.ts';
+import { counterDeltas, countersOf } from './counters.ts';
 import type { Observed, Projection } from './three-way.ts';
 
 const QUEUE_OF_LIMIT: Readonly<Record<string, string | undefined>> = {
   unset: 'none',
   finite: 'fin',
 };
-
-const counter = (value: unknown): number =>
-  typeof value === 'number' ? value : 0;
 
 export const projectStamp01: Projection = (
   evidence: EvidenceArtefact,
@@ -53,13 +51,11 @@ export const projectStamp01: Projection = (
     return { position: 'removed', destructive: true };
   }
   if (!tail.survived || tail.position === null) return null;
-  // The schema types a delta as 0 or 1 (what the registry claims); the evidence is whatever the
-  // broker did, so a different delta is kept as it is and shows up as a field-level mismatch.
+  // Which header is which counter depends on the era; a counter the era cannot show is left out.
+  const deltas = counterDeltas(key.era, countersOf(first), countersOf(after));
+  if (deltas === null) return null;
   return {
-    deltaAC: (counter(after['x-acquired-count']) -
-      counter(first['x-acquired-count'])) as 0 | 1,
-    deltaDC: (counter(after['x-delivery-count']) -
-      counter(first['x-delivery-count'])) as 0 | 1,
+    ...deltas,
     position: after.position < tail.position ? 'head' : 'tail',
     destructive: false,
   };

@@ -1,6 +1,6 @@
 // The lab cells of M0-40 are wired to the harness and make no claim of their own: no registry cell
 // changes, no evidence file is created, and a recorded artefact that contradicts a cell fails it.
-// Slice A covers CF-STAMP-01; the other five ids follow with their slices.
+// Slice A covers CF-STAMP-01, slice B CF-CARRY-01 and CF-CARRY-03; the other ids follow with theirs.
 import {
   existsSync,
   mkdirSync,
@@ -17,13 +17,17 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { evaluateCase } from '../assert/run-case.ts';
 import { PROJECTIONS } from '../assert/projections.ts';
 import type { LabVersion } from '../assert/lab-versions.ts';
-import { runScenario } from '../dsl.ts';
-import { sealArtefact } from '../record/evidence.ts';
+import { runScenario, type LabScenario } from '../dsl.ts';
+import {
+  sealArtefact,
+  type EvidenceObservation,
+  type EvidenceStep,
+} from '../record/evidence.ts';
 import { SCENARIOS } from '../scenarios/index.ts';
 import { EraBroker, ERA_VERSION } from '../testing/era-broker.ts';
 import { DIGEST } from '../testing/lab.ts';
 
-const IDS_IN_SLICE_A = ['CF-STAMP-01'];
+const WIRED = ['CF-STAMP-01', 'CF-CARRY-01', 'CF-CARRY-03'];
 const REPO = join(import.meta.dirname, '..', '..', '..', '..');
 const LAB: LabVersion = {
   version: ERA_VERSION['4.3'],
@@ -44,7 +48,7 @@ const emptyRoot = (): string => {
 
 describe('the M0-40 lab cells', () => {
   it('AC-11 the six lab cells are wired to the harness and no registry cell or evidence file changed', () => {
-    for (const id of IDS_IN_SLICE_A) {
+    for (const id of WIRED) {
       const stub = readFileSync(
         join(import.meta.dirname, `${id.toLowerCase()}.cell.spec.ts`),
         'utf8',
@@ -58,7 +62,7 @@ describe('the M0-40 lab cells', () => {
     }
     // No cell naming these ids was touched: still code-derived, with no evidence listed.
     const named = registryData.cells.filter((cell) =>
-      cell.conformance.some((id) => IDS_IN_SLICE_A.includes(id)),
+      cell.conformance.some((id) => WIRED.includes(id)),
     );
     expect(named.length).toBeGreaterThan(0);
     for (const cell of named) {
@@ -70,17 +74,19 @@ describe('the M0-40 lab cells', () => {
     expect(existsSync(join(REPO, 'testing', 'lab-evidence'))).toBe(false);
   });
 
-  it('AC-12 a contradicting artefact fails the cell and a missing one leaves it unverified', async () => {
-    // A CI-stamped artefact (fabricated, in a temporary folder) whose control message was counted
-    // twice: it contradicts the 4.3 cell, which says one acquisition.
-    const run = await runScenario(
-      new EraBroker('4.3', { skewed: 'fin-control' }),
-      SCENARIOS.find((scenario) => scenario.cfId === 'CF-STAMP-01') ?? fail(),
-      'r1',
-    );
+  // A CI-stamped artefact (fabricated, in a temporary folder) that contradicts the 4.3 cell.
+  const contradict = async (
+    id: string,
+    field: string,
+    record: () => Promise<{
+      steps: EvidenceStep[];
+      observations: EvidenceObservation[];
+    }>,
+  ): Promise<void> => {
+    const run = await record();
     const artefact = sealArtefact({
       schemaVersion: 1,
-      cfId: 'CF-STAMP-01',
+      cfId: id,
       title: 'fabricated',
       protocol: 'amqp091',
       brokerVersion: LAB.version,
@@ -100,11 +106,11 @@ describe('the M0-40 lab cells', () => {
     const root = emptyRoot();
     mkdirSync(join(root, LAB.version), { recursive: true });
     writeFileSync(
-      join(root, LAB.version, 'CF-STAMP-01.json'),
+      join(root, LAB.version, `${id}.json`),
       JSON.stringify(artefact),
     );
 
-    const contradicted = await evaluateCase('CF-STAMP-01', LAB, null, {
+    const contradicted = await evaluateCase(id, LAB, null, {
       evidenceRoot: root,
     });
     const failed = contradicted.filter((result) => result.verdict === 'fail');
@@ -112,16 +118,14 @@ describe('the M0-40 lab cells', () => {
     for (const result of failed) {
       expect(result.registry.state).toBe('mismatch');
       if (result.registry.state === 'mismatch') {
-        expect(result.registry.diffs.map((diff) => diff.path)).toContain(
-          'effect.deltaAC',
-        );
+        expect(result.registry.diffs.map((diff) => diff.path)).toContain(field);
       }
     }
     expect(contradicted.some((result) => result.verdict === 'pass')).toBe(
       false,
     );
 
-    const missing = await evaluateCase('CF-STAMP-01', LAB, null, {
+    const missing = await evaluateCase(id, LAB, null, {
       evidenceRoot: emptyRoot(),
     });
     expect(missing.length).toBeGreaterThan(0);
@@ -129,9 +133,37 @@ describe('the M0-40 lab cells', () => {
       expect(result.verdict).toBe('unverified');
       expect(result.reasons.join(' ')).toContain('no evidence is recorded');
     }
+  };
+
+  it('AC-12 a contradicting artefact fails the cell and a missing one leaves it unverified', async () => {
+    // A control message counted twice contradicts the CF-STAMP-01 cell (one acquisition); a message
+    // that stays in the dead-letter queue after a return, although it arrived above the delivery
+    // limit, contradicts the CF-CARRY-03 cell (`if-dc-gt-limit`).
+    await contradict('CF-STAMP-01', 'effect.deltaAC', () =>
+      runScenario(
+        new EraBroker('4.3', { skewed: 'fin-control' }),
+        scenarioOf('CF-STAMP-01'),
+        'r1',
+      ),
+    );
+    await contradict('CF-CARRY-03', 'effect.countsTowardLimit', async () => {
+      const run = await runScenario(
+        new EraBroker('4.3'),
+        scenarioOf('CF-CARRY-03'),
+        'r1',
+      );
+      const observations = run.observations.map((item) =>
+        item.name === 'dlq-after-return'
+          ? { ...item, survived: true, position: 0 }
+          : item,
+      );
+      return { ...run, observations };
+    });
   });
 });
 
-function fail(): never {
-  throw new Error('CF-STAMP-01 has no scenario');
+function scenarioOf(id: string): LabScenario {
+  const scenario = SCENARIOS.find((item) => item.cfId === id);
+  if (scenario === undefined) throw new Error(`${id} has no scenario`);
+  return scenario;
 }

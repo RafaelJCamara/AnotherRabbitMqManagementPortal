@@ -10,7 +10,10 @@ import type {
   SettleAction,
   SettleOutcome,
 } from '../driver/amqp091-raw.ts';
+import { runScenario, type LabScenario } from '../dsl.ts';
+import { sealArtefact, type EvidenceArtefact } from '../record/evidence.ts';
 import type { RecordHost } from '../record/record.ts';
+import { DIGEST, localProvenance } from './lab.ts';
 
 export type Era = '3.13' | '4.0-4.2' | '4.3';
 
@@ -21,26 +24,63 @@ export const ERA_VERSION: Readonly<Record<Era, string>> = {
   '4.3': '4.3.6',
 };
 
-/** What the registry says a returned (`nack` with requeue) quorum message does, per era. */
-const BEHAVIOUR: Readonly<
-  Record<Era, { countsAsDelivery: boolean; unlimitedReturnsToTail: boolean }>
-> = {
-  '3.13': { countsAsDelivery: true, unlimitedReturnsToTail: true },
-  '4.0-4.2': { countsAsDelivery: false, unlimitedReturnsToTail: false },
-  '4.3': { countsAsDelivery: false, unlimitedReturnsToTail: false },
+interface Behaviour {
+  /** A return counts as a delivery (3.13) rather than as an acquisition (4.x). */
+  countsAsDelivery: boolean;
+  unlimitedReturnsToTail: boolean;
+  /** A `reject` with requeue also raises the delivery count (4.3 only, fact sheet b.2). */
+  rejectRaisesDc: boolean;
+  /** The counter the delivery limit is compared with. */
+  limitCounter: 'ac' | 'dc';
+  /** The limit of a quorum queue that sets none; 3.13 has none. */
+  defaultLimit: number | null;
+  /** A dead letter keeps the counters of its source (4.3, fact sheet b.4); otherwise it starts afresh. */
+  carries: boolean;
+}
+
+/** What the registry says a returned or dead-lettered quorum message does, per era. */
+const BEHAVIOUR: Readonly<Record<Era, Behaviour>> = {
+  '3.13': {
+    countsAsDelivery: true,
+    unlimitedReturnsToTail: true,
+    rejectRaisesDc: false,
+    limitCounter: 'dc',
+    defaultLimit: null,
+    carries: false,
+  },
+  '4.0-4.2': {
+    countsAsDelivery: false,
+    unlimitedReturnsToTail: false,
+    rejectRaisesDc: false,
+    limitCounter: 'ac',
+    defaultLimit: 20,
+    carries: false,
+  },
+  '4.3': {
+    countsAsDelivery: false,
+    unlimitedReturnsToTail: false,
+    rejectRaisesDc: true,
+    limitCounter: 'dc',
+    defaultLimit: 20,
+    carries: true,
+  },
 };
 
 interface Stored {
   readonly id: string;
   /** A counter the publisher copied into the message. */
   readonly copied: number | null;
-  /** Returns counted as delivery count (3.13) or as acquired count (4.x). */
-  returns: number;
+  /** The acquired count and the delivery count the broker keeps for the message. */
+  ac: number;
+  dc: number;
   redelivered: boolean;
 }
 
 interface Queue {
   readonly limitArgument: boolean;
+  readonly limit: number | null;
+  readonly dlx: string | null;
+  readonly dlk: string | null;
   ready: Stored[];
 }
 
@@ -51,8 +91,13 @@ export interface EraBrokerOptions {
   readonly skewed?: string;
 }
 
+const text = (value: unknown): string | null =>
+  typeof value === 'string' ? value : null;
+
 export class EraBroker implements RecordHost {
   readonly queues = new Map<string, Queue>();
+  /** Exchange to binding key to the queues bound with it. */
+  readonly exchanges = new Map<string, Map<string, string[]>>();
   readonly #held = new Map<number, { queue: string; message: Stored }>();
   #tag = 0;
 
@@ -86,8 +131,13 @@ export class EraBroker implements RecordHost {
     queue: string,
     options: { arguments: Readonly<Record<string, unknown>> },
   ): Promise<void> {
+    const { arguments: args } = options;
+    const limit = args['x-delivery-limit'];
     this.queues.set(queue, {
-      limitArgument: 'x-delivery-limit' in options.arguments,
+      limitArgument: 'x-delivery-limit' in args,
+      limit: typeof limit === 'number' ? limit : null,
+      dlx: text(args['x-dead-letter-exchange']),
+      dlk: text(args['x-dead-letter-routing-key']),
       ready: [],
     });
     return Promise.resolve();
@@ -96,13 +146,17 @@ export class EraBroker implements RecordHost {
     this.queues.delete(queue);
     return Promise.resolve();
   }
-  declareExchange(): Promise<void> {
+  declareExchange(exchange: string): Promise<void> {
+    this.exchanges.set(exchange, new Map());
     return Promise.resolve();
   }
-  deleteExchange(): Promise<void> {
+  deleteExchange(exchange: string): Promise<void> {
+    this.exchanges.delete(exchange);
     return Promise.resolve();
   }
-  bindQueue(): Promise<void> {
+  bindQueue(queue: string, exchange: string, key: string): Promise<void> {
+    const bindings = this.exchanges.get(exchange);
+    bindings?.set(key, [...(bindings.get(key) ?? []), queue]);
     return Promise.resolve();
   }
   publish(
@@ -115,7 +169,8 @@ export class EraBroker implements RecordHost {
     this.queues.get(queue)?.ready.push({
       id: message.messageId,
       copied: message.headers?.['x-delivery-count'] ?? null,
-      returns: 0,
+      ac: 0,
+      dc: 0,
       redelivered: false,
     });
     return Promise.resolve();
@@ -161,14 +216,26 @@ export class EraBroker implements RecordHost {
     }
     this.#held.delete(tag);
     const queue = this.queues.get(held.queue);
-    if (queue !== undefined && action.kind !== 'ack' && action.requeue) {
-      held.message.returns += 1;
-      held.message.redelivered = true;
-      // 3.13 without a delivery limit puts a returned message at the tail; every other case, at the head.
-      if (BEHAVIOUR[this.era].unlimitedReturnsToTail && !queue.limitArgument)
-        queue.ready.push(held.message);
-      else queue.ready.unshift(held.message);
+    if (queue === undefined || action.kind === 'ack') {
+      return Promise.resolve({ channelOpen: true });
     }
+    const rules = BEHAVIOUR[this.era];
+    if (!action.requeue) {
+      this.#deadLetter(queue, held.message, true);
+      return Promise.resolve({ channelOpen: true });
+    }
+    const { message } = held;
+    if (rules.countsAsDelivery) message.dc += 1;
+    else message.ac += 1;
+    if (action.kind === 'reject' && rules.rejectRaisesDc) message.dc += 1;
+    message.redelivered = true;
+    const limit = queue.limit ?? rules.defaultLimit;
+    if (limit !== null && message[rules.limitCounter] > limit) {
+      this.#deadLetter(queue, message, false);
+    } else if (rules.unlimitedReturnsToTail && !queue.limitArgument) {
+      // 3.13 without a delivery limit puts a returned message at the tail; every other case, at the head.
+      queue.ready.push(message);
+    } else queue.ready.unshift(message);
     return Promise.resolve({ channelOpen: true });
   }
   recover(): Promise<void> {
@@ -178,14 +245,33 @@ export class EraBroker implements RecordHost {
     return Promise.resolve({ status: 200, json: {} });
   }
 
+  /**
+   * Routes the message to the queue's dead-letter exchange, or drops it when it has none. A dead
+   * letter carries its counters on 4.3 (and, when `settled`, one more of each for the settle), and
+   * starts afresh on 3.13 and 4.0-4.2.
+   */
+  #deadLetter(queue: Queue, message: Stored, settled: boolean): void {
+    if (queue.dlx === null) return;
+    const carried = BEHAVIOUR[this.era].carries;
+    const bump = settled ? 1 : 0;
+    for (const name of this.exchanges.get(queue.dlx)?.get(queue.dlk ?? '') ??
+      []) {
+      this.queues.get(name)?.ready.push({
+        id: message.id,
+        copied: null,
+        ac: carried ? message.ac + bump : 0,
+        dc: carried ? message.dc + bump : 0,
+        redelivered: false,
+      });
+    }
+  }
+
   #deliver(tag: number, message: Stored, left: number): RawDelivery {
     const skew = this.options.skewed === message.id ? 1 : 0;
-    const returned = message.returns > 0;
+    const returned = message.ac > 0 || message.dc > 0;
     const keepCopied =
       message.copied !== null &&
       (!returned || this.options.copiedAfterReturn === 'kept');
-    const asDelivery = BEHAVIOUR[this.era].countsAsDelivery;
-    const stamped = asDelivery ? message.returns : 0;
     return {
       tag,
       redelivered: message.redelivered,
@@ -195,9 +281,29 @@ export class EraBroker implements RecordHost {
       xDeliveryCount: keepCopied
         ? message.copied
         : returned
-          ? stamped + skew
+          ? message.dc + skew
           : null,
-      xAcquiredCount: !asDelivery && returned ? message.returns + skew : null,
+      xAcquiredCount: message.ac > 0 ? message.ac + skew : null,
     };
   }
+}
+
+/** Runs a scenario on an era broker and seals the artefact a local recorder would write. */
+export async function recordOnEra(
+  era: Era,
+  scenario: LabScenario,
+  options?: EraBrokerOptions,
+): Promise<EvidenceArtefact> {
+  const run = await runScenario(new EraBroker(era, options), scenario, 'r1');
+  return sealArtefact({
+    schemaVersion: 1,
+    cfId: scenario.cfId,
+    title: scenario.title,
+    protocol: 'amqp091',
+    brokerVersion: ERA_VERSION[era],
+    imageDigest: DIGEST,
+    steps: run.steps,
+    observations: run.observations,
+    provenance: localProvenance,
+  });
 }

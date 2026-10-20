@@ -1,10 +1,17 @@
 // The scenarios `conformance:record` can run, by conformance id. A cell with no scenario here is
 // an error, not a skipped cell: a missing recording must not look like a green one.
 import type { LabScenario } from '../dsl.ts';
+import { cfCarry01 } from './cf-carry-01.ts';
+import { cfCarry03 } from './cf-carry-03.ts';
 import { cfSmoke01 } from './cf-smoke-01.ts';
 import { cfStamp01 } from './cf-stamp-01.ts';
 
-export const SCENARIOS: readonly LabScenario[] = [cfSmoke01, cfStamp01];
+export const SCENARIOS: readonly LabScenario[] = [
+  cfSmoke01,
+  cfStamp01,
+  cfCarry01,
+  cfCarry03,
+];
 
 /** The scenarios whose ids match the patterns (`CF-SMOKE-01`, or `CF-SETTLE-*`). Unmatched patterns throw. */
 export function selectScenarios(

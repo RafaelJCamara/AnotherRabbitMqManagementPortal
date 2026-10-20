@@ -1,8 +1,8 @@
 // Lab cell CF-CARRY-03. The evidence file testing/lab-evidence/<broker-version>/CF-CARRY-03.json is
 // recorded by `conformance:record` and committed by a human; do not create it here.
-import { describe, it } from 'vitest';
+//
+// The three-way assertion (M0-37): the live run, the recorded evidence and the registry cell must
+// agree. Until CI has recorded evidence for a version, the result is `unverified`, never a pass.
+import { describeThreeWay } from '../assert/cell-spec.ts';
 
-describe('CF-CARRY-03', () => {
-  it.todo('the live run matches the recorded evidence');
-  it.todo('the registry cell matches the recorded evidence');
-});
+describeThreeWay('CF-CARRY-03');

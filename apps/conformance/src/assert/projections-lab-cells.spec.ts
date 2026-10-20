@@ -6,8 +6,11 @@ import { describe, expect, it } from 'vitest';
 import type { EvidenceArtefact } from '../record/evidence.ts';
 import { cfCarry01 } from '../scenarios/cf-carry-01.ts';
 import { cfCarry03 } from '../scenarios/cf-carry-03.ts';
+import { cfDr01 } from '../scenarios/cf-dr-01.ts';
+import { cfDr02 } from '../scenarios/cf-dr-02.ts';
 import { recordOnEra } from '../testing/era-broker.ts';
 import { projectCarry01, projectCarry03 } from './projections-carry.ts';
+import { projectDr01, projectDr02 } from './projections-dr.ts';
 
 const cellOf = (id: string): SemanticsCell => {
   const cell = registryData.cells.find((item) => item.id === id);
@@ -17,6 +20,12 @@ const cellOf = (id: string): SemanticsCell => {
 const NO_REQUEUE = cellOf('SEM-4.3-quorum-amqp091-amqp091.no_requeue');
 const CARRY03 = cellOf(
   'SEM-4.3-quorum-amqp091-amqp091.nack_requeue-limit-finite-delayed-disabled',
+);
+const NACK_ALL = cellOf(
+  'SEM-4.3-quorum-amqp091-amqp091.nack_requeue-limit-finite-delayed-all',
+);
+const REJECT_ALL = cellOf(
+  'SEM-4.3-quorum-amqp091-amqp091.reject_requeue-limit-finite-delayed-all',
 );
 const withKey = (
   cell: SemanticsCell,
@@ -100,5 +109,53 @@ describe('the projections of the lab cells', () => {
       ),
     };
     expect(projectCarry03(atLimit, CARRY03)).toBeNull();
+
+    // CF-DR-01 and CF-DR-02: a cell of another action, protocol, limit or queue type, the `disabled`
+    // control and the other id's artefact get null.
+    const dr01 = await recordOnEra('4.3', cfDr01);
+    const dr02 = await recordOnEra('4.3', cfDr02);
+    expect(projectDr01(dr01, NACK_ALL)).toMatchObject({ position: 'delayed' });
+    expect(projectDr02(dr02, REJECT_ALL)).toMatchObject({
+      position: 'delayed',
+    });
+    const others = [
+      { action: 'amqp091.no_requeue' },
+      { limit: 'minus1' },
+      { delayedRetry: 'disabled' },
+      { protocol: 'amqp10' },
+      { queueType: 'classic' },
+    ] as const;
+    for (const key of others) {
+      expect(projectDr01(dr01, withKey(NACK_ALL, key))).toBeNull();
+      expect(projectDr02(dr02, withKey(REJECT_ALL, key))).toBeNull();
+    }
+    expect(projectDr01(dr01, REJECT_ALL)).toBeNull();
+    expect(projectDr02(dr02, NACK_ALL)).toBeNull();
+    expect(projectDr01(dr02, NACK_ALL)).toBeNull();
+    expect(projectDr02(dr01, REJECT_ALL)).toBeNull();
+
+    // A contradiction is shown as it is (visible at once is `head`; back at the second read with no
+    // empty read before it is `tail`; a counter that moved by three is kept); a message never seen,
+    // or without an earlier delivery to compare with, says nothing.
+    const m = { empty: false, messageId: 'nack-all-m' };
+    const read = (alias: string, result: Record<string, unknown>) =>
+      projectDr01(
+        {
+          ...dr01,
+          steps: dr01.steps.map((step) =>
+            step.op === 'get' && step.args.as === alias
+              ? { ...step, result: result as typeof step.result }
+              : step,
+          ),
+        },
+        NACK_ALL,
+      );
+    expect(read('nack-all-now', m)?.position).toBe('head');
+    expect(read('nack-all-mid', m)?.position).toBe('tail');
+    expect(read('nack-all-end', { ...m, 'x-acquired-count': 3 })?.deltaAC).toBe(
+      3,
+    );
+    expect(read('nack-all-end', { empty: true })).toBeNull();
+    expect(read('nack-all-first', { empty: true })).toBeNull();
   });
 });

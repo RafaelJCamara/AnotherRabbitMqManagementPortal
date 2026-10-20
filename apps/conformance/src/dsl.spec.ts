@@ -964,4 +964,30 @@ describe('the dead-letter foundation of the DSL (M0-40)', () => {
     expect(clockClass('not a date', now)).toBe('unparsed');
     expect(clockClass({ at: 1 }, now)).toBe('unparsed');
   });
+
+  it('AC-7 an optional settle skips a delivery that never came and says so, while a plain settle still refuses', async () => {
+    const empty = [declareQueue('q'), get('d', 'q')];
+    const skipped = await run(
+      new MemoryHost(),
+      ...empty,
+      settle('d', { kind: 'ack' }, { optional: true }),
+    );
+    expect(skipped.steps[2]).toMatchObject({
+      args: { target: 'd', optional: true },
+      result: { skipped: true },
+    });
+    await expect(
+      run(new MemoryHost(), ...empty, settle('d', { kind: 'ack' })),
+    ).rejects.toThrow(/was not delivered/);
+    // A delivery that did come is settled as usual, with the usual record.
+    const settled = await run(
+      new MemoryHost(),
+      declareQueue('q'),
+      publish('q', 'm1'),
+      get('d', 'q'),
+      settle('d', { kind: 'ack' }, { optional: true }),
+    );
+    expect(settled.steps[3]?.result).toMatchObject({ channelOpen: true });
+    expect(settled.steps[3]?.args).not.toHaveProperty('optional');
+  });
 });

@@ -1,6 +1,7 @@
 // The lab cells of M0-40 are wired to the harness and make no claim of their own: no registry cell
 // changes, no evidence file is created, and a recorded artefact that contradicts a cell fails it.
-// Slice A covers CF-STAMP-01, slice B CF-CARRY-01 and CF-CARRY-03; the other ids follow with theirs.
+// Slice A covers CF-STAMP-01, slice B CF-CARRY-01 and CF-CARRY-03, slice C CF-DR-01 and CF-DR-02;
+// CF-CARRY-02 follows with slice D.
 import {
   existsSync,
   mkdirSync,
@@ -27,7 +28,13 @@ import { SCENARIOS } from '../scenarios/index.ts';
 import { EraBroker, ERA_VERSION } from '../testing/era-broker.ts';
 import { DIGEST } from '../testing/lab.ts';
 
-const WIRED = ['CF-STAMP-01', 'CF-CARRY-01', 'CF-CARRY-03'];
+const WIRED = [
+  'CF-STAMP-01',
+  'CF-CARRY-01',
+  'CF-CARRY-03',
+  'CF-DR-01',
+  'CF-DR-02',
+];
 const REPO = join(import.meta.dirname, '..', '..', '..', '..');
 const LAB: LabVersion = {
   version: ERA_VERSION['4.3'],
@@ -159,6 +166,23 @@ describe('the M0-40 lab cells', () => {
       );
       return { ...run, observations };
     });
+    // The era without delayed retry gives every message back at once and moves no dc on a reject,
+    // which contradicts the 4.3 cells' delayed position (CF-DR-01) and counter delta (CF-DR-02).
+    for (const [id, field] of [
+      ['CF-DR-01', 'effect.position'],
+      ['CF-DR-02', 'effect.deltaDC'],
+    ] as const) {
+      await contradict(id, field, () => {
+        const broker = new EraBroker('4.0-4.2');
+        return runScenario(
+          broker,
+          scenarioOf(id),
+          'r1',
+          undefined,
+          broker.clock,
+        );
+      });
+    }
   });
 });
 

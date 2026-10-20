@@ -127,6 +127,8 @@ export type LabStep =
       /** Defaults to the channel the delivery came on; name another to settle from the wrong one. */
       readonly channel: string | undefined;
       readonly action: SettleAction;
+      /** Skip, and record the skip, when the delivery never came (an earlier get found nothing). */
+      readonly optional?: boolean;
     }
   | { readonly op: 'recover'; readonly channel: string }
   | {
@@ -257,12 +259,13 @@ export const awaitReady = (
 export const settle = (
   target: string | number,
   action: SettleAction,
-  options: { channel?: string } = {},
+  options: { channel?: string; optional?: boolean } = {},
 ): LabStep => ({
   op: 'settle',
   target: typeof target === 'number' ? { tag: target } : { ref: target },
   channel: options.channel,
   action,
+  ...(options.optional === true ? { optional: true } : {}),
 });
 export const recover = (channel = MAIN): LabStep => ({
   op: 'recover',
@@ -838,6 +841,13 @@ export async function runScenario(
         const source =
           'ref' in step.target ? held.get(step.target.ref) : undefined;
         if ('ref' in step.target && source === undefined) {
+          // Only a scenario that asks for it (a poll that may find nothing) tolerates an absent delivery.
+          if (step.optional === true) {
+            return {
+              args: { target: step.target.ref, optional: true },
+              result: { skipped: true },
+            };
+          }
           throw new Error(
             `"${step.target.ref}" was not delivered (nothing came back from the broker)`,
           );

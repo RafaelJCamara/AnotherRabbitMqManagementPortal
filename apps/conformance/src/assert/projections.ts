@@ -5,6 +5,7 @@
 import type { EvidenceArtefact } from '../record/evidence.ts';
 import { projectCarry01, projectCarry03 } from './projections-carry.ts';
 import { projectDown01 } from './projections-down.ts';
+import { projectDr01, projectDr02 } from './projections-dr.ts';
 import { projectStamp01 } from './projections-stamp.ts';
 import type { Observed, Projection } from './three-way.ts';
 
@@ -36,4 +37,6 @@ export const PROJECTIONS: Readonly<Record<string, Projection>> = {
   'CF-CARRY-01': projectCarry01,
   'CF-CARRY-03': projectCarry03,
   'CF-DOWN-01': projectDown01,
+  'CF-DR-01': projectDr01,
+  'CF-DR-02': projectDr02,
 };

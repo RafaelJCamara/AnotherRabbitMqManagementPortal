@@ -6,14 +6,14 @@
   "state": "running",
   "peer_host": "192.0.2.1",
   "type": "network",
-  "peer_port": 56636,
+  "peer_port": 53664,
   "user": "guest",
   "ssl_key_exchange": "",
   "channels": 1,
   "node": "rabbit@lab-node",
   "vhost": "golden",
   "peer_cert_validity": "",
-  "send_cnt": 7,
+  "send_cnt": 6,
   "client_properties": {
     "capabilities": {
       "authentication_failure_close": true,
@@ -25,11 +25,11 @@
     },
     "connection_name": "golden/recorder/source/seed",
     "information": "https://amqp-node.github.io/amqplib/",
-    "platform": "Node.JS v24.19.0",
+    "platform": "Node.JS v24.22.0",
     "product": "amqplib",
     "version": "2.2.0"
   },
-  "name": "192.0.2.1:56636 -> 192.0.2.2:5672",
+  "name": "192.0.2.1:53664 -> 192.0.2.2:5672",
   "host": "192.0.2.2",
   "user_provided_name": "golden/recorder/source/seed",
   "reductions_details": {
@@ -38,7 +38,7 @@
   "timeout": 30,
   "port": 5672,
   "ssl_protocol": "",
-  "connected_at": 1792419001600,
+  "connected_at": 1792483251900,
   "recv_oct": 487,
   "recv_oct_details": {
     "rate": 0
@@ -60,7 +60,7 @@
   "auth_mechanism": "PLAIN",
   "frame_max": 131072,
   "user_who_performed_action": "guest",
-  "reductions": 13328,
+  "reductions": 13327,
   "ssl_cipher": "",
   "send_pend": 0
 }

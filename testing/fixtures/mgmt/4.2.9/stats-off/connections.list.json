@@ -7,7 +7,7 @@
   "page_count": 1,
   "items": [
     {
-      "name": "192.0.2.1:53448 -> 192.0.2.2:5672",
+      "name": "192.0.2.1:60574 -> 192.0.2.2:5672",
       "vhost": "golden",
       "user": "guest",
       "node": "rabbit@lab-node"

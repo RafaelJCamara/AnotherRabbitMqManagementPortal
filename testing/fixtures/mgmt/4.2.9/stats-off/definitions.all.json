@@ -225,14 +225,6 @@
   "bindings": [
     {
       "arguments": {},
-      "destination": "golden.classic",
-      "destination_type": "queue",
-      "routing_key": "orders.#",
-      "source": "golden.topic",
-      "vhost": "golden"
-    },
-    {
-      "arguments": {},
       "destination": "golden.dead",
       "destination_type": "queue",
       "routing_key": "",
@@ -255,6 +247,14 @@
       "destination_type": "queue",
       "routing_key": "10",
       "source": "golden.hash",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {},
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "orders.#",
+      "source": "golden.topic",
       "vhost": "golden"
     }
   ]

@@ -12,13 +12,13 @@
         "enabled": true
       },
       {
-        "name": "PLAIN",
-        "description": "SASL PLAIN authentication mechanism",
+        "name": "AMQPLAIN",
+        "description": "QPid AMQPLAIN mechanism",
         "enabled": true
       },
       {
-        "name": "AMQPLAIN",
-        "description": "QPid AMQPLAIN mechanism",
+        "name": "PLAIN",
+        "description": "SASL PLAIN authentication mechanism",
         "enabled": true
       }
     ],

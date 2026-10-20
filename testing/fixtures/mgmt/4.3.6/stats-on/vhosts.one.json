@@ -19,9 +19,9 @@
   "cluster_state": {
     "rabbit@lab-node": "running"
   },
-  "send_oct": 944,
+  "send_oct": 936,
   "send_oct_details": {
-    "rate": 1.6
+    "rate": 0
   },
   "recv_oct": 487,
   "recv_oct_details": {
@@ -58,7 +58,7 @@
     },
     "get": 2,
     "get_details": {
-      "rate": 0
+      "rate": 0.4
     },
     "get_no_ack": 0,
     "get_no_ack_details": {
@@ -82,7 +82,7 @@
     },
     "deliver_get": 4,
     "deliver_get_details": {
-      "rate": 0
+      "rate": 0.4
     },
     "get_empty": 0,
     "get_empty_details": {

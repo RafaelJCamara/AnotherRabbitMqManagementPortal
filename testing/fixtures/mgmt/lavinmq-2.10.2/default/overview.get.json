@@ -2,7 +2,7 @@
   "lavinmq_version": "2.10.2",
   "product_name": "LavinMQ",
   "node": "lab-node",
-  "uptime": 7,
+  "uptime": 8,
   "object_totals": {
     "channels": 1,
     "connections": 1,

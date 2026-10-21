@@ -69,10 +69,6 @@
       "reason": "Runtime i18n of the web shell and features (Transloco scopes).",
       "ref": "M0-51, OQ-526"
     },
-    "@jsverse/transloco": {
-      "reason": "Runtime i18n of the web shell and features (Transloco scopes).",
-      "ref": "M0-51, OQ-526"
-    },
     "@nx/angular": {
       "reason": "Nx plugin for the Angular web app.",
       "ref": "M0-01"
@@ -122,10 +118,6 @@
     "@typescript-eslint/parser": {
       "reason": "TypeScript parser for ESLint.",
       "ref": "M0-03"
-    },
-    "ag-grid-community": {
-      "reason": "AG Grid Community grid engine behind the ui-grid adapter (infinite row model).",
-      "ref": "ADR-021, M0-20, M0-53"
     },
     "ag-grid-community": {
       "reason": "AG Grid Community grid engine behind the ui-grid adapter (infinite row model).",

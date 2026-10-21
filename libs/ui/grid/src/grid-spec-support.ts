@@ -128,6 +128,21 @@ export function cellAt(
   return found;
 }
 
+/**
+ * How often a wait looks again. AG Grid answers within a few milliseconds once the engine promise is
+ * resolved, so the 50 ms default of `vi.waitFor` would be most of what a wait costs. Every wait here is
+ * bounded by its timeout and checks a condition; none sleeps for a fixed time.
+ */
+const POLL_MS = 5;
+
+/** `vi.waitFor` with the poll interval of these specs: retries the assertion until it holds or the timeout ends. */
+export async function eventually(
+  assertion: () => void,
+  timeout = 4000,
+): Promise<void> {
+  await vi.waitFor(assertion, { timeout, interval: POLL_MS });
+}
+
 /** AG Grid dispatches its events asynchronously, so an assertion on their effect waits for it. */
 export async function settled(
   fixture: ComponentFixture<unknown>,
@@ -138,22 +153,23 @@ export async function settled(
       await fixture.whenStable();
       assertion();
     },
-    { timeout: 3000 },
+    { timeout: 3000, interval: POLL_MS },
   );
 }
 
-/** Waits until the rows are in the DOM, and a little longer for AG Grid to wire the row's mouse handling. */
+/**
+ * Waits until the rows and their data are in the DOM and the component has seen the loaded model (its
+ * status bar counts the loaded rows from the same `modelUpdated` event that AG Grid dispatches after
+ * it has rendered them), so a click or key sent next reaches a wired row.
+ */
 export async function rendered(el: HTMLElement, rows: number): Promise<void> {
-  await vi.waitFor(
-    () => {
-      expect(el.querySelectorAll('.ag-row').length).toBeGreaterThanOrEqual(
-        rows,
-      );
-      expect(cellTexts(el, 'name').filter((t) => t !== '')).not.toHaveLength(0);
-    },
-    { timeout: 4000 },
-  );
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  await eventually(() => {
+    expect(el.querySelectorAll('.ag-row').length).toBeGreaterThanOrEqual(rows);
+    expect(
+      cellTexts(el, 'name').filter((t) => t !== '').length,
+    ).toBeGreaterThanOrEqual(rows);
+    expect(el.querySelector('.loaded')?.textContent.trim()).toMatch(/^[1-9]/);
+  });
 }
 
 export function key(

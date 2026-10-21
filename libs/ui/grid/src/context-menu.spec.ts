@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { GridCellTarget, GridMenuProvider } from './context-menu';
 import { DataGrid } from './data-grid.component';
@@ -16,7 +16,12 @@ import {
   type Row,
 } from './grid-spec-support';
 import type { GridKeybinding } from './keybindings';
-import { warmUpGrid, WARM_UP_TIMEOUT_MS } from './grid-spec-warm-up';
+import {
+  nextGridEvent,
+  restoreGridSpecEnvironment,
+  warmUpGrid,
+  WARM_UP_TIMEOUT_MS,
+} from './grid-spec-warm-up';
 import { provideGridRenderAll } from './testing/render-all';
 
 @Component({
@@ -95,6 +100,7 @@ const SIMPLE: GridMenuProvider<Row> = () => [
 
 describe('grid context menu', () => {
   beforeAll(warmUpGrid, WARM_UP_TIMEOUT_MS);
+  afterAll(restoreGridSpecEnvironment);
 
   it('AC-2 right-click opens the app menu and nothing else', async () => {
     const { el, fixture, host } = await mount(SIMPLE);
@@ -169,16 +175,20 @@ describe('grid context menu', () => {
   });
 
   it('does nothing without a provider', async () => {
-    const { el } = await mount(null);
+    const { el, fixture } = await mount(null);
+    const handled = nextGridEvent(el, 'cellContextMenu');
     rightClick(cellAt(el, 'name', 0));
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await handled;
+    await fixture.whenStable();
     expect(menuOf()).toBeNull();
   });
 
   it('does nothing when the provider offers no items', async () => {
-    const { el } = await mount(() => []);
+    const { el, fixture } = await mount(() => []);
+    const handled = nextGridEvent(el, 'cellContextMenu');
     rightClick(cellAt(el, 'name', 0));
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await handled;
+    await fixture.whenStable();
     expect(menuOf()).toBeNull();
   });
   it('closes when focus leaves the menu', async () => {
@@ -240,8 +250,10 @@ describe('grid context menu', () => {
     await fixture.whenStable();
     const cell = cellAt(el, 'name', 0);
     cell.focus();
+    const handled = nextGridEvent(el, 'cellKeyDown');
     key(cell, 'F10', { shiftKey: true }); // a default no longer in force
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await handled;
+    await fixture.whenStable();
     expect(menuOf()).toBeNull();
     key(cell, 'M', { ctrlKey: true });
     await settled(fixture, () => {

@@ -2,7 +2,7 @@ import { Component, signal, type Provider } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { ThemeService } from '@app/ui-design';
 import { getGridApi } from 'ag-grid-community';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { GRID_CLIPBOARD, type GridClipboard } from './clipboard';
 import type { GridColumnState } from './column-state';
@@ -12,6 +12,7 @@ import {
   cellAt,
   cellTexts,
   COLUMNS,
+  eventually,
   key,
   LABELS,
   liveSource,
@@ -21,7 +22,12 @@ import {
   source,
   type Row,
 } from './grid-spec-support';
-import { warmUpGrid, WARM_UP_TIMEOUT_MS } from './grid-spec-warm-up';
+import {
+  nextGridEvent,
+  restoreGridSpecEnvironment,
+  warmUpGrid,
+  WARM_UP_TIMEOUT_MS,
+} from './grid-spec-warm-up';
 import { provideGridRenderAll } from './testing/render-all';
 import type { EngineWindowSource } from './window-source';
 function fakeClipboard(refuse = false): GridClipboard & { written: string[] } {
@@ -77,6 +83,7 @@ async function mount(
 
 describe('<app-data-grid>', () => {
   beforeAll(warmUpGrid, WARM_UP_TIMEOUT_MS);
+  afterAll(restoreGridSpecEnvironment);
 
   it('shows the rows the source answers, with the columns in their order', async () => {
     const { el } = await mount();
@@ -130,7 +137,7 @@ describe('<app-data-grid>', () => {
       sort: [],
     });
     await fixture.whenStable();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(
         [...el.querySelectorAll('.ag-header-cell-text')].map((h) =>
           h.textContent.trim(),
@@ -149,8 +156,10 @@ describe('<app-data-grid>', () => {
     // Nothing selected: nothing is copied.
     host.selection.set(new Set());
     await fixture.whenStable();
+    const handled = nextGridEvent(el, 'cellKeyDown');
     key(cellAt(el, 'size', 0), 'c', { ctrlKey: true });
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await handled;
+    await fixture.whenStable();
     expect(clipboard.written).toHaveLength(1);
   });
 
@@ -269,7 +278,7 @@ describe('<app-data-grid>', () => {
     });
     await rendered(el, 3);
     // The grid reports the ids it shows.
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect([...(src.watched.at(-1) ?? [])].sort()).toEqual(['a', 'b', 'c']);
     });
     // A change to a row on screen shows; a change to a row that is not shown is dropped and counted.
@@ -305,7 +314,7 @@ describe('<app-data-grid>', () => {
         host.columnState()?.columns.find((c) => c.id === 'size')?.hidden,
       ).toBe(true);
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(
         [...el.querySelectorAll('.ag-header-cell-text')].map((h) =>
           h.textContent.trim(),
@@ -338,7 +347,7 @@ describe('<app-data-grid>', () => {
     await settled(fixture, () => {
       expect([...host.selection()].sort()).toEqual(['b', 'c']);
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       const selected = [...el.querySelectorAll('.ag-row')]
         .filter((r) => r.getAttribute('aria-selected') === 'true')
         .map((r) => r.querySelector('[col-id="name"]')?.textContent.trim());
@@ -387,7 +396,7 @@ describe('<app-data-grid>', () => {
     const { el, host, fixture } = await mount((h) => {
       h.source.set(slow);
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(slow.requests.length).toBe(1);
     });
     const fresh = source([{ id: 'n', name: 'fresh', size: 9 }]);
@@ -412,7 +421,7 @@ describe('<app-data-grid>', () => {
       sort: [],
     });
     await fixture.whenStable();
-    await vi.waitFor(() => {
+    await eventually(() => {
       const headers = [...el.querySelectorAll('.ag-header-cell-text')].map(
         (h) => h.textContent.trim(),
       );
@@ -421,7 +430,7 @@ describe('<app-data-grid>', () => {
     // The user shows the column again through the grid API; the new state is published.
     const api = getGridApi(el.querySelector('.ag-root-wrapper'));
     api?.setColumnsVisible(['name'], true);
-    await vi.waitFor(() => {
+    await eventually(() => {
       const hidden = host
         .columnState()
         ?.columns.find((c) => c.id === 'name')?.hidden;

@@ -1,3 +1,147 @@
 {
-  "title": "Explorer"
+  "title": "Explorer",
+  "kinds": {
+    "queues": "Queues",
+    "exchanges": "Exchanges",
+    "connections": "Connections",
+    "bindings": "Bindings"
+  },
+  "counts": "{{matched}} of {{total}} rows",
+  "sort": {
+    "trimmed": "Only one sort column is used. The second one was dropped."
+  },
+  "bindings": {
+    "needVhost": "Choose one virtual host to list its bindings."
+  },
+  "cell": {
+    "notReported": "not reported",
+    "cut": "(cut at 512 characters)"
+  },
+  "columns": {
+    "name": "Name",
+    "vhost": "Virtual host",
+    "type": "Type",
+    "state": "State",
+    "messagesReady": "Ready",
+    "messagesUnacknowledged": "Unacknowledged",
+    "messages": "Total",
+    "consumers": "Consumers",
+    "policy": "Policy",
+    "node": "Node",
+    "durable": "Durable",
+    "autoDelete": "Auto-delete",
+    "exclusive": "Exclusive",
+    "operatorPolicy": "Operator policy",
+    "deliveryLimit": "Delivery limit",
+    "internal": "Internal",
+    "user": "User",
+    "protocol": "Protocol",
+    "channels": "Channels",
+    "peerHost": "Peer host",
+    "ssl": "TLS",
+    "source": "Source",
+    "destination": "Destination",
+    "destinationType": "Destination type",
+    "routingKey": "Routing key",
+    "propertiesKey": "Properties key",
+    "argumentsKey": "Arguments",
+    "argumentsTruncated": "Arguments cut"
+  },
+  "freshness": {
+    "region": "Inventory freshness",
+    "tag": {
+      "warn": "Notice",
+      "info": "Info"
+    },
+    "loading": "Loading the inventory: {{loaded}} of about {{expected}} loaded. Rows and counts are incomplete.",
+    "loadingNoExpected": "Loading the inventory: {{loaded}} loaded. Rows and counts are incomplete.",
+    "stale": "Showing the last good read from {{time}}.",
+    "staleNoTime": "Showing the last good read.",
+    "unavailable": "The inventory is not being read.",
+    "updated": "Updated {{time}}",
+    "dropped": "{{dropped}} rows were left out of the index because of its limit.",
+    "droppedAtLeast": "At least {{dropped}} rows were left out of the index because of its limit.",
+    "truncated": "Some rows were left out of the index because of its limit.",
+    "incomplete": "This list is incomplete.",
+    "versionChanged": "The list changed while you were scrolling and was reloaded.",
+    "reason": "From the engine:"
+  },
+  "hazard": {
+    "stats-off-policy-fields-missing": "Statistics are off on this broker, so policy columns can be missing from some queues.",
+    "unknown": "The broker profile reports a condition this page has no description for: {{id}}"
+  },
+  "live": {
+    "notFollowed": "Bindings are not followed live. Reload the list to see changes.",
+    "connecting": "Connecting live updates for {{followed}} rows.",
+    "following": "Following {{followed}} rows live.",
+    "paused": "Live updates paused for {{unfollowed}} rows: there are too many rows on screen for one subscription.",
+    "ended": "Live updates ended. The list still loads from the engine; reload it to see changes.",
+    "state": {
+      "paused": "Live updates are paused by the engine.",
+      "degraded": "Live updates are degraded.",
+      "stale": "Live updates are stale."
+    }
+  },
+  "announce": {
+    "state": {
+      "loading": "Loading the inventory.",
+      "live": "The inventory is live.",
+      "stale": "Showing an earlier read of the inventory.",
+      "unavailable": "The inventory is not being read."
+    },
+    "dropped": "Some rows were left out of the index.",
+    "incomplete": "The list is incomplete.",
+    "notFollowed": "Bindings are not followed live.",
+    "connecting": "Connecting live updates.",
+    "following": "Live updates are on.",
+    "paused": "Live updates are paused for some rows.",
+    "ended": "Live updates ended.",
+    "status": {
+      "paused": "Live updates are paused by the engine.",
+      "degraded": "Live updates are degraded.",
+      "stale": "Live updates are stale."
+    }
+  },
+  "grid": {
+    "label": {
+      "queues": "Queues",
+      "exchanges": "Exchanges",
+      "connections": "Connections",
+      "bindings": "Bindings"
+    },
+    "loading": "Loading rows",
+    "noRows": "No rows to show",
+    "menu": {
+      "label": "Row actions",
+      "whyDisabled": "Why it is not available",
+      "degraded": "Available with limits",
+      "source": "Source",
+      "noReason": "No reason given"
+    },
+    "status": {
+      "total": "{count} rows",
+      "totalUnknown": "Total not known yet",
+      "loaded": "{count} loaded",
+      "selected": "{count} selected",
+      "loading": "Loading rows",
+      "error": "Some rows could not be loaded",
+      "retry": "Try again",
+      "copied": "{count} rows copied",
+      "copyTruncated": "{count} rows copied, {omitted} not copied",
+      "copyFailed": "The clipboard did not accept the copy",
+      "selectionCapped": "At most {count} rows can be selected",
+      "dropped": "{count} live changes were not applied"
+    },
+    "chooser": {
+      "button": "Columns",
+      "title": "Choose columns",
+      "up": "Up",
+      "down": "Down",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "width": "Width of {name}",
+      "reset": "Reset columns",
+      "lastColumn": "At least one column stays visible"
+    }
+  }
 }

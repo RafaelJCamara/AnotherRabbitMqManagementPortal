@@ -40,6 +40,8 @@ export interface FakeFollower {
 export interface FakeExplorerData extends ExplorerData {
   /** Every `inventory.query` input, in order. */
   readonly queries: readonly InventoryQueryInput[];
+  /** The most queries that were in flight at once. */
+  readonly maxInflight: number;
   /** Every `follow`, in order; `active` is false once its unsubscribe ran. */
   readonly followers: readonly FakeFollower[];
   readonly version: number;
@@ -235,7 +237,22 @@ export function createFakeExplorerData(
     return hit;
   };
 
+  let inflight = 0;
+  let maxInflight = 0;
   const query = async (
+    input: InventoryQueryInput,
+    signal: AbortSignal,
+  ): Promise<InventoryQueryOutput> => {
+    inflight += 1;
+    maxInflight = Math.max(maxInflight, inflight);
+    try {
+      return await answer(input, signal);
+    } finally {
+      inflight -= 1;
+    }
+  };
+
+  const answer = async (
     input: InventoryQueryInput,
     signal: AbortSignal,
   ): Promise<InventoryQueryOutput> => {
@@ -315,6 +332,9 @@ export function createFakeExplorerData(
 
   return {
     queries,
+    get maxInflight() {
+      return maxInflight;
+    },
     followers,
     get version() {
       return current.version;

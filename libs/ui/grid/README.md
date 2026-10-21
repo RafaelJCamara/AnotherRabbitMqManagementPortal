@@ -23,7 +23,7 @@ Slices A to E of M0-53: the window contract, the windowed datasource and the fak
 - **Columns** (`columns.ts`): `GridColumn<Row>` (function `value` only), `resolveColumns` (fails closed with `GridColumnError` on a string expression, a duplicate or an empty id), `cellText` (the displayed, formatted text of a cell). Cells are text: the grid has no cell renderer and builds no element from a value.
 - **Column state** (`column-state.ts`): `GridColumnState` (plain, versioned JSON), `normalizeColumnState` (ignores unknown and duplicate ids, clamps widths, keeps one column visible), `hideColumn`, `showColumn`, `resizeColumn`, `moveColumn`, `defaultColumnState`. The component applies a state from outside once and publishes the one the user makes (order, width, visibility, pinning, sort).
 - **Selection** (`selection.ts`): `selectRow` over a set of row ids (survives block eviction), capped at `GRID_MAX_SELECTION` (5,000). The set is ours; AG Grid only shows it on the rows that are loaded (`aria-selected`).
-- **Testing** (`@app/ui-grid/testing`): `createFakeWindowSource` (N rows, latency, failures, oversized answers, unknown total, late answers, a change feed) and `provideGridRenderAll` (a test DOM has no layout, so AG Grid renders every row; never provide it in an app).
+- **Testing** (`@app/ui-grid/testing/components`: the warm-up, wait and `gridApiOf` helpers of the component specs, for features that mount the grid; and `@app/ui-grid/testing`): `createFakeWindowSource` (N rows, latency, failures, oversized answers, unknown total, late answers, a change feed) and `provideGridRenderAll` (a test DOM has no layout, so AG Grid renders every row; never provide it in an app).
 
 ## Invariants
 

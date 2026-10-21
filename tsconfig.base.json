@@ -62,6 +62,9 @@
       "@app/ui-design": ["./libs/ui/design/src/index.ts"],
       "@app/ui-grid": ["./libs/ui/grid/src/index.ts"],
       "@app/ui-grid/testing": ["./libs/ui/grid/src/testing/index.ts"],
+      "@app/ui-grid/testing/components": [
+        "./libs/ui/grid/src/testing/components.ts"
+      ],
       "@app/ui-platform": ["./libs/ui/platform/src/index.ts"],
       "@app/ui-platform/testing": ["./libs/ui/platform/src/testing/index.ts"],
       "@lint-fixtures/contracts-lib": [

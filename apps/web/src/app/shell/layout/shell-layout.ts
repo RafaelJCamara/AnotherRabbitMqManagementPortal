@@ -19,6 +19,8 @@ export const SHELL_LAYOUT_LIMITS = Object.freeze({
 });
 
 const ID_CHARS = 64;
+/** A tab id becomes part of DOM ids that other attributes refer to, so it is a plain token. */
+const TAB_ID = /^[A-Za-z0-9_-]+$/;
 /** Pixel sizes in a stored document are bounded too; `fitLayout` clamps them to the viewport. */
 const MAX_PIXELS = 4096;
 const MAX_WEIGHT = 1_000_000;
@@ -71,7 +73,7 @@ export interface ShellLayout {
 }
 
 const TabRefSchema = z.strictObject({
-  id: z.string().min(1).max(ID_CHARS),
+  id: z.string().min(1).max(ID_CHARS).regex(TAB_ID),
   url: z.string().min(1).max(SHELL_LAYOUT_LIMITS.urlChars),
   titleKey: z.string().min(1).max(SHELL_LAYOUT_LIMITS.labelChars).optional(),
   label: z.string().min(1).max(SHELL_LAYOUT_LIMITS.labelChars).optional(),
@@ -80,7 +82,7 @@ const TabRefSchema = z.strictObject({
 const EditorGroupSchema = z.strictObject({
   weight: z.number().positive().max(MAX_WEIGHT),
   tabs: z.array(TabRefSchema).max(SHELL_LAYOUT_LIMITS.tabsPerGroup),
-  activeTab: z.string().min(1).max(ID_CHARS).nullable(),
+  activeTab: z.string().min(1).max(ID_CHARS).regex(TAB_ID).nullable(),
 });
 
 /** Strict and explicit (ADR-003): an unknown key makes the document invalid, not ignored. */

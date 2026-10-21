@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { BootstrapErrorCode } from '@app/ui-platform';
 import { problemResponse } from '@app/ui-platform/testing';
@@ -5,7 +6,15 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { BOOT_FAILURE, BootFailed } from '../boot/boot-failed';
 import { PAGE_RELOAD } from '../boot/page-reload';
-import { LayoutBackend, problem } from '../shell/layout/layout-fixtures';
+import {
+  EXPLORER_TREE_SOURCE,
+  type ExplorerNode,
+} from '../shell/explorer-tree/explorer-tree-source';
+import {
+  LayoutBackend,
+  problem,
+  twoGroupLayout,
+} from '../shell/layout/layout-fixtures';
 import {
   setPanelVisible,
   setSidebarVisible,
@@ -37,6 +46,12 @@ const ENGINE_DATA: readonly string[] = [
   'c3',
   'c4',
   'c5',
+  'c6',
+  'One',
+  'Two',
+  'Three',
+  'Four',
+  'n',
   'Blocked by the guardrail',
   'Writes are locked on this connection.',
   'prod-lock',
@@ -103,6 +118,18 @@ describe('shell i18n', () => {
       },
       panel: { visible: false, height: 200, active: 'jobs' },
     });
+    // Three editor groups: the active one, one with a tab and one without.
+    const crowded = twoGroupLayout('c6');
+    backend.docs.set('c6', {
+      ...crowded,
+      editor: {
+        ...crowded.editor,
+        groups: [
+          ...crowded.editor.groups,
+          { weight: 100, tabs: [], activeTab: null },
+        ],
+      },
+    });
     const bed = await mountShell(markerLoaders(), backend);
     for (const url of [
       '/c/c1/explorer', // invalid
@@ -110,6 +137,7 @@ describe('shell i18n', () => {
       '/c/c3/explorer', // newer-version
       '/c/c4/explorer', // tabs-dropped
       '/c/c5/explorer', // over-limit
+      '/c/c6/explorer', // tabs and groups
       '/c/c1/nope',
       '/c/not%20an%20id/explorer',
       '/',
@@ -148,6 +176,34 @@ describe('shell i18n', () => {
     store.update((layout) => setSidebarVisible(layout, false));
     await settleShell(bed);
     takeShell(bed);
+
+    // A tree with more nodes than it draws.
+    TestBed.resetTestingModule();
+    const nodes: readonly ExplorerNode[] = Array.from(
+      { length: 600 },
+      (_, i) => ({
+        id: `n${String(i)}`,
+        label: 'n',
+        url: null,
+        children: 'none',
+      }),
+    );
+    const bedBig = await mountShell(
+      markerLoaders(),
+      new LayoutBackend(),
+      undefined,
+      [
+        {
+          provide: EXPLORER_TREE_SOURCE,
+          useValue: {
+            roots: () => signal(nodes).asReadonly(),
+            children: () => signal<readonly ExplorerNode[]>([]).asReadonly(),
+          },
+        },
+      ],
+    );
+    await visit(bedBig, '/c/c1/explorer');
+    takeShell(bedBig);
 
     // A layout that cannot be loaded.
     const failing = new LayoutBackend();

@@ -141,3 +141,71 @@ export function fitLayout(
     },
   };
 }
+
+/** The room along the editor's axis, after the sidebar (row) or the panel (column). */
+function editorSpan(layout: ShellLayout, viewport: Viewport): number {
+  return layout.editor.orientation === 'row'
+    ? viewport.width -
+        FIT.activityBar -
+        (layout.sidebar.visible ? layout.sidebar.width : 0)
+    : viewport.height -
+        FIT.statusBar -
+        (layout.panel.visible ? layout.panel.height : 0);
+}
+
+const groupMin = (layout: ShellLayout): number =>
+  layout.editor.orientation === 'row' ? FIT.groupMinWidth : FIT.groupMinHeight;
+
+/** The size of each editor group in pixels along the editor's axis, from the weights. */
+export function groupPixels(
+  layout: ShellLayout,
+  viewport: Viewport,
+): readonly number[] {
+  const weights = layout.editor.groups.map((group) => group.weight);
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const span = editorSpan(layout, viewport);
+  return weights.map((weight) => (total > 0 ? (weight / total) * span : 0));
+}
+
+/** The sizes group `index` may have when it shares a splitter with the group after it. */
+export function groupSplitBounds(
+  layout: ShellLayout,
+  viewport: Viewport,
+  index: number,
+): Bounds {
+  const sizes = groupPixels(layout, viewport);
+  const pair = (sizes[index] ?? 0) + (sizes[index + 1] ?? 0);
+  const min = groupMin(layout);
+  return { min, max: Math.max(min, Math.round(pair - min)) };
+}
+
+/**
+ * Moves the splitter between group `index` and the next one so that group `index` is `pixels`
+ * long (within the bounds). All weights become pixel sizes, so the proportions stay as they were.
+ */
+export function resizeGroups(
+  layout: ShellLayout,
+  viewport: Viewport,
+  index: number,
+  pixels: number,
+): ShellLayout {
+  const sizes = groupPixels(layout, viewport);
+  if (index < 0 || index + 1 >= sizes.length) return layout;
+  const pair = (sizes[index] ?? 0) + (sizes[index + 1] ?? 0);
+  const first = Math.round(
+    clamp(pixels, groupSplitBounds(layout, viewport, index)),
+  );
+  const next = sizes.map((size) => Math.max(1, Math.round(size)));
+  next[index] = first;
+  next[index + 1] = Math.max(1, Math.round(pair) - first);
+  return {
+    ...layout,
+    editor: {
+      ...layout.editor,
+      groups: layout.editor.groups.map((group, i) => ({
+        ...group,
+        weight: next[i] ?? group.weight,
+      })),
+    },
+  };
+}

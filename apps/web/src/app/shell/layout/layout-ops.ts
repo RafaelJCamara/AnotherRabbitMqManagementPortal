@@ -188,3 +188,81 @@ export const showPanelTab = (
   ...layout,
   panel: { ...layout.panel, active },
 });
+
+/** Makes a tab the active one of its group, and the group the active group. */
+export function activateTab(
+  layout: ShellLayout,
+  groupIndex: number,
+  tabId: string,
+): ShellLayout {
+  const group = layout.editor.groups[groupIndex];
+  if (!group?.tabs.some((tab) => tab.id === tabId)) return layout;
+  if (group.activeTab === tabId && layout.editor.activeGroup === groupIndex) {
+    return layout;
+  }
+  return replaceGroup(layout, groupIndex, { ...group, activeTab: tabId });
+}
+
+/**
+ * Closes a tab. When it was the active one the next tab (or, at the end, the previous one)
+ * becomes active, so focus has a neighbour to go to. An empty group stays: it is closed on its own.
+ */
+export function closeTab(
+  layout: ShellLayout,
+  groupIndex: number,
+  tabId: string,
+): ShellLayout {
+  const group = layout.editor.groups[groupIndex];
+  const at = group?.tabs.findIndex((tab) => tab.id === tabId) ?? -1;
+  if (group === undefined || at < 0) return layout;
+  const tabs = group.tabs.filter((tab) => tab.id !== tabId);
+  const activeTab =
+    group.activeTab === tabId
+      ? (tabs[at]?.id ?? tabs[at - 1]?.id ?? null)
+      : group.activeTab;
+  return replaceGroup(layout, groupIndex, { ...group, tabs, activeTab });
+}
+
+/** The tab that takes the place of a closed one, for the focus (null: the group has none left). */
+export function neighbourOf(
+  layout: ShellLayout,
+  groupIndex: number,
+  tabId: string,
+): string | null {
+  const tabs = layout.editor.groups[groupIndex]?.tabs ?? [];
+  const at = tabs.findIndex((tab) => tab.id === tabId);
+  return tabs[at + 1]?.id ?? tabs[at - 1]?.id ?? null;
+}
+
+/** Closes an editor group that has no tabs; the last group and a group with tabs stay. */
+export function closeEmptyGroup(
+  layout: ShellLayout,
+  groupIndex: number,
+): ShellLayout {
+  const { groups } = layout.editor;
+  const group = groups[groupIndex];
+  if (group === undefined || group.tabs.length > 0 || groups.length <= 1) {
+    return layout;
+  }
+  const kept = groups.filter((_, i) => i !== groupIndex);
+  const active = layout.editor.activeGroup;
+  return {
+    ...layout,
+    editor: {
+      ...layout.editor,
+      groups: kept,
+      activeGroup: Math.min(
+        active > groupIndex ? active - 1 : active,
+        kept.length - 1,
+      ),
+    },
+  };
+}
+
+export const setOrientation = (
+  layout: ShellLayout,
+  orientation: 'row' | 'column',
+): ShellLayout =>
+  layout.editor.orientation === orientation
+    ? layout
+    : { ...layout, editor: { ...layout.editor, orientation } };

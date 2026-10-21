@@ -1,6 +1,7 @@
 // The shell as the specs mount it: the real route table and i18n providers, a fake engine behind
 // the real `EngineApi` that stores layouts per connection, a manual clock for the save delay and
 // a translation loader chosen by the spec.
+import { ApplicationRef, type Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -32,6 +33,7 @@ export async function mountShell(
   loaders: ScopeLoaders = markerLoaders(),
   layouts: LayoutBackend = new LayoutBackend(),
   viewport?: Viewport,
+  extra: readonly Provider[] = [],
 ): Promise<ShellTestbed> {
   const timer = new ManualTimer();
   TestBed.configureTestingModule({
@@ -40,6 +42,7 @@ export async function mountShell(
       provideI18n(),
       ...layoutProviders(layouts, timer, viewport),
       { provide: SCOPE_LOADERS, useValue: loaders },
+      ...extra,
     ],
   });
   return {
@@ -62,6 +65,8 @@ export async function visit(bed: ShellTestbed, url: string): Promise<void> {
 
 /** Waits until what is routed has stopped changing (after a visit, or after the spec acted). */
 export async function settleShell(bed: ShellTestbed): Promise<void> {
+  // Navigations and requests are pending tasks of the application; wait for them first.
+  await TestBed.inject(ApplicationRef).whenStable();
   let previous = '';
   await waitFor(() => {
     bed.harness.detectChanges();

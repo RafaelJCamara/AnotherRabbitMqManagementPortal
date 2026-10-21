@@ -5,27 +5,24 @@ import {
   computed,
   effect,
   inject,
-  signal,
   untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterOutlet } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
 import { ActiveConnection, parseConnectionParam } from './active-connection';
 import { ActivityBar, ACTIVITY_ENTRIES } from './activity-bar/activity-bar';
 import { BottomPanel } from './bottom-panel/bottom-panel';
-import {
-  FIT,
-  panelBounds,
-  sidebarBounds,
-  type Viewport,
-} from './layout/fit-layout';
+import { ExplorerTree } from './explorer-tree/explorer-tree';
+import { FIT, panelBounds, sidebarBounds } from './layout/fit-layout';
 import { setPanelHeight, setSidebarWidth } from './layout/layout-ops';
-import { ShellLayoutStore, VIEWPORT } from './layout/shell-layout-store';
+import { ShellLayoutStore } from './layout/shell-layout-store';
+import { ShellViewport } from './layout/shell-viewport';
 import { LayoutNotices } from './notices/layout-notices';
 import { Splitter } from './splitter/splitter';
+import { EditorGroups } from './tabs/editor-groups';
 import { NoConnection } from './views/no-connection';
 
 /**
@@ -41,9 +38,10 @@ import { NoConnection } from './views/no-connection';
   imports: [
     ActivityBar,
     BottomPanel,
+    EditorGroups,
+    ExplorerTree,
     LayoutNotices,
     NoConnection,
-    RouterOutlet,
     Splitter,
     TranslocoPipe,
   ],
@@ -59,21 +57,20 @@ import { NoConnection } from './views/no-connection';
 export class Shell {
   readonly #connection = inject(ActiveConnection);
   readonly #store = inject(ShellLayoutStore);
-  readonly #viewportOf = inject(VIEWPORT);
+  readonly #viewport = inject(ShellViewport);
   readonly #param = toSignal(
     inject(ActivatedRoute).paramMap.pipe(map((params) => params.get('cid'))),
     { initialValue: null },
   );
-  readonly #viewport = signal<Viewport>(this.#viewportOf());
 
   protected readonly cid = computed(() => parseConnectionParam(this.#param()));
   protected readonly layout = this.#store.layout;
   protected readonly frame = FIT;
   protected readonly sidebarBounds = computed(() =>
-    sidebarBounds(this.layout(), this.#viewport()),
+    sidebarBounds(this.layout(), this.#viewport.size()),
   );
   protected readonly panelBounds = computed(() =>
-    panelBounds(this.layout(), this.#viewport()),
+    panelBounds(this.layout(), this.#viewport.size()),
   );
   /** The title of the sidebar's active container; unknown ids show the first entry's. */
   protected readonly sidebarTitle = computed(() => {
@@ -97,7 +94,7 @@ export class Shell {
   }
 
   protected onResize(): void {
-    this.#viewport.set(this.#viewportOf());
+    this.#viewport.refresh();
     this.#store.fit();
   }
 

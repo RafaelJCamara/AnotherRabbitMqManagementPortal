@@ -15,6 +15,7 @@ import {
 import type { TransportRequest, TransportResponse } from '@app/ui-platform';
 
 import type { Viewport } from './fit-layout';
+import type { ShellLayout } from './shell-layout';
 import { LAYOUT_TIMER, VIEWPORT, type LayoutTimer } from './shell-layout-store';
 
 export const cidOf = (value: string): ConnectionId =>
@@ -120,4 +121,34 @@ export function layoutProviders(
     { provide: LAYOUT_TIMER, useValue: timer.timer },
     { provide: VIEWPORT, useValue: () => viewport },
   ];
+}
+
+/** Three tabs in the first editor group and one in the second, sizes that fit 1280x720. */
+export function twoGroupLayout(cid: string): ShellLayout {
+  const tab = (id: string, path: string, label: string) => ({
+    id,
+    url: `/c/${cid}/${path}`,
+    label,
+  });
+  return {
+    version: 1,
+    sidebar: { visible: true, width: 260, active: 'explorer' },
+    editor: {
+      orientation: 'row',
+      groups: [
+        {
+          weight: 600,
+          tabs: [
+            tab('t1', 'explorer', 'One'),
+            tab('t2', 'two', 'Two'),
+            tab('t3', 'three', 'Three'),
+          ],
+          activeTab: 't2',
+        },
+        { weight: 348, tabs: [tab('t4', 'four', 'Four')], activeTab: 't4' },
+      ],
+      activeGroup: 0,
+    },
+    panel: { visible: false, height: 200, active: 'jobs' },
+  };
 }

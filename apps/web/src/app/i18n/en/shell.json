@@ -26,6 +26,24 @@
       "output": "Output"
     }
   },
+  "tree": {
+    "label": "Explorer tree",
+    "truncated": "The list is longer than the tree shows."
+  },
+  "tabs": {
+    "list": "Open tabs",
+    "close": "Close"
+  },
+  "editor": {
+    "group": "Editor group {{index}}",
+    "body": "Editor",
+    "split": "Split editor",
+    "orientation": "Switch split direction",
+    "closeGroup": "Close group",
+    "resize": "Resize the editor groups",
+    "inactive": "Select a tab in this group to show it here.",
+    "emptyGroup": "Open something from the explorer to add a tab to this group."
+  },
   "notice": {
     "absent": "No saved layout for this connection yet. The default layout is shown.",
     "invalid": "The saved layout could not be used. The default layout is shown and the saved one is kept until you change the layout.",

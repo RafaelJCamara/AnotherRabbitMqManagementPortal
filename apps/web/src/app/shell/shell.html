@@ -11,6 +11,7 @@
     @if (sidebarTitle(); as titleKey) {
     <h2>{{ titleKey | transloco }}</h2>
     }
+    <app-explorer-tree />
   </aside>
   <app-splitter
     class="sidebar-splitter"
@@ -26,7 +27,7 @@
     <app-layout-notices />
     <main class="workspace" [attr.aria-label]="'shell.workspace' | transloco">
       @if (cid() !== null) {
-      <router-outlet />
+      <app-editor-groups />
       } @else {
       <app-no-connection />
       }

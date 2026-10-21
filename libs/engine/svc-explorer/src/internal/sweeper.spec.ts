@@ -21,7 +21,7 @@ describe('explorer sweeper', () => {
       r.path.startsWith('/api/queues/'),
     );
     const others = broker.requests.filter((r) => !lists.includes(r));
-    expect(outcome).toMatchObject({ ended: 'complete', requests: 45 });
+    expect(outcome).toMatchObject({ ended: 'complete', requests: 46 });
     expect(lists).toHaveLength(40);
     for (const r of lists) {
       expect(typeof r.query.page).toBe('number');
@@ -32,17 +32,24 @@ describe('explorer sweeper', () => {
       });
     }
     expect(broker.requests.every((r) => r.lane === 'background')).toBe(true);
-    // The vhost list is asked once and unpaged; the rest are 4 exchange lists, all paged.
+    // The vhost list is asked once and unpaged; the rest are 4 exchange lists and the one global
+    // connection list, all paged (the connection list has no queue totals to ask for).
     expect(others.map((r) => r.path)).toEqual([
       '/api/vhosts',
       ...broker.vhosts.map((v) => `/api/exchanges/${encodeURIComponent(v)}`),
+      '/api/connections',
     ]);
     expect(others[0]?.query).toEqual({});
     expect(others.slice(1).every((r) => r.query.page === 1)).toBe(true);
+    expect(others.at(-1)?.query).toEqual({
+      page: 1,
+      page_size: 500,
+      disable_stats: true,
+    });
     expect(
       new Set(broker.requests.map((r) => r.path + JSON.stringify(r.query)))
         .size,
-    ).toBe(45);
+    ).toBe(46);
     expect(sweeper.index(cid)?.window(first).total).toBe(20_000);
   });
 

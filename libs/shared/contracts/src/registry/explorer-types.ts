@@ -6,10 +6,10 @@ import { z } from 'zod';
 import { ObjectKeySchema } from '../brands.ts';
 
 /** The kinds the background sweep reads whole into the index (and the live topic follows). */
-export const SWEPT_KINDS = ['queues', 'exchanges'] as const;
+export const SWEPT_KINDS = ['queues', 'exchanges', 'connections'] as const;
 export type SweptKind = (typeof SWEPT_KINDS)[number];
-// 'connections' (cut from slice A, budget) follows in its own slice. 'bindings' is served per
-// vhost, on demand, outside the sweep (slice H): a query for it must name exactly one vhost.
+// 'bindings' is served per vhost, on demand, outside the sweep (slice H): a query for it must name
+// exactly one vhost.
 export const INVENTORY_KINDS = [...SWEPT_KINDS, 'bindings'] as const;
 export type InventoryKind = (typeof INVENTORY_KINDS)[number];
 
@@ -109,6 +109,25 @@ export const ExchangeRowSchema = z.strictObject({
   durable: z.boolean().optional(),
   autoDelete: z.boolean().optional(),
   internal: z.boolean().optional(),
+});
+
+/**
+ * One connection, as the broker listed it. Every field but `key` and `name` is absent when the
+ * broker did not send it, never defaulted: with statistics off a broker below 4.2.6 sends the name,
+ * vhost, user and node only (the capability `connectionStaticInfoWithStatsOff`). The key is the
+ * object key of the vhost (the empty vhost when absent) and the name.
+ */
+export const ConnectionRowSchema = z.strictObject({
+  key: ObjectKeySchema,
+  vhost: z.string().optional(),
+  name: z.string(),
+  user: z.string().optional(),
+  node: z.string().optional(),
+  state: z.string().optional(),
+  protocol: z.string().optional(),
+  channels: count.optional(),
+  peerHost: z.string().optional(),
+  ssl: z.boolean().optional(),
 });
 
 /**

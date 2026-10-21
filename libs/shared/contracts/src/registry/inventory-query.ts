@@ -7,6 +7,7 @@ import { ConnectionIdSchema } from '../brands.ts';
 import { defineAction } from '../kit/define-action.ts';
 import {
   BindingRowSchema,
+  ConnectionRowSchema,
   ExchangeRowSchema,
   INVENTORY_KINDS,
   InventoryFilterSchema,
@@ -35,6 +36,11 @@ export const InventoryQueryOutputSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('exchanges'),
     rows: z.array(ExchangeRowSchema).max(WINDOW_LIMIT_MAX),
+    ...windowMeta,
+  }),
+  z.strictObject({
+    kind: z.literal('connections'),
+    rows: z.array(ConnectionRowSchema).max(WINDOW_LIMIT_MAX),
     ...windowMeta,
   }),
   z.strictObject({

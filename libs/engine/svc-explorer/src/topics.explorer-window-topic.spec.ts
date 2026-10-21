@@ -115,11 +115,17 @@ interface Item {
 }
 
 /** A scripted broker whose answers a spec changes between sweeps: hide queues, set their counts. */
-function setup(queueCount: number, vhostCount: number, exchanges = 0) {
+function setup(
+  queueCount: number,
+  vhostCount: number,
+  exchanges = 0,
+  connections = 0,
+) {
   const broker: ScriptedBroker = createScriptedBroker({
     queueCount,
     vhostCount,
     exchangesPerVhost: exchanges,
+    connectionCount: connections,
   });
   const hidden = new Set<string>();
   const messages = new Map<string, number>();
@@ -127,7 +133,10 @@ function setup(queueCount: number, vhostCount: number, exchanges = 0) {
     async get<T>(request: MgmtGetRequest<T>, signal: AbortSignal) {
       const out = await broker.read.get(request, signal);
       const page = out as { items?: { name: string }[] };
-      if (/^\/api\/(queues|exchanges)\//.test(request.path) && page.items) {
+      if (
+        /^\/api\/(queues\/|exchanges\/|connections$)/.test(request.path) &&
+        page.items
+      ) {
         page.items = page.items
           .filter((item) => !hidden.has(item.name))
           .map((item) =>
@@ -318,7 +327,7 @@ describe('explorer.window source', () => {
   });
 
   it('AC-18 explorer.window removes gone keys and signals a membership change with a version marker', async () => {
-    const w = setup(1_050, 2, 2);
+    const w = setup(1_050, 2, 2, 20);
     for (let i = 1_000; i < 1_050; i++) w.hidden.add(queueName(i));
     const spy = spied(createWindowSource(w.deps));
     const { client } = open(w.deps, spy.source);
@@ -359,6 +368,47 @@ describe('explorer.window source', () => {
     expect(rest).toEqual([]);
     expect(frame?.removes).toEqual([w.keyOf(7)]);
     expect(frame?.upserts).toEqual([{ key: '~version', version }]);
+
+    // The connections kind follows the same rules: the visible rows arrive without their key, a
+    // visible connection that left is removed, and the marker says membership changed.
+    const connectionName = (i: number) =>
+      `connection-${String(i).padStart(6, '0')}`;
+    const connectionKey = (i: number) =>
+      encodeObjectKey(w.broker.vhosts[i % 2] ?? '', connectionName(i));
+    const watched = Array.from({ length: 5 }, (_, i) => connectionKey(i));
+    const got: WindowItem[] = [];
+    const gone: string[] = [];
+    const stop = createWindowSource(w.deps).subscribe(
+      topic.params.parse(watch(watched, 'connections')),
+      createTestPrincipal(),
+      {
+        publish: (item) => got.push(item),
+        remove: (key) => gone.push(key),
+        end: () => undefined,
+      },
+    );
+    await w.deps.timers.settle();
+    expect(got.map((item) => item.key).sort()).toEqual(
+      [...watched, '~version'].sort(),
+    );
+    expect(got.find((item) => item.key === connectionKey(2))?.row).toEqual({
+      vhost: w.broker.vhosts[0],
+      name: connectionName(2),
+      user: 'guest',
+      node: 'rabbit@fake',
+      state: 'running',
+      protocol: 'AMQP 0-9-1',
+      channels: 2,
+      peerHost: '192.0.2.3',
+      ssl: false,
+    });
+    got.length = 0;
+    w.hidden.add(connectionName(1));
+    w.hidden.add(connectionName(15)); // gone as well, but not on screen
+    await w.sweep();
+    stop();
+    expect(gone).toEqual([connectionKey(1)]);
+    expect(got.map((item) => item.key)).toEqual(['~version']);
   });
 
   it('AC-19 explorer.window snapshot fits one frame and overflow becomes a gap then a snapshot', async () => {

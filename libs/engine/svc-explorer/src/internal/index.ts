@@ -11,7 +11,7 @@ import type { z } from 'zod';
 
 import type { ExplorerLimits } from '../deps';
 
-import type { IndexRow, QueueRow } from './rows';
+import type { IndexRow, QueueRow, RowOf } from './rows';
 
 type InventoryFilter = z.infer<typeof InventoryFilterSchema>;
 type InventorySort = z.infer<typeof InventorySortSchema>;
@@ -91,7 +91,7 @@ export interface InventoryIndex {
   };
   byKeys(kind: SweptKind, keys: readonly string[]): readonly IndexRow[];
   /** The rows of the current version of a kind, in sweep order (empty until installed). Read only. */
-  rows(kind: SweptKind): readonly IndexRow[];
+  rows<K extends SweptKind>(kind: K): readonly RowOf<K>[];
   /**
    * The message counts of the current queues, summed in one pass (no sort, no window). A queue
    * that did not report a count adds nothing and is counted in `unreported`; undefined until the
@@ -124,7 +124,7 @@ const ROW_OVERHEAD_BYTES = 256;
 
 /** A cheap estimate: a fixed overhead plus two bytes per character of the strings. */
 function rowBytes(row: IndexRow): number {
-  return ROW_OVERHEAD_BYTES + 2 * (row.name.length + row.vhost.length);
+  return ROW_OVERHEAD_BYTES + 2 * (row.name.length + (row.vhost ?? '').length);
 }
 
 function sameRow(a: IndexRow, b: IndexRow): boolean {
@@ -145,11 +145,13 @@ function matcher(
   const states = filter.states && new Set(filter.states);
   return (row) => {
     const q = row as Partial<QueueRow>;
+    // The facet `types` is the queue type, the exchange type or, for a connection, the protocol.
+    const type = q.type ?? (row as { protocol?: string }).protocol;
     return (
       (text === undefined || row.name.toLowerCase().includes(text)) &&
-      (vhosts === undefined || vhosts.has(row.vhost)) &&
-      (types === undefined ||
-        (row.type !== undefined && types.has(row.type))) &&
+      (vhosts === undefined ||
+        (row.vhost !== undefined && vhosts.has(row.vhost))) &&
+      (types === undefined || (type !== undefined && types.has(type))) &&
       (states === undefined ||
         (q.state !== undefined && states.has(q.state))) &&
       (filter.hasConsumers === undefined ||
@@ -335,7 +337,8 @@ export function createInventoryIndex(
       const lookup = data.byKey;
       return keys.flatMap((k) => lookup.get(k) ?? []);
     },
-    rows: (kind) => current.kinds[kind]?.rows ?? [],
+    rows: <K extends SweptKind>(kind: K) =>
+      (current.kinds[kind]?.rows ?? []) as readonly RowOf<K>[],
     queueTotals() {
       const data = current.kinds.queues;
       if (data === undefined) return undefined;

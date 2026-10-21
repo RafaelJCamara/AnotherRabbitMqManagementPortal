@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { ConnectionIdSchema } from '../brands.ts';
 import { defineTopic } from '../kit/define-topic.ts';
 import {
+  ConnectionRowSchema,
   ExchangeRowSchema,
   QueueRowSchema,
   SWEPT_KINDS,
@@ -46,6 +47,7 @@ export const ExplorerWindowItemSchema = z.strictObject({
     .union([
       QueueRowSchema.omit({ key: true }),
       ExchangeRowSchema.omit({ key: true }),
+      ConnectionRowSchema.omit({ key: true }),
     ])
     .optional(),
 });

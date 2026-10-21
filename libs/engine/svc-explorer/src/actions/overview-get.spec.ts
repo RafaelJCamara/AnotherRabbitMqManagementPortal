@@ -156,6 +156,7 @@ function indexOf(queues: RawQueue[], complete = true) {
   index.installAll([
     { kind: 'queues', rows: queues.map(queueRow), meta },
     { kind: 'exchanges', rows: [], meta },
+    { kind: 'connections', rows: [], meta },
   ]);
   return index;
 }

@@ -10,7 +10,7 @@ import type { BindingsStore } from '../internal/bindings';
 import { describeFreshness, UNAVAILABLE_VERSION } from '../internal/freshness';
 import type { Sweeper } from '../internal/sweeper';
 import { readProfile } from '../internal/profile';
-import type { ExchangeRow, QueueRow } from '../internal/rows';
+import type { ConnectionRow, ExchangeRow, QueueRow } from '../internal/rows';
 import { requireVisible } from '../internal/visible';
 
 /** The ports this action reads through: a subset of the module's deps (src/deps.ts) and the sweeper. */
@@ -42,6 +42,17 @@ const SORT_COLUMNS: Readonly<Record<InventoryKind, readonly string[]>> = {
     'deliveryLimit',
   ],
   exchanges: ['name', 'vhost', 'type', 'durable', 'autoDelete', 'internal'],
+  connections: [
+    'name',
+    'vhost',
+    'user',
+    'node',
+    'state',
+    'protocol',
+    'channels',
+    'peerHost',
+    'ssl',
+  ],
   bindings: ['source', 'destination', 'destinationType', 'routingKey', 'vhost'],
 };
 
@@ -130,8 +141,10 @@ export const createInventoryQueryAction: (
       };
       // The index holds only rows of the kind that was asked for here.
       const rows = read?.rows ?? [];
-      return kind === 'queues'
-        ? { kind, rows: rows as QueueRow[], ...meta }
-        : { kind, rows: rows as ExchangeRow[], ...meta };
+      if (kind === 'queues') return { kind, rows: rows as QueueRow[], ...meta };
+      if (kind === 'exchanges') {
+        return { kind, rows: rows as ExchangeRow[], ...meta };
+      }
+      return { kind, rows: rows as ConnectionRow[], ...meta };
     },
   });

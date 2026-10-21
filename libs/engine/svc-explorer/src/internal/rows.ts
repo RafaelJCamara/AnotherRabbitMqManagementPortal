@@ -5,15 +5,24 @@ import {
   BINDING_ARGUMENTS_KEY_MAX,
   encodeObjectKey,
   type BindingRowSchema,
+  type ConnectionRowSchema,
   type ExchangeRowSchema,
   type QueueRowSchema,
+  type SweptKind,
 } from '@app/contracts';
 import { z } from 'zod';
 
 export type QueueRow = z.infer<typeof QueueRowSchema>;
 export type ExchangeRow = z.infer<typeof ExchangeRowSchema>;
+export type ConnectionRow = z.infer<typeof ConnectionRowSchema>;
 /** The rows of the swept index; bindings are served per vhost by `bindings.ts`. */
-export type IndexRow = QueueRow | ExchangeRow;
+export type IndexRow = QueueRow | ExchangeRow | ConnectionRow;
+/** The row type of one swept kind. */
+export type RowOf<K extends SweptKind> = K extends 'queues'
+  ? QueueRow
+  : K extends 'exchanges'
+    ? ExchangeRow
+    : ConnectionRow;
 export type BindingRow = z.infer<typeof BindingRowSchema>;
 
 /** The most items a management page carries (the adapter's page ceiling). */
@@ -48,6 +57,19 @@ const MgmtExchangeSchema = z.object({
   durable: flag,
   auto_delete: flag,
   internal: flag,
+});
+
+// What `disable_stats` leaves a connection: below 4.2.6 only the name, vhost, user and node.
+const MgmtConnectionSchema = z.object({
+  name: z.string(),
+  vhost: text,
+  user: text,
+  node: text,
+  state: text,
+  protocol: text,
+  channels: count,
+  peer_host: text,
+  ssl: flag,
 });
 
 const MgmtBindingSchema = z.object({
@@ -92,6 +114,7 @@ const bindingAnswer = z.union([
 // One schema object per kind: the scheduler dedupes reads by the identity of the schema.
 export const QueuePageSchema = page(MgmtQueueSchema);
 export const ExchangePageSchema = page(MgmtExchangeSchema);
+export const ConnectionPageSchema = page(MgmtConnectionSchema);
 export const BindingPageSchema = bindingAnswer;
 export const VhostListSchema = z.array(z.object({ name: z.string() }));
 
@@ -164,6 +187,24 @@ export function bindingRow(raw: z.infer<typeof MgmtBindingSchema>): BindingRow {
     argumentsKey:
       full === '' ? undefined : full.slice(0, BINDING_ARGUMENTS_KEY_MAX),
     argumentsTruncated: cut ? true : undefined,
+  });
+}
+
+/** A connection with no vhost keys under the empty vhost; every field the broker left out is absent. */
+export function connectionRow(
+  raw: z.infer<typeof MgmtConnectionSchema>,
+): ConnectionRow {
+  return present<ConnectionRow>({
+    key: encodeObjectKey(raw.vhost ?? '', raw.name),
+    vhost: raw.vhost,
+    name: raw.name,
+    user: raw.user,
+    node: raw.node,
+    state: raw.state,
+    protocol: raw.protocol,
+    channels: raw.channels,
+    peerHost: raw.peer_host,
+    ssl: raw.ssl,
   });
 }
 

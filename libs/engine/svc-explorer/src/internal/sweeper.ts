@@ -28,6 +28,8 @@ import {
   type InventoryIndex,
 } from './index';
 import {
+  ConnectionPageSchema,
+  connectionRow,
   ExchangePageSchema,
   exchangeRow,
   QueuePageSchema,
@@ -160,9 +162,26 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
         outcome.serverTimeMs += clock.monotonic() - began;
       }
     };
-    const readPage = async (kind: SweptKind, vhost: string, n: number) => {
-      const path = `/api/${kind}/${encodeURIComponent(vhost)}`;
+    // `vhost` is undefined for the connections: one global list, not one per vhost.
+    const readPage = async (
+      kind: SweptKind,
+      vhost: string | undefined,
+      n: number,
+    ) => {
       const query = { page: n, page_size: pageSize, disable_stats: true };
+      if (kind === 'connections' || vhost === undefined) {
+        const answer = await get(
+          '/api/connections',
+          query,
+          ConnectionPageSchema,
+        );
+        return {
+          rows: answer.items.map(connectionRow),
+          pages: answer.page_count,
+          total: answer.total_count,
+        };
+      }
+      const path = `/api/${kind}/${encodeURIComponent(vhost)}`;
       if (kind === 'queues') {
         const answer = await get(
           path,
@@ -195,7 +214,9 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
         const staging: IndexRow[] = [];
         let overflow = 0;
         let counted: number | undefined = 0;
-        for (const vhost of vhosts) {
+        // The connection list spans every vhost, so skipped vhosts do not make it partial.
+        const whole = kind === 'connections' || outcome.skippedVhosts === 0;
+        for (const vhost of kind === 'connections' ? [undefined] : vhosts) {
           for (let n = 1; ; n++) {
             const { rows, pages, total } = await readPage(kind, vhost, n);
             if (n === 1) {
@@ -218,7 +239,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
             if (n >= pages || rows.length === 0) break;
           }
         }
-        if (counted !== undefined && outcome.skippedVhosts === 0) {
+        if (counted !== undefined && whole) {
           state.expected.set(kind, counted);
         } else {
           state.expected.delete(kind);
@@ -228,7 +249,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
           rows: staging,
           meta: {
             sweptAt,
-            complete: outcome.skippedVhosts === 0,
+            complete: whole,
             extraDropped: overflow,
           },
         };

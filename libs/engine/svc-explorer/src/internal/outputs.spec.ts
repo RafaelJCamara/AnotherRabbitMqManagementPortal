@@ -53,6 +53,7 @@ describe('explorer outputs', () => {
       queueCount: 30,
       vhostCount: 2,
       exchangesPerVhost: 2,
+      connectionCount: 6,
     });
     const recording = golden('4.2.9', 'stats-off');
     const healthy = withRoutes(scripted, recording);
@@ -111,6 +112,7 @@ describe('explorer outputs', () => {
     const everything = async () => {
       await ask(inventoryQuery, { kind: 'queues', window: page });
       await ask(inventoryQuery, { kind: 'exchanges', window: page });
+      await ask(inventoryQuery, { kind: 'connections', window: page });
       await ask(overviewGet, {});
       await ask(searchQuery, { text: 'queue' });
       await ask(searchQuery, { text: 'e', kinds: ['exchanges'] });
@@ -147,16 +149,29 @@ describe('explorer outputs', () => {
       end: (problem: unknown) => seen.push(problem),
     };
     const principal = createTestPrincipal();
-    const params = (cid: string) =>
-      explorerWindowTopic.params.parse({ cid, kind: 'queues', keys: visible });
+    const params = (cid: string, kind = 'queues', keys = visible) =>
+      explorerWindowTopic.params.parse({ cid, kind, keys });
+    const connectionKeys = (
+      rows?.window({ kind: 'connections', offset: 0, limit: 4 }).rows ?? []
+    ).map((row) => row.key);
     const stops = [
       source.subscribe(params('c1'), principal, sink),
       source.subscribe(params('c2'), principal, sink),
+      source.subscribe(
+        params('c1', 'connections', connectionKeys),
+        principal,
+        sink,
+      ),
     ];
     await deps.timers.settle();
     seen.push(source.snapshot(params('c1'), principal).value);
+    seen.push(
+      source.snapshot(params('c1', 'connections', connectionKeys), principal)
+        .value,
+    );
     for (const stop of stops) stop();
     expect(visible).toHaveLength(5);
+    expect(connectionKeys).toHaveLength(4);
 
     const text = JSON.stringify(seen);
     expect(text.length).toBeGreaterThan(5_000);

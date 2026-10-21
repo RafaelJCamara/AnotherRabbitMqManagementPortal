@@ -31,6 +31,7 @@ export interface ScriptedBroker {
   /** The vhosts the broker holds, in the order `/api/vhosts` lists them. */
   readonly vhosts: readonly string[];
   readonly queueCount: number;
+  readonly connectionCount: number;
   /**
    * Called with every request and its 1-based ordinal before it is answered: return an error to
    * fail it (its text is broker text, which no output may carry). Settable by a spec.
@@ -54,7 +55,8 @@ export function brokerFailure(status = 503): Error {
 /**
  * A management API with `queueCount` queues spread evenly across `vhostCount` vhosts (and
  * `exchangesPerVhost` exchanges in each). `/api/queues` (all vhosts), `/api/queues/{vhost}` and
- * `/api/exchanges/{vhost}` answer the paged envelope (`page`, `page_size`, ceiling 500);
+ * `/api/exchanges/{vhost}` answer the paged envelope (`page`, `page_size`, ceiling 500), and so does
+ * `/api/connections` (all vhosts, `connectionCount` connections across the vhosts);
  * `/api/vhosts` answers a bare array; `/api/overview`, `/api/nodes` and `/api/health/checks/alarms`
  * answer a statistics-off single node; every other path answers 404, like a broker without the
  * endpoint. Every request is recorded.
@@ -64,6 +66,8 @@ export function createScriptedBroker(
     queueCount?: number;
     vhostCount?: number;
     exchangesPerVhost?: number;
+    /** Connections across all vhosts (default none). */
+    connectionCount?: number;
     /** Bindings in every vhost (a number), or in the named vhosts (a record; the others hold none). */
     bindingsPerVhost?: number | Readonly<Record<string, number>>;
     /** `bare`: `/api/bindings/{vhost}` answers every binding as a bare array, as RabbitMQ does (default `paged`). */
@@ -71,6 +75,7 @@ export function createScriptedBroker(
   } = {},
 ): ScriptedBroker {
   const queueCount = options.queueCount ?? 0;
+  const connectionCount = options.connectionCount ?? 0;
   const vhostCount = Math.max(1, options.vhostCount ?? 1);
   const exchangeCount = options.exchangesPerVhost ?? 0;
   const bindingCount = (vhost: string): number =>
@@ -86,6 +91,17 @@ export function createScriptedBroker(
     type: 'classic',
     durable: true,
     messages: i % 100,
+  });
+  const connection = (i: number) => ({
+    name: `connection-${String(i).padStart(6, '0')}`,
+    vhost: vhosts[i % vhostCount],
+    user: i % 2 === 0 ? 'guest' : 'app',
+    node: 'rabbit@fake',
+    state: i % 4 === 0 ? 'blocked' : 'running',
+    protocol: i % 3 === 0 ? 'AMQP 1.0' : 'AMQP 0-9-1',
+    channels: i % 5,
+    peer_host: `192.0.2.${String((i % 250) + 1)}`,
+    ssl: i % 7 === 0,
   });
   const requests: RecordedRequest[] = [];
 
@@ -147,7 +163,7 @@ export function createScriptedBroker(
               object_totals: {
                 queues: queueCount,
                 exchanges: exchangeCount * vhostCount,
-                connections: 0,
+                connections: connectionCount,
               },
             }),
           );
@@ -161,6 +177,9 @@ export function createScriptedBroker(
         }
         if (request.path === '/api/health/checks/alarms') {
           return Promise.resolve(request.schema.parse({ status: 'ok' }));
+        }
+        if (request.path === '/api/connections') {
+          return Promise.resolve(paged(request, connectionCount, connection));
         }
         if (request.path === '/api/queues') {
           return Promise.resolve(paged(request, queueCount, queue));
@@ -215,6 +234,7 @@ export function createScriptedBroker(
     requests,
     vhosts,
     queueCount,
+    connectionCount,
   };
   return broker;
 }
@@ -297,6 +317,7 @@ export function createExplorerFakeDeps(
     queueCount?: number;
     vhostCount?: number;
     exchangesPerVhost?: number;
+    connectionCount?: number;
     bindingsPerVhost?: number | Readonly<Record<string, number>>;
     bindingsAnswer?: 'paged' | 'bare';
     /** The connection has a cached profile, as after a probe (default true). */

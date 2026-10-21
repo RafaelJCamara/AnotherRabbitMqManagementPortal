@@ -91,12 +91,32 @@ function exchangesOf(broker: ScriptedBroker, perVhost: number): Row[] {
   );
 }
 
+function connectionsOf(broker: ScriptedBroker): Row[] {
+  return Array.from({ length: broker.connectionCount }, (_, i) => {
+    const vhost = broker.vhosts[i % broker.vhosts.length] ?? '';
+    const name = `connection-${String(i).padStart(6, '0')}`;
+    return {
+      key: encodeObjectKey(vhost, name),
+      vhost,
+      name,
+      user: i % 2 === 0 ? 'guest' : 'app',
+      node: 'rabbit@fake',
+      state: i % 4 === 0 ? 'blocked' : 'running',
+      protocol: i % 3 === 0 ? 'AMQP 1.0' : 'AMQP 0-9-1',
+      channels: i % 5,
+      peerHost: `192.0.2.${String((i % 250) + 1)}`,
+      ssl: i % 7 === 0,
+    };
+  });
+}
+
 interface Spec {
   filter?:
     | {
         text?: string;
         vhosts?: string[];
         types?: string[];
+        states?: string[];
         minMessages?: number;
       }
     | undefined;
@@ -104,8 +124,11 @@ interface Spec {
   offset: number;
   limit: number;
 }
-/** Filter, sort (the key breaks ties) and slice, the plain way. */
-function reference(rows: Row[], spec: Spec) {
+/**
+ * Filter, sort (the key breaks ties) and slice, the plain way. The `types` facet is the field
+ * named by `typeField`: the type of a queue or exchange, the protocol of a connection.
+ */
+function reference(rows: Row[], spec: Spec, typeField = 'type') {
   const text = spec.filter?.text?.toLowerCase();
   const kept = rows.filter(
     (r) =>
@@ -113,7 +136,9 @@ function reference(rows: Row[], spec: Spec) {
       (spec.filter?.vhosts === undefined ||
         spec.filter.vhosts.includes(String(r.vhost))) &&
       (spec.filter?.types === undefined ||
-        spec.filter.types.includes(String(r.type))) &&
+        spec.filter.types.includes(String(r[typeField]))) &&
+      (spec.filter?.states === undefined ||
+        spec.filter.states.includes(String(r.state))) &&
       (spec.filter?.minMessages === undefined ||
         Number(r.messages ?? -1) >= spec.filter.minMessages),
   );
@@ -141,6 +166,7 @@ describe('explorer inventory.query', () => {
       queueCount: 20_000,
       vhostCount: 4,
       exchangesPerVhost: 3,
+      connectionCount: 1_200,
     });
     await sweepNow();
     const before = deps.broker.requests.length;
@@ -194,6 +220,36 @@ describe('explorer inventory.query', () => {
       expect(answer.rows).toEqual(expected.rows);
       expect(answer).toMatchObject({ kind: 'exchanges', total: 12 });
     }
+    // Connections: the protocol is the `types` facet, a row may lack a vhost, and the columns are its own.
+    const connections = connectionsOf(deps.broker);
+    for (const spec of [
+      { offset: 0, limit: 500 },
+      {
+        offset: 10,
+        limit: 50,
+        filter: { types: ['AMQP 1.0'] },
+        sort: { column: 'channels', dir: 'desc' as const },
+      },
+      {
+        offset: 0,
+        limit: 200,
+        filter: { vhosts: [second], states: ['blocked'] },
+        sort: { column: 'peerHost', dir: 'asc' as const },
+      },
+      { offset: 0, limit: 20, filter: { text: 'CONNECTION-0001' } },
+      { offset: 0, limit: 30, sort: { column: 'ssl', dir: 'desc' as const } },
+    ] satisfies Spec[]) {
+      const { offset, limit, ...more } = spec;
+      const answer = await ask(query('connections', { offset, limit }, more));
+      const expected = reference(connections, spec, 'protocol');
+      expect(answer.rows).toEqual(expected.rows);
+      expect(answer).toMatchObject({
+        kind: 'connections',
+        matched: expected.matched,
+        total: 1_200,
+        freshness: { state: 'live', complete: true, loaded: 1_200 },
+      });
+    }
 
     // Not one request to the broker, and a query leaves no audit row and no receipt.
     expect(deps.broker.requests).toHaveLength(before);
@@ -211,9 +267,18 @@ describe('explorer inventory.query', () => {
         ),
       ),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await expect(
+      ask(
+        query(
+          'connections',
+          { offset: 0, limit: 1 },
+          { sort: { column: 'messages', dir: 'asc' } },
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
-  it('AC-7 explorer scrolling is stable on a pinned version and says when the version is gone', async () => {
+  it('AC-7explorer scrolling is stable on a pinned version and says when the version is gone', async () => {
     let broker = createScriptedBroker({ queueCount: 1_200, vhostCount: 2 });
     const hidden = new Set<string>();
     const mgmt: MgmtReadPort = {
@@ -550,5 +615,149 @@ describe('explorer inventory.query', () => {
     const allowed = createExplorerFakeDeps();
     const answer = await as(['operator'], allowed);
     expect(answer.kind).toBe('output');
+  });
+
+  it('AC-27 explorer connections kind is swept, paged and shows only what the broker sent', async () => {
+    const root = join(import.meta.dirname, '..', '..', '..', '..', '..');
+    const recorded = (target: string, mode: string) =>
+      JSON.parse(
+        readFileSync(
+          join(
+            root,
+            'testing/fixtures/mgmt',
+            target,
+            mode,
+            'connections.list.json',
+          ),
+          'utf8',
+        ),
+      ) as { items: Raw[] };
+    /** The scripted broker for everything but the connection list, which answers `list`. */
+    const answering = (list: unknown): MgmtReadPort => {
+      const scripted = createScriptedBroker();
+      return {
+        get<T>(request: MgmtGetRequest<T>, signal: AbortSignal) {
+          return request.path === '/api/connections'
+            ? Promise.resolve(request.schema.parse(list))
+            : scripted.read.get(request, signal);
+        },
+        stream: (request, signal) => scripted.read.stream(request, signal),
+      };
+    };
+    const connectionsOfAnswer = async (
+      list: unknown,
+      hazards: string[] = [],
+    ) => {
+      const { ask, sweepNow } = harness({
+        mgmt: answering(list),
+        profile: { hazards },
+      });
+      await sweepNow();
+      return ask(query('connections', { offset: 0, limit: 500 }));
+    };
+
+    // Swept and paged: one global list (never one per vhost) at 500 per page, statistics off, in
+    // the background lane, and without the queue totals only a queue list can use.
+    const { deps, ask, sweepNow } = harness({
+      connectionCount: 1_100,
+      vhostCount: 3,
+    });
+    const outcome = await sweepNow();
+    const lists = deps.broker.requests.filter((r) =>
+      r.path.startsWith('/api/connections'),
+    );
+    expect(outcome.ended).toBe('complete');
+    expect(lists.map((r) => [r.path, r.query])).toEqual(
+      [1, 2, 3].map((page) => [
+        '/api/connections',
+        { page, page_size: 500, disable_stats: true },
+      ]),
+    );
+    expect(lists.every((r) => r.lane === 'background')).toBe(true);
+    const all = await ask(query('connections', { offset: 1_000, limit: 500 }));
+    expect(all).toMatchObject({
+      kind: 'connections',
+      total: 1_100,
+      matched: 1_100,
+      freshness: {
+        state: 'live',
+        complete: true,
+        loaded: 1_100,
+        expected: 1_100,
+      },
+    });
+    expect(all.rows).toHaveLength(100);
+    expect(
+      (await ask(query('connections', { offset: 0, limit: 1 }))).freshness,
+    ).toMatchObject({ complete: true, hazards: [] });
+
+    // A broker that sends the static information (4.3.6, statistics on): exactly the mapped fields,
+    // a false stays false, and nothing else of the recording (client properties, TLS, counters) leaks.
+    const on = recorded('4.3.6', 'stats-on').items[0] ?? {};
+    const full = await connectionsOfAnswer(recorded('4.3.6', 'stats-on'));
+    expect(full.rows).toEqual([
+      {
+        key: encodeObjectKey(String(on.vhost), String(on.name)),
+        vhost: on.vhost,
+        name: on.name,
+        user: on.user,
+        node: on.node,
+        state: on.state,
+        protocol: on.protocol,
+        channels: on.channels,
+        peerHost: on.peer_host,
+        ssl: false,
+      },
+    ]);
+    expect(JSON.stringify(full)).not.toMatch(
+      /client_properties|auth_mechanism|amqplib|peer_cert/,
+    );
+
+    // A broker that drops it (4.0.9 and 4.2.9, statistics off; the 4.2.9 recording lacks it although
+    // the registry says 4.2.6 and later keep it, OQ-691): the row has the four fields it sent, and
+    // no other is shown, defaulted or guessed. The profile lists a hazard of the queue rows, which
+    // the registry does not tie to connections, so it is not named here.
+    for (const target of ['4.0.9', '4.2.9']) {
+      const off = recorded(target, 'stats-off').items[0] ?? {};
+      const sparse = await connectionsOfAnswer(recorded(target, 'stats-off'), [
+        'stats-off-policy-fields-missing',
+      ]);
+      expect(sparse.rows).toEqual([
+        {
+          key: encodeObjectKey(String(off.vhost), String(off.name)),
+          vhost: off.vhost,
+          name: off.name,
+          user: off.user,
+          node: off.node,
+        },
+      ]);
+      expect(Object.keys(sparse.rows[0] ?? {}).sort()).toEqual([
+        'key',
+        'name',
+        'node',
+        'user',
+        'vhost',
+      ]);
+      expect(sparse.freshness).toMatchObject({ state: 'live', hazards: [] });
+    }
+
+    // No connection at all is an empty, complete list; a connection the broker gave no vhost, and
+    // a field it sent as null, are absent (the key uses the empty vhost).
+    expect(
+      await connectionsOfAnswer(recorded('4.3.6', 'stats-off')),
+    ).toMatchObject({
+      rows: [],
+      total: 0,
+      freshness: { state: 'live', complete: true, loaded: 0 },
+    });
+    const odd = await connectionsOfAnswer({
+      items: [{ name: 'no-vhost', state: null, ssl: null }],
+      page: 1,
+      page_count: 1,
+      total_count: 1,
+    });
+    expect(odd.rows).toEqual([
+      { key: encodeObjectKey('', 'no-vhost'), name: 'no-vhost' },
+    ]);
   });
 });

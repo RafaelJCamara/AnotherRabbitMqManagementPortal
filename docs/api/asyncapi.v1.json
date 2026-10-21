@@ -108,6 +108,44 @@
                       "name"
                     ],
                     "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "channels": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "node": {
+                        "type": "string"
+                      },
+                      "peerHost": {
+                        "type": "string"
+                      },
+                      "protocol": {
+                        "type": "string"
+                      },
+                      "ssl": {
+                        "type": "boolean"
+                      },
+                      "state": {
+                        "type": "string"
+                      },
+                      "user": {
+                        "type": "string"
+                      },
+                      "vhost": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "type": "object"
                   }
                 ]
               },
@@ -144,7 +182,8 @@
               "kind": {
                 "enum": [
                   "queues",
-                  "exchanges"
+                  "exchanges",
+                  "connections"
                 ],
                 "type": "string"
               }

@@ -5,19 +5,22 @@
 import type { SearchKind } from '@app/contracts';
 
 import type { Freshness } from './freshness';
-import type { IndexRow } from './rows';
+import type { ExchangeRow, QueueRow } from './rows';
+
+/** The rows a search covers: both have a vhost (a connection may not, and is not searched). */
+type SearchRow = QueueRow | ExchangeRow;
 
 export type SearchRank = 'exact' | 'prefix' | 'substring';
 
 export interface SearchHit {
   readonly kind: SearchKind;
-  readonly row: IndexRow;
+  readonly row: SearchRow;
   readonly rank: SearchRank;
 }
 
 export interface SearchSource {
   readonly kind: SearchKind;
-  readonly rows: readonly IndexRow[];
+  readonly rows: readonly SearchRow[];
 }
 
 const RANK_ORDER: Readonly<Record<SearchRank, number>> = {

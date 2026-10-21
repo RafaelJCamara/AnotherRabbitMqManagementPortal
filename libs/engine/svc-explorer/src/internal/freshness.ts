@@ -25,6 +25,9 @@ export const REASONS = {
 const ROW_HAZARDS: Readonly<Record<InventoryKind, readonly string[]>> = {
   queues: ['stats-off-policy-fields-missing'],
   exchanges: [],
+  // The registry has a capability (`connectionStaticInfoWithStatsOff`) but no hazard id for the
+  // static connection information that statistics-off drops below 4.2.6, so none is named (OQ-691).
+  connections: [],
   bindings: [],
 };
 

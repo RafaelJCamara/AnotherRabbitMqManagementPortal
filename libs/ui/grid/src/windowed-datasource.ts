@@ -1,4 +1,4 @@
-import { signal, type Signal } from '@angular/core';
+import { computed, signal, type Signal } from '@angular/core';
 
 import {
   GRID_BLOCK_SIZE,
@@ -70,6 +70,8 @@ export class WindowedDatasource<Row> {
   readonly #stats = signal<GridStats>(EMPTY_GRID_STATS);
   readonly #total = signal<number | null>(null);
   readonly #error = signal<unknown>(null);
+  readonly #failed = signal(false);
+  readonly #busy = signal(0); // requests in flight plus requests waiting
   readonly #inflight = new Set<AbortController>();
   readonly #waiting: BlockRequest<Row>[] = [];
   readonly #pending = new Map<string, GridRowChange<Row>>(); // keyed by visible id, so bounded by the visible set
@@ -86,6 +88,10 @@ export class WindowedDatasource<Row> {
   readonly total: Signal<number | null> = this.#total.asReadonly();
   /** The reason of the last failed block, until a retry. */
   readonly error: Signal<unknown> = this.#error.asReadonly();
+  /** True from a failed block until a retry; unlike `error` it holds when the reason was `undefined`. */
+  readonly failed: Signal<boolean> = this.#failed.asReadonly();
+  /** True while a block is in flight or waiting for a slot. */
+  readonly loading: Signal<boolean> = computed(() => this.#busy() > 0);
 
   constructor(opts: WindowedDatasourceOptions<Row>) {
     this.#opts = opts;
@@ -103,6 +109,7 @@ export class WindowedDatasource<Row> {
         return;
       }
       this.#waiting.push(request);
+      this.#syncBusy();
       return;
     }
     this.#start(request);
@@ -111,6 +118,7 @@ export class WindowedDatasource<Row> {
   /** The user asked to load a failed block again: the cache reloads, and the error clears. */
   retry(): void {
     this.#error.set(null);
+    this.#failed.set(false);
     this.#bump('refreshes');
     this.#opts.onRefresh?.();
   }
@@ -132,6 +140,7 @@ export class WindowedDatasource<Row> {
     for (const c of this.#inflight) c.abort();
     this.#inflight.clear();
     this.#waiting.length = 0;
+    this.#syncBusy();
     this.#pending.clear();
     clearTimeout(this.#changeTimer);
     clearTimeout(this.#watchTimer);
@@ -153,10 +162,12 @@ export class WindowedDatasource<Row> {
     }
     const abort = new AbortController();
     this.#inflight.add(abort);
+    this.#syncBusy();
     const { source } = this.#opts;
     const settle = (): void => {
       this.#inflight.delete(abort);
       const next = this.#waiting.shift();
+      this.#syncBusy();
       if (next && !this.#destroyed) this.#start(next);
     };
     source
@@ -198,6 +209,7 @@ export class WindowedDatasource<Row> {
   /** A block fails as a whole: nothing is truncated or shown partly. */
   #failBlock(request: BlockRequest<Row>, reason: unknown): void {
     this.#error.set(reason);
+    this.#failed.set(true);
     this.#bump('blocksFailed');
     request.fail();
   }
@@ -254,6 +266,10 @@ export class WindowedDatasource<Row> {
     this.#bump('refreshes');
     this.#opts.onRefresh?.();
   }
+  #syncBusy(): void {
+    this.#busy.set(this.#inflight.size + this.#waiting.length);
+  }
+
   #bump(key: keyof GridStats): void {
     this.#stats.update((s) => ({ ...s, [key]: s[key] + 1 }));
   }

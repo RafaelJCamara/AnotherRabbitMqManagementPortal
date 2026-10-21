@@ -3,6 +3,14 @@ export { DataGrid } from './data-grid.component';
 export { GRID_MODULE_NAMES, type GridLabels } from './grid-config';
 export { GRID_STYLE_NONCE } from './grid-internals';
 export {
+  GRID_CLIPBOARD,
+  GRID_MAX_COPY_ROWS,
+  type CopyOutcome,
+  type GridClipboard,
+} from './clipboard';
+export { type GridColumnChooserLabels } from './column-chooser';
+export { type GridStatusLabels } from './status-bar';
+export {
   type GridCellTarget,
   type GridMenuItem,
   type GridMenuLabels,

@@ -166,4 +166,20 @@ describe('WindowedDatasource', () => {
     expect(onRefresh).toHaveBeenCalledTimes(2);
     expect(ds.stats().refreshes).toBe(2);
   });
+  it('is loading while a block is in flight or waiting for a slot, and not after', async () => {
+    const source = createFakeWindowSource({ latencyMs: 10 });
+    const ds = new WindowedDatasource({ source, maxConcurrent: 1 });
+    expect(ds.loading()).toBe(false);
+    ds.getRows(block(0));
+    ds.getRows(block(200)); // waits for the slot
+    expect(ds.loading()).toBe(true);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(ds.loading()).toBe(true); // the second block is now in flight
+    await vi.advanceTimersByTimeAsync(10);
+    expect(ds.loading()).toBe(false);
+    ds.getRows(block(400));
+    expect(ds.loading()).toBe(true);
+    ds.destroy();
+    expect(ds.loading()).toBe(false);
+  });
 });

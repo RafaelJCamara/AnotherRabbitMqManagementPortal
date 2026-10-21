@@ -27,6 +27,13 @@ import {
   type GridColumnEntry,
   type GridColumnState,
 } from './column-state';
+import { GridColumnChooser } from './column-chooser';
+import {
+  copyRows,
+  GRID_CLIPBOARD,
+  GRID_MAX_COPY_ROWS,
+  type CopyOutcome,
+} from './clipboard';
 import { resolveColumns, type GridColumn } from './columns';
 import {
   GridContextMenu,
@@ -50,7 +57,12 @@ import {
   matchesChord,
   type GridKeybinding,
 } from './keybindings';
-import { selectRow, type GridSelectionMode } from './selection';
+import {
+  GRID_MAX_SELECTION,
+  selectRow,
+  type GridSelectionMode,
+} from './selection';
+import { GridStatusBar } from './status-bar';
 import {
   EMPTY_GRID_STATS,
   mapSortModel,
@@ -70,9 +82,30 @@ const NO_IDS: ReadonlySet<string> = new Set();
 @Component({
   selector: 'app-data-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GridContextMenu],
+  imports: [GridColumnChooser, GridContextMenu, GridStatusBar],
   template: `
+    <div class="toolbar">
+      <app-grid-column-chooser
+        [columns]="resolved()"
+        [state]="effectiveState()"
+        [labels]="labels().columnChooser"
+        (stateChange)="columnState.set($event)"
+      />
+    </div>
     <div #host class="grid-host"></div>
+    <app-grid-status-bar
+      [labels]="labels().status"
+      [total]="total()"
+      [loaded]="loadedRows()"
+      [selected]="selection().size"
+      [loading]="loading()"
+      [failed]="error() !== null"
+      [copy]="copyOutcome()"
+      [capped]="selectionCapped()"
+      [selectionCap]="selectionCap"
+      [dropped]="stats().changesDropped"
+      (retry)="retry()"
+    />
     @if (menu(); as open) {
       <app-grid-context-menu
         [items]="open.items"
@@ -86,12 +119,18 @@ const NO_IDS: ReadonlySet<string> = new Set();
   `,
   styles: `
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
       height: 100%;
       min-height: 0;
     }
+    .toolbar {
+      flex: 0 0 auto;
+      padding: var(--ds-space-1) 0;
+    }
     .grid-host {
-      height: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
     }
   `,
 })
@@ -135,18 +174,40 @@ export class DataGrid<Row> {
   private readonly nonce = inject(GRID_STYLE_NONCE);
   private readonly renderAll = inject(GRID_RENDER_ALL);
 
+  private readonly clipboard = inject(GRID_CLIPBOARD);
+
   private readonly api = signal<GridApi<Row> | null>(null);
   private readonly datasource = signal<WindowedDatasource<Row> | null>(null);
-  private readonly resolved = computed(() => resolveColumns(this.columns()));
+  protected readonly resolved = computed(() => resolveColumns(this.columns()));
+  /** The column state in force, whether the feature gave one or not. */
+  protected readonly effectiveState = computed(() => {
+    const state = this.columnState();
+    const columns = this.resolved();
+    return state === null
+      ? defaultColumnState(columns)
+      : normalizeColumnState(state, columns);
+  });
+  protected readonly selectionCap = GRID_MAX_SELECTION;
+  protected readonly selectionCapped = signal(false);
+  protected readonly loadedRows = signal(0);
+  protected readonly copyOutcome = signal<CopyOutcome | null>(null);
+  private readonly copyTruncated = signal(0);
 
-  /** Counters for the status bar: blocks, drops, refreshes (I-13). */
-  readonly stats = computed<GridStats>(
-    () => this.datasource()?.stats() ?? EMPTY_GRID_STATS,
-  );
+  /** Counters for the status bar: blocks, drops, refreshes, truncated copies (I-13). */
+  readonly stats = computed<GridStats>(() => ({
+    ...(this.datasource()?.stats() ?? EMPTY_GRID_STATS),
+    copyTruncated: this.copyTruncated(),
+  }));
   /** `null` until the source says; never 0 for unknown. */
   readonly total = computed(() => this.datasource()?.total() ?? null);
-  /** The reason of the last failed block, until a retry. */
-  readonly error = computed(() => this.datasource()?.error() ?? null);
+  /** The reason of the last failed block, until a retry; `null` when none failed. */
+  readonly error = computed(() =>
+    this.datasource()?.failed() === true
+      ? (this.datasource()?.error() ?? 'failed')
+      : null,
+  );
+  /** True while a block is in flight or waiting. */
+  readonly loading = computed(() => this.datasource()?.loading() ?? false);
 
   #lastState = '';
   #applyingState = false;
@@ -285,6 +346,9 @@ export class DataGrid<Row> {
             openMenu: () => {
               this.#openMenuAtCell(target, cell);
             },
+            copy: () => {
+              void this.copySelection();
+            },
           });
           return;
         }
@@ -325,6 +389,7 @@ export class DataGrid<Row> {
         if (event.finished) this.#capture();
       },
       onModelUpdated: () => {
+        this.#countLoaded();
         this.#reportVisible();
         this.#mirror(this.api(), this.selection());
       },
@@ -444,7 +509,54 @@ export class DataGrid<Row> {
       rowId,
       additive,
     );
+    this.selectionCapped.set(change.refused);
+    this.copyOutcome.set(null); // a message about the last copy is about the old selection
     this.selection.set(change.selection);
+  }
+
+  #countLoaded(): void {
+    const api = this.api();
+    if (!api) return;
+    let loaded = 0;
+    api.forEachNode((node) => {
+      if (node.data !== undefined) loaded += 1;
+    });
+    this.loadedRows.set(loaded);
+  }
+
+  /**
+   * Copies the selected rows that are loaded, as tab-separated text of the displayed values of the
+   * visible columns, in the order on screen. What the cap or an unloaded block leaves out is counted
+   * and said (I-13); a clipboard that refuses is an error, not silence (AC-11).
+   */
+  async copySelection(): Promise<void> {
+    const api = this.api();
+    const selection = this.selection();
+    if (!api || selection.size === 0) return;
+    const byId = new Map(this.resolved().map((c) => [c.id, c]));
+    const columns = api
+      .getAllDisplayedColumns()
+      .flatMap((c) => byId.get(c.getColId()) ?? []);
+    const loaded: { index: number; row: Row }[] = [];
+    for (const id of selection) {
+      const node = api.getRowNode(id);
+      if (node?.data !== undefined) {
+        loaded.push({
+          index: node.rowIndex ?? Number.MAX_SAFE_INTEGER,
+          row: node.data,
+        });
+      }
+    }
+    loaded.sort((a, b) => a.index - b.index);
+    const outcome = await copyRows(
+      this.clipboard,
+      columns,
+      loaded.map((entry) => entry.row),
+      selection.size,
+      GRID_MAX_COPY_ROWS,
+    );
+    this.copyOutcome.set(outcome);
+    if (outcome.kind === 'truncated') this.copyTruncated.update((n) => n + 1);
   }
 
   /**

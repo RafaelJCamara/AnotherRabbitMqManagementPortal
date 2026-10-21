@@ -18,6 +18,8 @@ export interface GridKeyContext<Row = unknown> {
   readonly selection: ReadonlySet<string>;
   /** Opens the context menu on the focused cell. */
   openMenu(): void;
+  /** Copies the selected rows as text. */
+  copy(): void;
 }
 
 export interface GridKeybinding<Row = unknown> {
@@ -40,8 +42,15 @@ export function matchesChord(event: KeyboardEvent, chord: GridChord): boolean {
   );
 }
 
-/** Open the context menu from the keyboard: Shift+F10 and the context-menu key. */
+/** Copy the selected rows (Ctrl or Cmd+C), and open the context menu (Shift+F10 and the context-menu key). */
 export const DEFAULT_GRID_KEYBINDINGS: readonly GridKeybinding[] = [
+  {
+    id: 'grid.copy',
+    chord: { key: 'c', ctrlOrMeta: true },
+    run: (context) => {
+      context.copy();
+    },
+  },
   {
     id: 'grid.openMenu.shiftF10',
     chord: { key: 'F10', shift: true },

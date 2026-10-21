@@ -25,6 +25,31 @@ export const LABELS: GridLabels = {
     source: 'Source',
     noReason: 'No reason given',
   },
+  status: {
+    total: '{count} rows',
+    totalUnknown: 'Total not known yet',
+    loaded: '{count} loaded',
+    selected: '{count} selected',
+    loading: 'Loading rows',
+    error: 'Some rows could not be loaded',
+    retry: 'Try again',
+    copied: '{count} rows copied',
+    copyTruncated: '{count} rows copied, {omitted} not copied',
+    copyFailed: 'The clipboard did not accept the copy',
+    selectionCapped: 'At most {count} rows can be selected',
+    dropped: '{count} live changes were not applied',
+  },
+  columnChooser: {
+    button: 'Columns',
+    title: 'Choose columns',
+    up: 'Up',
+    down: 'Down',
+    moveUp: 'Move {name} up',
+    moveDown: 'Move {name} down',
+    width: 'Width of {name}',
+    reset: 'Reset columns',
+    lastColumn: 'At least one column stays visible',
+  },
 };
 
 export const COLUMNS: GridColumn<Row>[] = [

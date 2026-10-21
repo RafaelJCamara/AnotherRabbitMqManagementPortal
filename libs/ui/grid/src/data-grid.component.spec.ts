@@ -4,6 +4,7 @@ import { ThemeService } from '@app/ui-design';
 import { getGridApi } from 'ag-grid-community';
 import { describe, expect, it, vi } from 'vitest';
 
+import { GRID_CLIPBOARD, type GridClipboard } from './clipboard';
 import type { GridColumnState } from './column-state';
 import { DataGrid } from './data-grid.component';
 import { GRID_STYLE_NONCE } from './grid-internals';
@@ -11,14 +12,28 @@ import {
   cellAt,
   cellTexts,
   COLUMNS,
+  key,
   LABELS,
   rendered,
+  ROWS,
   settled,
   source,
   type Row,
 } from './grid-spec-support';
 import { provideGridRenderAll } from './testing/render-all';
 import type { EngineWindowSource } from './window-source';
+function fakeClipboard(refuse = false): GridClipboard & { written: string[] } {
+  const written: string[] = [];
+  return {
+    written,
+    writeText: (text) => {
+      if (refuse) return Promise.reject(new Error('refused'));
+      written.push(text);
+      return Promise.resolve();
+    },
+  };
+}
+
 @Component({
   imports: [DataGrid],
   template: `
@@ -72,15 +87,170 @@ describe('<app-data-grid>', () => {
   });
 
   it('AC-9 cell values are rendered as text only', async () => {
-    const hostile = '<img src=x onerror="window.__pwned = 1"><b>bold</b>';
+    // No quote in it: a cell with a quote is quoted in the copy (AC-11), and AC-9 is about markup.
+    const hostile = "<img src=x onerror='window.__pwned = 1'><b>bold</b>";
     const rows: Row[] = [{ id: 'x', name: hostile, size: 1 }];
-    const { el } = await mount((host) => {
-      host.source.set(source(rows));
-    });
+    const clipboard = fakeClipboard();
+    const { el, host, fixture } = await mount(
+      (h) => {
+        h.source.set(source(rows));
+      },
+      [{ provide: GRID_CLIPBOARD, useValue: clipboard }],
+    );
     await rendered(el, 1);
     expect(cellTexts(el, 'name')).toEqual([hostile]);
     expect(el.querySelector('img, b, script')).toBeNull();
     expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
+
+    // The clipboard gets the same string, not a rendering of it.
+    cellAt(el, 'name', 0).click();
+    await settled(fixture, () => {
+      expect([...host.selection()]).toEqual(['x']);
+    });
+    key(cellAt(el, 'name', 0), 'c', { ctrlKey: true });
+    await settled(fixture, () => {
+      expect(clipboard.written).toEqual([`${hostile}\t1`]);
+    });
+  });
+
+  it('copies the selected rows in the order on screen, only the visible columns, and says what it did', async () => {
+    const clipboard = fakeClipboard();
+    const { el, host, fixture } = await mount(undefined, [
+      { provide: GRID_CLIPBOARD, useValue: clipboard },
+    ]);
+    await rendered(el, 3);
+    host.selection.set(new Set(['c', 'a']));
+    host.columnState.set({
+      version: 1,
+      columns: [{ id: 'size' }, { id: 'name', hidden: true }],
+      sort: [],
+    });
+    await fixture.whenStable();
+    await vi.waitFor(() => {
+      expect(
+        [...el.querySelectorAll('.ag-header-cell-text')].map((h) =>
+          h.textContent.trim(),
+        ),
+      ).toEqual(['Size']);
+    });
+    key(cellAt(el, 'size', 0), 'c', { ctrlKey: true });
+    await settled(fixture, () => {
+      expect(clipboard.written).toEqual(['3\n8']);
+    });
+    await settled(fixture, () => {
+      expect(el.querySelector('.copy')?.textContent.trim()).toBe(
+        '2 rows copied',
+      );
+    });
+    // Nothing selected: nothing is copied.
+    host.selection.set(new Set());
+    await fixture.whenStable();
+    key(cellAt(el, 'size', 0), 'c', { ctrlKey: true });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(clipboard.written).toHaveLength(1);
+  });
+
+  it('counts selected rows that are not loaded as not copied', async () => {
+    const accepting = fakeClipboard();
+    const { el, host, fixture } = await mount(undefined, [
+      { provide: GRID_CLIPBOARD, useValue: accepting },
+    ]);
+    await rendered(el, 3);
+    host.selection.set(new Set(['a', 'not-loaded-1', 'not-loaded-2']));
+    await fixture.whenStable();
+    key(cellAt(el, 'name', 0), 'c', { ctrlKey: true });
+    await settled(fixture, () => {
+      expect(el.querySelector('.copy')?.textContent.trim()).toBe(
+        '1 rows copied, 2 not copied',
+      );
+    });
+    expect(accepting.written).toEqual(['orders\t3']);
+  });
+
+  it('shows an error when the clipboard refuses the copy', async () => {
+    const { el, host, fixture } = await mount(undefined, [
+      { provide: GRID_CLIPBOARD, useValue: fakeClipboard(true) },
+    ]);
+    await rendered(el, 3);
+    host.selection.set(new Set(['a']));
+    await fixture.whenStable();
+    key(cellAt(el, 'name', 0), 'c', { ctrlKey: true });
+    await settled(fixture, () => {
+      expect(el.querySelector('.copy')?.textContent.trim()).toBe(
+        'The clipboard did not accept the copy',
+      );
+    });
+  });
+
+  it('shows the total, what is loaded and what is selected in its status bar', async () => {
+    const { el, host, fixture } = await mount();
+    await rendered(el, 3);
+    await settled(fixture, () => {
+      expect(el.querySelector('.total')?.textContent.trim()).toBe('3 rows');
+      expect(el.querySelector('.loaded')?.textContent.trim()).toBe('3 loaded');
+      expect(el.querySelector('.selected')?.textContent.trim()).toBe(
+        '0 selected',
+      );
+    });
+    cellAt(el, 'name', 0).click();
+    await settled(fixture, () => {
+      expect(el.querySelector('.selected')?.textContent.trim()).toBe(
+        '1 selected',
+      );
+    });
+    expect(host.selection().size).toBe(1);
+  });
+
+  it('says a block failed, and Try again loads it', async () => {
+    let failing = true;
+    const flaky = source();
+    flaky.window = (request, signal) => {
+      flaky.requests.push(request);
+      flaky.signals.push(signal);
+      return failing
+        ? Promise.reject(new Error('broker unreachable'))
+        : Promise.resolve({ rows: ROWS, total: ROWS.length });
+    };
+    const { el, fixture } = await mount((h) => {
+      h.source.set(flaky);
+    });
+    await settled(fixture, () => {
+      expect(el.querySelector('.error')?.textContent.trim()).toBe(
+        'Some rows could not be loaded',
+      );
+    });
+    // No row shows data (AG Grid keeps a placeholder row for the block that did not load).
+    expect(cellTexts(el, 'name').filter((text) => text !== '')).toEqual([]);
+    failing = false;
+    el.querySelector<HTMLButtonElement>('button.retry')?.click();
+    await rendered(el, 3);
+    await settled(fixture, () => {
+      expect(el.querySelector('.error')).toBeNull();
+    });
+    expect(cellTexts(el, 'name')).toEqual(['orders', 'billing', 'audit']);
+  });
+
+  it('hides a column from the chooser and publishes the state', async () => {
+    const { el, host, fixture } = await mount();
+    await rendered(el, 3);
+    el.querySelector<HTMLButtonElement>('button.toggle')?.click();
+    await fixture.whenStable();
+    const sizeBox = [
+      ...el.querySelectorAll<HTMLInputElement>('.panel .show input'),
+    ].find((input) => input.closest('label')?.textContent.trim() === 'Size');
+    sizeBox?.click();
+    await settled(fixture, () => {
+      expect(
+        host.columnState()?.columns.find((c) => c.id === 'size')?.hidden,
+      ).toBe(true);
+    });
+    await vi.waitFor(() => {
+      expect(
+        [...el.querySelectorAll('.ag-header-cell-text')].map((h) =>
+          h.textContent.trim(),
+        ),
+      ).toEqual(['Name']);
+    });
   });
 
   it('hands the style nonce to AG Grid, so its stylesheets run under the strict policy (S-04)', async () => {

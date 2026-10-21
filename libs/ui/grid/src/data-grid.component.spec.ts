@@ -5,58 +5,20 @@ import { getGridApi } from 'ag-grid-community';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GridColumnState } from './column-state';
-import type { GridColumn } from './columns';
 import { DataGrid } from './data-grid.component';
-import type { GridLabels } from './grid-config';
 import { GRID_STYLE_NONCE } from './grid-internals';
+import {
+  cellAt,
+  cellTexts,
+  COLUMNS,
+  LABELS,
+  rendered,
+  settled,
+  source,
+  type Row,
+} from './grid-spec-support';
 import { provideGridRenderAll } from './testing/render-all';
-import type { EngineWindowSource, GridWindowRequest } from './window-source';
-
-interface Row {
-  readonly id: string;
-  readonly name: string;
-  readonly size: number;
-}
-
-const LABELS: GridLabels = {
-  gridLabel: 'Queues',
-  loading: 'Loading',
-  noRows: 'Nothing here',
-};
-
-const COLUMNS: GridColumn<Row>[] = [
-  { id: 'name', header: 'Name', value: (r) => r.name, sortable: true },
-  { id: 'size', header: 'Size', value: (r) => r.size, align: 'end' },
-];
-
-const ROWS: Row[] = [
-  { id: 'a', name: 'orders', size: 3 },
-  { id: 'b', name: 'billing', size: 5 },
-  { id: 'c', name: 'audit', size: 8 },
-];
-
-function source(rows: readonly Row[] = ROWS) {
-  const requests: GridWindowRequest[] = [];
-  const signals: AbortSignal[] = [];
-  const src: EngineWindowSource<Row> & {
-    requests: GridWindowRequest[];
-    signals: AbortSignal[];
-  } = {
-    requests,
-    signals,
-    rowId: (row) => row.id,
-    window(request, signal) {
-      requests.push(request);
-      signals.push(signal);
-      return Promise.resolve({
-        rows: rows.slice(request.offset, request.offset + request.limit),
-        total: rows.length,
-      });
-    },
-  };
-  return src;
-}
-
+import type { EngineWindowSource } from './window-source';
 @Component({
   imports: [DataGrid],
   template: `
@@ -96,39 +58,6 @@ async function mount(
   return { fixture, host: fixture.componentInstance, el };
 }
 
-const cellTexts = (el: HTMLElement, colId: string): string[] =>
-  [...el.querySelectorAll(`.ag-row [col-id="${colId}"]`)].map((cell) =>
-    cell.textContent.trim(),
-  );
-
-/** AG Grid dispatches its events asynchronously, so an assertion on their effect waits for it. */
-async function settled(
-  fixture: ComponentFixture<unknown>,
-  assertion: () => void,
-): Promise<void> {
-  await vi.waitFor(
-    async () => {
-      await fixture.whenStable();
-      assertion();
-    },
-    { timeout: 3000 },
-  );
-}
-
-async function rendered(el: HTMLElement, rows: number): Promise<void> {
-  await vi.waitFor(
-    () => {
-      expect(el.querySelectorAll('.ag-row').length).toBeGreaterThanOrEqual(
-        rows,
-      );
-      expect(cellTexts(el, 'name').filter((t) => t !== '')).not.toHaveLength(0);
-    },
-    { timeout: 4000 },
-  );
-  // AG Grid wires a row's mouse handling in animation frames after it renders the row.
-  await new Promise((resolve) => setTimeout(resolve, 150));
-}
-
 describe('<app-data-grid>', () => {
   it('shows the rows the source answers, with the columns in their order', async () => {
     const { el } = await mount();
@@ -166,12 +95,8 @@ describe('<app-data-grid>', () => {
   it('selects by row id with a click, toggles with Ctrl, and shows it on the row', async () => {
     const { el, host, fixture } = await mount();
     await rendered(el, 3);
-    const cell = (colId: string, index: number): HTMLElement => {
-      const row = el.querySelectorAll('.ag-row')[index];
-      const found = row?.querySelector<HTMLElement>(`[col-id="${colId}"]`);
-      if (!found) throw new Error(`No cell ${colId} in row ${String(index)}`);
-      return found;
-    };
+    const cell = (colId: string, index: number): HTMLElement =>
+      cellAt(el, colId, index);
     cell('name', 1).click();
     await settled(fixture, () => {
       expect([...host.selection()]).toEqual(['b']);

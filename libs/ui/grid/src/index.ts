@@ -3,6 +3,19 @@ export { DataGrid } from './data-grid.component';
 export { GRID_MODULE_NAMES, type GridLabels } from './grid-config';
 export { GRID_STYLE_NONCE } from './grid-internals';
 export {
+  type GridCellTarget,
+  type GridMenuItem,
+  type GridMenuLabels,
+  type GridMenuProvider,
+} from './context-menu';
+export {
+  DEFAULT_GRID_KEYBINDINGS,
+  matchesChord,
+  type GridChord,
+  type GridKeybinding,
+  type GridKeyContext,
+} from './keybindings';
+export {
   COLUMN_DEFAULT_WIDTH,
   COLUMN_MIN_WIDTH,
   GridColumnError,

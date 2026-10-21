@@ -49,7 +49,9 @@
         "tsConfig": "libs/ui/grid/tsconfig.spec.json",
         "runner": "vitest",
         "watch": false,
-        "include": ["**/*.component.spec.ts"]
+        "include": [
+          "**/{data-grid.component,context-menu,status-bar,column-chooser}.spec.ts"
+        ]
       }
     }
   }

@@ -11,16 +11,10 @@ import {
   readGridTheme,
   selectionOptions,
   toColDefs,
-  type GridLabels,
   type TokenReader,
 } from './grid-config';
+import { LABELS } from './grid-spec-support';
 import { GRID_BLOCK_SIZE, GRID_MAX_BLOCKS } from './window-source';
-
-const LABELS: GridLabels = {
-  gridLabel: 'Queues',
-  loading: 'Loading',
-  noRows: 'Nothing here',
-};
 
 const TOKENS: Record<string, Record<string, string>> = {
   comfortable: {

@@ -23,6 +23,7 @@ import {
 } from 'ag-grid-community';
 
 import { cellText, type ResolvedColumn } from './columns';
+import type { GridMenuLabels } from './context-menu';
 import type { GridSelectionMode } from './selection';
 import { GRID_BLOCK_SIZE, GRID_MAX_BLOCKS } from './window-source';
 
@@ -66,6 +67,8 @@ export interface GridLabels {
   readonly loading: string;
   /** Shown when the query has no rows. */
   readonly noRows: string;
+  /** The context menu and the reason of a closed gate. */
+  readonly menu: GridMenuLabels;
 }
 
 /** Locale text the adapter forwards (OQ-555); a string it cannot intercept is a gap S-14 lists. */

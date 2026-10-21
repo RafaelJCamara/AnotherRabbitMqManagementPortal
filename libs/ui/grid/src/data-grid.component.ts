@@ -13,6 +13,7 @@ import {
   inject,
   input,
   model,
+  output,
   signal,
   untracked,
   viewChild,
@@ -28,6 +29,12 @@ import {
 } from './column-state';
 import { resolveColumns, type GridColumn } from './columns';
 import {
+  GridContextMenu,
+  type GridCellTarget,
+  type GridMenuItem,
+  type GridMenuProvider,
+} from './context-menu';
+import {
   buildGridOptions,
   GRID_MAX_CONCURRENT_REQUESTS,
   GRID_MODULES,
@@ -38,6 +45,11 @@ import {
   type GridLabels,
 } from './grid-config';
 import { GRID_RENDER_ALL, GRID_STYLE_NONCE } from './grid-internals';
+import {
+  DEFAULT_GRID_KEYBINDINGS,
+  matchesChord,
+  type GridKeybinding,
+} from './keybindings';
 import { selectRow, type GridSelectionMode } from './selection';
 import {
   EMPTY_GRID_STATS,
@@ -58,7 +70,20 @@ const NO_IDS: ReadonlySet<string> = new Set();
 @Component({
   selector: 'app-data-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div #host class="grid-host"></div>`,
+  imports: [GridContextMenu],
+  template: `
+    <div #host class="grid-host"></div>
+    @if (menu(); as open) {
+      <app-grid-context-menu
+        [items]="open.items"
+        [labels]="labels().menu"
+        [x]="open.x"
+        [y]="open.y"
+        (chosen)="onMenuChosen($event)"
+        (dismissed)="closeMenu($event.returnFocus)"
+      />
+    }
+  `,
   styles: `
     :host {
       display: block;
@@ -82,6 +107,28 @@ export class DataGrid<Row> {
   readonly columnState = model<GridColumnState | null>(null);
   /** Every word the grid shows, already translated. */
   readonly labels = input.required<GridLabels>();
+  /**
+   * What the right-click menu holds for a cell. `null` (the default) means no menu. Gated items render
+   * the engine's decision as sent; the grid never computes authorisation.
+   */
+  readonly contextMenu = input<GridMenuProvider<Row> | null>(null);
+  /** Key chords; unset means the defaults (open the menu with Shift+F10 or the context-menu key). */
+  readonly keybindings = input<readonly GridKeybinding<Row>[] | undefined>(
+    undefined,
+  );
+  /** An open item of the menu was chosen. */
+  readonly menuAction = output<{
+    readonly itemId: string;
+    readonly target: GridCellTarget<Row>;
+  }>();
+
+  protected readonly menu = signal<{
+    readonly items: readonly GridMenuItem[];
+    readonly x: number;
+    readonly y: number;
+    readonly target: GridCellTarget<Row>;
+    readonly returnTo: HTMLElement | null;
+  } | null>(null);
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
   private readonly theme = inject(ThemeService);
@@ -216,13 +263,51 @@ export class DataGrid<Row> {
         const id = event.node.id;
         if (
           !(original instanceof KeyboardEvent) ||
-          original.key !== ' ' ||
-          event.data === undefined ||
-          id === undefined
+          id === undefined ||
+          !('column' in event) // a full-width row has no cell
         )
           return;
-        original.preventDefault(); // Space selects; it does not scroll the page
-        this.#select(id, true);
+        const target: GridCellTarget<Row> = {
+          rowId: id,
+          row: event.data,
+          columnId: event.column.getColId(),
+        };
+        const cell =
+          original.target instanceof HTMLElement ? original.target : null;
+        const binding = (this.keybindings() ?? DEFAULT_GRID_KEYBINDINGS).find(
+          (candidate) => matchesChord(original, candidate.chord),
+        );
+        if (binding) {
+          original.preventDefault();
+          binding.run({
+            target,
+            selection: this.selection(),
+            openMenu: () => {
+              this.#openMenuAtCell(target, cell);
+            },
+          });
+          return;
+        }
+        if (original.key === ' ' && event.data !== undefined) {
+          original.preventDefault(); // Space selects; it does not scroll the page
+          this.#select(id, true);
+        }
+      },
+      onCellContextMenu: (event) => {
+        const original = event.event;
+        const id = event.node.id;
+        if (!(original instanceof MouseEvent) || id === undefined) return;
+        original.preventDefault();
+        const cell =
+          original.target instanceof Element
+            ? original.target.closest<HTMLElement>('.ag-cell')
+            : null;
+        this.#openMenu(
+          { rowId: id, row: event.data, columnId: event.column.getColId() },
+          original.clientX,
+          original.clientY,
+          cell,
+        );
       },
       onSortChanged: () => {
         this.#capture();
@@ -255,6 +340,7 @@ export class DataGrid<Row> {
   }
 
   #bind(api: GridApi<Row>, source: EngineWindowSource<Row>): void {
+    this.menu.set(null); // a menu belongs to the query it was opened on
     this.datasource()?.destroy(); // aborts what is in flight; a late answer is dropped and counted
     const ds = new WindowedDatasource<Row>({
       source,
@@ -282,6 +368,38 @@ export class DataGrid<Row> {
         });
       },
     });
+  }
+
+  #openMenuAtCell(target: GridCellTarget<Row>, cell: HTMLElement | null): void {
+    const box = cell?.getBoundingClientRect();
+    this.#openMenu(target, box?.left ?? 0, box?.bottom ?? 0, cell);
+  }
+
+  #openMenu(
+    target: GridCellTarget<Row>,
+    x: number,
+    y: number,
+    returnTo: HTMLElement | null,
+  ): void {
+    const provider = this.contextMenu();
+    if (!provider) return;
+    const items = provider(target);
+    if (items.length === 0) return;
+    this.menu.set({ items, x, y, target, returnTo });
+  }
+
+  protected onMenuChosen(itemId: string): void {
+    const open = this.menu();
+    if (open) this.menuAction.emit({ itemId, target: open.target });
+  }
+
+  /** Closes the menu; focus goes back to the cell it was opened on unless it already went elsewhere. */
+  protected closeMenu(returnFocus: boolean): void {
+    const open = this.menu();
+    if (!open) return;
+    this.menu.set(null);
+    if (returnFocus && open.returnTo?.isConnected === true)
+      open.returnTo.focus();
   }
 
   /** The user asks to load failed blocks again. */

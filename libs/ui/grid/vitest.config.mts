@@ -11,6 +11,9 @@ export default defineConfig({
     // need its AOT compile. Everything else runs here.
     setupFiles: ['src/test-setup.ts'],
     include: ['src/**/*.spec.ts'],
-    exclude: ['src/**/*.component.spec.ts', '**/node_modules/**'],
+    exclude: [
+      'src/**/{data-grid.component,context-menu,status-bar,column-chooser}.spec.ts',
+      '**/node_modules/**',
+    ],
   },
 });

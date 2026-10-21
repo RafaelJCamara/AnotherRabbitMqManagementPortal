@@ -36,12 +36,6 @@ import {
   type IndexRow,
 } from './rows';
 
-/**
- * Slice B ships a fixed wait between sweeps and no idle stop (the named cut of slice B in
- * docs/specs/M0-48.md): the cost-based cadence and the idle stop become "M0-48 sweep cadence".
- */
-const FIXED_SWEEP_INTERVAL_MS = 60_000;
-
 /** The broker's own page ceiling; `pageSize` is never above it. */
 const PAGE_SIZE_CEILING = 500;
 
@@ -91,6 +85,8 @@ interface State {
   inflight?: Promise<SweepOutcome> | undefined;
   cancelTimer?: (() => void) | undefined;
   auto: boolean;
+  /** The monotonic time of the last `touch`; the idle stop counts from it. */
+  lastDemand: number;
   expected: Map<SweptKind, number>;
 }
 
@@ -128,6 +124,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
         index: createInventoryIndex(limits),
         abort: new AbortController(),
         auto: false,
+        lastDemand: clock.monotonic(),
         expected: new Map(),
       };
       states.set(cid, state);
@@ -284,14 +281,34 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
     return state.inflight;
   }
 
+  /**
+   * The wait after a sweep: `sweepCostFactor` times its server time, kept between the minimum and the
+   * maximum. A failed sweep waits by the same formula (never sooner), so a broker that fails fast is
+   * not asked more often than the minimum; the request pacing of a failing broker is the
+   * BrokerScheduler's own backoff (I-8), which this loop does not see.
+   */
+  const waitAfter = (serverTimeMs: number): number =>
+    Math.min(
+      limits.sweepMaxIntervalMs,
+      Math.max(
+        limits.sweepMinIntervalMs,
+        limits.sweepCostFactor * serverTimeMs,
+      ),
+    );
+
   function cycle(cid: ConnectionId, state: State): void {
     state.cancelTimer = undefined;
     if (stopped) return;
-    void sweepNow(cid, state.abort.signal).then(() => {
+    // No demand for `idleStopMs` ends the loop, with no timer left; a later `touch` starts it again.
+    if (clock.monotonic() - state.lastDemand >= limits.idleStopMs) {
+      state.auto = false;
+      return;
+    }
+    void sweepNow(cid, state.abort.signal).then((outcome) => {
       if (stopped) return;
       state.cancelTimer = timers.setTimer(() => {
         cycle(cid, state);
-      }, FIXED_SWEEP_INTERVAL_MS);
+      }, waitAfter(outcome.serverTimeMs));
     });
   }
 
@@ -299,6 +316,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
     touch(cid) {
       if (stopped) return;
       const state = stateOf(cid);
+      state.lastDemand = clock.monotonic();
       if (!state.auto) {
         state.auto = true;
         cycle(cid, state);

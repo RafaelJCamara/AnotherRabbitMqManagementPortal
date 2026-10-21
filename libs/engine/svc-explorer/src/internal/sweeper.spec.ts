@@ -112,7 +112,7 @@ describe('explorer sweeper', () => {
       version: { complete: false, stale: true },
     });
 
-    // The next sweep waits the fixed interval, not less.
+    // A failed sweep waits the formula, never less than the 30 s minimum.
     const clock = createManualClock();
     const timers = createManualTimers(clock);
     const flaky = createScriptedBroker({ queueCount: 10 });
@@ -120,20 +120,23 @@ describe('explorer sweeper', () => {
     const auto = createSweeper({ mgmt: flaky.read, clock, timers });
     auto.touch(cid);
     await timers.settle();
-    await timers.advance(59_999);
+    await timers.advance(29_999);
     expect(flaky.requests).toHaveLength(1);
     await timers.advance(1);
     expect(flaky.requests).toHaveLength(2);
     await auto.stop();
   });
 
-  it('AC-5 explorer sweeps follow demand, a fixed interval and the drain', async () => {
+  it('AC-5 explorer sweeps follow demand, the cost-based cadence and the drain', async () => {
     const broker = createScriptedBroker({ queueCount: 3 });
     const clock = createManualClock();
     const timers = createManualTimers(clock);
     let hang = false;
+    // The server time of a sweep, spent on its first request (the vhost list).
+    let serverTimeMs = 400;
     const mgmt: MgmtReadPort = {
       get<T>(request: MgmtGetRequest<T>, signal: AbortSignal): Promise<T> {
+        if (request.path === '/api/vhosts') clock.advance(serverTimeMs);
         if (!hang) return broker.read.get(request, signal);
         return new Promise<T>((_, reject) => {
           signal.addEventListener('abort', () => {
@@ -152,18 +155,62 @@ describe('explorer sweeper', () => {
     sweeper.touch(cid); // more demand does not start a second loop
     await timers.settle();
     expect(sweeps()).toBe(1); // at once
-    await idle(59_999);
+    // 0.4 s of server time x 50 = 20 s, under the 30 s minimum: the wait counts from the end.
+    await idle(29_999);
     expect(sweeps()).toBe(1);
-    await idle(1); // a fixed 60 s, not the cost-based cadence (the named cut)
+    await idle(1);
     expect(sweeps()).toBe(2);
     expect(timers.pending()).toBe(1);
+    // 4 s x 50 = 200 s.
+    serverTimeMs = 4_000;
+    await idle(30_000);
+    expect(sweeps()).toBe(3);
+    await idle(199_999);
+    expect(sweeps()).toBe(3);
+    await idle(1);
+    expect(sweeps()).toBe(4);
+    // 20 s x 50 = 1,000 s, held to the 15 minute maximum. A wait that long outlasts the idle stop
+    // (10 minutes), so the demand is renewed just before it ends.
+    serverTimeMs = 20_000;
+    await idle(200_000);
+    expect(sweeps()).toBe(5);
+    await idle(899_998);
+    sweeper.touch(cid);
+    await idle(1);
+    expect(sweeps()).toBe(5);
+    await idle(1);
+    expect(sweeps()).toBe(6);
+    serverTimeMs = 0;
+    await idle(899_999);
+    sweeper.touch(cid);
+    await idle(1);
+    expect(sweeps()).toBe(7);
+
+    // 30 s waits from here; no demand for 10 minutes stops the loop and leaves no timer.
+    await idle(570_000);
+    expect(sweeps()).toBe(26);
+    await idle(29_999);
+    expect(timers.pending()).toBe(1);
+    await idle(1);
+    expect(timers.pending()).toBe(0);
+    expect(sweeps()).toBe(26);
+    const stoppedAt = sweeps();
+    await idle(3_600_000);
+    expect(sweeps()).toBe(stoppedAt);
+    // A later demand starts it again at once, and one demand is one loop.
+    sweeper.touch(cid);
+    sweeper.touch(cid);
+    await timers.settle();
+    expect(sweeps()).toBe(stoppedAt + 1);
+    expect(timers.pending()).toBe(1);
+
     const signal = new AbortController().signal;
     const [a, b] = await Promise.all([
       sweeper.sweepNow(cid, signal),
       sweeper.sweepNow(cid, signal),
     ]);
     expect(a).toBe(b); // the second joined the first
-    expect(sweeps()).toBe(3);
+    expect(sweeps()).toBe(stoppedAt + 2);
 
     hang = true;
     const running = sweeper.sweepNow(cid, signal);

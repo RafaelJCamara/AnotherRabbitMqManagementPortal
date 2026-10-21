@@ -1,10 +1,25 @@
 import { TestBed } from '@angular/core/testing';
 import type { BootstrapErrorCode } from '@app/ui-platform';
+import { problemResponse } from '@app/ui-platform/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BOOT_FAILURE, BootFailed } from '../boot/boot-failed';
 import { PAGE_RELOAD } from '../boot/page-reload';
-import { mountShell, routed, visit } from '../shell/test-fixtures';
+import { LayoutBackend, problem } from '../shell/layout/layout-fixtures';
+import {
+  setPanelVisible,
+  setSidebarVisible,
+  setSidebarWidth,
+  type LayoutRefusal,
+} from '../shell/layout/layout-ops';
+import { ShellLayoutStore } from '../shell/layout/shell-layout-store';
+import {
+  mountShell,
+  routed,
+  settleShell,
+  visit,
+  type ShellTestbed,
+} from '../shell/test-fixtures';
 import { SCOPE_LOADERS, provideI18n } from './i18n.config';
 import {
   englishKeys,
@@ -15,8 +30,28 @@ import {
 
 const MARKER = /^\[\[([A-Za-z0-9.]+)\]\]$/;
 
-/** Engine data the fixtures supply (a connection id); rendered as text, never as a key. */
-const ENGINE_DATA: readonly string[] = ['c1'];
+/** Engine data the fixtures supply: a connection id, a Problem's title, reason and source. */
+const ENGINE_DATA: readonly string[] = [
+  'c1',
+  'c2',
+  'c3',
+  'c4',
+  'c5',
+  'Blocked by the guardrail',
+  'Writes are locked on this connection.',
+  'prod-lock',
+  'guardrail',
+];
+
+const REFUSALS: readonly LayoutRefusal[] = [
+  'groups',
+  'tabs-per-group',
+  'tabs-total',
+  'url-too-long',
+  'label-too-long',
+  'unsafe-url',
+  'document-too-large',
+];
 
 describe('shell i18n', () => {
   it('AC-2 every visible string is a Transloco key or engine data', async () => {
@@ -30,18 +65,99 @@ describe('shell i18n', () => {
         else if (!ENGINE_DATA.includes(text)) strangers.push(text);
       }
     };
+    const takeShell = (bed: ShellTestbed): void => {
+      take(visibleStrings(routed(bed)));
+    };
 
     // The shell in each state it can be in, with every text replaced by its key.
-    const bed = await mountShell();
+    const backend = new LayoutBackend();
+    backend.docs.set('c1', { version: 1 }); // not a layout: the "invalid" notice
+    backend.docs.set('c3', { version: 2 });
+    backend.docs.set('c4', {
+      version: 1,
+      sidebar: { visible: true, width: 260, active: 'explorer' },
+      editor: {
+        orientation: 'row',
+        groups: [
+          {
+            weight: 1,
+            tabs: [{ id: 'x', url: 'https://x.example/', label: 'x' }],
+            activeTab: 'x',
+          },
+        ],
+        activeGroup: 0,
+      },
+      panel: { visible: false, height: 200, active: 'jobs' },
+    });
+    backend.docs.set('c5', {
+      version: 1,
+      sidebar: { visible: true, width: 260, active: 'explorer' },
+      editor: {
+        orientation: 'row',
+        groups: [1, 2, 3, 4].map(() => ({
+          weight: 1,
+          tabs: [],
+          activeTab: null,
+        })),
+        activeGroup: 0,
+      },
+      panel: { visible: false, height: 200, active: 'jobs' },
+    });
+    const bed = await mountShell(markerLoaders(), backend);
     for (const url of [
-      '/c/c1/explorer',
+      '/c/c1/explorer', // invalid
+      '/c/c2/explorer', // absent
+      '/c/c3/explorer', // newer-version
+      '/c/c4/explorer', // tabs-dropped
+      '/c/c5/explorer', // over-limit
       '/c/c1/nope',
       '/c/not%20an%20id/explorer',
       '/',
     ]) {
       await visit(bed, url);
-      take(visibleStrings(routed(bed)));
+      takeShell(bed);
     }
+
+    // The panel, the refusals and a failed save, with the engine's own words.
+    await visit(bed, '/c/c1/explorer');
+    const store = TestBed.inject(ShellLayoutStore);
+    store.update((layout) => setPanelVisible(layout, true));
+    for (const refusal of REFUSALS) {
+      store.apply(() => ({ ok: false, refusal }));
+      await settleShell(bed);
+      takeShell(bed);
+    }
+    backend.putAnswers.push(
+      problemResponse(
+        problem(422, 'GATE_BLOCKED', {
+          title: 'Blocked by the guardrail',
+          detail: 'Writes are locked on this connection.',
+          gate: { enabled: false, reason: 'prod-lock', source: 'guardrail' },
+        }),
+      ),
+      { status: 503, headers: {} },
+    );
+    store.update((layout) => setSidebarWidth(layout, 300));
+    bed.timer.fire();
+    await store.flush();
+    await settleShell(bed);
+    takeShell(bed);
+    await store.retrySave(); // the second answer: no Problem, the UI says the engine did not answer
+    await settleShell(bed);
+    takeShell(bed);
+    store.update((layout) => setSidebarVisible(layout, false));
+    await settleShell(bed);
+    takeShell(bed);
+
+    // A layout that cannot be loaded.
+    const failing = new LayoutBackend();
+    failing.getAnswer = problemResponse(
+      problem(500, 'INTERNAL', { title: 'Blocked by the guardrail' }),
+    );
+    TestBed.resetTestingModule();
+    const bedFailing = await mountShell(markerLoaders(), failing);
+    await visit(bedFailing, '/c/c1/explorer');
+    takeShell(bedFailing);
 
     // The cannot-start view for each cause it can name.
     const causes: readonly (BootstrapErrorCode | 'unknown')[] = [

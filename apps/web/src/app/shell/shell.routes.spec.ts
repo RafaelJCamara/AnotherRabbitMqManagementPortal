@@ -32,6 +32,7 @@ describe('shell routes', () => {
 
     // An id that is not a plain token: no connection, no engine call, nothing routed into the
     // workspace.
+    const before = bed.engine.requests.length;
     await visit(bed, '/c/not%20an%20id/explorer');
     host = routed(bed);
     expect(host.tagName.toLowerCase()).toBe('app-shell');
@@ -42,7 +43,7 @@ describe('shell routes', () => {
     expect(host.querySelector('app-explorer-home')).toBeNull();
     expect(host.querySelector('footer .value')).toBeNull();
 
-    expect(bed.engine.requests).toEqual([]);
+    expect(bed.engine.requests.length).toBe(before);
   });
 
   it('opens /c/:cid at the explorer and shows no connection outside /c/:cid', async () => {
@@ -55,7 +56,10 @@ describe('shell routes', () => {
     await visit(bed, '/somewhere/else');
     expect(routed(bed).tagName.toLowerCase()).toBe('app-no-connection');
     expect(TestBed.inject(ActiveConnection).cid()).toBeNull();
-    expect(bed.engine.requests).toEqual([]);
+    // The only request is the layout of the one connection that was shown.
+    expect(bed.engine.requests.map((request) => request.url)).toEqual([
+      '/api/v1/connections/c2/layout',
+    ]);
   });
 
   it('clears the connection when the shell goes away', async () => {

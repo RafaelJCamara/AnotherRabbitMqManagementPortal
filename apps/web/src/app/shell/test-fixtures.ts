@@ -1,11 +1,11 @@
 // The shell as the specs mount it: the real route table and i18n providers, a fake engine behind
-// the real `EngineApi`, and a translation loader chosen by the spec.
+// the real `EngineApi` that stores layouts per connection, a manual clock for the save delay and
+// a translation loader chosen by the spec.
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { provideEngineData } from '@app/ui-data';
-import { ENGINE_TRANSPORT } from '@app/ui-platform';
-import { FakeEngine, MemoryTransport, waitFor } from '@app/ui-platform/testing';
+import type { FakeEngine } from '@app/ui-platform/testing';
+import { waitFor } from '@app/ui-platform/testing';
 
 import { appRoutes } from '../app.routes';
 import {
@@ -14,26 +14,40 @@ import {
   type ScopeLoaders,
 } from '../i18n/i18n.config';
 import { markerLoaders } from '../i18n/test-fixtures';
+import type { Viewport } from './layout/fit-layout';
+import {
+  LayoutBackend,
+  ManualTimer,
+  layoutProviders,
+} from './layout/layout-fixtures';
 
 export interface ShellTestbed {
   readonly engine: FakeEngine;
+  readonly layouts: LayoutBackend;
+  readonly timer: ManualTimer;
   readonly harness: RouterTestingHarness;
 }
 
 export async function mountShell(
   loaders: ScopeLoaders = markerLoaders(),
+  layouts: LayoutBackend = new LayoutBackend(),
+  viewport?: Viewport,
 ): Promise<ShellTestbed> {
-  const engine = new FakeEngine();
+  const timer = new ManualTimer();
   TestBed.configureTestingModule({
     providers: [
       provideRouter(appRoutes),
       provideI18n(),
-      provideEngineData(),
-      { provide: ENGINE_TRANSPORT, useValue: new MemoryTransport(engine) },
+      ...layoutProviders(layouts, timer, viewport),
       { provide: SCOPE_LOADERS, useValue: loaders },
     ],
   });
-  return { engine, harness: await RouterTestingHarness.create() };
+  return {
+    engine: layouts.engine,
+    layouts,
+    timer,
+    harness: await RouterTestingHarness.create(),
+  };
 }
 
 /**
@@ -43,6 +57,11 @@ export async function mountShell(
  */
 export async function visit(bed: ShellTestbed, url: string): Promise<void> {
   await bed.harness.navigateByUrl(url);
+  await settleShell(bed);
+}
+
+/** Waits until what is routed has stopped changing (after a visit, or after the spec acted). */
+export async function settleShell(bed: ShellTestbed): Promise<void> {
   let previous = '';
   await waitFor(() => {
     bed.harness.detectChanges();

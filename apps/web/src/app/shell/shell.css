@@ -1,5 +1,5 @@
-/* The regions are grid cells that may shrink (min-width: 0) and clip, never push the page wider
-   (AC-9 of the spec, proved with the layout slice). */
+/* The regions are grid cells that may shrink (min-width: 0) and clip (overflow: hidden), never
+   push the page wider (AC-9). The sizes come from the layout store as custom properties. */
 :host {
   display: block;
   height: 100dvh;
@@ -7,56 +7,72 @@
 
 .shell {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns:
+    var(--shell-activity, 72px) auto auto
+    minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) var(--shell-status, 28px);
   grid-template-areas:
-    'activity workspace'
-    'status status';
+    'activity sidebar sidebar-splitter main'
+    'status status status status';
   height: 100%;
   min-width: 0;
   overflow: hidden;
 }
 
-.activity-bar {
+.activity {
   grid-area: activity;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  width: var(--shell-sidebar, 260px);
+  min-width: 0;
+  overflow: auto;
+  padding: var(--ds-space-2) var(--ds-space-3);
+  background: var(--ds-color-surface-sunken);
+}
+
+.sidebar h2 {
+  margin: 0 0 var(--ds-space-2);
+  font-size: var(--ds-font-size);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-color-text-muted);
+}
+
+.sidebar-splitter {
+  grid-area: sidebar-splitter;
+}
+
+.main {
+  grid-area: main;
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-2);
-  padding: var(--ds-space-2);
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
-  background: var(--ds-color-surface-sunken);
-  border-inline-end: 1px solid var(--ds-color-border);
-}
-
-.activity-bar a {
-  min-height: var(--ds-target-size);
-  padding: var(--ds-space-2);
-  color: var(--ds-color-text);
-}
-
-.activity-bar a.active {
-  color: var(--ds-color-accent);
-}
-
-.activity-bar a:focus-visible {
-  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
 }
 
 .workspace {
-  grid-area: workspace;
+  flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow: auto;
   padding: var(--ds-space-3);
+}
+
+.panel {
+  flex: none;
+  height: var(--shell-panel, 200px);
 }
 
 .status-bar {
   grid-area: status;
   display: flex;
   gap: var(--ds-space-3);
+  align-items: center;
   min-width: 0;
-  min-height: var(--ds-row-height);
-  padding: var(--ds-space-1) var(--ds-space-3);
+  padding: 0 var(--ds-space-3);
   overflow: hidden;
   background: var(--ds-color-surface-raised);
   border-block-start: 1px solid var(--ds-color-border);

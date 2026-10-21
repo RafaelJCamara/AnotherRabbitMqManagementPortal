@@ -1,19 +1,49 @@
-<div class="shell">
-  <nav class="activity-bar" [attr.aria-label]="'shell.activityBar' | transloco">
-    <a
-      routerLink="explorer"
-      routerLinkActive="active"
-      ariaCurrentWhenActive="page"
-      >{{ 'shell.explorer.title' | transloco }}</a
-    >
-  </nav>
-  <main class="workspace" [attr.aria-label]="'shell.workspace' | transloco">
-    @if (cid() !== null) {
-    <router-outlet />
-    } @else {
-    <app-no-connection />
+<div
+  class="shell"
+  [style.--shell-activity.px]="frame.activityBar"
+  [style.--shell-status.px]="frame.statusBar"
+  [style.--shell-sidebar.px]="layout().sidebar.width"
+  [style.--shell-panel.px]="layout().panel.height"
+>
+  <app-activity-bar class="activity" />
+  @if (layout().sidebar.visible) {
+  <aside class="sidebar" [attr.aria-label]="'shell.sidebar.region' | transloco">
+    @if (sidebarTitle(); as titleKey) {
+    <h2>{{ titleKey | transloco }}</h2>
     }
-  </main>
+  </aside>
+  <app-splitter
+    class="sidebar-splitter"
+    orientation="vertical"
+    [label]="'shell.sidebar.resize' | transloco"
+    [value]="layout().sidebar.width"
+    [min]="sidebarBounds().min"
+    [max]="sidebarBounds().max"
+    (resized)="resizeSidebar($event)"
+  />
+  }
+  <div class="main">
+    <app-layout-notices />
+    <main class="workspace" [attr.aria-label]="'shell.workspace' | transloco">
+      @if (cid() !== null) {
+      <router-outlet />
+      } @else {
+      <app-no-connection />
+      }
+    </main>
+    @if (layout().panel.visible) {
+    <app-splitter
+      orientation="horizontal"
+      [reverse]="true"
+      [label]="'shell.panel.resize' | transloco"
+      [value]="layout().panel.height"
+      [min]="panelBounds().min"
+      [max]="panelBounds().max"
+      (resized)="resizePanel($event)"
+    />
+    <app-bottom-panel class="panel" />
+    }
+  </div>
   <footer class="status-bar" [attr.aria-label]="'status.region' | transloco">
     @if (cid(); as id) {
     <span class="label">{{ 'status.connection' | transloco }}</span>

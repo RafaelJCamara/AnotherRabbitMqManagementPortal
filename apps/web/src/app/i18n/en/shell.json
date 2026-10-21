@@ -1,8 +1,53 @@
 {
   "activityBar": "Activity bar",
   "workspace": "Workspace",
+  "activity": {
+    "sidebar": "Sidebar",
+    "panel": "Panel"
+  },
   "explorer": {
     "title": "Explorer",
     "empty": "Nothing to browse yet. Inventory arrives with the explorer features."
+  },
+  "sidebar": {
+    "region": "Sidebar",
+    "resize": "Resize the sidebar"
+  },
+  "panel": {
+    "region": "Panel",
+    "tabs": "Panel views",
+    "resize": "Resize the panel",
+    "empty": "Nothing to show here yet. This view fills in when the feature that owns it arrives.",
+    "tab": {
+      "jobs": "Jobs",
+      "receipts": "Receipts",
+      "tap": "Tap",
+      "problems": "Problems",
+      "output": "Output"
+    }
+  },
+  "notice": {
+    "absent": "No saved layout for this connection yet. The default layout is shown.",
+    "invalid": "The saved layout could not be used. The default layout is shown and the saved one is kept until you change the layout.",
+    "newerVersion": "The saved layout was written by a newer version of the app. The default layout is shown and the saved one is kept until you change the layout.",
+    "tabsDropped": "Some tabs of the saved layout were left out because their address does not belong to this connection.",
+    "overLimit": "The saved layout is larger than this version allows. The default layout is shown and the saved one is kept until you change the layout.",
+    "loadFailed": "The saved layout could not be loaded. The default layout is shown and nothing is saved until you change the layout.",
+    "dismiss": "Dismiss"
+  },
+  "refusal": {
+    "groups": "No more editor groups can be opened.",
+    "tabsPerGroup": "This group has the most tabs it can hold. Close one first.",
+    "tabsTotal": "The most tabs are open. Close one first.",
+    "urlTooLong": "That address is too long to keep as a tab.",
+    "labelTooLong": "That tab title is too long to keep.",
+    "unsafeUrl": "That address does not belong to this connection and was not opened as a tab.",
+    "documentTooLarge": "The layout would be larger than the engine accepts. Close a tab first."
+  },
+  "saveFailed": {
+    "title": "The layout could not be saved. It stays as it is in this window.",
+    "loadTitle": "The saved layout could not be loaded.",
+    "unreachable": "The engine did not answer.",
+    "retry": "Retry saving"
   }
 }

@@ -5,9 +5,16 @@ import { z } from 'zod';
 
 import { ObjectKeySchema } from '../brands.ts';
 
-// 'connections' (cut from slice A, budget) and 'bindings' follow in their own slices.
-export const INVENTORY_KINDS = ['queues', 'exchanges'] as const;
+/** The kinds the background sweep reads whole into the index (and the live topic follows). */
+export const SWEPT_KINDS = ['queues', 'exchanges'] as const;
+export type SweptKind = (typeof SWEPT_KINDS)[number];
+// 'connections' (cut from slice A, budget) follows in its own slice. 'bindings' is served per
+// vhost, on demand, outside the sweep (slice H): a query for it must name exactly one vhost.
+export const INVENTORY_KINDS = [...SWEPT_KINDS, 'bindings'] as const;
 export type InventoryKind = (typeof INVENTORY_KINDS)[number];
+
+/** The longest `argumentsKey` of a binding row; a longer canonical form is cut and flagged. */
+export const BINDING_ARGUMENTS_KEY_MAX = 512;
 
 /** The most rows one answer carries; equals the broker's own page ceiling. */
 export const WINDOW_LIMIT_MAX = 500;
@@ -102,6 +109,23 @@ export const ExchangeRowSchema = z.strictObject({
   durable: z.boolean().optional(),
   autoDelete: z.boolean().optional(),
   internal: z.boolean().optional(),
+});
+
+/**
+ * One binding of one vhost. `key` is the object key of the vhost and the binding's identity (source,
+ * destination type, destination and the broker's `properties_key`). The arguments are not carried:
+ * `argumentsKey` is their canonical form (sorted keys), cut at 512 characters and flagged.
+ */
+export const BindingRowSchema = z.strictObject({
+  key: ObjectKeySchema,
+  vhost: z.string(),
+  source: z.string(),
+  destination: z.string(),
+  destinationType: z.string(),
+  routingKey: z.string().optional(),
+  propertiesKey: z.string().optional(),
+  argumentsKey: z.string().max(BINDING_ARGUMENTS_KEY_MAX).optional(),
+  argumentsTruncated: z.boolean().optional(),
 });
 
 /** What every window answer carries besides its rows. */

@@ -12,8 +12,8 @@ import { ConnectionIdSchema } from '../brands.ts';
 import { defineTopic } from '../kit/define-topic.ts';
 import {
   ExchangeRowSchema,
-  INVENTORY_KINDS,
   QueueRowSchema,
+  SWEPT_KINDS,
   VISIBLE_KEYS_MAX,
 } from './explorer-types.ts';
 
@@ -26,7 +26,8 @@ export const EXPLORER_VERSION_KEY = '~version';
 
 export const ExplorerWindowParamsSchema = z.strictObject({
   cid: ConnectionIdSchema,
-  kind: z.enum(INVENTORY_KINDS),
+  /** The swept kinds only: bindings are per vhost and on demand, so no sweep installs them. */
+  kind: z.enum(SWEPT_KINDS),
   /** The keys on screen. At most 500: the topic never follows a whole kind (I-7). */
   keys: z.array(z.string().max(1024)).max(VISIBLE_KEYS_MAX),
 });

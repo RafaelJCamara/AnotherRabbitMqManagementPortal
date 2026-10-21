@@ -2,7 +2,9 @@
 // name only the fields the explorer reads. A field the broker did not send, or sent as null, is
 // absent from the row, never defaulted (AC-9).
 import {
+  BINDING_ARGUMENTS_KEY_MAX,
   encodeObjectKey,
+  type BindingRowSchema,
   type ExchangeRowSchema,
   type QueueRowSchema,
 } from '@app/contracts';
@@ -10,7 +12,9 @@ import { z } from 'zod';
 
 export type QueueRow = z.infer<typeof QueueRowSchema>;
 export type ExchangeRow = z.infer<typeof ExchangeRowSchema>;
+/** The rows of the swept index; bindings are served per vhost by `bindings.ts`. */
 export type IndexRow = QueueRow | ExchangeRow;
+export type BindingRow = z.infer<typeof BindingRowSchema>;
 
 /** The most items a management page carries (the adapter's page ceiling). */
 const PAGE_ITEMS_MAX = 500;
@@ -46,6 +50,16 @@ const MgmtExchangeSchema = z.object({
   internal: flag,
 });
 
+const MgmtBindingSchema = z.object({
+  vhost: z.string(),
+  source: z.string(),
+  destination: z.string(),
+  destination_type: z.string(),
+  routing_key: text,
+  properties_key: text,
+  arguments: z.record(z.string(), z.unknown()).nullish(),
+});
+
 const page = <T extends z.ZodType>(item: T) =>
   z.object({
     items: z.array(item).max(PAGE_ITEMS_MAX),
@@ -57,6 +71,7 @@ const page = <T extends z.ZodType>(item: T) =>
 // One schema object per kind: the scheduler dedupes reads by the identity of the schema.
 export const QueuePageSchema = page(MgmtQueueSchema);
 export const ExchangePageSchema = page(MgmtExchangeSchema);
+export const BindingPageSchema = page(MgmtBindingSchema);
 export const VhostListSchema = z.array(z.object({ name: z.string() }));
 
 /** Drops the members the broker left out (undefined or null). */
@@ -86,6 +101,48 @@ export function queueRow(raw: z.infer<typeof MgmtQueueSchema>): QueueRow {
     policy: raw.policy,
     operatorPolicy: raw.operator_policy,
     deliveryLimit: raw.delivery_limit,
+  });
+}
+
+/** The arguments with their keys sorted, so equal arguments give equal text. */
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, v]) => [k, canonical(v)]),
+  );
+}
+
+/**
+ * A binding has no name: its identity is its source, destination type, destination and the
+ * broker's `properties_key` (routing key, plus a hash of the arguments when there are any).
+ */
+export function bindingRow(raw: z.infer<typeof MgmtBindingSchema>): BindingRow {
+  const args = raw.arguments ?? {};
+  const full =
+    Object.keys(args).length === 0 ? '' : JSON.stringify(canonical(args));
+  const cut = full.length > BINDING_ARGUMENTS_KEY_MAX;
+  return present<BindingRow>({
+    key: encodeObjectKey(
+      raw.vhost,
+      [
+        raw.source,
+        raw.destination_type,
+        raw.destination,
+        raw.properties_key ?? raw.routing_key ?? '',
+      ].join('\u0000'),
+    ),
+    vhost: raw.vhost,
+    source: raw.source,
+    destination: raw.destination,
+    destinationType: raw.destination_type,
+    routingKey: raw.routing_key,
+    propertiesKey: raw.properties_key,
+    argumentsKey:
+      full === '' ? undefined : full.slice(0, BINDING_ARGUMENTS_KEY_MAX),
+    argumentsTruncated: cut ? true : undefined,
   });
 }
 

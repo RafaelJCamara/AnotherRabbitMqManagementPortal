@@ -21,6 +21,14 @@ export interface ExplorerLimits {
   sweepCostFactor: number;
   /** No demand for this long stops the sweeps of a connection. */
   idleStopMs: number;
+  /**
+   * The most bindings of one connection kept resident, across its vhosts (scale-first: 500,000).
+   * Bindings are loaded per vhost on demand; rows past it are dropped and counted, and the least
+   * recently used other vhosts are evicted, and counted, to stay under it.
+   */
+  maxBindingsResident: number;
+  /** A resident vhost older than this is read again by the next query for it. */
+  bindingsMaxAgeMs: number;
 }
 
 export const DEFAULT_EXPLORER_LIMITS: ExplorerLimits = {
@@ -32,6 +40,8 @@ export const DEFAULT_EXPLORER_LIMITS: ExplorerLimits = {
   sweepMaxIntervalMs: 900_000,
   sweepCostFactor: 50,
   idleStopMs: 600_000,
+  maxBindingsResident: 500_000,
+  bindingsMaxAgeMs: 60_000,
 };
 
 export interface ExplorerModuleDeps {

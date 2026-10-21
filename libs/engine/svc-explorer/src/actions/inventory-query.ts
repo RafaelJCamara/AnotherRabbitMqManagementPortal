@@ -6,6 +6,7 @@ import { inventoryQuery, type InventoryKind } from '@app/contracts';
 import { AppError, implementAction, type ActionImpl } from '@app/kernel';
 
 import type { ExplorerModuleDeps } from '../deps';
+import type { BindingsStore } from '../internal/bindings';
 import { describeFreshness, UNAVAILABLE_VERSION } from '../internal/freshness';
 import type { Sweeper } from '../internal/sweeper';
 import { readProfile } from '../internal/profile';
@@ -16,7 +17,10 @@ import { requireVisible } from '../internal/visible';
 export type InventoryQueryDeps = Pick<
   ExplorerModuleDeps,
   'connections' | 'profiles'
-> & { readonly sweeper: Pick<Sweeper, 'touch' | 'index' | 'status'> };
+> & {
+  readonly sweeper: Pick<Sweeper, 'touch' | 'index' | 'status'>;
+  readonly bindings: BindingsStore;
+};
 
 /** The columns a window can be sorted by, per kind. */
 const SORT_COLUMNS: Readonly<Record<InventoryKind, readonly string[]>> = {
@@ -38,6 +42,7 @@ const SORT_COLUMNS: Readonly<Record<InventoryKind, readonly string[]>> = {
     'deliveryLimit',
   ],
   exchanges: ['name', 'vhost', 'type', 'durable', 'autoDelete', 'internal'],
+  bindings: ['source', 'destination', 'destinationType', 'routingKey', 'vhost'],
 };
 
 export const createInventoryQueryAction: (
@@ -55,6 +60,42 @@ export const createInventoryQueryAction: (
         throw new AppError('VALIDATION_FAILED', {
           detail: 'The inventory cannot be sorted by that column.',
         });
+      }
+
+      if (kind === 'bindings') {
+        // Bindings are never listed whole (I-7): exactly one vhost, read on demand, outside the sweep.
+        const vhosts = input.filter?.vhosts;
+        const [vhost] = vhosts ?? [];
+        if (vhost === undefined || vhosts?.length !== 1) {
+          throw new AppError('VALIDATION_FAILED', {
+            detail:
+              'A bindings query names exactly one vhost in filter.vhosts.',
+          });
+        }
+        const read = await deps.bindings.window(
+          cid,
+          vhost,
+          { ...window, filter: input.filter, sort: input.sort },
+          ctx.signal,
+        );
+        return {
+          kind,
+          rows: [...read.rows],
+          window: { offset: window.offset, limit: window.limit },
+          total: read.total,
+          matched: read.matched,
+          version: read.version.version,
+          freshness: describeFreshness({
+            kind,
+            installed: true,
+            version: read.version,
+            loaded: read.total,
+            expected: read.expected,
+            sweeping: false,
+            profileHazards: profile.hazards,
+            versionChanged: read.versionChanged,
+          }),
+        };
       }
 
       deps.sweeper.touch(cid);

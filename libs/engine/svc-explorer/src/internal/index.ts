@@ -1,10 +1,11 @@
 // The engine-resident inventory index of one connection: bounded by rows and bytes (I-6) with every
 // drop counted, versioned (a finished sweep installs a kind as a new version; the previous version
 // stays readable for pinned windows), and read through filter, sort and window (I-7).
-import type {
-  InventoryFilterSchema,
-  InventoryKind,
-  InventorySortSchema,
+import {
+  SWEPT_KINDS,
+  type InventoryFilterSchema,
+  type InventorySortSchema,
+  type SweptKind,
 } from '@app/contracts';
 import type { z } from 'zod';
 
@@ -14,7 +15,7 @@ import type { IndexRow, QueueRow } from './rows';
 
 type InventoryFilter = z.infer<typeof InventoryFilterSchema>;
 type InventorySort = z.infer<typeof InventorySortSchema>;
-export const KINDS: readonly InventoryKind[] = ['queues', 'exchanges'];
+export const KINDS: readonly SweptKind[] = SWEPT_KINDS;
 
 export interface IndexVersion {
   readonly version: number;
@@ -29,7 +30,7 @@ export interface IndexVersion {
 }
 
 export interface WindowQuery {
-  kind: InventoryKind;
+  kind: SweptKind;
   filter?: InventoryFilter | undefined;
   sort?: InventorySort | undefined;
   offset: number;
@@ -53,7 +54,7 @@ export interface QueueTotals {
 }
 
 export interface IndexChange {
-  kind: InventoryKind;
+  kind: SweptKind;
   version: number;
   upserts: readonly IndexRow[];
   removes: readonly string[];
@@ -67,7 +68,7 @@ interface InstallMeta {
   extraDropped?: number;
 }
 interface InstallEntry {
-  kind: InventoryKind;
+  kind: SweptKind;
   rows: Iterable<IndexRow>;
   meta: InstallMeta;
 }
@@ -75,7 +76,7 @@ interface InstallEntry {
 export interface InventoryIndex {
   /** Replaces the rows of one kind with a finished sweep, atomically; keeps the previous version. */
   install(
-    kind: InventoryKind,
+    kind: SweptKind,
     rows: Iterable<IndexRow>,
     meta: InstallMeta,
   ): IndexVersion;
@@ -88,9 +89,9 @@ export interface InventoryIndex {
     version: IndexVersion;
     versionChanged: boolean;
   };
-  byKeys(kind: InventoryKind, keys: readonly string[]): readonly IndexRow[];
+  byKeys(kind: SweptKind, keys: readonly string[]): readonly IndexRow[];
   /** The rows of the current version of a kind, in sweep order (empty until installed). Read only. */
-  rows(kind: InventoryKind): readonly IndexRow[];
+  rows(kind: SweptKind): readonly IndexRow[];
   /**
    * The message counts of the current queues, summed in one pass (no sort, no window). A queue
    * that did not report a count adds nothing and is counted in `unreported`; undefined until the
@@ -98,7 +99,7 @@ export interface InventoryIndex {
    */
   queueTotals(): QueueTotals | undefined;
   /** The kind has been installed at least once. */
-  has(kind: InventoryKind): boolean;
+  has(kind: SweptKind): boolean;
   /** The version the index is at now (0 before the first install). */
   current(): IndexVersion;
   setStale(stale: boolean): void;
@@ -115,7 +116,7 @@ interface KindData {
 }
 interface Snapshot {
   readonly meta: IndexVersion;
-  readonly kinds: Readonly<Partial<Record<InventoryKind, KindData>>>;
+  readonly kinds: Readonly<Partial<Record<SweptKind, KindData>>>;
 }
 
 const SORT_CACHE_ENTRIES = 4;
@@ -161,13 +162,13 @@ function matcher(
 }
 
 /** Missing values first; the key always breaks a tie, so windows never overlap. */
-function comparator(sort: InventorySort) {
+export function comparator<R extends { key: string }>(sort: InventorySort) {
   const sign = sort.dir === 'asc' ? 1 : -1;
-  const value = (row: IndexRow) =>
+  const value = (row: R) =>
     (row as unknown as Record<string, string | number | boolean | undefined>)[
       sort.column
     ];
-  return (a: IndexRow, b: IndexRow): number => {
+  return (a: R, b: R): number => {
     const x = value(a);
     const y = value(b);
     if (x !== y) {
@@ -213,7 +214,7 @@ export function createInventoryIndex(
       0,
     );
 
-  function sorted(snap: Snapshot, kind: InventoryKind, sort: InventorySort) {
+  function sorted(snap: Snapshot, kind: SweptKind, sort: InventorySort) {
     const id = `${String(snap.meta.version)}|${kind}|${sort.column}|${sort.dir}`;
     let hit = sortCache.get(id);
     if (hit === undefined) {
@@ -230,7 +231,7 @@ export function createInventoryIndex(
   /** Applies finished kinds as ONE new version, so a pinned scroll survives a whole sweep. */
   function installAll(entries: readonly InstallEntry[]): IndexVersion {
     let kinds = current.kinds;
-    const changes: { kind: InventoryKind; kept: IndexRow[] }[] = [];
+    const changes: { kind: SweptKind; kept: IndexRow[] }[] = [];
     for (const { kind, rows, meta } of entries) {
       const others = { ...current, kinds };
       let maxRows = limits.maxRowsPerConnection - rowCount(others, kind);

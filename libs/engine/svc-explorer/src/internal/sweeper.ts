@@ -5,7 +5,7 @@
 import {
   ErrorCodeSchema,
   type ConnectionId,
-  type InventoryKind,
+  type SweptKind,
   type Problem,
 } from '@app/contracts';
 import {
@@ -77,7 +77,7 @@ export interface SweepStatus {
   /** A sweep is running now. */
   sweeping: boolean;
   /** The broker's own object count per kind, as far as the current or last sweep has read it. */
-  expected: ReadonlyMap<InventoryKind, number>;
+  expected: ReadonlyMap<SweptKind, number>;
 }
 
 export type SweeperDeps = Pick<
@@ -91,7 +91,7 @@ interface State {
   inflight?: Promise<SweepOutcome> | undefined;
   cancelTimer?: (() => void) | undefined;
   auto: boolean;
-  expected: Map<InventoryKind, number>;
+  expected: Map<SweptKind, number>;
 }
 
 /** A fixed Problem per failure class: broker text never reaches an output (I-10). */
@@ -163,7 +163,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
         outcome.serverTimeMs += clock.monotonic() - began;
       }
     };
-    const readPage = async (kind: InventoryKind, vhost: string, n: number) => {
+    const readPage = async (kind: SweptKind, vhost: string, n: number) => {
       const path = `/api/${kind}/${encodeURIComponent(vhost)}`;
       const query = { page: n, page_size: pageSize, disable_stats: true };
       if (kind === 'queues') {

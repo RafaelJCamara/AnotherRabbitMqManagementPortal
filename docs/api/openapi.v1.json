@@ -3110,7 +3110,8 @@
                   "kind": {
                     "enum": [
                       "queues",
-                      "exchanges"
+                      "exchanges",
+                      "bindings"
                     ],
                     "type": "string"
                   },
@@ -3478,6 +3479,171 @@
                               "key",
                               "vhost",
                               "name"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 500,
+                          "type": "array"
+                        },
+                        "total": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "version": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "window": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "limit": {
+                              "maximum": 500,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "offset",
+                            "limit"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "rows",
+                        "window",
+                        "total",
+                        "matched",
+                        "version",
+                        "freshness"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "freshness": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "complete": {
+                              "type": "boolean"
+                            },
+                            "dropped": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "expected": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "hazards": {
+                              "items": {
+                                "maxLength": 64,
+                                "type": "string"
+                              },
+                              "maxItems": 32,
+                              "type": "array"
+                            },
+                            "loaded": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "reason": {
+                              "maxLength": 200,
+                              "type": "string"
+                            },
+                            "state": {
+                              "enum": [
+                                "live",
+                                "stale",
+                                "loading",
+                                "unavailable"
+                              ],
+                              "type": "string"
+                            },
+                            "sweptAt": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "truncated": {
+                              "type": "boolean"
+                            },
+                            "versionChanged": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "complete",
+                            "loaded",
+                            "truncated",
+                            "dropped",
+                            "hazards",
+                            "versionChanged"
+                          ],
+                          "type": "object"
+                        },
+                        "kind": {
+                          "const": "bindings",
+                          "type": "string"
+                        },
+                        "matched": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "rows": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "argumentsKey": {
+                                "maxLength": 512,
+                                "type": "string"
+                              },
+                              "argumentsTruncated": {
+                                "type": "boolean"
+                              },
+                              "destination": {
+                                "type": "string"
+                              },
+                              "destinationType": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "pattern": "^[A-Za-z0-9_-]+$",
+                                "type": "string"
+                              },
+                              "propertiesKey": {
+                                "type": "string"
+                              },
+                              "routingKey": {
+                                "type": "string"
+                              },
+                              "source": {
+                                "type": "string"
+                              },
+                              "vhost": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "vhost",
+                              "source",
+                              "destination",
+                              "destinationType"
                             ],
                             "type": "object"
                           },

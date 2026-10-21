@@ -10,6 +10,7 @@ import {
 import type { Lane, MgmtGetRequest, MgmtReadPort } from '@app/ports';
 
 import type { ExplorerLimits, ExplorerModuleDeps } from './deps';
+import { createBindingsStore, type BindingsStore } from './internal/bindings';
 import { createSweeper, type Sweeper } from './internal/sweeper';
 
 /** The connection every fake starts with: owned by the test principal (`user-1`). */
@@ -63,11 +64,17 @@ export function createScriptedBroker(
     queueCount?: number;
     vhostCount?: number;
     exchangesPerVhost?: number;
+    /** Bindings in every vhost (a number), or in the named vhosts (a record; the others hold none). */
+    bindingsPerVhost?: number | Readonly<Record<string, number>>;
   } = {},
 ): ScriptedBroker {
   const queueCount = options.queueCount ?? 0;
   const vhostCount = Math.max(1, options.vhostCount ?? 1);
   const exchangeCount = options.exchangesPerVhost ?? 0;
+  const bindingCount = (vhost: string): number =>
+    typeof options.bindingsPerVhost === 'number'
+      ? options.bindingsPerVhost
+      : (options.bindingsPerVhost?.[vhost] ?? 0);
   const vhosts = Array.from({ length: vhostCount }, (_, i) =>
     i === 0 ? '/' : `vhost-${String(i)}`,
   );
@@ -172,6 +179,19 @@ export function createScriptedBroker(
             })),
           );
         }
+        if (at >= 0 && kind === 'bindings') {
+          return Promise.resolve(
+            paged(request, bindingCount(vhost), (j) => ({
+              source: `exchange-${String(j % 10)}`,
+              vhost,
+              destination: `queue-${String(j).padStart(6, '0')}`,
+              destination_type: 'queue',
+              routing_key: `rk-${String(j)}`,
+              properties_key: `rk-${String(j)}`,
+              arguments: {},
+            })),
+          );
+        }
         return Promise.reject(
           Object.assign(new Error('NOT_FOUND: HTTP 404'), {
             code: 'NOT_FOUND',
@@ -254,6 +274,8 @@ export interface ExplorerFakeDeps extends ExplorerModuleDeps {
   readonly broker: ScriptedBroker;
   /** The sweeper over `mgmt`, on manual time: its timers never fire unless a spec advances them. */
   readonly sweeper: Sweeper;
+  /** The per-vhost bindings store over mgmt, on the same manual clock. */
+  readonly bindings: BindingsStore;
   readonly clock: ManualClock;
   readonly timers: ManualTimers;
 }
@@ -264,6 +286,7 @@ export function createExplorerFakeDeps(
     queueCount?: number;
     vhostCount?: number;
     exchangesPerVhost?: number;
+    bindingsPerVhost?: number | Readonly<Record<string, number>>;
     /** The connection has a cached profile, as after a probe (default true). */
     seeded?: boolean;
     profile?: Partial<BrokerProfile>;
@@ -296,6 +319,7 @@ export function createExplorerFakeDeps(
     timers,
     ...limits,
     sweeper: createSweeper({ mgmt, clock, timers, ...limits }),
+    bindings: createBindingsStore({ mgmt, clock, ...limits }),
     profiles: {
       get: (id) =>
         Promise.resolve(

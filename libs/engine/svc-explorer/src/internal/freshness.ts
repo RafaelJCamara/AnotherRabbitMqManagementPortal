@@ -23,6 +23,7 @@ export const REASONS = {
 const ROW_HAZARDS: Readonly<Record<InventoryKind, readonly string[]>> = {
   queues: ['stats-off-policy-fields-missing'],
   exchanges: [],
+  bindings: [],
 };
 
 export interface FreshnessInput {

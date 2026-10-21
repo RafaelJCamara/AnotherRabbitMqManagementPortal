@@ -7,6 +7,7 @@ import type { TopicSource } from '@app/live';
 
 import { createActions } from './actions';
 import type { ExplorerModuleDeps } from './deps';
+import { createBindingsStore } from './internal/bindings';
 import { createSweeper } from './internal/sweeper';
 import { createWindowSource } from './internal/window-source';
 import { jobs } from './jobs';
@@ -31,15 +32,17 @@ export interface ExplorerModule {
 
 export function createExplorerModule(deps: ExplorerModuleDeps): ExplorerModule {
   const sweeper = createSweeper(deps);
+  const bindings = createBindingsStore(deps);
   const windowSource = createWindowSource({ ...deps, sweeper });
   return {
     id: 'svc-explorer',
-    actions: createActions({ ...deps, sweeper }),
+    actions: createActions({ ...deps, sweeper, bindings }),
     topics,
     topicSources: [{ def: explorerWindowTopic, source: windowSource }],
     jobs,
     stop: async () => {
       windowSource.stop();
+      bindings.stop();
       await sweeper.stop();
     },
   };

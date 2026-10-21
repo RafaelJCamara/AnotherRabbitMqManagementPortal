@@ -4,7 +4,7 @@
 import {
   ConnectionIdSchema,
   checkRegistry,
-  type InventoryKind,
+  type SweptKind,
   type OverviewGetOutputSchema,
 } from '@app/contracts';
 import {
@@ -164,7 +164,7 @@ const sweeperOf = (index?: ReturnType<typeof indexOf>) => ({
   index: () => index,
   status: () => ({
     sweeping: false,
-    expected: new Map<InventoryKind, number>(),
+    expected: new Map<SweptKind, number>(),
   }),
 });
 

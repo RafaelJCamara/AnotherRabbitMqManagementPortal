@@ -7,6 +7,10 @@ export default defineConfig({
   test: {
     name: 'ui-grid',
     environment: 'jsdom',
+    // Components are tested by the Angular builder (the test-components target): signal inputs
+    // need its AOT compile. Everything else runs here.
+    setupFiles: ['src/test-setup.ts'],
     include: ['src/**/*.spec.ts'],
+    exclude: ['src/**/*.component.spec.ts', '**/node_modules/**'],
   },
 });

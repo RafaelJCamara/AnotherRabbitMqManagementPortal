@@ -10,9 +10,12 @@ describe('ui-grid public API', () => {
       'COLUMN_DEFAULT_WIDTH',
       'COLUMN_MAX_WIDTH',
       'COLUMN_MIN_WIDTH',
+      'DataGrid',
       'GRID_BLOCK_SIZE',
       'GRID_MAX_BLOCKS',
       'GRID_MAX_SELECTION',
+      'GRID_MODULE_NAMES',
+      'GRID_STYLE_NONCE',
       'GridColumnError',
       'REFRESH_MIN_INTERVAL_MS',
       'WATCH_DEBOUNCE_MS',
@@ -28,5 +31,10 @@ describe('ui-grid public API', () => {
       'selectRow',
       'showColumn',
     ]);
+    // Nothing exported is an AG Grid module, theme or API object.
+    for (const value of Object.values(api)) {
+      expect(value).not.toHaveProperty('moduleName');
+      expect(value).not.toHaveProperty('withParams');
+    }
   });
 });

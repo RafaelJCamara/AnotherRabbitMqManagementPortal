@@ -1,0 +1,22 @@
+{
+  "name": "grid-bundle-check",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/grid-bundle-check",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{workspaceRoot}/libs/ui/grid/src/**/*",
+        "{workspaceRoot}/pnpm-lock.yaml"
+      ],
+      "options": {
+        "command": "node --test tools/grid-bundle-check/bundle-check.test.mjs"
+      }
+    }
+  }
+}

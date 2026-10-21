@@ -1,4 +1,7 @@
 // Public API of ui-grid. Export only what features need; no AG Grid type or value crosses it.
+export { DataGrid } from './data-grid.component';
+export { GRID_MODULE_NAMES, type GridLabels } from './grid-config';
+export { GRID_STYLE_NONCE } from './grid-internals';
 export {
   COLUMN_DEFAULT_WIDTH,
   COLUMN_MIN_WIDTH,

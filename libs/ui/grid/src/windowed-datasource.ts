@@ -42,7 +42,8 @@ export const CHANGE_WINDOW_MS = 100;
 export const WATCH_DEBOUNCE_MS = 100;
 export const REFRESH_MIN_INTERVAL_MS = 5000;
 
-const EMPTY_STATS: GridStats = {
+/** All counters at zero: the stats of a grid that has no datasource yet. */
+export const EMPTY_GRID_STATS: GridStats = {
   blocksLoaded: 0,
   blocksFailed: 0,
   changesApplied: 0,
@@ -66,7 +67,7 @@ export function mapSortModel(
 export class WindowedDatasource<Row> {
   readonly #opts: WindowedDatasourceOptions<Row>;
   readonly #max: number;
-  readonly #stats = signal<GridStats>(EMPTY_STATS);
+  readonly #stats = signal<GridStats>(EMPTY_GRID_STATS);
   readonly #total = signal<number | null>(null);
   readonly #error = signal<unknown>(null);
   readonly #inflight = new Set<AbortController>();

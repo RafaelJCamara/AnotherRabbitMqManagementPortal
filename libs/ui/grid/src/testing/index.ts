@@ -7,3 +7,6 @@ export {
   type FakeWindowSource,
   type FakeWindowSourceOptions,
 } from './fake-window-source';
+
+// Renders every row and column in a test DOM, which has no layout (never provide this in an app).
+export { provideGridRenderAll } from './render-all';

@@ -22,8 +22,34 @@
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": ["default", "^production"],
+      "dependsOn": ["test-components"],
       "options": {
         "command": "vitest run --config libs/ui/grid/vitest.config.mts"
+      }
+    },
+    "bundle-check": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/tools/grid-bundle-check/**/*",
+        "{workspaceRoot}/pnpm-lock.yaml"
+      ],
+      "options": {
+        "command": "node tools/grid-bundle-check/bundle-check.mjs"
+      }
+    },
+    "test-components": {
+      "executor": "@angular/build:unit-test",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "buildTarget": "web:build:development",
+        "tsConfig": "libs/ui/grid/tsconfig.spec.json",
+        "runner": "vitest",
+        "watch": false,
+        "include": ["**/*.component.spec.ts"]
       }
     }
   }

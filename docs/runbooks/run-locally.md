@@ -82,6 +82,10 @@ Registered and answering on a running engine (`Engine.served` lists them; the en
 
 Every management request goes through the BrokerScheduler (a per-broker load budget; interactive work pre-empts background sweeps), every socket through the Dialer and the TrustStore, and a stored login is opened for one request and kept in no log or error.
 
+## The explorer in the served page (M0-54)
+
+After `pnpm nx run engine:serve`, open the printed URL. The left tree lists the overview and the four kinds (queues, exchanges, connections, bindings) of a connection; the same pages are at `/c/<connection id>/explorer`, `/c/<id>/explorer/queues`, `.../exchanges`, `.../connections` and `.../bindings?vhost=%2F`. Each reads through `overview.get`, `profile.get`, `inventory.query` and the `explorer.window` topic. Two limits apply until the maintainer rules on them (below): with no connection in the store the pages show the engine's answer for an unknown connection instead of rows, and the saved-views commands are refused by the prod lock. What the pages do with rows (windows, filters, sorts, freshness, the capability card) is proved in component specs against fakes and against the real router, not in a browser run.
+
 ## What does not work, and why
 
 1. **No connection can be created on a running engine (known, left for the maintainer).** `connections.create` and `bundles.import` are commands that name no connection, so the router (which sends no environment class, OQ-283) treats them as production and the prod lock refuses them until a connection is armed, and there is nothing to arm. The same holds for `views.create`, `views.delete`, `settings.put` and `keybindings.put` (OQ-380) and, until the connection is armed, `layouts.put` (OQ-529). Each answers **422 `GATE_BLOCKED`** with `prod-lock`. The engine test `AC-5` pins this refusal. The guardrails are not changed by this build; the options are in OQ-380 and OQ-770. Until the maintainer rules, `probe.run`, `inventory.query` and the rest are reachable by the engine's tests (which seed a connection straight into the store) and not through the UI.

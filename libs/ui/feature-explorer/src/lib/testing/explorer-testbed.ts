@@ -38,6 +38,42 @@ type Routes = (
 
 const INVENTORY_PATH = /^\/api\/v1\/connections\/([^/]+)\/inventory\/queries$/;
 
+/**
+ * Answers `POST /connections/{cid}/inventory/queries` from the model's fake, as the engine would (a 400
+ * Problem for a query the fake refuses); `undefined` for any other request.
+ */
+export async function answerInventory(
+  fake: FakeExplorerData,
+  request: Request,
+): Promise<Response | undefined> {
+  const url = new URL(request.url, 'http://engine.test');
+  const match = INVENTORY_PATH.exec(url.pathname);
+  if (request.method !== 'POST' || match?.[1] === undefined) return undefined;
+  const body = JSON.parse(
+    typeof request.body === 'string' ? request.body : '{}',
+  ) as Omit<InputOf<typeof inventoryQuery>, 'cid'>;
+  const input = { ...body, cid: decodeURIComponent(match[1]) };
+  try {
+    return jsonResponse(
+      200,
+      await fake.query(
+        input as InputOf<typeof inventoryQuery>,
+        new AbortController().signal,
+      ),
+    );
+  } catch (error) {
+    return problemResponse({
+      type: 'about:blank',
+      title: 'Validation failed',
+      status: 400,
+      code: 'VALIDATION_FAILED',
+      detail: error instanceof Error ? error.message : 'failed',
+      correlationId: 'fake-engine',
+      retryable: false,
+    });
+  }
+}
+
 export interface ExplorerTestbed {
   readonly engine: FakeEngine;
   readonly fake: FakeExplorerData;
@@ -60,32 +96,8 @@ export function configureExplorerTestbed(
   const fake = options.fake ?? createFakeExplorerData();
   const handler: FakeHandler = async (request) => {
     const url = new URL(request.url, 'http://engine.test');
-    const match = INVENTORY_PATH.exec(url.pathname);
-    if (request.method === 'POST' && match?.[1] !== undefined) {
-      const body = JSON.parse(
-        typeof request.body === 'string' ? request.body : '{}',
-      ) as Omit<InputOf<typeof inventoryQuery>, 'cid'>;
-      const input = { ...body, cid: decodeURIComponent(match[1]) };
-      try {
-        return jsonResponse(
-          200,
-          await fake.query(
-            input as InputOf<typeof inventoryQuery>,
-            new AbortController().signal,
-          ),
-        );
-      } catch (error) {
-        return problemResponse({
-          type: 'about:blank',
-          title: 'Validation failed',
-          status: 400,
-          code: 'VALIDATION_FAILED',
-          detail: error instanceof Error ? error.message : 'failed',
-          correlationId: 'fake-engine',
-          retryable: false,
-        });
-      }
-    }
+    const answered = await answerInventory(fake, request);
+    if (answered !== undefined) return answered;
     const routed = await options.routes?.(request);
     return (
       routed ??

@@ -135,6 +135,7 @@ Run everything from the repository root.
 | Grid adapter (component specs run with the lint, typecheck and test targets); no AG Grid Enterprise in its bundle | `pnpm nx run-many -t lint typecheck test -p ui-grid` / `pnpm nx run ui-grid:bundle-check` |
 | Action layer (ActionExecutor, PlanStore) | `pnpm nx test kernel --testNamePattern=executor` |
 | Explorer: golden replay with the real adapter / lab run (20k queues; `IT_QUEUES=100000` for S-13; needs a Docker daemon) / synthetic perf (window p95, loop delay, search p95) | `pnpm nx test testkit --testNamePattern=AC-22` / `pnpm nx run svc-explorer:it '--versions=4.2.9,4.3.6'` / `pnpm nx run perf:explorer-20k` |
+| Explorer UI: interaction p95 in the adapter and engine (Node, no rendering) / the calls of the UI through the real router / pages and requests (component specs) | `pnpm nx run perf:explorer-ui-20k` / `pnpm nx test testkit --testNamePattern=AC-28` / `pnpm nx test feature-explorer` |
 | Planned | `pnpm nx e2e e2e-web`, `pnpm nx run perf:smoke` |
 
 ## 8. Engine rules (`libs/engine`, `apps/engine`; details in `.claude/rules/engine.md`)

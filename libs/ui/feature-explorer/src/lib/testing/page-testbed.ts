@@ -3,6 +3,7 @@
 // fake data port for the inventory and the real `EngineApi` over a fake engine for everything else
 // (the profile and the saved views). Never part of the library build.
 import {
+  inject,
   signal,
   type EnvironmentProviders,
   type Provider,
@@ -14,15 +15,23 @@ import {
   createFakeExplorerData,
   type FakeExplorerData,
 } from '@app/explorer-model/testing';
-import { ENGINE_PARSE, provideEngineData } from '@app/ui-data';
+import { explorerWindowTopic } from '@app/contracts';
+import {
+  EngineApi,
+  ENGINE_PARSE,
+  LiveClient,
+  provideEngineData,
+} from '@app/ui-data';
 import { ENGINE_TRANSPORT } from '@app/ui-platform';
 import { FakeEngine, MemoryTransport } from '@app/ui-platform/testing';
 import { provideGridRenderAll } from '@app/ui-grid/testing';
 import { provideTransloco } from '@jsverse/transloco';
 
 import { EXPLORER_CONNECTION } from '../connection';
+import { createEngineExplorerData } from '../data/engine-explorer-data';
 import { EXPLORER_DATA } from '../data/explorer-data';
 import { provideExplorerScope } from '../explorer-scope';
+import { answerInventory } from './explorer-testbed';
 import { FakeWorkspace } from './fake-workspace';
 
 export interface PageBed<T> {
@@ -63,11 +72,24 @@ export async function mountPage<T>(
     readonly cid?: string | null;
     readonly inputs?: Readonly<Record<string, unknown>>;
     readonly providers?: readonly Provider[];
+    /**
+     * The page reads the inventory and follows the topic through the real engine-backed data port over the
+     * fake engine (the inventory answered by `fake`), so every request the page makes is on `engine`.
+     */
+    readonly engineBacked?: boolean;
   } = {},
 ): Promise<PageBed<T>> {
   const fake = options.fake ?? createFakeExplorerData({ autoSnapshot: true });
   const workspace = options.workspace ?? new FakeWorkspace();
-  const engine = new FakeEngine({ handler: workspace.handler });
+  const engineBacked = options.engineBacked === true;
+  const engine = new FakeEngine({
+    handler: engineBacked
+      ? async (request) =>
+          (await answerInventory(fake, request)) ??
+          (await workspace.handler(request))
+      : workspace.handler,
+    ...(engineBacked ? { topics: [explorerWindowTopic] } : {}),
+  });
   const connection = signal<string | null>(
     options.cid === undefined ? 'c1' : options.cid,
   );
@@ -75,6 +97,15 @@ export async function mountPage<T>(
   TestBed.configureTestingModule({
     providers: [
       ...pageProviders(fake, connection, engine),
+      ...(engineBacked
+        ? [
+            {
+              provide: EXPLORER_DATA,
+              useFactory: () =>
+                createEngineExplorerData(inject(EngineApi), inject(LiveClient)),
+            },
+          ]
+        : []),
       ...(options.providers ?? []),
     ],
   });

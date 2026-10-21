@@ -6,7 +6,7 @@ Tags: `type:ui-feature`, `runtime:browser`. Not `trust:critical`.
 
 ## Status
 
-Slices A to I of M0-54: the project, its `explorer` Transloco scope, the connection token, the lazy route table, the engine-backed data port, the inventory grid page (columns, the freshness banner, live feed line), the filter bar, the saved views, the cluster overview, the capability card, and the web shell mounting with its tree source and the one chunk-budget exception (AC-24, AC-25). Nothing here has been proved in a browser, and the pages run in specs against the model's fake data port or the fake engine; the composed engine registers the explorer modules now (M0-wiring), and the one end-to-end check through its router is planned for slice J.
+Slices A to J of M0-54: the project, its `explorer` Transloco scope, the connection token, the lazy route table, the engine-backed data port, the inventory grid page (columns, the freshness banner, live feed line), the filter bar, the saved views, the cluster overview, the capability card, the web shell mounting with its tree source and the one chunk-budget exception (AC-24, AC-25), and the proof slice: the request allow-list spec (AC-28, `explorer-requests.spec.ts`), the same calls through the real router (`libs/testkit/src/explorer-ui/explorer-calls.spec.ts`) and the Node perf harness (`pnpm nx run perf:explorer-ui-20k`, AC-26). The pages run in specs against the model's fake data port or the fake engine, and the calls are checked against the real router with the services' in-memory fakes. No browser time is claimed: AC-27 (interaction time in a browser) is planned until the browser driver and issue #277 are available.
 
 ## Public API
 
@@ -32,4 +32,12 @@ Slices A to I of M0-54: the project, its `explorer` Transloco scope, the connect
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p feature-explorer   # test runs test-components (the component specs) first
+pnpm nx test testkit --testNamePattern=AC-28                  # the calls of the UI through the real router
+pnpm nx test web-gallery-check                                # AC-25, the source half: every key literal exists and is used
+pnpm nx run perf:explorer-ui-20k                              # AC-26: interactions, engine plus adapter in Node (no rendering)
 ```
+
+## Known limits
+
+- The two view commands, `views.create` and `views.delete`, answer 422 `GATE_BLOCKED` from a running engine today (the prod lock has no connection to arm, OQ-380), so a view cannot be saved or deleted against the real engine yet. The control shows the engine's Problem as sent and loses nothing (AC-19, against the fake engine); `views.list` works.
+- A running engine cannot create a connection yet (see `docs/runbooks/run-locally.md`), so the explorer pages show their empty and error states there until a connection exists.

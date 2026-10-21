@@ -26,6 +26,13 @@
         "command": "vitest run --config apps/perf/vitest.config.mts"
       }
     },
+    "explorer-ui-20k": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config apps/perf/vitest.perf.config.mts src/explorer-ui-20k",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "explorer-20k": {
       "executor": "nx:run-commands",
       "options": {

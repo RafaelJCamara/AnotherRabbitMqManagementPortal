@@ -15,6 +15,9 @@ Tags: `type:test`, `runtime:node`.
   - The harness prints the idle event-loop delay it measured first. On Windows that floor is about 16 ms (the operating system's timer tick, whatever the sampling resolution), so a loop-delay figure there is conservative; on Linux the floor is about 1 ms.
   - Where it runs in CI (pull request, nightly) is not decided (OQ-544, OQ-671): no workflow runs it yet.
 
+- `explorer-ui-20k` (`pnpm nx run perf:explorer-ui-20k`, M0-54 AC-26): the real window source of `@app/explorer-model` (the one the explorer page uses) reading through a data port that runs the real `inventory.query` action over a 20,000-queue index, while sweeps keep installing versions. 1,000 interactions (scroll jumps, text filters, facet changes, sorts; a fixed random sequence) are each timed from the call to the rows of the first block. It asserts every request has a limit of 200 or less, no window failed and the p95 per interaction is at most 300 ms, and prints the resubscribe, refresh and version-change counts of the sources; the 100,000-queue run (`PERF_EXPLORER_UI_LARGE=0` skips it) is printed, never asserted.
+  - It measures **engine plus adapter in Node** and says so in its output: no transport, no rendering and no browser. Its data port has no live topic, so the resubscribe count is the source's reaction to the rows it was told were on screen. The time from input to painted rows in a browser is AC-27 (`explorer-ui-20k-browser`), which is **planned**: it needs the browser driver and issue #277, and no browser figure is claimed until it runs.
+
 ## Invariants
 
 - Dependencies follow the type:test row of blueprint 2.2; `pnpm nx lint perf` enforces them.
@@ -25,4 +28,5 @@ Tags: `type:test`, `runtime:node`.
 ```sh
 pnpm nx run-many -t lint typecheck test -p perf
 pnpm nx run perf:explorer-20k
+pnpm nx run perf:explorer-ui-20k
 ```

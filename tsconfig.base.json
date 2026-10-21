@@ -30,6 +30,7 @@
       "@app/domain-model": ["./libs/shared/domain-model/src/index.ts"],
       "@app/generators": ["./tools/generators/src/index.ts"],
       "@app/jobs": ["./libs/engine/jobs/src/index.ts"],
+      "@app/json-stream": ["./libs/shared/json-stream/src/index.ts"],
       "@app/kernel": ["./libs/engine/kernel/src/index.ts"],
       "@app/live": ["./libs/engine/live/src/index.ts"],
       "@app/live-protocol": ["./libs/shared/live-protocol/src/index.ts"],

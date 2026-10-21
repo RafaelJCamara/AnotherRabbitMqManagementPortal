@@ -31,6 +31,7 @@
 /libs/engine/svc-peek/                                  @RafaelJCamara
 /libs/engine/svc-tap/                                   @RafaelJCamara
 /libs/engine/svc-dlq/                                   @RafaelJCamara
+/libs/engine/svc-explorer/                              @RafaelJCamara
 /libs/engine/kernel/src/actions/                        @RafaelJCamara
 /tools/semantics-evidence/                              @RafaelJCamara
 

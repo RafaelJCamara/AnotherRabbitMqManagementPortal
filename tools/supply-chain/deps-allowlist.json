@@ -65,6 +65,14 @@
       "reason": "Lints i18n JSON files (honest-wording rule).",
       "ref": "M0-04"
     },
+    "@jsverse/transloco": {
+      "reason": "Runtime i18n of the web shell and features (Transloco scopes).",
+      "ref": "M0-51, OQ-526"
+    },
+    "@jsverse/transloco": {
+      "reason": "Runtime i18n of the web shell and features (Transloco scopes).",
+      "ref": "M0-51, OQ-526"
+    },
     "@nx/angular": {
       "reason": "Nx plugin for the Angular web app.",
       "ref": "M0-01"
@@ -114,6 +122,14 @@
     "@typescript-eslint/parser": {
       "reason": "TypeScript parser for ESLint.",
       "ref": "M0-03"
+    },
+    "ag-grid-community": {
+      "reason": "AG Grid Community grid engine behind the ui-grid adapter (infinite row model).",
+      "ref": "ADR-021, M0-20, M0-53"
+    },
+    "ag-grid-community": {
+      "reason": "AG Grid Community grid engine behind the ui-grid adapter (infinite row model).",
+      "ref": "ADR-021, M0-20, M0-53"
     },
     "amqplib": {
       "reason": "AMQP 0-9-1 client of libs/engine/adapter-amqp091 behind the role-typed lease ports (ADR-012); exact pin, no @types/amqplib; confined to adapter-amqp091 and apps/conformance.",

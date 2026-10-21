@@ -26,7 +26,7 @@
       "auth": "guest",
       "status": 200,
       "file": "prometheus.metrics.prom",
-      "bytes": 454754
+      "bytes": 127150
     },
     {
       "id": "prometheus.detailed-queues",
@@ -37,7 +37,7 @@
       "auth": "guest",
       "status": 200,
       "file": "prometheus.detailed-queues.prom",
-      "bytes": 3561
+      "bytes": 3562
     }
   ],
   "skipped": []

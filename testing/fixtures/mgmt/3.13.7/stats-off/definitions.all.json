@@ -100,7 +100,7 @@
   "global_parameters": [
     {
       "name": "internal_cluster_id",
-      "value": "rabbitmq-cluster-id-qy_KM4-ghUHbM11NKs0ttA"
+      "value": "rabbitmq-cluster-id-1JwMonEt9hTKDQX2qEajlA"
     }
   ],
   "policies": [

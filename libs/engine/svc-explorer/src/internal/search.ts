@@ -21,66 +21,103 @@ export interface SearchHit {
 export interface SearchSource {
   readonly kind: SearchKind;
   readonly rows: readonly SearchRow[];
+  /** `rows[i].name` case-folded, built once per index version (`InventoryIndex.folded`). */
+  readonly folded: readonly string[];
 }
 
-const RANK_ORDER: Readonly<Record<SearchRank, number>> = {
-  exact: 0,
-  prefix: 1,
-  substring: 2,
-};
+/** Best first: the position is the rank's order. */
+const RANKS: readonly SearchRank[] = ['exact', 'prefix', 'substring'];
 
-/** Negative when `a` is the better hit. The kind is last, so the order is total. */
-function compare(a: SearchHit, b: SearchHit, kinds: readonly string[]): number {
+/** A shortlist entry: the hit and the numbers its order is made of, so a compare reads no row. */
+interface Entry {
+  readonly hit: SearchHit;
+  readonly rank: number;
+  readonly length: number;
+  readonly key: string;
+  readonly source: number;
+}
+
+/** Negative when `a` is the better hit. The source (the kind's place) is last, so the order is total. */
+function compare(a: Entry, b: Entry): number {
   return (
-    RANK_ORDER[a.rank] - RANK_ORDER[b.rank] ||
-    a.row.name.length - b.row.name.length ||
-    (a.row.key < b.row.key ? -1 : a.row.key > b.row.key ? 1 : 0) ||
-    kinds.indexOf(a.kind) - kinds.indexOf(b.kind)
+    a.rank - b.rank ||
+    a.length - b.length ||
+    (a.key < b.key ? -1 : a.key > b.key ? 1 : 0) ||
+    a.source - b.source
   );
 }
 
-/** The best `max` hits for `text` and the number of rows that matched at all. */
+/**
+ * The best `max` hits for `text` and the number of rows that matched at all.
+ *
+ * The shortlist is kept sorted. Once it is full, a hit that cannot beat its last entry is turned
+ * away after comparing two numbers and at most one string, without building a hit or searching the
+ * list: that is nearly every match when the text is common, and it is what keeps the pass cheap.
+ */
 export function searchNames(
   sources: readonly SearchSource[],
   text: string,
   max: number,
 ): { hits: SearchHit[]; matched: number } {
   const needle = text.toLowerCase();
-  const kinds = sources.map((s) => s.kind);
-  const best: SearchHit[] = [];
+  const best: Entry[] = [];
   let matched = 0;
-  for (const { kind, rows } of sources) {
-    for (const row of rows) {
-      const name = row.name.toLowerCase();
+  // The last (worst) entry of a full shortlist, unpacked for the cheap turn-away test.
+  let worstRank = 0;
+  let worstLength = 0;
+  let worstKey = '';
+  for (let s = 0; s < sources.length; s++) {
+    const source = sources[s];
+    if (source === undefined) continue;
+    const { kind, rows, folded } = source;
+    for (let i = 0; i < folded.length; i++) {
+      const name = folded[i];
+      if (name === undefined) continue;
       const at = name.indexOf(needle);
       if (at < 0) continue;
       matched++;
-      const hit: SearchHit = {
-        kind,
-        row,
-        rank:
-          at > 0
-            ? 'substring'
-            : name.length === needle.length
-              ? 'exact'
-              : 'prefix',
+      const row = rows[i];
+      if (row === undefined) continue;
+      const rank = at > 0 ? 2 : name.length === needle.length ? 0 : 1;
+      const length = row.name.length;
+      if (best.length >= max) {
+        if (rank > worstRank) continue;
+        if (rank === worstRank) {
+          if (length > worstLength) continue;
+          // Equal on all three: a later row (the sources come in order) loses the tie.
+          if (length === worstLength && row.key >= worstKey) continue;
+        }
+      }
+      const entry: Entry = {
+        hit: { kind, row, rank: RANKS[rank] ?? 'substring' },
+        rank,
+        length,
+        key: row.key,
+        source: s,
       };
-      // Insert into the sorted shortlist (binary search); a hit past the end is not kept.
+      // Insert into the sorted shortlist (binary search).
       let low = 0;
       let high = best.length;
       while (low < high) {
         const mid = (low + high) >>> 1;
         const other = best[mid];
-        if (other !== undefined && compare(other, hit, kinds) <= 0)
-          low = mid + 1;
+        if (other !== undefined && compare(other, entry) <= 0) low = mid + 1;
         else high = mid;
       }
       if (low >= max) continue;
-      best.splice(low, 0, hit);
+      best.splice(low, 0, entry);
       if (best.length > max) best.pop();
+      if (best.length >= max) {
+        const worst = best[best.length - 1];
+        if (worst !== undefined) {
+          worstRank = worst.rank;
+          worstLength = worst.length;
+          worstKey = worst.key;
+        }
+      }
     }
   }
-  return { hits: best, matched };
+  return { hits: best.map((e) => e.hit), matched };
 }
 
 const SEVERITY: Readonly<Record<Freshness['state'], number>> = {

@@ -29,6 +29,13 @@ export interface ExplorerLimits {
   maxBindingsResident: number;
   /** A resident vhost older than this is read again by the next query for it. */
   bindingsMaxAgeMs: number;
+  /**
+   * Sorted copies of one kind's rows kept for the windows that follow (one per column and
+   * direction, per kind; the oldest goes first). A list of references, not of rows, so a copy costs
+   * 8 bytes a row at most; sized for the columns of a kind, so a screen that cycles the sorts does
+   * not sort every window again.
+   */
+  sortCacheEntriesPerKind: number;
 }
 
 export const DEFAULT_EXPLORER_LIMITS: ExplorerLimits = {
@@ -42,6 +49,7 @@ export const DEFAULT_EXPLORER_LIMITS: ExplorerLimits = {
   idleStopMs: 600_000,
   maxBindingsResident: 500_000,
   bindingsMaxAgeMs: 60_000,
+  sortCacheEntriesPerKind: 8,
 };
 
 export interface ExplorerModuleDeps {

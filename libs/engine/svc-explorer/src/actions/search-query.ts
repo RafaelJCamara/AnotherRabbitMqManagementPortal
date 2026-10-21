@@ -43,6 +43,7 @@ export const createSearchQueryAction: (
       const sources = kinds.map((kind) => ({
         kind,
         rows: index?.rows(kind) ?? [],
+        folded: index?.folded(kind) ?? [],
       }));
       const { hits, matched } = searchNames(sources, text, SEARCH_RESULT_MAX);
       const [first, ...others] = kinds.map((kind, i) =>

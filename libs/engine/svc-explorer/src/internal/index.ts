@@ -9,7 +9,7 @@ import {
 } from '@app/contracts';
 import type { z } from 'zod';
 
-import type { ExplorerLimits } from '../deps';
+import { DEFAULT_EXPLORER_LIMITS, type ExplorerLimits } from '../deps';
 
 import type { IndexRow, QueueRow, RowOf } from './rows';
 
@@ -93,6 +93,11 @@ export interface InventoryIndex {
   /** The rows of the current version of a kind, in sweep order (empty until installed). Read only. */
   rows<K extends SweptKind>(kind: K): readonly RowOf<K>[];
   /**
+   * The case-folded name of each row of `rows(kind)`, same order. Built on first use and kept with
+   * the version (dropped with it); its bytes are in `stats.bytes`. Read only.
+   */
+  folded(kind: SweptKind): readonly string[];
+  /**
    * The message counts of the current queues, summed in one pass (no sort, no window). A queue
    * that did not report a count adds nothing and is counted in `unreported`; undefined until the
    * queues have been installed.
@@ -113,14 +118,18 @@ interface KindData {
   readonly dropped: number;
   readonly complete: boolean;
   byKey?: Map<string, IndexRow>;
+  /** Case-folded names for the search, built lazily; at most one more copy of the names. */
+  folded?: readonly string[];
+  foldedBytes?: number;
 }
 interface Snapshot {
   readonly meta: IndexVersion;
   readonly kinds: Readonly<Partial<Record<SweptKind, KindData>>>;
 }
 
-const SORT_CACHE_ENTRIES = 4;
 const ROW_OVERHEAD_BYTES = 256;
+/** A reference in the folded-name list, in the estimate. */
+const REFERENCE_BYTES = 8;
 
 /** A cheap estimate: a fixed overhead plus two bytes per character of the strings. */
 function rowBytes(row: IndexRow): number {
@@ -186,8 +195,14 @@ export function createInventoryIndex(
   limits: Pick<
     ExplorerLimits,
     'maxRowsPerConnection' | 'maxBytesPerConnection'
-  >,
+  > &
+    Partial<Pick<ExplorerLimits, 'sortCacheEntriesPerKind'>>,
 ): InventoryIndex {
+  const sortCacheEntries = Math.max(
+    1,
+    limits.sortCacheEntriesPerKind ??
+      DEFAULT_EXPLORER_LIMITS.sortCacheEntriesPerKind,
+  );
   const empty: Snapshot = {
     meta: {
       version: 0,
@@ -203,7 +218,8 @@ export function createInventoryIndex(
   let previous: Snapshot | undefined;
   let droppedTotal = 0;
   const listeners = new Set<(change: IndexChange) => void>();
-  const sortCache = new Map<string, readonly IndexRow[]>();
+  // One FIFO per kind, so a busy kind never pushes out another kind's sorts (I-6: each is bounded).
+  const sortCache = new Map<SweptKind, Map<string, readonly IndexRow[]>>();
 
   const sum = (snap: Snapshot, field: 'bytes' | 'dropped', skip?: string) =>
     KINDS.reduce(
@@ -217,17 +233,39 @@ export function createInventoryIndex(
     );
 
   function sorted(snap: Snapshot, kind: SweptKind, sort: InventorySort) {
-    const id = `${String(snap.meta.version)}|${kind}|${sort.column}|${sort.dir}`;
-    let hit = sortCache.get(id);
+    const id = `${String(snap.meta.version)}|${sort.column}|${sort.dir}`;
+    let cache = sortCache.get(kind);
+    if (cache === undefined) {
+      cache = new Map();
+      sortCache.set(kind, cache);
+    }
+    let hit = cache.get(id);
     if (hit === undefined) {
       hit = [...(snap.kinds[kind]?.rows ?? [])].sort(comparator(sort));
-      if (sortCache.size >= SORT_CACHE_ENTRIES) {
-        const oldest = sortCache.keys().next();
-        if (!oldest.done) sortCache.delete(oldest.value);
+      if (cache.size >= sortCacheEntries) {
+        const oldest = cache.keys().next();
+        if (!oldest.done) cache.delete(oldest.value);
       }
-      sortCache.set(id, hit);
+      cache.set(id, hit);
     }
     return hit;
+  }
+
+  function foldedNames(kind: SweptKind): readonly string[] {
+    const data = current.kinds[kind];
+    if (data === undefined) return [];
+    if (data.folded === undefined) {
+      let bytes = 0;
+      const names: string[] = [];
+      for (const row of data.rows) {
+        const name = row.name.toLowerCase();
+        names.push(name);
+        bytes += REFERENCE_BYTES + 2 * name.length;
+      }
+      data.folded = names;
+      data.foldedBytes = bytes;
+    }
+    return data.folded;
   }
 
   /** Applies finished kinds as ONE new version, so a pinned scroll survives a whole sweep. */
@@ -368,6 +406,7 @@ export function createInventoryIndex(
         dropped: data.dropped,
       };
     },
+    folded: foldedNames,
     has: (kind) => current.kinds[kind] !== undefined,
     current: () => current.meta,
     setStale(stale) {
@@ -380,7 +419,10 @@ export function createInventoryIndex(
     get stats() {
       return {
         rows: rowCount(current),
-        bytes: sum(current, 'bytes'),
+        // The rows as estimated at install, plus the folded names where a search has built them.
+        bytes:
+          sum(current, 'bytes') +
+          KINDS.reduce((n, k) => n + (current.kinds[k]?.foldedBytes ?? 0), 0),
         dropped: droppedTotal,
       };
     },

@@ -63,6 +63,7 @@ pnpm nx run-many -t lint typecheck test -p engine
 pnpm nx build engine          # dist/apps/engine/main.mjs and meta.json
 pnpm nx run engine:smoke      # the bundle as a process: local and desktop start, lock refusal, team refusal, metafile, egress guard
 pnpm nx run engine:egress     # the same egress soak for 10 minutes (EGRESS_SOAK_SECONDS=600)
+pnpm nx run engine:it         # the bundle as a process against a lab broker; needs a Docker daemon (libs/testkit/src/it/engine.it.ts)
 pnpm nx run engine:serve      # build the engine and the web app, start local mode, print the launch URL
 pnpm nx run supply-chain:gates
 ```

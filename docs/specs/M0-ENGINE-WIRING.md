@@ -74,7 +74,9 @@ Engine.served: { actions: readonly string[]; topics: readonly string[] }
 | AC-10 | A broker that refuses the login, and an adapter error | The probe runs; the mapper is called | The Problem carries the code of the refusal, no secret; a streamed failure and a non-adapter error behave as documented | "AC-10 ..." in both files |
 | AC-11 | A stored login that cannot be opened | The probe runs | It fails and the broker saw no request | "AC-11 a stored login that cannot be opened ..." |
 
-`engine:serve` is checked by running it (runbook), not by a unit test: it starts a process, which `engine:smoke` already covers for the bundle.
+| AC-12 | The engine bundle as a process, a lab broker with 30 queues and a profile written to the database beforehand (OQ-770) | `probe.run`, `profile.get`, `inventory.query`, `overview.get`, `connections.test-http` and `connections.test-amqp` are called over HTTP | Each answers against the real broker; a refused login is a failed test with its cause and is not echoed; `connections.create` is refused 422 | `libs/testkit/src/it/engine.it.ts` (`pnpm nx run engine:it`, needs Docker): the five tests of the file |
+
+`engine:serve` is checked by running it (the runbook), not by a unit test: it starts a process, which `engine:smoke` already covers for the bundle.
 
 ## Verification
 
@@ -85,6 +87,7 @@ pnpm nx test arch-tests
 pnpm format:check
 pnpm nx affected -t lint typecheck test build --base=origin/main
 pnpm nx run engine:smoke
+pnpm nx run engine:it           # needs a Docker daemon: the bundle against a lab broker
 pnpm nx run engine:serve        # then open the printed URL
 ```
 

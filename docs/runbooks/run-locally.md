@@ -106,5 +106,6 @@ Every management request goes through the BrokerScheduler (a per-broker load bud
 ```sh
 pnpm nx test engine                      # composed engine over fake ports, and the real adapters over loopback
 pnpm nx run engine:smoke                 # the bundle as a process
+pnpm nx run engine:it                    # the bundle against a lab broker (Docker): probe, profile, inventory, overview, tests
 pnpm nx run engine:serve                 # this page
 ```

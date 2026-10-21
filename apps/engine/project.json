@@ -66,6 +66,15 @@
         "command": "node apps/engine/scripts/serve.mjs"
       }
     },
+    "it": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "cache": false,
+      "options": {
+        "command": "node libs/testkit/src/it/run-it.ts engine",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "egress": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],

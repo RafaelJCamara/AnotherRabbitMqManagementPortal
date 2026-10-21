@@ -122,6 +122,7 @@ Run everything from the repository root.
 | Plan graph (features, work items, dependencies) | `pnpm nx run work-graph:validate` and `pnpm nx run work-graph:test` |
 | Platform upgrade lane (self-test; the workflow opens `lane:platform` issues) | `pnpm nx run platform-lane:test` |
 | Engine bundle (build, then run it as a process: modes, data-dir lock, metafile) | `pnpm nx build engine` / `pnpm nx run engine:smoke` |
+| Run the engine locally with the built web UI (prints the launch URL; [runbook](docs/runbooks/run-locally.md)) / the bundle against a lab broker (needs a Docker daemon) | `pnpm nx run engine:serve` / `pnpm nx run engine:it` |
 | Docs site | `pnpm nx build docs` |
 | Persistence integration tests (SQLite; Postgres 16 and 18 need a Docker daemon) | `pnpm nx run persistence:it --dialects=sqlite,pg` |
 | Jobs (runner) and job-store contract on both dialects; shutdown drain | `pnpm nx test jobs` / `pnpm nx run jobs:it --dialects=sqlite,pg` / `pnpm nx test kernel --testNamePattern=drain` |

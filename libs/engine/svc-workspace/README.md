@@ -8,7 +8,7 @@ Tags: `type:service`, `runtime:node`.
 
 ## Public API
 
-- `createWorkspaceModule(deps)`: returns the `EngineModule` the composition root registers.
+- `createWorkspaceModule(deps)`: returns the `EngineModule` the composition root registers. Registered in `apps/engine/src/modules/index.ts` (issue #278). The writes answer 422 `GATE_BLOCKED` through the real router until OQ-380 is ruled on.
 - `WorkspaceModuleDeps` (`src/deps.ts`): the ports the module needs: `workspace` (the `WorkspaceRepository` port of `@app/ports`, implemented by `@app/persistence`) and `newId` (a ULID source).
 - `createWorkspaceFakeDeps()` (`src/testing.ts`): an in-memory workspace store with the semantics of the real one, for specs, the architecture manifest and the HTTP specs.
 - `create<Action>Action(deps)` for each action above, for the testkit and the architecture manifest.

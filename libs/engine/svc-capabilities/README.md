@@ -6,7 +6,7 @@ Tags: `type:service`, `runtime:node`.
 
 ## Public API
 
-- `createCapabilitiesModule(deps)`: returns the `EngineModule` the composition root registers, with two actions.
+- `createCapabilitiesModule(deps)`: returns the `EngineModule` the composition root registers, with two actions. Registered in `apps/engine/src/modules/index.ts` (issue #278). `mgmt` is the BrokerScheduler's read wrapper over the adapter (errors mapped to Problems), `wire` the Dialer-and-TrustStore probe of `apps/engine/src/broker/wire-probe.ts`, `authorizer` the executor's own; `lastVerified` and the executor's `ProfileResolver` stay unwired (OQ-478, OQ-764).
 - `CapabilitiesModuleDeps` (`src/deps.ts`): `mgmt` (`MgmtReadPort`, the BrokerScheduler's read wrapper: the module is never given a write port), `wire` (`BrokerWireProbe`: the TLS and AMQP handshakes), `profiles` (`BrokerProfileStore`: `repos.brokerProfiles` of persistence), `connections` (`ConnectionStore.get`, only to tell whether the caller may see the connection), and optionally `lastVerified` and `registry`.
 - `createCapabilitiesFakeDeps()` and the fakes in `src/testing.ts`: a scripted management API (it answers from a table by path and records every request), a fake wire probe, an in-memory cache.
 - `runProbe(env)`, `buildProfile(input)`, `fingerprintOf(profile)`: the probe, the facts-to-profile function and the fingerprint, for the composition root, tests and the diagnostics.

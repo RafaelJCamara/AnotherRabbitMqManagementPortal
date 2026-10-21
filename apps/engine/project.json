@@ -57,6 +57,15 @@
         "command": "vitest run --config apps/engine/vitest.config.mts"
       }
     },
+    "serve": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "web:build"],
+      "cache": false,
+      "continuous": true,
+      "options": {
+        "command": "node apps/engine/scripts/serve.mjs"
+      }
+    },
     "egress": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],

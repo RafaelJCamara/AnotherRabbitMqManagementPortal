@@ -24,6 +24,7 @@ import type { EngineMode, Permission } from '@app/contracts';
 import { createJobRunner } from '@app/jobs';
 import {
   AppError,
+  BrokerScheduler,
   createActionExecutor,
   createAuditChain,
   createDrainCoordinator,
@@ -32,6 +33,7 @@ import {
   createPlanStore,
   createReceiptStore,
   executorGatePhase,
+  scheduleMgmtRead,
   systemClock,
   systemTimers,
   type Authorizer,
@@ -63,6 +65,8 @@ import type { FileTokenSink, LogTail } from '@app/svc-ops';
 import { buildApp, type Authenticator } from '@app/transport';
 import type { FastifyInstance } from 'fastify';
 
+import { createBrokerPorts, type BrokerPortsFactory } from './broker/index.ts';
+import { mapMgmtErrors } from './broker/mgmt.ts';
 import { acquireDataDirLock } from './data-dir-lock.ts';
 import type { ModuleFactory } from './modules/index.ts';
 import {
@@ -124,6 +128,8 @@ export interface ComposeOptions {
   readonly engineVersion: string;
   readonly logger: Logger;
   readonly registry?: Registry;
+  /** Builds the broker-facing ports (management reads, wire probe, prober). Default: the real adapters; a spec passes fakes. */
+  readonly brokerPorts?: BrokerPortsFactory;
   readonly trust?: TrustStoreOptions;
   /** The newest log lines, for the diagnostics bundle. Absent: no bundle (nothing to collect from). */
   readonly logs?: LogTail;
@@ -150,6 +156,11 @@ export interface Engine {
   /** Startup steps in the order they ran. */
   readonly steps: readonly string[];
   readonly reconciliation: readonly ReconcileReport[];
+  /** What this engine answers: the registered action ids and the live topic ids. */
+  readonly served: {
+    readonly actions: readonly string[];
+    readonly topics: readonly string[];
+  };
   /** Requests can be injected into it; the tunnel of M0-34 does exactly that. */
   readonly app: FastifyInstance;
   vault(): VaultStatus;
@@ -305,10 +316,43 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
         migrations.map((migration) => migration.id).join('\n'),
       ),
     };
+    // The broker-facing ports: the adapters behind the BrokerScheduler, which is the only path to the
+    // management API (I-8), with the adapter's errors mapped to Problems on the way out.
+    const scheduler = new BrokerScheduler({ clock, timers });
+    const broker = (options.brokerPorts ?? createBrokerPorts)({
+      connections: repos.connections,
+      profiles: repos.brokerProfiles,
+      sealer: vault.fields,
+      trust,
+      logger,
+      mode: profile.mode,
+    });
+    const brokerClosed = (): void => {
+      scheduler.close();
+      broker.close();
+    };
+    undo.push(() => {
+      brokerClosed();
+      return Promise.resolve();
+    });
+    const topics = createTopicRegistry();
     const modules = options.modules({
       engineVersion: options.engineVersion,
       mode: profile.mode,
       arming: guardrails.arming,
+      services: {
+        connections: repos.connections,
+        profiles: repos.brokerProfiles,
+        workspace: repos.workspace,
+        sealer: vault.fields,
+        mgmt: mapMgmtErrors(scheduleMgmtRead(broker.mgmt, scheduler)),
+        wire: broker.wire,
+        prober: broker.prober,
+        authorizer: profile.authorizer,
+        newId: () => ids.ulid(),
+        clock,
+        timers,
+      },
       ...(options.logs === undefined || profile.diagnostics === undefined
         ? {}
         : {
@@ -322,7 +366,8 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
                   ...ready,
                 }),
                 logs: options.logs,
-                // No connection profile is stored yet (M0-44), so there is none to summarise.
+                // `BrokerProfileStore` has no listing yet (a bundle needs a window of profiles), so the
+                // bundle carries none (OQ-765).
                 profiles: () => Promise.resolve([]),
                 audit: repos.audit,
                 secretValues: profile.diagnostics.secretValues,
@@ -335,10 +380,13 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
     for (const module of modules) {
       executor.register(...module.actions);
       for (const job of module.jobs ?? []) jobRunner.register(job);
+      for (const topic of module.topics ?? []) {
+        topics.register(topic.def, topic.source);
+      }
     }
     const hub = new LiveHub({
       engineVersion: options.engineVersion,
-      topics: createTopicRegistry(),
+      topics,
       canSubscribe: profile.canSubscribe,
       clock,
       timers,
@@ -404,6 +452,16 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
         },
         jobRunner.drainPhase(),
         ...modules.flatMap((module) => module.drainPhases ?? []),
+        {
+          // After the modules ended their sweeps: queued broker requests are refused, running ones
+          // are aborted and the idle sockets go. A suspend comes back, so it keeps them.
+          name: 'flush',
+          reasons: ['quit', 'sigterm', 'emergency'],
+          run: () => {
+            brokerClosed();
+            return Promise.resolve();
+          },
+        },
         flush,
       ],
       clock,
@@ -456,6 +514,12 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
       ready,
       steps,
       reconciliation,
+      served: {
+        actions: executor.registered().map((def) => def.id),
+        topics: modules.flatMap((module) =>
+          (module.topics ?? []).map((topic) => topic.def.id),
+        ),
+      },
       app,
       vault: () => vault.status(),
       drain,

@@ -6,7 +6,7 @@ Tags: `type:service`, `runtime:node`.
 
 ## Public API
 
-- `createConnectionsModule(deps)`: returns the `EngineModule` the composition root registers, with nine actions (below).
+- `createConnectionsModule(deps)`: returns the `EngineModule` the composition root registers, with nine actions (below). Registered in `apps/engine/src/modules/index.ts` (issue #278). The composition root builds its ports in `apps/engine/src/broker/`: the prober over the management and AMQP adapters, and a resolver that reads a stored profile with `configOf` and opens its login with `openSecret` (both exported for it); a secret is held for one call and logged nowhere (I-10).
 - `ConnectionsModuleDeps` (`src/deps.ts`): four ports, all from `@app/ports`: `store` (`ConnectionStore`: `repos.connections` of persistence), `sealer` (`FieldSealer`: `vault.fields` of secrets), `prober` (`ConnectionProber`) and `newId`.
 - `createConnectionsFakeDeps()` (`src/testing.ts`): an in-memory store, an AES-GCM sealer that binds the row like the real one, a scripted `FakeProber` that records the logins it was given, for specs, the architecture manifest and the HTTP specs.
 - `parseConnectionUri`, `amqpPortsFromListeners`, `findSecretsInBundle`: the URI parser (WHATWG `URL`), the AMQP ports of `/api/overview` listeners and the bundle scanner.

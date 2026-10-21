@@ -15,6 +15,11 @@ export {
 // ports of a broker's listeners, and the scanner a bundle must pass.
 export { findSecretsInBundle } from './internal/bundle.ts';
 export { amqpPortsFromListeners } from './internal/listeners.ts';
+// How the composition root reads a stored profile to dial it (the management target resolver and the
+// wire probe): the stored config of a row, and a sealed credential opened for one request. The
+// callers keep a secret for the length of one call only (I-10).
+export { configOf, type StoredConfig } from './internal/endpoints.ts';
+export { openSecret } from './internal/common.ts';
 export {
   parseConnectionUri,
   UriError,

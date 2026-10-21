@@ -40,6 +40,8 @@ export interface FakeFollower {
 export interface FakeExplorerData extends ExplorerData {
   /** Every `inventory.query` input, in order. */
   readonly queries: readonly InventoryQueryInput[];
+  /** The abort signal of each query, in the same order (a source that was replaced aborts its own). */
+  readonly signals: readonly AbortSignal[];
   /** The most queries that were in flight at once. */
   readonly maxInflight: number;
   /** Every `follow`, in order; `active` is false once its unsubscribe ran. */
@@ -215,6 +217,7 @@ export function createFakeExplorerData(
   let failure: { error: unknown } | undefined;
   let holding: (() => void)[] | undefined;
   const queries: InventoryQueryInput[] = [];
+  const signals: AbortSignal[] = [];
   const followers: FakeFollower[] = [];
   const sortCache = new Map<string, readonly AnyRow[]>();
 
@@ -243,6 +246,7 @@ export function createFakeExplorerData(
     input: InventoryQueryInput,
     signal: AbortSignal,
   ): Promise<InventoryQueryOutput> => {
+    signals.push(signal);
     inflight += 1;
     maxInflight = Math.max(maxInflight, inflight);
     try {
@@ -332,6 +336,7 @@ export function createFakeExplorerData(
 
   return {
     queries,
+    signals,
     get maxInflight() {
       return maxInflight;
     },

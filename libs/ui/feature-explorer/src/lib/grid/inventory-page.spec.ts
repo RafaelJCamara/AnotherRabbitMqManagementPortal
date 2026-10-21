@@ -1,4 +1,9 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { createFakeExplorerData } from '@app/explorer-model/testing';
+import { EngineProblemError } from '@app/ui-data';
 import {
   eventually,
   gridApiOf,
@@ -8,8 +13,19 @@ import {
 } from '@app/ui-grid/testing/components';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { mountPage } from '../testing/page-testbed';
+import {
+  barReady,
+  enter,
+  openPicker,
+  textInput,
+  tick,
+  type,
+} from '../testing/dom';
+import { ManualTimer } from '../testing/manual-timer';
+import { mountPage, pageProviders } from '../testing/page-testbed';
+import { EXPLORER_TIMER } from '../timer';
 import { InventoryPage } from './inventory-page.component';
+import { InventoryRoute } from './inventory-route.component';
 
 const NAME_CELLS = '.ag-row [col-id="name"]';
 
@@ -20,6 +36,9 @@ async function firstBlock(el: HTMLElement): Promise<void> {
   }, 8000);
 }
 
+const counts = (el: HTMLElement): string | undefined =>
+  el.querySelector('.counts')?.textContent.trim();
+
 describe('<app-inventory-page>', () => {
   beforeAll(warmUpGrid, WARM_UP_TIMEOUT_MS);
   afterAll(restoreGridSpecEnvironment);
@@ -29,18 +48,18 @@ describe('<app-inventory-page>', () => {
       rows: { queues: 20_000 },
       autoSnapshot: true,
     });
-    const { el } = await mountPage(InventoryPage, {
+    const timer = new ManualTimer();
+    const { el, fixture } = await mountPage(InventoryPage, {
       fake,
       inputs: { kind: 'queues' },
+      providers: [{ provide: EXPLORER_TIMER, useValue: timer }],
     });
     await firstBlock(el);
     const api = gridApiOf(el);
 
     // The numbers on the page are the engine's: matched of the rows in the index.
     await eventually(() => {
-      expect(el.querySelector('.counts')?.textContent.trim()).toBe(
-        '20000 of 20000 rows',
-      );
+      expect(counts(el)).toBe('20000 of 20000 rows');
     });
 
     // Scroll to the end in jumps. (That the grid evicts beyond 25 blocks is the grid's own proof, M0-53;
@@ -53,6 +72,7 @@ describe('<app-inventory-page>', () => {
         expect(fake.queries.some((q) => q.window.offset === offset)).toBe(true);
       });
     }
+
     // Sort by messages through the header: one sort column, from a fresh scroll.
     el.querySelector<HTMLElement>(
       '.ag-header-cell[col-id="messages"] .ag-header-cell-label',
@@ -63,10 +83,35 @@ describe('<app-inventory-page>', () => {
         dir: 'asc',
       });
     });
+
+    // A filter typed is not sent until it applies; then the counts are the engine's, not 20,000.
+    const sent = fake.queries.length;
+    type(textInput(el), 'queue-0001');
+    timer.advance(199);
+    expect(fake.queries).toHaveLength(sent);
+    timer.advance(1);
     await eventually(() => {
-      expect(el.querySelector('.counts')?.textContent.trim()).toBe(
-        '20000 of 20000 rows',
-      );
+      expect(fake.queries.at(-1)?.filter).toEqual({ text: 'queue-0001' });
+      expect(counts(el)).toBe('10 of 20000 rows');
+    });
+    // A facet applies at once.
+    tick(await openPicker(fixture, el, 'Queue types'), 'quorum');
+    await eventually(() => {
+      expect(fake.queries.at(-1)?.filter).toEqual({
+        text: 'queue-0001',
+        types: ['quorum'],
+      });
+      expect(counts(el)).toBe('4 of 20000 rows'); // queue-000010 to 19: every third is a quorum queue
+    });
+    // Clearing the filter reads the whole list again.
+    for (let removed = 0; removed < 2; removed++) {
+      el.querySelector<HTMLButtonElement>('.chip-remove')?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+    await eventually(() => {
+      expect(fake.queries.at(-1)?.filter).toBeUndefined();
+      expect(counts(el)).toBe('20000 of 20000 rows');
     });
 
     // Nothing the page sent was larger than a block, off a block boundary or sorted by two columns.
@@ -85,6 +130,83 @@ describe('<app-inventory-page>', () => {
     expect(
       Object.keys(api.getCacheBlockState() as Record<string, unknown>).length,
     ).toBeLessThanOrEqual(25);
+  });
+
+  it('AC-14 a bindings page asks for exactly one vhost before it reads', async () => {
+    const fake = createFakeExplorerData({ autoSnapshot: true });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        ...pageProviders(fake, signal<string | null>('c1')),
+        provideRouter([
+          {
+            path: 'bindings',
+            component: InventoryRoute,
+            data: { kind: 'bindings' },
+          },
+        ]),
+      ],
+    });
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/bindings');
+    const el = harness.routeNativeElement;
+    if (el === null) throw new Error('nothing is routed');
+    await eventually(() => {
+      harness.detectChanges();
+      expect(el.querySelector('.notice')?.textContent).toContain(
+        'Choose one virtual host to list its bindings.',
+      );
+    });
+    // No vhost: nothing is read, nothing is followed.
+    expect(fake.queries).toEqual([]);
+    expect(fake.followers).toEqual([]);
+
+    // Choosing one puts it in the address and in the filter; the rows are the bindings of that vhost.
+    const field = el.querySelector<HTMLInputElement>('.vhost-input');
+    if (!field) throw new Error('no vhost field');
+    field.value = 'orders';
+    enter(field);
+    await eventually(() => {
+      harness.detectChanges();
+      expect(TestBed.inject(Router).url).toBe('/bindings?vhost=orders');
+      expect(fake.queries.at(-1)?.filter).toEqual({ vhosts: ['orders'] });
+    });
+    await eventually(() => {
+      expect(
+        el.querySelectorAll('.ag-row [col-id="source"]').length,
+      ).toBeGreaterThan(1);
+    }, 8000);
+    // The topic has no bindings: the page says so and follows nothing.
+    expect(el.textContent).toContain('Bindings are not followed live.');
+    expect(fake.followers).toEqual([]);
+    // Every query names that one vhost and no other.
+    for (const input of fake.queries) {
+      expect(input.kind).toBe('bindings');
+      expect(input.filter?.vhosts).toEqual(['orders']);
+    }
+
+    // A vhost the connection does not have: the engine's Problem is shown as it was sent.
+    fake.failNext(
+      new EngineProblemError({
+        type: 'about:blank',
+        title: 'Virtual host not found',
+        status: 404,
+        code: 'NOT_FOUND',
+        detail: 'The connection has no virtual host named nope.',
+        correlationId: 'c',
+        retryable: false,
+      }),
+    );
+    field.value = 'nope';
+    enter(field);
+    await eventually(() => {
+      harness.detectChanges();
+      const text = el.textContent;
+      expect(text).toContain('The inventory could not be read.');
+      expect(text).toContain('Virtual host not found');
+      expect(text).toContain('The connection has no virtual host named nope.');
+    }, 8000);
+    expect(TestBed.inject(Router).url).toBe('/bindings?vhost=nope');
   });
 
   it('shows a name with markup as text, and names every column of the kind', async () => {
@@ -147,10 +269,16 @@ describe('<app-inventory-page>', () => {
       inputs: { kind: 'queues' },
     });
     await firstBlock(el);
+    await barReady(fixture, el);
 
-    // The banner is a labelled region with one polite live region; so is the grid's status bar.
-    const banner = el.querySelector('section.banner');
-    expect(banner?.getAttribute('aria-label')).toBeTruthy();
+    // The filter bar is a labelled search; the banner is a labelled region with one polite live region
+    // (and so is the grid's status bar).
+    expect(
+      el.querySelector('form[role="search"]')?.getAttribute('aria-label'),
+    ).toBe('Filters');
+    expect(
+      el.querySelector('section.banner')?.getAttribute('aria-label'),
+    ).toBeTruthy();
     const regions = [...el.querySelectorAll('[role="status"]')];
     expect(regions.length).toBeGreaterThanOrEqual(2);
     for (const region of regions) {
@@ -160,27 +288,62 @@ describe('<app-inventory-page>', () => {
     const grid = el.querySelector('[role="grid"], [role="treegrid"]');
     expect(grid?.getAttribute('aria-label')).toBe('Queues');
 
-    // Every control has a name; the column chooser is a disclosure.
+    // Facet pickers and the column chooser are disclosures; chips are a list with named remove buttons.
+    const types = [...el.querySelectorAll<HTMLButtonElement>('.toggle')].find(
+      (b) => b.textContent.trim() === 'Queue types',
+    );
+    expect(types?.getAttribute('aria-expanded')).toBe('false');
+    const panel = await openPicker(fixture, el, 'Queue types');
+    expect(types?.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.getAttribute('aria-label')).toBe('Queue types');
+    tick(panel, 'quorum');
+    await eventually(() => {
+      expect(el.querySelector('ul.chips')?.getAttribute('aria-label')).toBe(
+        'Active filters',
+      );
+    });
+    const columns = el.querySelector<HTMLButtonElement>('button.toggle');
+    expect(columns).not.toBeNull();
+    const chooser = [...el.querySelectorAll<HTMLButtonElement>('.toggle')].find(
+      (b) => b.textContent.trim() === 'Columns',
+    );
+    expect(chooser?.getAttribute('aria-expanded')).toBe('false');
+    chooser?.click();
+    await fixture.whenStable();
+    expect(chooser?.getAttribute('aria-expanded')).toBe('true');
+    expect(
+      [...el.querySelectorAll('[role="group"]')].some(
+        (g) => g.getAttribute('aria-label') === 'Choose columns',
+      ),
+    ).toBe(true);
+
+    // Every control has a name.
     for (const control of el.querySelectorAll(
-      'button, [role="button"], input',
+      'button, [role="button"], input, select',
     )) {
+      const labelled =
+        control instanceof HTMLInputElement ||
+        control instanceof HTMLSelectElement
+          ? [...(control.labels ?? [])]
+              .map((l) => l.textContent.trim())
+              .join(' ')
+          : '';
       const name =
         control.getAttribute('aria-label') ??
         control.getAttribute('aria-labelledby') ??
-        control.textContent.trim();
+        (labelled || control.textContent.trim());
       expect(name, control.outerHTML.slice(0, 80)).toBeTruthy();
     }
-    const toggle = el.querySelector<HTMLButtonElement>('button.toggle');
-    expect(toggle?.textContent.trim()).toBe('Columns');
-    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
-    toggle?.click();
-    await fixture.whenStable();
-    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
-    const panel = el.querySelector('[role="group"]');
-    expect(panel?.getAttribute('aria-label')).toBe('Choose columns');
     // Nothing is colour alone: a notice line starts with a word.
     for (const li of el.querySelectorAll('.banner li')) {
       expect(li.querySelector('.tag')?.textContent.trim()).toBeTruthy();
     }
+    // Escape closes a picker and returns focus to its button.
+    panel.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    await fixture.whenStable();
+    expect(types?.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(types);
   });
 });

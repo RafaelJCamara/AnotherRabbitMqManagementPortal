@@ -23,6 +23,7 @@ const FRESH: Freshness = {
 
 const STATE: WindowSourceState = {
   freshness: FRESH,
+  windowError: null,
   matched: 10,
   pin: 7,
   versionChanged: false,

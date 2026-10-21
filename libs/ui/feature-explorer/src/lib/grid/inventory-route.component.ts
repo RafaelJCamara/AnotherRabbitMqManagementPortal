@@ -3,7 +3,7 @@
 // it is its own lazy chunk (the grid with its library is the heavy part of the explorer).
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { EXPLORER_KINDS, type ExplorerKind } from '@app/explorer-model';
 import { map } from 'rxjs';
 
@@ -22,7 +22,11 @@ function kindOf(data: unknown): ExplorerKind {
   selector: 'app-inventory-route',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [InventoryPage],
-  template: `<app-inventory-page [kind]="kind()" [vhost]="vhost()" />`,
+  template: `<app-inventory-page
+    [kind]="kind()"
+    [vhost]="vhost()"
+    (vhostChange)="openVhost($event)"
+  />`,
   styles: `
     :host {
       display: block;
@@ -33,6 +37,7 @@ function kindOf(data: unknown): ExplorerKind {
 })
 export class InventoryRoute {
   readonly #route = inject(ActivatedRoute);
+  readonly #router = inject(Router);
   protected readonly kind = toSignal(
     this.#route.data.pipe(map((data) => kindOf(data))),
     { requireSync: true },
@@ -41,4 +46,13 @@ export class InventoryRoute {
     this.#route.queryParamMap.pipe(map((params) => params.get('vhost'))),
     { initialValue: null },
   );
+
+  /** The vhost of a bindings page lives in the address (`?vhost=`), so a tab can keep it. */
+  protected openVhost(vhost: string): void {
+    void this.#router.navigate([], {
+      relativeTo: this.#route,
+      queryParams: { vhost: vhost === '' ? null : vhost },
+      queryParamsHandling: 'merge',
+    });
+  }
 }

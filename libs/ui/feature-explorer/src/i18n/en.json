@@ -64,7 +64,57 @@
     "truncated": "Some rows were left out of the index because of its limit.",
     "incomplete": "This list is incomplete.",
     "versionChanged": "The list changed while you were scrolling and was reloaded.",
-    "reason": "From the engine:"
+    "reason": "From the engine:",
+    "readFailed": "The inventory could not be read."
+  },
+  "filters": {
+    "label": "Filters",
+    "text": "Filter by name",
+    "textBindings": "Filter by source, destination or routing key",
+    "textPlaceholder": "Part of a name",
+    "chips": "Active filters",
+    "remove": "Remove filter: {{filter}}",
+    "removeMark": "×",
+    "addLabel": "Another value",
+    "addButton": "Add",
+    "vhostChoose": "Virtual host",
+    "vhostOpen": "Open",
+    "minMessages": "At least this many messages",
+    "noMatch": "No rows match these filters: {{filters}}",
+    "facet": {
+      "vhosts": "Virtual hosts",
+      "states": "States",
+      "types": {
+        "queues": "Queue types",
+        "exchanges": "Exchange types",
+        "connections": "Protocols"
+      }
+    },
+    "consumers": {
+      "label": "Consumers",
+      "any": "Any",
+      "yes": "With consumers",
+      "no": "Without consumers"
+    },
+    "chip": {
+      "text": "Name contains \"{{value}}\"",
+      "vhosts": "Virtual host {{value}}",
+      "states": "State {{value}}",
+      "consumersYes": "With consumers",
+      "consumersNo": "Without consumers",
+      "minMessages": "At least {{value}} messages",
+      "types": {
+        "queues": "Queue type {{value}}",
+        "exchanges": "Exchange type {{value}}",
+        "connections": "Protocol {{value}}"
+      }
+    },
+    "limit": {
+      "text": "A filter text is at most {{max}} characters.",
+      "vhosts": "At most {{max}} virtual hosts can be chosen.",
+      "types": "At most {{max}} types can be chosen.",
+      "states": "At most {{max}} states can be chosen."
+    }
   },
   "hazard": {
     "stats-off-policy-fields-missing": "Statistics are off on this broker, so policy columns can be missing from some queues.",
@@ -91,6 +141,7 @@
     },
     "dropped": "Some rows were left out of the index.",
     "incomplete": "The list is incomplete.",
+    "readFailed": "The inventory could not be read.",
     "notFollowed": "Bindings are not followed live.",
     "connecting": "Connecting live updates.",
     "following": "Live updates are on.",

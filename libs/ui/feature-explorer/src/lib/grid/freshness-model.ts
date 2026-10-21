@@ -142,7 +142,7 @@ export function freshnessLines(
 
 /** The live-updates part of the page: what is followed, what is paused, what ended. */
 export interface LiveLine {
-  readonly id: 'live' | 'paused' | 'status';
+  readonly id: 'read' | 'live' | 'paused' | 'status';
   readonly tone: 'info' | 'warn';
   readonly key: string;
   /** What a screen reader hears when this line appears (no counts: a count is not announced again). */
@@ -155,6 +155,26 @@ export interface LiveLine {
 const STATUS_KEYS = ['paused', 'degraded', 'stale'] as const;
 
 export function liveLines(
+  kind: ExplorerKind,
+  state: WindowSourceState | null,
+): LiveLine[] {
+  const lines = followLines(kind, state);
+  // A window the engine refused or could not serve: its Problem as sent, until a window succeeds.
+  return state !== null && state.windowError !== null
+    ? [
+        {
+          id: 'read',
+          tone: 'warn',
+          key: 'explorer.freshness.readFailed',
+          announce: 'explorer.announce.readFailed',
+          problem: problemView(state.windowError),
+        },
+        ...lines,
+      ]
+    : lines;
+}
+
+function followLines(
   kind: ExplorerKind,
   state: WindowSourceState | null,
 ): LiveLine[] {

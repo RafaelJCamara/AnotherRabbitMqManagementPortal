@@ -54,6 +54,8 @@ export interface WindowSourceCounters {
 export interface WindowSourceState {
   /** The freshness of the last answer; `null` before the first. */
   readonly freshness: Freshness | null;
+  /** Why the last window failed (the engine's Problem as received), until a window succeeds; null otherwise. */
+  readonly windowError: unknown;
   /** Rows after the filter, as the engine counted them; `null` before the first answer. */
   readonly matched: number | null;
   /** The index version the current scroll is pinned to. */
@@ -123,6 +125,7 @@ export function createInventoryWindowSource<K extends ExplorerKind>(
 
   let state: WindowSourceState = {
     freshness: null,
+    windowError: null,
     matched: null,
     pin: null,
     versionChanged: false,
@@ -216,6 +219,7 @@ export function createInventoryWindowSource<K extends ExplorerKind>(
       }
       set({
         freshness: out.freshness,
+        windowError: null,
         matched: out.matched,
         versionChanged: out.freshness.versionChanged,
       });
@@ -234,7 +238,10 @@ export function createInventoryWindowSource<K extends ExplorerKind>(
         total: out.matched,
       };
     } catch (error) {
-      if (!link.signal.aborted) bump('windowFailures');
+      if (!link.signal.aborted) {
+        bump('windowFailures');
+        set({ windowError: error });
+      }
       throw error;
     } finally {
       inflight.delete(link);

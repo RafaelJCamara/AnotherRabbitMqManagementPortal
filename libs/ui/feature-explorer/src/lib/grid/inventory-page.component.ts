@@ -9,6 +9,7 @@ import {
   inject,
   input,
   linkedSignal,
+  output,
   signal,
 } from '@angular/core';
 import {
@@ -31,6 +32,8 @@ import { EXPLORER_CONNECTION } from '../connection';
 import { EXPLORER_DATA } from '../data/explorer-data';
 import type { Translate } from '../translate';
 import { inventoryColumns } from './columns';
+import { FilterBar } from './filter-bar.component';
+import { activeFilter, filterChips } from './filter-model';
 import { FreshnessBanner } from './freshness-banner.component';
 import { gridLabels } from './grid-labels';
 
@@ -44,7 +47,7 @@ interface Bundle {
 @Component({
   selector: 'app-inventory-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DataGrid, FreshnessBanner, TranslocoDirective],
+  imports: [DataGrid, FilterBar, FreshnessBanner, TranslocoDirective],
   template: `
     <ng-container *transloco="let t">
       @if (connection(); as cid) {
@@ -57,11 +60,23 @@ interface Bundle {
               </p>
             }
           </header>
+          <app-filter-bar
+            [kind]="kind()"
+            [filter]="userFilter()"
+            [vhost]="vhost()"
+            (filterChange)="userFilter.set($event)"
+            (vhostChange)="vhostChange.emit($event)"
+          />
           <app-freshness-banner
             [kind]="kind()"
             [freshness]="state()?.freshness ?? null"
             [state]="state()"
           />
+          @if (noMatch()) {
+            <p class="notice no-match" role="status">
+              {{ noMatchText(t) }}
+            </p>
+          }
           @if (sortTrimmed()) {
             <p class="notice" role="status">{{ t('explorer.sort.trimmed') }}</p>
           }
@@ -129,12 +144,21 @@ export class InventoryPage {
   protected readonly connection = inject(EXPLORER_CONNECTION);
   readonly #data = inject(EXPLORER_DATA);
 
-  /** The filter of the page; the text and facets come with the filter bar. */
+  /** Chosen on the page: the name text and the facets (a bindings page chooses its vhost apart). */
+  protected readonly userFilter = linkedSignal<ExplorerKind, ExplorerFilter>({
+    source: this.kind,
+    computation: () => ({}),
+  });
+  /** A bindings page was asked to open another vhost (the route puts it in `?vhost=`). */
+  readonly vhostChange = output<string>();
+
+  /** What the engine is asked: the chosen filter, and for bindings the one vhost it requires. */
   protected readonly filter = computed<ExplorerFilter>(() => {
     const vhost = this.vhost();
-    return this.kind() === 'bindings' && vhost !== null
-      ? { vhosts: [vhost] }
-      : {};
+    const chosen = this.userFilter();
+    return this.kind() === 'bindings' && vhost !== null && vhost !== ''
+      ? { ...chosen, vhosts: [vhost] }
+      : chosen;
   });
 
   /** One source is one query: a new kind, connection or filter is a new source. */
@@ -168,6 +192,16 @@ export class InventoryPage {
     return matched === null || total === null ? null : { matched, total };
   });
 
+  /** A filter is active and the engine says nothing matches it (never while the first read is running). */
+  protected readonly noMatch = computed(() => {
+    const state = this.state();
+    return (
+      state?.matched === 0 &&
+      state.freshness?.state !== 'loading' &&
+      activeFilter(this.kind(), this.userFilter())
+    );
+  });
+
   #bundle: Bundle | null = null;
 
   constructor() {
@@ -186,6 +220,14 @@ export class InventoryPage {
         source.destroy(); // aborts what is in flight and ends the subscription
       });
     });
+  }
+
+  /** "No rows match", with the chips that could be the cause. */
+  protected noMatchText(t: Translate): string {
+    const filters = filterChips(this.kind(), this.userFilter(), t)
+      .map((chip) => chip.text)
+      .join(', ');
+    return t('explorer.filters.noMatch', { filters });
   }
 
   /** The columns and labels for the translate function in force; rebuilt only when it or the kind changes. */

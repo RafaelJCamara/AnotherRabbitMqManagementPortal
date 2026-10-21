@@ -103,7 +103,8 @@ describe('the explorer strings', () => {
   afterAll(restoreGridSpecEnvironment);
 
   it(
-    'AC-25 every visible string of the overview and of a grid page is a key of the English file or engine data',
+    // The name the spec gives AC-25; the claims half of it is the node test of `web-gallery-check`.
+    'AC-25 every visible string is a Transloco key or engine data and none makes a forbidden claim',
     async () => {
       const workspace = new FakeWorkspace();
       workspace.overview = () => ({

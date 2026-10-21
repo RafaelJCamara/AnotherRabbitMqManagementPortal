@@ -124,13 +124,24 @@ describe('<app-views-control>', () => {
       }, 8000);
       const before = first.fake.queries.length;
       button(first.el, '.views .list .apply').click();
+      // A block of the list shown before the click may still be answered after it, so the first read that
+      // carries a filter is the view's; from then on every read carries it (a slow runner showed the
+      // earlier block arriving after the click, which is not what is under test).
       await eventually(() => {
-        expect(first.fake.queries.length).toBeGreaterThan(before);
+        expect(
+          first.fake.queries.slice(before).some((q) => q.filter !== undefined),
+        ).toBe(true);
       });
-      const query = first.fake.queries[before];
+      const at = first.fake.queries.findIndex(
+        (q, i) => i >= before && q.filter !== undefined,
+      );
+      const query = first.fake.queries[at];
       expect(query?.filter).toEqual(SAVED.definition.filter);
       expect(query?.sort).toEqual({ column: 'messages', dir: 'desc' });
       expect(query?.cid).toBe('c2');
+      expect(
+        first.fake.queries.slice(at).every((q) => q.filter !== undefined),
+      ).toBe(true);
       await eventually(() => {
         expect(chips(first.el)).toEqual([
           'Remove filter: Name contains "orders"',

@@ -14,6 +14,7 @@ import {
   COLUMNS,
   key,
   LABELS,
+  liveSource,
   rendered,
   ROWS,
   settled,
@@ -228,6 +229,63 @@ describe('<app-data-grid>', () => {
       expect(el.querySelector('.error')).toBeNull();
     });
     expect(cellTexts(el, 'name')).toEqual(['orders', 'billing', 'audit']);
+  });
+
+  it('sorts through the engine: a header click sends the sort model and publishes it in the state', async () => {
+    const src = source();
+    const { el, host, fixture } = await mount((h) => {
+      h.source.set(src);
+    });
+    await rendered(el, 3);
+    const first = src.requests.length;
+    el.querySelector<HTMLElement>(
+      '.ag-header-cell[col-id="name"] .ag-header-cell-label',
+    )?.click();
+    await settled(fixture, () => {
+      expect(src.requests.length).toBeGreaterThan(first);
+    });
+    expect(src.requests.at(-1)?.sort).toEqual([
+      { columnId: 'name', direction: 'asc' },
+    ]);
+    await settled(fixture, () => {
+      expect(host.columnState()?.sort).toEqual([
+        { columnId: 'name', direction: 'asc' },
+      ]);
+    });
+    // Every request still starts on a block boundary and is no larger than one block.
+    for (const request of src.requests) {
+      expect(request.offset % 200).toBe(0);
+      expect(request.limit).toBeLessThanOrEqual(200);
+    }
+  });
+
+  it('follows the live feed for the rows on screen, drops the rest and counts it, and reloads when a row leaves', async () => {
+    const src = liveSource();
+    const { el, fixture } = await mount((h) => {
+      h.source.set(src);
+    });
+    await rendered(el, 3);
+    // The grid reports the ids it shows.
+    await vi.waitFor(() => {
+      expect([...(src.watched.at(-1) ?? [])].sort()).toEqual(['a', 'b', 'c']);
+    });
+    // A change to a row on screen shows; a change to a row that is not shown is dropped and counted.
+    src.emit([
+      { kind: 'upsert', row: { id: 'b', name: 'billing-v2', size: 6 } },
+      { kind: 'upsert', row: { id: 'zzz', name: 'elsewhere', size: 1 } },
+    ]);
+    await settled(fixture, () => {
+      expect(cellTexts(el, 'name')).toEqual(['orders', 'billing-v2', 'audit']);
+      expect(el.querySelector('.dropped')?.textContent.trim()).toBe(
+        '1 live changes were not applied',
+      );
+    });
+    // A row that left makes the grid reload its blocks.
+    const before = src.requests.length;
+    src.emit([{ kind: 'remove', rowId: 'c' }]);
+    await settled(fixture, () => {
+      expect(src.requests.length).toBeGreaterThan(before);
+    });
   });
 
   it('hides a column from the chooser and publishes the state', async () => {

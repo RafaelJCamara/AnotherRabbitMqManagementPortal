@@ -6,7 +6,11 @@ import { expect, vi } from 'vitest';
 
 import type { GridColumn } from './columns';
 import type { GridLabels } from './grid-config';
-import type { EngineWindowSource, GridWindowRequest } from './window-source';
+import type {
+  EngineWindowSource,
+  GridRowChange,
+  GridWindowRequest,
+} from './window-source';
 
 export interface Row {
   readonly id: string;
@@ -85,6 +89,28 @@ export function source(rows: readonly Row[] = ROWS) {
   return src;
 }
 
+/** A source with a live feed: it records what the grid reports as visible and lets a test push changes. */
+export function liveSource(rows: readonly Row[] = ROWS) {
+  const base = source(rows);
+  const listeners = new Set<(changes: readonly GridRowChange<Row>[]) => void>();
+  const watched: ReadonlySet<string>[] = [];
+  const live: typeof base & {
+    watched: ReadonlySet<string>[];
+    emit(changes: readonly GridRowChange<Row>[]): void;
+  } = {
+    ...base,
+    watched,
+    watch: (ids) => void watched.push(ids),
+    onChanges(listener) {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+    emit(changes) {
+      for (const listener of listeners) listener(changes);
+    },
+  };
+  return live;
+}
 export const cellTexts = (el: HTMLElement, colId: string): string[] =>
   [...el.querySelectorAll(`.ag-row [col-id="${colId}"]`)].map((cell) =>
     cell.textContent.trim(),

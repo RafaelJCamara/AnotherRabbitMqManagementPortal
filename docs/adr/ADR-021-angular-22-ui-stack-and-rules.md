@@ -59,3 +59,17 @@ Decisions (OQ-526, OQ-534, OQ-537, OQ-539; proposed until a maintainer accepts t
 - **Boot.** `bootApp()` runs `bootstrapPlatform()` first. If it throws, the app starts a minimal "cannot start" view (no router, no HTTP, no engine call) that names the class of the failure by `BootstrapError` code and offers a reload; the error text is never shown, because it can carry a URL. Only when the platform is set up does the app start with `providePlatform`, `provideEngineData` and the router.
 - **Translations.** Transloco with English files bundled as JSON and loaded by `import()` as lazy chunks, through inline scope loaders. The default HTTP loader is not used: it would pass through the engine transport, `fetch` is banned outside `libs/ui/platform`, and the CSP allows scripts from `'self'` only. Three scopes: `shell`, `status`, `system`. A route lists every scope its views use, because scopes provided in a child injector replace those of the parent.
 - **Budgets.** `web:budgets` gzips (level 6) every script, modulepreload and stylesheet that `index.html` loads from its own origin; 1 kB is 1,000 bytes; the initial total must be at most 350,000 bytes and a lazy chunk at most 200,000. An output that cannot be read or references nothing fails. The Angular raw-size budgets in `project.json` stay as a coarse backstop.
+
+## Addendum: the grid adapter (M0-53 slices A to E, spike S-14, partial)
+
+- **Date:** 2026-10-21
+- **Evidence:** [docs/architecture/s-14-ag-grid-infinite-100k.md](../architecture/s-14-ag-grid-infinite-100k.md); [docs/specs/M0-53.md](../specs/M0-53.md); `pnpm nx run-many -t lint typecheck test -p ui-grid`; `pnpm nx run ui-grid:bundle-check`.
+
+Decisions (OQ-541, OQ-551, OQ-552, OQ-700 to OQ-706; proposed until a maintainer accepts them):
+
+- **One package, our component.** `ag-grid-community` only; `<app-data-grid>` calls `createGrid` itself, with an explicit list of nine Community modules instead of `AllCommunityModule`. No `ag-grid-angular`, no Enterprise module (checked by `ui-grid:bundle-check` on the metafile).
+- **Windows.** Block size 200, at most 25 blocks resident, two requests in flight, live changes applied once per 100 ms to the rows on screen, a reload at most once every 5 s. A new source aborts the requests in flight.
+- **What the adapter owns.** The context menu, the clipboard, the column chooser and the status bar (the commercial tier's), the selection set (row ids, capped at 5,000), the column state (plain JSON) and the theme bridge from the design tokens. Cells are text; there is no cell renderer, no `innerHTML`, no string expression, no font or other fetch.
+- **Measured so far.** The adapter without Angular is 214,025 bytes gzip, over the 200,000-byte lazy-chunk budget (OQ-701). The browser numbers (frame rate, heap, the run under the enforced S-04 policy) are not measured: the `perf` project does not exist yet.
+
+Status: proposed. S-14 stays open until `perf:grid-100k` runs; a version bump of `ag-grid-community` re-runs it and `spikes-csp`.

@@ -6,7 +6,7 @@ Tags: `type:ui-lib`, `runtime:browser`. `ag-grid-community` may be imported only
 
 ## Status
 
-Slices A to E of M0-53: the window contract, the windowed datasource and the fake window source (A); columns, column state and selection logic (B); `<app-data-grid>` with the explicit Community module list, the theme bridge and the bundle check (C); the context menu and the key chords (D); the clipboard, the column chooser and the status bar (E). `apps/perf` and `perf:grid-100k` (AC-1, AC-4, AC-16) wait for the `perf` project; nothing here has been measured in a real browser yet.
+Slices A to E of M0-53: the window contract, the windowed datasource and the fake window source (A); columns, column state and selection logic (B); `<app-data-grid>` with the explicit Community module list, the theme bridge and the bundle check (C); the context menu and the key chords (D); the clipboard, the column chooser and the status bar (E). `apps/perf` and `perf:grid-100k` (AC-1, AC-4, AC-16) wait for the `perf` project; nothing here has been measured in a real browser yet (the partial S-14 record, `docs/architecture/s-14-ag-grid-infinite-100k.md`, says what was and was not verified).
 
 ## Public API
 

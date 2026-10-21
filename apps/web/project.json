@@ -82,6 +82,19 @@
       }
     },
     "lint": {},
+    "budgets": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": [{ "target": "build", "params": "forward" }],
+      "inputs": [
+        "{workspaceRoot}/tools/web-budgets/check-budgets.mjs",
+        "^production",
+        "production"
+      ],
+      "options": {
+        "command": "node tools/web-budgets/check-budgets.mjs dist/apps/web/browser"
+      }
+    },
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,

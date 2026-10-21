@@ -1,0 +1,64 @@
+/* The regions are grid cells that may shrink (min-width: 0) and clip, never push the page wider
+   (AC-9 of the spec, proved with the layout slice). */
+:host {
+  display: block;
+  height: 100dvh;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'activity workspace'
+    'status status';
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.activity-bar {
+  grid-area: activity;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-2);
+  min-width: 0;
+  overflow: hidden;
+  background: var(--ds-color-surface-sunken);
+  border-inline-end: 1px solid var(--ds-color-border);
+}
+
+.activity-bar a {
+  min-height: var(--ds-target-size);
+  padding: var(--ds-space-2);
+  color: var(--ds-color-text);
+}
+
+.activity-bar a.active {
+  color: var(--ds-color-accent);
+}
+
+.activity-bar a:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+}
+
+.workspace {
+  grid-area: workspace;
+  min-width: 0;
+  overflow: auto;
+  padding: var(--ds-space-3);
+}
+
+.status-bar {
+  grid-area: status;
+  display: flex;
+  gap: var(--ds-space-3);
+  min-width: 0;
+  min-height: var(--ds-row-height);
+  padding: var(--ds-space-1) var(--ds-space-3);
+  overflow: hidden;
+  background: var(--ds-color-surface-raised);
+  border-block-start: 1px solid var(--ds-color-border);
+  color: var(--ds-color-text-muted);
+}

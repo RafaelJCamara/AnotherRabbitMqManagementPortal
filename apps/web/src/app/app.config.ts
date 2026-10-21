@@ -1,15 +1,25 @@
 import {
-  type ApplicationConfig,
   provideBrowserGlobalErrorListeners,
+  type ApplicationConfig,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideEngineData } from '@app/ui-data';
 import { provideDesignSystem } from '@app/ui-design';
-import { appRoutes } from './app.routes';
+import { providePlatform, type PlatformSetup } from '@app/ui-platform';
 
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideBrowserGlobalErrorListeners(),
-    provideDesignSystem(),
-    provideRouter(appRoutes),
-  ],
-};
+import { appRoutes } from './app.routes';
+import { provideI18n } from './i18n/i18n.config';
+
+/** The app proper, built from what the platform boot produced (see boot/boot.ts). */
+export function appConfig(setup: PlatformSetup): ApplicationConfig {
+  return {
+    providers: [
+      provideBrowserGlobalErrorListeners(),
+      providePlatform(setup),
+      provideEngineData(),
+      provideDesignSystem(),
+      provideI18n(),
+      provideRouter(appRoutes),
+    ],
+  };
+}

@@ -48,3 +48,14 @@ Rules this adds for `ui-grid` and `ui-editor`:
 - `unsafe-eval` and `unsafe-inline` for scripts are never added.
 
 Status: proposed until a maintainer accepts it and folds the CSP string into `docs/plan/amendments.md` and blueprint 7.1 (OQ-231).
+
+## Addendum: boot, i18n loader and bundle budget method (web shell, M0-51)
+
+- **Date:** 2026-10-21
+- **Evidence:** [docs/specs/M0-51.md](../specs/M0-51.md); `pnpm nx test web`; `pnpm nx run web:budgets`.
+
+Decisions (OQ-526, OQ-534, OQ-537, OQ-539; proposed until a maintainer accepts them):
+
+- **Boot.** `bootApp()` runs `bootstrapPlatform()` first. If it throws, the app starts a minimal "cannot start" view (no router, no HTTP, no engine call) that names the class of the failure by `BootstrapError` code and offers a reload; the error text is never shown, because it can carry a URL. Only when the platform is set up does the app start with `providePlatform`, `provideEngineData` and the router.
+- **Translations.** Transloco with English files bundled as JSON and loaded by `import()` as lazy chunks, through inline scope loaders. The default HTTP loader is not used: it would pass through the engine transport, `fetch` is banned outside `libs/ui/platform`, and the CSP allows scripts from `'self'` only. Three scopes: `shell`, `status`, `system`. A route lists every scope its views use, because scopes provided in a child injector replace those of the parent.
+- **Budgets.** `web:budgets` gzips (level 6) every script, modulepreload and stylesheet that `index.html` loads from its own origin; 1 kB is 1,000 bytes; the initial total must be at most 350,000 bytes and a lazy chunk at most 200,000. An output that cannot be read or references nothing fails. The Angular raw-size budgets in `project.json` stay as a coarse backstop.

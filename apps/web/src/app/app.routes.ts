@@ -1,5 +1,7 @@
 import type { Route } from '@angular/router';
 
+import { noConnectionRoute, shellRoute } from './shell/shell.routes';
+
 /**
  * Set by the build (`define` in project.json): true in the development configuration, false in
  * production. It is undefined when the code runs outside a build (a bare test runner), which
@@ -23,4 +25,4 @@ const devRoutes: Route[] =
       ]
     : [];
 
-export const appRoutes: Route[] = [...devRoutes];
+export const appRoutes: Route[] = [...devRoutes, shellRoute, noConnectionRoute];

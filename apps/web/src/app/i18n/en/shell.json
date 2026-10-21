@@ -1,0 +1,8 @@
+{
+  "activityBar": "Activity bar",
+  "workspace": "Workspace",
+  "explorer": {
+    "title": "Explorer",
+    "empty": "Nothing to browse yet. Inventory arrives with the explorer features."
+  }
+}

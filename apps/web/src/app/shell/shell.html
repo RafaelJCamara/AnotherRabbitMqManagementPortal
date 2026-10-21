@@ -1,0 +1,23 @@
+<div class="shell">
+  <nav class="activity-bar" [attr.aria-label]="'shell.activityBar' | transloco">
+    <a
+      routerLink="explorer"
+      routerLinkActive="active"
+      ariaCurrentWhenActive="page"
+      >{{ 'shell.explorer.title' | transloco }}</a
+    >
+  </nav>
+  <main class="workspace" [attr.aria-label]="'shell.workspace' | transloco">
+    @if (cid() !== null) {
+    <router-outlet />
+    } @else {
+    <app-no-connection />
+    }
+  </main>
+  <footer class="status-bar" [attr.aria-label]="'status.region' | transloco">
+    @if (cid(); as id) {
+    <span class="label">{{ 'status.connection' | transloco }}</span>
+    <span class="value">{{ id }}</span>
+    }
+  </footer>
+</div>

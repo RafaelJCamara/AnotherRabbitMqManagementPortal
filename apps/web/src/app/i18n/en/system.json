@@ -1,0 +1,24 @@
+{
+  "appTitle": "<Product> for RabbitMQ®",
+  "boot": {
+    "title": "The app cannot start",
+    "hint": "Nothing was sent to the engine. Reload the page to try again.",
+    "reload": "Reload",
+    "cause": {
+      "bridgeInvalid": "The desktop shell did not offer a usable bridge.",
+      "bridgeVersion": "The desktop shell and this UI do not speak the same bridge version.",
+      "portTimeout": "The desktop shell did not connect the engine in time.",
+      "bootstrapUnavailable": "The engine did not answer the start-up request.",
+      "bootstrapInvalid": "The start-up answer of the engine was not understood.",
+      "unknown": "Start-up failed for an unexpected reason."
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "hint": "This address does not lead to anything in this connection."
+  },
+  "noConnection": {
+    "title": "No connection selected",
+    "hint": "Choose a connection to start. Nothing has been requested from the engine."
+  }
+}

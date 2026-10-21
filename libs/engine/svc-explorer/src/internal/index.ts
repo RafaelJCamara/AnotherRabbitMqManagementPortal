@@ -38,6 +38,20 @@ export interface WindowQuery {
   version?: number | undefined;
 }
 
+export interface QueueTotals {
+  readonly version: IndexVersion;
+  readonly queues: number;
+  /** The queues were read whole (no vhost skipped). */
+  readonly complete: boolean;
+  /** Queues the caps dropped. */
+  readonly dropped: number;
+  readonly messages: number;
+  readonly ready: number;
+  readonly unacknowledged: number;
+  /** Queues that lacked at least one of the three counts. */
+  readonly unreported: number;
+}
+
 export interface IndexChange {
   kind: InventoryKind;
   version: number;
@@ -75,6 +89,12 @@ export interface InventoryIndex {
     versionChanged: boolean;
   };
   byKeys(kind: InventoryKind, keys: readonly string[]): readonly IndexRow[];
+  /**
+   * The message counts of the current queues, summed in one pass (no sort, no window). A queue
+   * that did not report a count adds nothing and is counted in `unreported`; undefined until the
+   * queues have been installed.
+   */
+  queueTotals(): QueueTotals | undefined;
   /** The kind has been installed at least once. */
   has(kind: InventoryKind): boolean;
   setStale(stale: boolean): void;
@@ -309,6 +329,35 @@ export function createInventoryIndex(
       data.byKey ??= new Map(data.rows.map((r) => [r.key as string, r]));
       const lookup = data.byKey;
       return keys.flatMap((k) => lookup.get(k) ?? []);
+    },
+    queueTotals() {
+      const data = current.kinds.queues;
+      if (data === undefined) return undefined;
+      const totals = {
+        messages: 0,
+        ready: 0,
+        unacknowledged: 0,
+        unreported: 0,
+      };
+      for (const row of data.rows as readonly QueueRow[]) {
+        totals.messages += row.messages ?? 0;
+        totals.ready += row.messagesReady ?? 0;
+        totals.unacknowledged += row.messagesUnacknowledged ?? 0;
+        if (
+          row.messages === undefined ||
+          row.messagesReady === undefined ||
+          row.messagesUnacknowledged === undefined
+        ) {
+          totals.unreported++;
+        }
+      }
+      return {
+        ...totals,
+        version: current.meta,
+        queues: data.rows.length,
+        complete: data.complete,
+        dropped: data.dropped,
+      };
     },
     has: (kind) => current.kinds[kind] !== undefined,
     setStale(stale) {

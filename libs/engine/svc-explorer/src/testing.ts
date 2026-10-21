@@ -54,7 +54,8 @@ export function brokerFailure(status = 503): Error {
  * A management API with `queueCount` queues spread evenly across `vhostCount` vhosts (and
  * `exchangesPerVhost` exchanges in each). `/api/queues` (all vhosts), `/api/queues/{vhost}` and
  * `/api/exchanges/{vhost}` answer the paged envelope (`page`, `page_size`, ceiling 500);
- * `/api/vhosts` answers a bare array; every other path answers 404, like a broker without the
+ * `/api/vhosts` answers a bare array; `/api/overview`, `/api/nodes` and `/api/health/checks/alarms`
+ * answer a statistics-off single node; every other path answers 404, like a broker without the
  * endpoint. Every request is recorded.
  */
 export function createScriptedBroker(
@@ -125,6 +126,32 @@ export function createScriptedBroker(
           return Promise.resolve(
             request.schema.parse(vhosts.map((name) => ({ name }))),
           );
+        }
+        // The cluster reads of overview.get: a statistics-off single node with no alarm.
+        if (request.path === '/api/overview') {
+          return Promise.resolve(
+            request.schema.parse({
+              product_name: 'RabbitMQ',
+              product_version: '4.2.9',
+              cluster_name: 'rabbit@fake',
+              disable_stats: true,
+              object_totals: {
+                queues: queueCount,
+                exchanges: exchangeCount * vhostCount,
+                connections: 0,
+              },
+            }),
+          );
+        }
+        if (request.path === '/api/nodes') {
+          return Promise.resolve(
+            request.schema.parse([
+              { name: 'rabbit@fake', running: true, being_drained: false },
+            ]),
+          );
+        }
+        if (request.path === '/api/health/checks/alarms') {
+          return Promise.resolve(request.schema.parse({ status: 'ok' }));
         }
         if (request.path === '/api/queues') {
           return Promise.resolve(paged(request, queueCount, queue));

@@ -3707,6 +3707,361 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/overview": {
+      "get": {
+        "operationId": "overview.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "alarms": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "state": {
+                              "const": "none",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "active": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "node": {
+                                    "type": "string"
+                                  },
+                                  "resource": {
+                                    "enum": [
+                                      "memory",
+                                      "disk",
+                                      "other"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "node",
+                                  "resource"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 200,
+                              "minItems": 1,
+                              "type": "array"
+                            },
+                            "state": {
+                              "const": "active",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "active"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "reason": {
+                              "maxLength": 200,
+                              "type": "string"
+                            },
+                            "state": {
+                              "const": "unknown",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "reason"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "clusterName": {
+                      "type": "string"
+                    },
+                    "freshness": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "complete": {
+                          "type": "boolean"
+                        },
+                        "dropped": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "expected": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "hazards": {
+                          "items": {
+                            "maxLength": 64,
+                            "type": "string"
+                          },
+                          "maxItems": 32,
+                          "type": "array"
+                        },
+                        "loaded": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "reason": {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "live",
+                            "stale",
+                            "loading",
+                            "unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "sweptAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "truncated": {
+                          "type": "boolean"
+                        },
+                        "versionChanged": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "complete",
+                        "loaded",
+                        "truncated",
+                        "dropped",
+                        "hazards",
+                        "versionChanged"
+                      ],
+                      "type": "object"
+                    },
+                    "nodes": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "beingDrained": {
+                            "type": "boolean"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "running": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "running"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 100,
+                      "type": "array"
+                    },
+                    "product": {
+                      "type": "string"
+                    },
+                    "rates": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "deliverPerSec": {
+                              "type": "number"
+                            },
+                            "publishPerSec": {
+                              "type": "number"
+                            },
+                            "source": {
+                              "const": "broker-overview",
+                              "type": "string"
+                            },
+                            "state": {
+                              "const": "available",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "source"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "reason": {
+                              "enum": [
+                                "statistics-off",
+                                "not-reported"
+                              ],
+                              "type": "string"
+                            },
+                            "state": {
+                              "const": "unavailable",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "reason"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "totals": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "channels": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "connections": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "consumers": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "exchanges": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "messages": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "asOf": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "complete": {
+                              "type": "boolean"
+                            },
+                            "ready": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "source": {
+                              "enum": [
+                                "broker-overview",
+                                "queue-sweep"
+                              ],
+                              "type": "string"
+                            },
+                            "total": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "unacknowledged": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "ready",
+                            "unacknowledged",
+                            "source",
+                            "asOf",
+                            "complete"
+                          ],
+                          "type": "object"
+                        },
+                        "queues": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "product",
+                    "totals",
+                    "rates",
+                    "nodes",
+                    "alarms",
+                    "freshness"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Read the cluster overview of a connection",
+        "tags": [
+          "overview"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{cid}/probe": {
       "post": {
         "operationId": "probe.run",
@@ -4845,6 +5200,9 @@
     },
     {
       "name": "ops"
+    },
+    {
+      "name": "overview"
     },
     {
       "name": "probe"

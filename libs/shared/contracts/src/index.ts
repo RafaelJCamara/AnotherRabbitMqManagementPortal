@@ -58,3 +58,4 @@ export * from './registry/profile-get.ts';
 export * from './registry/probe-run.ts';
 export * from './registry/explorer-types.ts';
 export * from './registry/inventory-query.ts';
+export * from './registry/overview-get.ts';

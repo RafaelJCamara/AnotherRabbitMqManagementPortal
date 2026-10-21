@@ -4,3 +4,4 @@ export type { ExplorerModule, ExplorerTopicBinding } from './module';
 // Fakes for the ports of this module, for the architecture manifest and the HTTP specs.
 export { createExplorerFakeDeps } from './testing';
 export { createInventoryQueryAction } from './actions/inventory-query';
+export { createOverviewGetAction } from './actions/overview-get';

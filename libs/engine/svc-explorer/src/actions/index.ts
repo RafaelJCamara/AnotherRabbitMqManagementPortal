@@ -5,6 +5,7 @@ import type { ActionImpl } from '@app/kernel';
 import type { ExplorerModuleDeps } from '../deps';
 import type { Sweeper } from '../internal/sweeper';
 import { createInventoryQueryAction } from './inventory-query';
+import { createOverviewGetAction } from './overview-get';
 
 /** The module's ports and the one sweeper every action reads the index of. */
 export type ExplorerActionDeps = ExplorerModuleDeps & {
@@ -13,7 +14,7 @@ export type ExplorerActionDeps = ExplorerModuleDeps & {
 
 export const actionFactories: readonly ((
   deps: ExplorerActionDeps,
-) => ActionImpl)[] = [createInventoryQueryAction];
+) => ActionImpl)[] = [createInventoryQueryAction, createOverviewGetAction];
 
 export function createActions(deps: ExplorerActionDeps): readonly ActionImpl[] {
   return actionFactories.map((create) => create(deps));

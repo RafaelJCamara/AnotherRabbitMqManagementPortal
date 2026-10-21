@@ -3045,6 +3045,516 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/inventory/queries": {
+      "post": {
+        "operationId": "inventory.query",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "filter": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "hasConsumers": {
+                        "type": "boolean"
+                      },
+                      "minMessages": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "states": {
+                        "items": {
+                          "maxLength": 32,
+                          "type": "string"
+                        },
+                        "maxItems": 16,
+                        "type": "array"
+                      },
+                      "text": {
+                        "maxLength": 200,
+                        "type": "string"
+                      },
+                      "types": {
+                        "items": {
+                          "maxLength": 64,
+                          "type": "string"
+                        },
+                        "maxItems": 16,
+                        "type": "array"
+                      },
+                      "vhosts": {
+                        "items": {
+                          "maxLength": 255,
+                          "type": "string"
+                        },
+                        "maxItems": 100,
+                        "type": "array"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "kind": {
+                    "enum": [
+                      "queues",
+                      "exchanges"
+                    ],
+                    "type": "string"
+                  },
+                  "sort": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "column": {
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      "dir": {
+                        "enum": [
+                          "asc",
+                          "desc"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "column",
+                      "dir"
+                    ],
+                    "type": "object"
+                  },
+                  "window": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "limit": {
+                        "default": 200,
+                        "maximum": 500,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "offset": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "version": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "offset"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "window"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "freshness": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "complete": {
+                              "type": "boolean"
+                            },
+                            "dropped": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "expected": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "hazards": {
+                              "items": {
+                                "maxLength": 64,
+                                "type": "string"
+                              },
+                              "maxItems": 32,
+                              "type": "array"
+                            },
+                            "loaded": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "reason": {
+                              "maxLength": 200,
+                              "type": "string"
+                            },
+                            "state": {
+                              "enum": [
+                                "live",
+                                "stale",
+                                "loading",
+                                "unavailable"
+                              ],
+                              "type": "string"
+                            },
+                            "sweptAt": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "truncated": {
+                              "type": "boolean"
+                            },
+                            "versionChanged": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "complete",
+                            "loaded",
+                            "truncated",
+                            "dropped",
+                            "hazards",
+                            "versionChanged"
+                          ],
+                          "type": "object"
+                        },
+                        "kind": {
+                          "const": "queues",
+                          "type": "string"
+                        },
+                        "matched": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "rows": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "autoDelete": {
+                                "type": "boolean"
+                              },
+                              "consumers": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "deliveryLimit": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              },
+                              "durable": {
+                                "type": "boolean"
+                              },
+                              "exclusive": {
+                                "type": "boolean"
+                              },
+                              "key": {
+                                "pattern": "^[A-Za-z0-9_-]+$",
+                                "type": "string"
+                              },
+                              "messages": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "messagesReady": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "messagesUnacknowledged": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "node": {
+                                "type": "string"
+                              },
+                              "operatorPolicy": {
+                                "type": "string"
+                              },
+                              "policy": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "vhost": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "vhost",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 500,
+                          "type": "array"
+                        },
+                        "total": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "version": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "window": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "limit": {
+                              "maximum": 500,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "offset",
+                            "limit"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "rows",
+                        "window",
+                        "total",
+                        "matched",
+                        "version",
+                        "freshness"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "freshness": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "complete": {
+                              "type": "boolean"
+                            },
+                            "dropped": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "expected": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "hazards": {
+                              "items": {
+                                "maxLength": 64,
+                                "type": "string"
+                              },
+                              "maxItems": 32,
+                              "type": "array"
+                            },
+                            "loaded": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "reason": {
+                              "maxLength": 200,
+                              "type": "string"
+                            },
+                            "state": {
+                              "enum": [
+                                "live",
+                                "stale",
+                                "loading",
+                                "unavailable"
+                              ],
+                              "type": "string"
+                            },
+                            "sweptAt": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "truncated": {
+                              "type": "boolean"
+                            },
+                            "versionChanged": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "complete",
+                            "loaded",
+                            "truncated",
+                            "dropped",
+                            "hazards",
+                            "versionChanged"
+                          ],
+                          "type": "object"
+                        },
+                        "kind": {
+                          "const": "exchanges",
+                          "type": "string"
+                        },
+                        "matched": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "rows": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "autoDelete": {
+                                "type": "boolean"
+                              },
+                              "durable": {
+                                "type": "boolean"
+                              },
+                              "internal": {
+                                "type": "boolean"
+                              },
+                              "key": {
+                                "pattern": "^[A-Za-z0-9_-]+$",
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "vhost": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "vhost",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 500,
+                          "type": "array"
+                        },
+                        "total": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "version": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "window": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "limit": {
+                              "maximum": 500,
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "offset",
+                            "limit"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "rows",
+                        "window",
+                        "total",
+                        "matched",
+                        "version",
+                        "freshness"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Read a window of the inventory of a connection",
+        "tags": [
+          "inventory"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{cid}/layout": {
       "get": {
         "operationId": "layouts.get",
@@ -4320,6 +4830,9 @@
     },
     {
       "name": "diagnostics"
+    },
+    {
+      "name": "inventory"
     },
     {
       "name": "keybindings"

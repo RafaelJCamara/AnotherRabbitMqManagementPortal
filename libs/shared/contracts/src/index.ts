@@ -56,3 +56,5 @@ export * from './registry/bundles-export.ts';
 export * from './registry/bundles-import.ts';
 export * from './registry/profile-get.ts';
 export * from './registry/probe-run.ts';
+export * from './registry/explorer-types.ts';
+export * from './registry/inventory-query.ts';

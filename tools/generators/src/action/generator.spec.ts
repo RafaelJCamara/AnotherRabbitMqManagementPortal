@@ -14,7 +14,8 @@ import type { ActionOptions } from './schema.ts';
 
 const LIST: ActionOptions = {
   name: 'explorer.queues.list',
-  module: 'svc-explorer',
+  module: 'svc-catalog',
+  feature: 'explorer',
   kind: 'query',
   http: 'GET /connections/{cid}/queues',
   permission: 'broker.read',
@@ -37,7 +38,7 @@ const PURGE: ActionOptions = {
 /** A workspace with the services and UI features the golden paths use. */
 async function actionTree(): Promise<Tree> {
   const tree = workspaceTree();
-  await serviceModuleGenerator(tree, { name: 'svc-explorer' });
+  await serviceModuleGenerator(tree, { name: 'svc-catalog' });
   await serviceModuleGenerator(tree, { name: 'svc-admin' });
   await uiFeatureGenerator(tree, {
     name: 'explorer',
@@ -60,9 +61,9 @@ describe('action generator: what it creates', () => {
     const { created } = await generate(LIST);
 
     expect(Object.keys(created).sort()).toEqual([
-      'libs/engine/svc-explorer/src/actions/explorer-queues-list.fixture.ts',
-      'libs/engine/svc-explorer/src/actions/explorer-queues-list.spec.ts',
-      'libs/engine/svc-explorer/src/actions/explorer-queues-list.ts',
+      'libs/engine/svc-catalog/src/actions/explorer-queues-list.fixture.ts',
+      'libs/engine/svc-catalog/src/actions/explorer-queues-list.spec.ts',
+      'libs/engine/svc-catalog/src/actions/explorer-queues-list.ts',
       'libs/shared/contracts/src/registry/explorer-queues-list.ts',
       'libs/testkit/src/http/explorer-queues-list.http.spec.ts',
       'libs/ui/feature-explorer/src/commands/explorer-queues-list.command.spec.ts',
@@ -576,7 +577,7 @@ describe('action generator: the generated tests state the invariants', () => {
   it('gives a plain query no plan or revalidate stub, because implementAction wants none', async () => {
     const { created } = await generate(LIST);
     const stub =
-      created['libs/engine/svc-explorer/src/actions/explorer-queues-list.ts'] ??
+      created['libs/engine/svc-catalog/src/actions/explorer-queues-list.ts'] ??
       '';
 
     expect(stub).not.toContain('plan:');

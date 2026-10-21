@@ -31,6 +31,8 @@ import { createBundlesImportAction } from '@app/svc-connections';
 import { createProfileGetAction } from '@app/svc-capabilities';
 import { createCapabilitiesFakeDeps } from '@app/svc-capabilities';
 import { createProbeRunAction } from '@app/svc-capabilities';
+import { createInventoryQueryAction } from '@app/svc-explorer';
+import { createExplorerFakeDeps } from '@app/svc-explorer';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -154,6 +156,11 @@ const manifest: RegisteredAction[] = [
     path: 'libs/engine/svc-capabilities/src/actions/probe-run.ts',
     impl: createProbeRunAction(createCapabilitiesFakeDeps()),
     input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-explorer/src/actions/inventory-query.ts',
+    impl: createInventoryQueryAction(createExplorerFakeDeps()),
+    input: { cid: 'c1', kind: 'queues', window: { offset: 0, limit: 200 } },
   },
 ];
 

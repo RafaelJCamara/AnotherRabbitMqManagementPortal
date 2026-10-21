@@ -46,6 +46,7 @@
       "@app/semantics-evidence": ["./tools/semantics-evidence/src/index.ts"],
       "@app/svc-capabilities": ["./libs/engine/svc-capabilities/src/index.ts"],
       "@app/svc-connections": ["./libs/engine/svc-connections/src/index.ts"],
+      "@app/svc-explorer": ["./libs/engine/svc-explorer/src/index.ts"],
       "@app/svc-ops": ["./libs/engine/svc-ops/src/index.ts"],
       "@app/svc-workspace": ["./libs/engine/svc-workspace/src/index.ts"],
       "@app/testkit": ["./libs/testkit/src/index.ts"],

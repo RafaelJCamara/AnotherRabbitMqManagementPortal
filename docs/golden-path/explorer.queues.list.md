@@ -11,20 +11,20 @@ This page is executable. `tools/generators/e2e/golden-path.spec.ts` runs the `sh
 | Permission  | `broker.read`                                          |
 | Risk        | `none`, planning `none`, audit `none`                  |
 | Exposure    | MCP read tool, CLI `queues list`, UI command           |
-| Module      | `svc-explorer` (`libs/engine/svc-explorer`)            |
+| Module      | `svc-catalog` (`libs/engine/svc-catalog`)            |
 
 ## 1. Generate
 
 ```sh generate
-pnpm nx g @app/generators:service-module svc-explorer
+pnpm nx g @app/generators:service-module svc-catalog
 pnpm nx g @app/generators:ui-feature explorer --route='/c/:cid/explorer'
-pnpm nx g @app/generators:action explorer.queues.list --module=svc-explorer --kind=query --http='GET /connections/{cid}/queues' --permission=broker.read --mcp=read --cli='queues list'
+pnpm nx g @app/generators:action explorer.queues.list --module=svc-catalog --feature=explorer --kind=query --http='GET /connections/{cid}/queues' --permission=broker.read --mcp=read --cli='queues list'
 ```
 
 The action generator adds, and refuses to overwrite anything:
 
 - `libs/shared/contracts/src/registry/explorer-queues-list.ts`: the contract, listed in the registry and exported from `@app/contracts`.
-- `libs/engine/svc-explorer/src/actions/explorer-queues-list.ts`: `createExplorerQueuesListAction`, an `implementAction` whose bodies fail with `INTERNAL` until you write them. It is listed in `src/actions/index.ts` and exported from the module.
+- `libs/engine/svc-catalog/src/actions/explorer-queues-list.ts`: `createExplorerQueuesListAction`, an `implementAction` whose bodies fail with `INTERNAL` until you write them. It is listed in `src/actions/index.ts` and exported from the module.
 - `explorer-queues-list.spec.ts` and `explorer-queues-list.fixture.ts` beside it: the unit spec (contract, deny by default, a query leaves no audit row) and what it runs.
 - `libs/testkit/src/http/explorer-queues-list.http.spec.ts`: the same action through the real router with `createTestEngine().inject`.
 - `libs/ui/feature-explorer/src/commands/explorer-queues-list.command.ts`: the UI command stub, with its title in the feature's i18n scope.
@@ -93,25 +93,25 @@ export const explorerQueuesList = defineAction({
 
 A service reads the broker through ports its module is given, never through an adapter it imports. `deps.ts` names the port; `testing.ts` gives specs a fake. The composition root wires the real port, routed through the `BrokerScheduler` so that interactive work pre-empts background work (I-8).
 
-```ts file=libs/engine/svc-explorer/src/deps.ts
+```ts file=libs/engine/svc-catalog/src/deps.ts
 import type { MgmtReadPort } from '@app/ports';
 
 /**
  * The ports this module needs, injected by the composition root. The management port is the
  * scheduled one (`scheduleMgmtRead`): this module never talks to the adapter directly.
  */
-export interface ExplorerModuleDeps {
+export interface CatalogModuleDeps {
   readonly mgmt: MgmtReadPort;
 }
 ```
 
-```ts file=libs/engine/svc-explorer/src/testing.ts
+```ts file=libs/engine/svc-catalog/src/testing.ts
 // Fakes for the ports of this module, shared by its specs, by the architecture manifest
 // (tools/arch-tests) and by the HTTP specs (libs/testkit). Give each port in deps.ts a fake here.
-import type { ExplorerModuleDeps } from './deps';
+import type { CatalogModuleDeps } from './deps';
 
 /** A management API that answers every window with one queue. */
-const mgmt: ExplorerModuleDeps['mgmt'] = {
+const mgmt: CatalogModuleDeps['mgmt'] = {
   get: (request) =>
     Promise.resolve(
       request.schema.parse({
@@ -125,7 +125,7 @@ const mgmt: ExplorerModuleDeps['mgmt'] = {
     Promise.reject(new Error('the fake management API does not stream')),
 };
 
-export function createExplorerFakeDeps(): ExplorerModuleDeps {
+export function createCatalogFakeDeps(): CatalogModuleDeps {
   return { mgmt };
 }
 ```
@@ -134,13 +134,13 @@ export function createExplorerFakeDeps(): ExplorerModuleDeps {
 
 `execute` is the only body. A query has no `plan` or `revalidate`: `implementAction` asks for them only for actions that change something. The answer is parsed against the contract by the executor, so an adapter that returns the wrong shape is an `INTERNAL` error and not a corrupt UI.
 
-```ts file=libs/engine/svc-explorer/src/actions/explorer-queues-list.ts
+```ts file=libs/engine/svc-catalog/src/actions/explorer-queues-list.ts
 // explorer.queues.list: List a window of the queues of a connection.
 import { QUEUE_WINDOW_MAX, explorerQueuesList } from '@app/contracts';
 import { implementAction, type ActionImpl } from '@app/kernel';
 import { z } from 'zod';
 
-import type { ExplorerModuleDeps } from '../deps';
+import type { CatalogModuleDeps } from '../deps';
 
 const DEFAULT_PAGE_SIZE = 100;
 
@@ -160,7 +160,7 @@ const QueuePageSchema = z.object({
 });
 
 /** The ports this action reads through: a subset of the module's deps (src/deps.ts). */
-export type ExplorerQueuesListDeps = Pick<ExplorerModuleDeps, 'mgmt'>;
+export type ExplorerQueuesListDeps = Pick<CatalogModuleDeps, 'mgmt'>;
 
 export const createExplorerQueuesListAction = (
   deps: ExplorerQueuesListDeps,
@@ -203,7 +203,7 @@ export const createExplorerQueuesListAction = (
 
 ```sh
 pnpm nx run contracts:api-docs        # regenerates docs/api/openapi.v1.json; commit the result
-pnpm nx run-many -t lint typecheck test -p svc-explorer,feature-explorer,contracts,testkit,arch-tests
+pnpm nx run-many -t lint typecheck test -p svc-catalog,feature-explorer,contracts,testkit,arch-tests
 pnpm nx run contracts:api-docs-check
 ```
 

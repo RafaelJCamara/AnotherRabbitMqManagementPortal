@@ -101,7 +101,7 @@ function implement(name: string): string[] {
 }
 
 const PROJECTS = [
-  'svc-explorer',
+  'svc-catalog',
   'svc-admin',
   'svc-tap',
   'svc-batch',
@@ -288,7 +288,7 @@ export const queuesPurgeManyJob = defineJob({
     ok(
       workspace.prettier(
         '--check',
-        'libs/engine/svc-explorer',
+        'libs/engine/svc-catalog',
         'libs/engine/svc-admin',
         'libs/engine/svc-tap',
         'libs/engine/svc-batch',

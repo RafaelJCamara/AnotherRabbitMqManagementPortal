@@ -24,6 +24,7 @@ import { bundlesExport } from './bundles-export.ts';
 import { bundlesImport } from './bundles-import.ts';
 import { profileGet } from './profile-get.ts';
 import { probeRun } from './probe-run.ts';
+import { inventoryQuery } from './inventory-query.ts';
 
 export const registry: Registry = {
   actions: [
@@ -51,6 +52,7 @@ export const registry: Registry = {
     bundlesImport,
     profileGet,
     probeRun,
+    inventoryQuery,
   ],
   topics: [],
 };

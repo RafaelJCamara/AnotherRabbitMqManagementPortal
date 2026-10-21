@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { GRID_CLIPBOARD, type GridClipboard } from './clipboard';
 import type { GridColumnState } from './column-state';
+import type { GridColumn } from './columns';
 import { DataGrid } from './data-grid.component';
 import { GRID_STYLE_NONCE } from './grid-internals';
 import {
@@ -51,6 +52,8 @@ function fakeClipboard(refuse = false): GridClipboard & { written: string[] } {
         [source]="source()"
         [labels]="labels"
         [selectionMode]="mode()"
+        [sortMode]="sortMode()"
+        (sortTrimmed)="trimmed.set(trimmed() + 1)"
         [(selection)]="selection"
         [(columnState)]="columnState"
       />
@@ -64,6 +67,8 @@ class Host {
   readonly mode = signal<'none' | 'single' | 'multiple'>('multiple');
   readonly selection = signal<ReadonlySet<string>>(new Set());
   readonly columnState = signal<GridColumnState | null>(null);
+  readonly sortMode = signal<'multi' | 'single'>('multi');
+  readonly trimmed = signal(0);
 }
 
 async function mount(
@@ -269,6 +274,66 @@ describe('<app-data-grid>', () => {
       expect(request.offset % 200).toBe(0);
       expect(request.limit).toBeLessThanOrEqual(200);
     }
+  });
+
+  it('AC-2 single sort mode keeps one sort column', async () => {
+    const twoColumns: GridColumn<Row>[] = COLUMNS.map((c) => ({
+      ...c,
+      sortable: true,
+    }));
+    const bothSorted = {
+      state: [
+        { colId: 'name', sort: 'asc' as const, sortIndex: 0 },
+        { colId: 'size', sort: 'desc' as const, sortIndex: 1 },
+      ],
+    };
+    const src = source();
+    const { el, host, fixture } = await mount((h) => {
+      h.source.set(src);
+      h.columns.set(twoColumns);
+      h.sortMode.set('single');
+    });
+    await rendered(el, 3);
+    const api = getGridApi(el.querySelector('.ag-root-wrapper'));
+    const before = src.requests.length;
+    api?.applyColumnState(bothSorted); // the grid ends up with two sorted columns
+    await settled(fixture, () => {
+      expect(host.columnState()?.sort).toEqual([
+        { columnId: 'name', direction: 'asc' },
+      ]);
+      expect(host.trimmed()).toBeGreaterThan(0);
+    });
+    // The second sort is taken back out of AG Grid, and no request carried two sort columns.
+    await eventually(() => {
+      expect(
+        api
+          ?.getColumnState()
+          .filter((c) => c.sort !== null && c.sort !== undefined),
+      ).toHaveLength(1);
+    });
+    for (const request of src.requests.slice(before))
+      expect(request.sort.length).toBeLessThanOrEqual(1);
+    expect(src.requests.at(-1)?.sort).toEqual([
+      { columnId: 'name', direction: 'asc' },
+    ]);
+
+    // The default mode keeps both.
+    const multi = TestBed.createComponent(Host);
+    multi.componentInstance.columns.set(twoColumns);
+    const multiEl = multi.nativeElement as HTMLElement;
+    document.body.append(multiEl);
+    await multi.whenStable();
+    await rendered(multiEl, 3);
+    getGridApi(multiEl.querySelector('.ag-root-wrapper'))?.applyColumnState(
+      bothSorted,
+    );
+    await settled(multi, () => {
+      expect(multi.componentInstance.columnState()?.sort).toEqual([
+        { columnId: 'name', direction: 'asc' },
+        { columnId: 'size', direction: 'desc' },
+      ]);
+    });
+    expect(multi.componentInstance.trimmed()).toBe(0);
   });
 
   it('follows the live feed for the rows on screen, drops the rest and counts it, and reloads when a row leaves', async () => {

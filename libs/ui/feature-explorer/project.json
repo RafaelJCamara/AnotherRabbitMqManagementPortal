@@ -1,0 +1,46 @@
+{
+  "name": "feature-explorer",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/feature-explorer/src",
+  "projectType": "library",
+  "tags": ["type:ui-feature", "runtime:browser"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "ngc -p libs/ui/feature-explorer/tsconfig.lib.json --noEmit",
+          "ngc -p libs/ui/feature-explorer/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "dependsOn": ["test-components"],
+      "options": {
+        "command": "vitest run --config libs/ui/feature-explorer/vitest.config.mts"
+      }
+    },
+    "test-components": {
+      "executor": "@angular/build:unit-test",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "buildTarget": "web:build:development",
+        "tsConfig": "libs/ui/feature-explorer/tsconfig.spec.json",
+        "runner": "vitest",
+        "watch": false,
+        "include": [
+          "**/*.component.spec.ts",
+          "**/{inventory-page,filter-bar,freshness-banner,views-control,overview,capability-card,explorer-requests,explorer-i18n}.spec.ts"
+        ]
+      }
+    }
+  }
+}

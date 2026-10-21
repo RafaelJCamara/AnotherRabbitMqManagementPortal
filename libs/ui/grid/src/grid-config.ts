@@ -87,6 +87,8 @@ export function buildLocaleText(labels: GridLabels): LocaleText {
 
 /** What the component passes at creation; everything else in `GridOptions` is fixed here. */
 export interface GridOptionsInput<Row> {
+  /** One sort column only (the engine sorts by one); a header click replaces the sort. */
+  readonly suppressMultiSort?: boolean;
   readonly styleNonce: string | undefined;
   readonly columnDefs: readonly ColDef<Row>[];
   readonly getRowId: (row: Row) => string;
@@ -114,6 +116,7 @@ export function buildGridOptions<Row>(
 ): GridOptions<Row> {
   return {
     ...(input.styleNonce === undefined ? {} : { styleNonce: input.styleNonce }),
+    ...(input.suppressMultiSort === true ? { suppressMultiSort: true } : {}),
     rowModelType: 'infinite',
     cacheBlockSize: GRID_BLOCK_SIZE,
     maxBlocksInCache: GRID_MAX_BLOCKS,

@@ -28,6 +28,8 @@
       "@app/conformance-ci": ["./tools/conformance-ci/src/index.ts"],
       "@app/contracts": ["./libs/shared/contracts/src/index.ts"],
       "@app/domain-model": ["./libs/shared/domain-model/src/index.ts"],
+      "@app/explorer-model": ["./libs/shared/explorer-model/src/index.ts"],
+      "@app/feature-explorer": ["./libs/ui/feature-explorer/src/index.ts"],
       "@app/generators": ["./tools/generators/src/index.ts"],
       "@app/jobs": ["./libs/engine/jobs/src/index.ts"],
       "@app/json-stream": ["./libs/shared/json-stream/src/index.ts"],

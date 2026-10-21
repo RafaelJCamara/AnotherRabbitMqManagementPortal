@@ -18,7 +18,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { withoutAdoptedAliases } from '../src/shared/first-use.ts';
+import {
+  UI_FEATURE_ALIASES,
+  withoutAdoptedAliases,
+  withoutAliases,
+} from '../src/shared/first-use.ts';
 
 export const repoRoot = join(import.meta.dirname, '..', '..', '..');
 
@@ -106,13 +110,14 @@ export class TempWorkspace {
         filter: (source) => !SKIPPED.has(source.split(/[\\/]/).at(-1) ?? ''),
       });
     }
-    if (options.full !== true) {
-      const tsconfigBase = join(this.root, 'tsconfig.base.json');
-      writeFileSync(
-        tsconfigBase,
-        withoutAdoptedAliases(readFileSync(tsconfigBase, 'utf8')),
-      );
-    }
+    const tsconfigBase = join(this.root, 'tsconfig.base.json');
+    const text = readFileSync(tsconfigBase, 'utf8');
+    writeFileSync(
+      tsconfigBase,
+      options.full === true
+        ? withoutAliases(text, UI_FEATURE_ALIASES)
+        : withoutAdoptedAliases(text),
+    );
     symlinkSync(
       join(repoRoot, 'node_modules'),
       join(this.root, 'node_modules'),

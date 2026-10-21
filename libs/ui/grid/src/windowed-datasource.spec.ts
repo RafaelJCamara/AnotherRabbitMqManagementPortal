@@ -166,6 +166,38 @@ describe('WindowedDatasource', () => {
     expect(onRefresh).toHaveBeenCalledTimes(2);
     expect(ds.stats().refreshes).toBe(2);
   });
+  it('AC-1 a refresh change reloads the cache at most every 5 s and tells the source', async () => {
+    vi.setSystemTime(100_000);
+    const source = createFakeWindowSource();
+    const onRefresh = vi.fn();
+    const ds = new WindowedDatasource({ source, onRefresh });
+    ds.setVisibleIds(new Set(['row-40', 'row-41']));
+    await vi.advanceTimersByTimeAsync(100);
+
+    // Rows 40..80 are shown; a refresh does not name a row, so it is never "not shown".
+    source.emit([{ kind: 'refresh' }]);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(source.refreshedCalls).toBe(1);
+    expect(ds.stats().changesDropped).toBe(0);
+
+    // A second one inside 5 s waits; two more in the window still reload once.
+    source.emit([{ kind: 'refresh' }]);
+    source.emit([{ kind: 'refresh' }]);
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onRefresh).toHaveBeenCalledTimes(2);
+    expect(source.refreshedCalls).toBe(2);
+
+    // The source hears of a retry too.
+    ds.retry();
+    expect(onRefresh).toHaveBeenCalledTimes(3);
+    expect(source.refreshedCalls).toBe(3);
+    expect(ds.stats().refreshes).toBe(3);
+    expect(ds.stats().changesDropped).toBe(0);
+    expect(ds.stats().changesApplied).toBe(0);
+  });
+
   it('is loading while a block is in flight or waiting for a slot, and not after', async () => {
     const source = createFakeWindowSource({ latencyMs: 10 });
     const ds = new WindowedDatasource({ source, maxConcurrent: 1 });

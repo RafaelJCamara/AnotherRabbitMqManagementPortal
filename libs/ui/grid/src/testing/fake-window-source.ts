@@ -30,6 +30,8 @@ export interface FakeWindowSource extends EngineWindowSource<FakeRow> {
   readonly requests: readonly GridWindowRequest[];
   readonly watched: readonly ReadonlySet<string>[];
   emit(changes: readonly GridRowChange<FakeRow>[]): void;
+  /** How often the grid said the cache was purged (`refreshed()`). */
+  readonly refreshedCalls: number;
 }
 
 export function fakeRow(index: number): FakeRow {
@@ -46,9 +48,16 @@ export function createFakeWindowSource(
   const listeners = new Set<
     (changes: readonly GridRowChange<FakeRow>[]) => void
   >();
+  let refreshedCalls = 0;
   return {
     requests,
     watched,
+    get refreshedCalls() {
+      return refreshedCalls;
+    },
+    refreshed() {
+      refreshedCalls += 1;
+    },
     rowId: (row) => row.id,
     async window(request, signal): Promise<GridWindow<FakeRow>> {
       requests.push(request);

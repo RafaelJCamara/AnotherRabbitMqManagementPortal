@@ -23,7 +23,12 @@ export interface GridWindow<Row> {
 
 export type GridRowChange<Row> =
   | { readonly kind: 'upsert'; readonly row: Row }
-  | { readonly kind: 'remove'; readonly rowId: string };
+  | { readonly kind: 'remove'; readonly rowId: string }
+  /**
+   * Membership changed in a way no shown row tells: reload the cache (at most every 5 s), whether or
+   * not a row is shown. It is never counted as a dropped change (M0-54, Q-4).
+   */
+  | { readonly kind: 'refresh' };
 
 /** What the explorer hands the grid. */
 export interface EngineWindowSource<Row> {
@@ -37,4 +42,9 @@ export interface EngineWindowSource<Row> {
   onChanges?(
     listener: (changes: readonly GridRowChange<Row>[]) => void,
   ): () => void;
+  /**
+   * The cache was purged and reloads (a `refresh` change, a removal or a retry): the next window
+   * starts a new scroll, so a source that pins a version drops its pin here.
+   */
+  refreshed?(): void;
 }

@@ -120,6 +120,7 @@ export class WindowedDatasource<Row> {
     this.#error.set(null);
     this.#failed.set(false);
     this.#bump('refreshes');
+    this.#opts.source.refreshed?.();
     this.#opts.onRefresh?.();
   }
 
@@ -216,7 +217,12 @@ export class WindowedDatasource<Row> {
 
   #enqueue(changes: readonly GridRowChange<Row>[]): void {
     if (this.#destroyed) return;
+    let refresh = false;
     for (const change of changes) {
+      if (change.kind === 'refresh') {
+        refresh = true; // membership changed: reload, whether or not a row is shown (never "dropped")
+        continue;
+      }
       const id =
         change.kind === 'upsert'
           ? this.#opts.source.rowId(change.row)
@@ -224,6 +230,7 @@ export class WindowedDatasource<Row> {
       if (this.#visible.has(id)) this.#pending.set(id, change);
       else this.#bump('changesDropped');
     }
+    if (refresh) this.#requestRefresh();
     if (this.#pending.size > 0 && this.#changeTimer === undefined) {
       this.#changeTimer = setTimeout(() => {
         this.#flush();
@@ -264,8 +271,10 @@ export class WindowedDatasource<Row> {
   #refreshNow(): void {
     this.#lastRefresh = Date.now();
     this.#bump('refreshes');
+    this.#opts.source.refreshed?.();
     this.#opts.onRefresh?.();
   }
+
   #syncBusy(): void {
     this.#busy.set(this.#inflight.size + this.#waiting.length);
   }

@@ -140,6 +140,13 @@ export class DataGrid<Row> {
   /** A new object is a new query: the cache is purged, in-flight requests are aborted and the grid rebinds. */
   readonly source = input.required<EngineWindowSource<Row>>();
   readonly selectionMode = input<GridSelectionMode>('single');
+  /**
+   * `single` keeps one sort column: a source that sorts by one column (the engine's `inventory.query`)
+   * never receives two. A second sort entry is dropped, the first is kept, and `sortTrimmed` says so.
+   */
+  readonly sortMode = input<'multi' | 'single'>('multi');
+  /** A second sort column was dropped in `single` mode. */
+  readonly sortTrimmed = output();
   /** Selected row ids, not indexes: the set survives the eviction of blocks (AC-15). */
   readonly selection = model<ReadonlySet<string>>(NO_IDS);
   /** Order, width, visibility, pinning and sort as plain JSON; a feature stores it as a view. */
@@ -253,6 +260,16 @@ export class DataGrid<Row> {
     });
     effect(() => {
       const api = this.api();
+      const single = this.sortMode() === 'single';
+      if (!api) return;
+      untracked(() => {
+        api.setGridOption('suppressMultiSort', single);
+        this.#lastState = '';
+        this.#applyState(api, this.columnState());
+      });
+    });
+    effect(() => {
+      const api = this.api();
       const mode = this.selectionMode();
       if (!api) return;
       untracked(() => {
@@ -301,6 +318,7 @@ export class DataGrid<Row> {
     );
     const options: GridOptions<Row> = {
       ...buildGridOptions<Row>({
+        suppressMultiSort: this.sortMode() === 'single',
         styleNonce: this.nonce,
         columnDefs: toColDefs(this.resolved()),
         getRowId: (row) => this.source().rowId(row),
@@ -423,7 +441,7 @@ export class DataGrid<Row> {
         ds.getRows({
           startRow: params.startRow,
           endRow: params.endRow,
-          sort: mapSortModel(params.sortModel),
+          sort: this.#sortOf(mapSortModel(params.sortModel)),
           success: (rows, lastRow) => {
             params.successCallback(rows as Row[], lastRow);
           },
@@ -433,6 +451,11 @@ export class DataGrid<Row> {
         });
       },
     });
+  }
+
+  /** In `single` mode only the first sort column goes to the source. */
+  #sortOf(sort: readonly GridSort[]): readonly GridSort[] {
+    return this.sortMode() === 'single' ? sort.slice(0, 1) : sort;
   }
 
   #openMenuAtCell(target: GridCellTarget<Row>, cell: HTMLElement | null): void {
@@ -578,10 +601,11 @@ export class DataGrid<Row> {
 
   #applyState(api: GridApi<Row>, raw: GridColumnState | null): void {
     const columns = this.resolved();
-    const state =
+    const full =
       raw === null
         ? defaultColumnState(columns)
         : normalizeColumnState(raw, columns);
+    const state = { ...full, sort: this.#sortOf(full.sort) };
     const json = JSON.stringify(state);
     if (json === this.#lastState) return;
     this.#lastState = json;
@@ -630,11 +654,22 @@ export class DataGrid<Row> {
       }
     }
     sorted.sort((a, b) => a.sortIndex - b.sortIndex);
+    const all = sorted.map((s) => s.sort);
+    const kept = this.#sortOf(all);
+    const trimmed = kept.length < all.length;
     const state = normalizeColumnState(
-      { version: 1, columns: entries, sort: sorted.map((s) => s.sort) },
+      { version: 1, columns: entries, sort: kept },
       columns,
     );
     const json = JSON.stringify(state);
+    if (trimmed) {
+      // AG Grid still holds the second sort: take it back out, and say so.
+      this.#lastState = '';
+      this.#applyState(api, state);
+      this.columnState.set(state);
+      this.sortTrimmed.emit();
+      return;
+    }
     if (json === this.#lastState) return;
     this.#lastState = json;
     this.columnState.set(state);

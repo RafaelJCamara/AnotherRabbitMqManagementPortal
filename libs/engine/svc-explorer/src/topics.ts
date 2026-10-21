@@ -1,4 +1,5 @@
 // Live topics (defineTopic) owned by this service.
 import type { TopicDef } from '@app/contracts';
+import { explorerWindowTopic } from '@app/contracts';
 
-export const topics: readonly TopicDef[] = [];
+export const topics: readonly TopicDef[] = [explorerWindowTopic];

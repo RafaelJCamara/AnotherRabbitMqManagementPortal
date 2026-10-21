@@ -1,6 +1,172 @@
 {
   "asyncapi": "3.0.0",
   "channels": {
+    "explorer_window": {
+      "address": "explorer.window",
+      "description": "Topic explorer.window: subscribe with 'sub' and the params message; items arrive in data, snapshot or delta frames.",
+      "messages": {
+        "item": {
+          "name": "explorer_window.item",
+          "payload": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "maxLength": 1024,
+                "type": "string"
+              },
+              "row": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "autoDelete": {
+                        "type": "boolean"
+                      },
+                      "consumers": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "deliveryLimit": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "durable": {
+                        "type": "boolean"
+                      },
+                      "exclusive": {
+                        "type": "boolean"
+                      },
+                      "messages": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "messagesReady": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "messagesUnacknowledged": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "node": {
+                        "type": "string"
+                      },
+                      "operatorPolicy": {
+                        "type": "string"
+                      },
+                      "policy": {
+                        "type": "string"
+                      },
+                      "state": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "vhost": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "vhost",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "autoDelete": {
+                        "type": "boolean"
+                      },
+                      "durable": {
+                        "type": "boolean"
+                      },
+                      "internal": {
+                        "type": "boolean"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "vhost": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "vhost",
+                      "name"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "version": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "key",
+              "version"
+            ],
+            "type": "object"
+          }
+        },
+        "params": {
+          "name": "explorer_window.params",
+          "payload": {
+            "additionalProperties": false,
+            "properties": {
+              "cid": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "keys": {
+                "items": {
+                  "maxLength": 1024,
+                  "type": "string"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              "kind": {
+                "enum": [
+                  "queues",
+                  "exchanges"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "cid",
+              "kind",
+              "keys"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "x-flow": "snapshot-delta",
+      "x-max-hz": 2,
+      "x-permission": "broker.read",
+      "x-qos": "latest",
+      "x-ring": {
+        "bytes": 1048576,
+        "items": 1000
+      }
+    },
     "live": {
       "address": "/api/v1/live",
       "description": "The multiplexed live channel (WebSocket, or the desktop MessagePort with the same frames).",
@@ -680,6 +846,17 @@
     "version": "1.0.0"
   },
   "operations": {
+    "publish_explorer_window": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/explorer_window"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/explorer_window/messages/item"
+        }
+      ]
+    },
     "receiveClientFrame": {
       "action": "receive",
       "channel": {

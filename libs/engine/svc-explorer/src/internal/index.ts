@@ -97,6 +97,8 @@ export interface InventoryIndex {
   queueTotals(): QueueTotals | undefined;
   /** The kind has been installed at least once. */
   has(kind: InventoryKind): boolean;
+  /** The version the index is at now (0 before the first install). */
+  current(): IndexVersion;
   setStale(stale: boolean): void;
   subscribe(listener: (change: IndexChange) => void): () => void;
   readonly stats: { rows: number; bytes: number; dropped: number };
@@ -360,6 +362,7 @@ export function createInventoryIndex(
       };
     },
     has: (kind) => current.kinds[kind] !== undefined,
+    current: () => current.meta,
     setStale(stale) {
       current = { ...current, meta: { ...current.meta, stale } };
     },

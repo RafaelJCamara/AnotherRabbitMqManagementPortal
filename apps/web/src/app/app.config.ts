@@ -9,6 +9,7 @@ import { providePlatform, type PlatformSetup } from '@app/ui-platform';
 
 import { appRoutes } from './app.routes';
 import { provideI18n } from './i18n/i18n.config';
+import { provideChunkReload } from './shell/skew/chunk-reload';
 
 /** The app proper, built from what the platform boot produced (see boot/boot.ts). */
 export function appConfig(setup: PlatformSetup): ApplicationConfig {
@@ -20,6 +21,7 @@ export function appConfig(setup: PlatformSetup): ApplicationConfig {
       provideDesignSystem(),
       provideI18n(),
       provideRouter(appRoutes),
+      provideChunkReload(),
     ],
   };
 }

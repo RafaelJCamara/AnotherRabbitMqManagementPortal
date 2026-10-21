@@ -48,10 +48,13 @@ export class LayoutBackend {
   /** When set, every `layouts.get` gets this answer. */
   getAnswer: TransportResponse | undefined;
   readonly engine = new FakeEngine({
-    handler: (request) => this.#handle(request),
+    handler: (request) => this.handle(request),
   });
 
-  #handle(request: TransportRequest): TransportResponse {
+  /** Answers one request; a subclass handles more URLs and passes the rest on. */
+  handle(
+    request: TransportRequest,
+  ): TransportResponse | Promise<TransportResponse> {
     const match = LAYOUT_URL.exec(request.url);
     const cid = match?.[1];
     if (cid === undefined) {

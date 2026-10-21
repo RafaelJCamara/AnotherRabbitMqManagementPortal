@@ -21,7 +21,10 @@ import { setPanelHeight, setSidebarWidth } from './layout/layout-ops';
 import { ShellLayoutStore } from './layout/shell-layout-store';
 import { ShellViewport } from './layout/shell-viewport';
 import { LayoutNotices } from './notices/layout-notices';
+import { SkewBanner } from './skew/skew-banner';
 import { Splitter } from './splitter/splitter';
+import { StatusBar } from './status-bar/status-bar';
+import { VerificationNotice } from './status-bar/verification-notice';
 import { EditorGroups } from './tabs/editor-groups';
 import { NoConnection } from './views/no-connection';
 
@@ -42,8 +45,11 @@ import { NoConnection } from './views/no-connection';
     ExplorerTree,
     LayoutNotices,
     NoConnection,
+    SkewBanner,
     Splitter,
+    StatusBar,
     TranslocoPipe,
+    VerificationNotice,
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.css',

@@ -140,9 +140,9 @@ describe('shell layout document', () => {
     backend.docs.set('c1', withTabs([tab('bad', 'https://x.example/')]));
     const bed = await mountShell(markerLoaders(), backend);
     await visit(bed, '/c/c1/explorer');
-    expect(routed(bed).querySelector('[role="status"]')?.textContent).toContain(
-      '[[shell.notice.tabsDropped]]',
-    );
+    expect(
+      routed(bed).querySelector('app-layout-notices')?.textContent,
+    ).toContain('[[shell.notice.tabsDropped]]');
     expect(
       TestBed.inject(ShellLayoutStore).layout().editor.groups[0]?.tabs,
     ).toEqual([]);

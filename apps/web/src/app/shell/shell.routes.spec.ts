@@ -56,9 +56,11 @@ describe('shell routes', () => {
     await visit(bed, '/somewhere/else');
     expect(routed(bed).tagName.toLowerCase()).toBe('app-no-connection');
     expect(TestBed.inject(ActiveConnection).cid()).toBeNull();
-    // The only request is the layout of the one connection that was shown.
-    expect(bed.engine.requests.map((request) => request.url)).toEqual([
+    // The only requests are the ones for the one connection that was shown.
+    expect(bed.engine.requests.map((request) => request.url).sort()).toEqual([
+      '/api/v1/connections/c2',
       '/api/v1/connections/c2/layout',
+      '/api/v1/connections/c2/profile',
     ]);
   });
 

@@ -20,5 +20,14 @@
   "noConnection": {
     "title": "No connection selected",
     "hint": "Choose a connection to start. Nothing has been requested from the engine."
+  },
+  "skew": {
+    "message": "A newer version of the app is available.",
+    "reload": "Reload to update"
+  },
+  "chunk": {
+    "title": "Part of the app could not be loaded",
+    "hint": "The app was updated while this page was open. Reload the page to continue.",
+    "reload": "Reload"
   }
 }

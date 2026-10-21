@@ -1,4 +1,40 @@
 {
   "region": "Status bar",
-  "connection": "Connection"
+  "connection": "Connection",
+  "loading": "Loading connection details",
+  "unknown": "Unknown",
+  "env": {
+    "prod": "Production",
+    "staging": "Staging",
+    "test": "Test",
+    "dev": "Development",
+    "local": "Local"
+  },
+  "version": "Broker",
+  "era": "Era",
+  "eraConservative": "assumed",
+  "stats": {
+    "label": "Statistics",
+    "on": "Full",
+    "totalsOnly": "Queue totals only",
+    "off": "Off"
+  },
+  "lock": {
+    "label": "Changes",
+    "locked": "Locked",
+    "armed": "Unlocked",
+    "unknown": "Lock state unknown"
+  },
+  "health": {
+    "label": "Engine",
+    "ok": "Connected",
+    "reconnecting": "Reconnecting",
+    "down": "Disconnected",
+    "unknown": "Not connected yet"
+  },
+  "verification": {
+    "unverifiedPatch": "This broker patch version has not been through a conformance run; the verified version of the same minor release is the reference.",
+    "unverifiedMinor": "No version of this broker's minor release has been through a conformance run. What the app shows is unconfirmed.",
+    "unknownBuild": "This broker build could not be identified, so none of the app's broker behaviour has been verified for it."
+  }
 }

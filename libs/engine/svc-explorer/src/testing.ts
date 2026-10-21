@@ -19,72 +19,138 @@ export interface ScriptedBroker {
   readonly read: MgmtReadPort;
   /** Every request, in order. */
   readonly requests: RecordedRequest[];
-  /** The queue names the broker holds, per vhost, in the order it pages them. */
+  /** The vhosts the broker holds, in the order `/api/vhosts` lists them. */
   readonly vhosts: readonly string[];
   readonly queueCount: number;
+  /**
+   * Called with every request and its 1-based ordinal before it is answered: return an error to
+   * fail it (its text is broker text, which no output may carry). Settable by a spec.
+   */
+  intercept?:
+    | ((request: RecordedRequest, ordinal: number) => Error | undefined)
+    | undefined;
 }
 
 /** The broker's own page ceiling. */
 const BROKER_MAX_PAGE_SIZE = 500;
 
+/** A management failure as the scheduled port throws it. */
+export function brokerFailure(status = 503): Error {
+  return Object.assign(new Error(`HTTP ${String(status)} secret-broker-text`), {
+    code: 'BROKER_UNREACHABLE',
+    broker: { protocol: 'http', code: status },
+  });
+}
+
 /**
- * A management API with `queueCount` queues spread evenly across `vhostCount` vhosts. `/api/queues`
- * answers the paged envelope (`page`, `page_size`, ceiling 500); every other path answers 404, like a
- * broker without the endpoint. Every request is recorded.
+ * A management API with `queueCount` queues spread evenly across `vhostCount` vhosts (and
+ * `exchangesPerVhost` exchanges in each). `/api/queues` (all vhosts), `/api/queues/{vhost}` and
+ * `/api/exchanges/{vhost}` answer the paged envelope (`page`, `page_size`, ceiling 500);
+ * `/api/vhosts` answers a bare array; every other path answers 404, like a broker without the
+ * endpoint. Every request is recorded.
  */
 export function createScriptedBroker(
-  options: { queueCount?: number; vhostCount?: number } = {},
+  options: {
+    queueCount?: number;
+    vhostCount?: number;
+    exchangesPerVhost?: number;
+  } = {},
 ): ScriptedBroker {
   const queueCount = options.queueCount ?? 0;
   const vhostCount = Math.max(1, options.vhostCount ?? 1);
+  const exchangeCount = options.exchangesPerVhost ?? 0;
   const vhosts = Array.from({ length: vhostCount }, (_, i) =>
     i === 0 ? '/' : `vhost-${String(i)}`,
   );
   const queue = (i: number) => ({
     name: `queue-${String(i).padStart(6, '0')}`,
     vhost: vhosts[i % vhostCount],
+    type: 'classic',
     durable: true,
     messages: i % 100,
   });
   const requests: RecordedRequest[] = [];
 
-  const read: MgmtReadPort = {
-    get<T>(request: MgmtGetRequest<T>): Promise<T> {
-      const query = request.query ?? {};
-      requests.push({ path: request.path, query, lane: request.lane });
-      if (request.path !== '/api/queues') {
+  const paged = <T>(
+    request: MgmtGetRequest<T>,
+    total: number,
+    item: (i: number) => unknown,
+  ): T => {
+    const query = request.query ?? {};
+    const pageSize = Math.min(
+      Number(query.page_size ?? BROKER_MAX_PAGE_SIZE),
+      BROKER_MAX_PAGE_SIZE,
+    );
+    const page = Number(query.page ?? 1);
+    const from = (page - 1) * pageSize;
+    const items = Array.from(
+      { length: Math.max(0, Math.min(pageSize, total - from)) },
+      (_, i) => item(from + i),
+    );
+    return request.schema.parse({
+      items,
+      page,
+      page_size: pageSize,
+      page_count: Math.max(1, Math.ceil(total / pageSize)),
+      total_count: total,
+      filtered_count: total,
+      item_count: items.length,
+    });
+  };
+
+  const broker: ScriptedBroker = {
+    read: {
+      get<T>(request: MgmtGetRequest<T>): Promise<T> {
+        const recorded = {
+          path: request.path,
+          query: request.query ?? {},
+          lane: request.lane,
+        };
+        requests.push(recorded);
+        const failure = broker.intercept?.(recorded, requests.length);
+        if (failure) return Promise.reject(failure);
+        const [, , kind, rawVhost] = request.path.split('/');
+        const vhost =
+          rawVhost === undefined ? '' : decodeURIComponent(rawVhost);
+        const at = vhosts.indexOf(vhost);
+        if (request.path === '/api/vhosts') {
+          return Promise.resolve(
+            request.schema.parse(vhosts.map((name) => ({ name }))),
+          );
+        }
+        if (request.path === '/api/queues') {
+          return Promise.resolve(paged(request, queueCount, queue));
+        }
+        if (at >= 0 && kind === 'queues') {
+          const own = Math.max(0, Math.ceil((queueCount - at) / vhostCount));
+          return Promise.resolve(
+            paged(request, own, (j) => queue(at + j * vhostCount)),
+          );
+        }
+        if (at >= 0 && kind === 'exchanges') {
+          return Promise.resolve(
+            paged(request, exchangeCount, (j) => ({
+              name: `exchange-${String(j)}`,
+              vhost,
+              type: 'direct',
+              durable: true,
+            })),
+          );
+        }
         return Promise.reject(
           Object.assign(new Error('NOT_FOUND: HTTP 404'), {
             code: 'NOT_FOUND',
             broker: { protocol: 'http', code: 404 },
           }),
         );
-      }
-      const pageSize = Math.min(
-        Number(query.page_size ?? BROKER_MAX_PAGE_SIZE),
-        BROKER_MAX_PAGE_SIZE,
-      );
-      const page = Number(query.page ?? 1);
-      const from = (page - 1) * pageSize;
-      const items = Array.from(
-        { length: Math.max(0, Math.min(pageSize, queueCount - from)) },
-        (_, i) => queue(from + i),
-      );
-      return Promise.resolve(
-        request.schema.parse({
-          items,
-          page,
-          page_size: pageSize,
-          page_count: Math.ceil(queueCount / pageSize),
-          total_count: queueCount,
-          filtered_count: queueCount,
-          item_count: items.length,
-        }),
-      );
+      },
+      stream: () => Promise.reject(new Error('the explorer never streams')),
     },
-    stream: () => Promise.reject(new Error('the explorer never streams')),
+    requests,
+    vhosts,
+    queueCount,
   };
-  return { read, requests, vhosts, queueCount };
+  return broker;
 }
 
 export interface ExplorerFakeDeps extends ExplorerModuleDeps {
@@ -96,6 +162,7 @@ export function createExplorerFakeDeps(
     ownerId?: string;
     queueCount?: number;
     vhostCount?: number;
+    exchangesPerVhost?: number;
   } = {},
 ): ExplorerFakeDeps {
   const broker = createScriptedBroker(options);

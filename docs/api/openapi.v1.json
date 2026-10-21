@@ -4221,6 +4221,211 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/search": {
+      "post": {
+        "operationId": "search.query",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "kinds": {
+                    "items": {
+                      "enum": [
+                        "queues",
+                        "exchanges"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 2,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "text": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "freshness": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "complete": {
+                          "type": "boolean"
+                        },
+                        "dropped": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "expected": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "hazards": {
+                          "items": {
+                            "maxLength": 64,
+                            "type": "string"
+                          },
+                          "maxItems": 32,
+                          "type": "array"
+                        },
+                        "loaded": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "reason": {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "live",
+                            "stale",
+                            "loading",
+                            "unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "sweptAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "truncated": {
+                          "type": "boolean"
+                        },
+                        "versionChanged": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "complete",
+                        "loaded",
+                        "truncated",
+                        "dropped",
+                        "hazards",
+                        "versionChanged"
+                      ],
+                      "type": "object"
+                    },
+                    "matched": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "results": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "key": {
+                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": [
+                              "queues",
+                              "exchanges"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "rank": {
+                            "enum": [
+                              "exact",
+                              "prefix",
+                              "substring"
+                            ],
+                            "type": "string"
+                          },
+                          "vhost": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "key",
+                          "vhost",
+                          "name",
+                          "rank"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "results",
+                    "matched",
+                    "truncated",
+                    "freshness"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Search the names of the inventory of a connection",
+        "tags": [
+          "search"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{connectionId}/arm": {
       "post": {
         "operationId": "ops.arm",
@@ -5209,6 +5414,9 @@
     },
     {
       "name": "profile"
+    },
+    {
+      "name": "search"
     },
     {
       "name": "settings"

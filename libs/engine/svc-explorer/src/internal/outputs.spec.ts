@@ -1,11 +1,12 @@
 // What the explorer says, scanned (M0-48 slice E, AC-21): no secret, no broker text and no
-// forbidden wording in any answer of inventory.query, overview.get or explorer.window, whether the
+// forbidden wording in any answer of inventory.query, overview.get, search.query or explorer.window, whether the
 // broker answers, answers something odd, or is down.
 import {
   ConnectionIdSchema,
   explorerWindowTopic,
   inventoryQuery,
   overviewGet,
+  searchQuery,
 } from '@app/contracts';
 import {
   createTestContext,
@@ -18,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createInventoryQueryAction } from '../actions/inventory-query';
 import { createOverviewGetAction } from '../actions/overview-get';
+import { createSearchQueryAction } from '../actions/search-query';
 import { golden, withRoutes } from '../actions/overview-get.fixture';
 import { createScriptedBroker, createExplorerFakeDeps } from '../testing';
 
@@ -87,8 +89,9 @@ describe('explorer outputs', () => {
     const engine = createTestExecutor();
     engine.executor.register(createInventoryQueryAction(deps));
     engine.executor.register(createOverviewGetAction(deps));
+    engine.executor.register(createSearchQueryAction(deps));
     const ask = async (
-      def: typeof inventoryQuery | typeof overviewGet,
+      def: typeof inventoryQuery | typeof overviewGet | typeof searchQuery,
       input: Record<string, unknown>,
     ) => {
       try {
@@ -109,6 +112,8 @@ describe('explorer outputs', () => {
       await ask(inventoryQuery, { kind: 'queues', window: page });
       await ask(inventoryQuery, { kind: 'exchanges', window: page });
       await ask(overviewGet, {});
+      await ask(searchQuery, { text: 'queue' });
+      await ask(searchQuery, { text: 'e', kinds: ['exchanges'] });
     };
     const sweep = async () =>
       deps.sweeper.sweepNow(
@@ -128,6 +133,7 @@ describe('explorer outputs', () => {
     // Another caller's connection, and one that does not exist.
     await ask(inventoryQuery, { cid: 'c2', kind: 'queues', window: page });
     await ask(overviewGet, { cid: 'c2' });
+    await ask(searchQuery, { cid: 'c2', text: 'queue' });
 
     // The topic: the snapshot and the items of a subscription, and a refused one.
     const source = createWindowSource(deps);

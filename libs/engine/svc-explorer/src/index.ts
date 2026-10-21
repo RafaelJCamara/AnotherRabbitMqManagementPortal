@@ -5,3 +5,4 @@ export type { ExplorerModule, ExplorerTopicBinding } from './module';
 export { createExplorerFakeDeps } from './testing';
 export { createInventoryQueryAction } from './actions/inventory-query';
 export { createOverviewGetAction } from './actions/overview-get';
+export { createSearchQueryAction } from './actions/search-query';

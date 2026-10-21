@@ -60,3 +60,4 @@ export * from './registry/explorer-types.ts';
 export * from './registry/inventory-query.ts';
 export * from './registry/overview-get.ts';
 export * from './registry/explorer-window-topic.ts';
+export * from './registry/search-query.ts';

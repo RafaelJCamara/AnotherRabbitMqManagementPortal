@@ -89,6 +89,8 @@ export interface InventoryIndex {
     versionChanged: boolean;
   };
   byKeys(kind: InventoryKind, keys: readonly string[]): readonly IndexRow[];
+  /** The rows of the current version of a kind, in sweep order (empty until installed). Read only. */
+  rows(kind: InventoryKind): readonly IndexRow[];
   /**
    * The message counts of the current queues, summed in one pass (no sort, no window). A queue
    * that did not report a count adds nothing and is counted in `unreported`; undefined until the
@@ -332,6 +334,7 @@ export function createInventoryIndex(
       const lookup = data.byKey;
       return keys.flatMap((k) => lookup.get(k) ?? []);
     },
+    rows: (kind) => current.kinds[kind]?.rows ?? [],
     queueTotals() {
       const data = current.kinds.queues;
       if (data === undefined) return undefined;

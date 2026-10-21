@@ -20,13 +20,14 @@ describe('createExplorerModule', () => {
     expect(Array.isArray(module.jobs)).toBe(true);
   });
 
-  it('serves inventory.query, overview.get and the explorer.window source, and stops its sweeps', async () => {
+  it('serves inventory.query, overview.get, search.query and the explorer.window source, and stops its sweeps', async () => {
     const deps = createExplorerFakeDeps();
     const module = createExplorerModule(deps);
 
     expect(module.actions.map((a) => a.def.id)).toEqual([
       'inventory.query',
       'overview.get',
+      'search.query',
     ]);
     expect(module.topicSources.map((b) => b.def.id)).toEqual([
       'explorer.window',

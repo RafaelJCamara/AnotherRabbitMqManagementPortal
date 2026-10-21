@@ -27,6 +27,7 @@ import { probeRun } from './probe-run.ts';
 import { inventoryQuery } from './inventory-query.ts';
 import { overviewGet } from './overview-get.ts';
 import { explorerWindowTopic } from './explorer-window-topic.ts';
+import { searchQuery } from './search-query.ts';
 
 export const registry: Registry = {
   actions: [
@@ -56,6 +57,7 @@ export const registry: Registry = {
     probeRun,
     inventoryQuery,
     overviewGet,
+    searchQuery,
   ],
   topics: [explorerWindowTopic],
 };

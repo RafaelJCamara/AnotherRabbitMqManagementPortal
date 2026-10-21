@@ -114,6 +114,7 @@ export class FakeWorkspace {
     create?: Problem;
     delete?: Problem;
     profile?: Problem;
+    overview?: Problem;
   } = {};
   /** The `overview.get` answer of a connection; a missing one answers NOT_FOUND. */
   overview: ((cid: string) => unknown) | null = null;
@@ -151,6 +152,7 @@ export class FakeWorkspace {
     }
     const overview = OVERVIEW_URL.exec(request.url)?.[1];
     if (overview !== undefined && request.method === 'GET') {
+      if (this.failure.overview) return problemResponse(this.failure.overview);
       return this.overview === null
         ? problemResponse(problemOf(404, 'NOT_FOUND', { title: 'Not found' }))
         : jsonResponse(200, this.overview(decodeURIComponent(overview)));

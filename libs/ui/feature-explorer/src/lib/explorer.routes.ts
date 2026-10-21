@@ -27,7 +27,7 @@ export const explorerRoutes: Routes = [
         path: '',
         pathMatch: 'full',
         loadComponent: () =>
-          import('./explorer.component').then((m) => m.ExplorerComponent),
+          import('./overview/overview.component').then((m) => m.OverviewPage),
       },
       ...EXPLORER_KINDS.map(inventoryRoute),
     ],

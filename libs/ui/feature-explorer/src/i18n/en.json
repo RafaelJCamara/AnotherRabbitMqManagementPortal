@@ -1,10 +1,75 @@
 {
-  "title": "Explorer",
   "kinds": {
     "queues": "Queues",
     "exchanges": "Exchanges",
     "connections": "Connections",
     "bindings": "Bindings"
+  },
+  "overview": {
+    "title": "Cluster overview",
+    "refresh": "Refresh",
+    "refreshWhy": "Refresh opens again shortly: each read asks the broker up to three questions.",
+    "loading": "Reading the overview.",
+    "failed": "The overview could not be read.",
+    "earlier": "This is the answer of an earlier read. The last read failed:",
+    "product": "Product",
+    "version": "Version",
+    "cluster": "Cluster",
+    "notReported": "not reported",
+    "freshness": "Inventory the totals come from",
+    "totals": {
+      "title": "Totals",
+      "queues": "Queues",
+      "exchanges": "Exchanges",
+      "connections": "Connections",
+      "channels": "Channels",
+      "consumers": "Consumers"
+    },
+    "messages": {
+      "title": "Messages",
+      "total": "Total",
+      "ready": "Ready",
+      "unacknowledged": "Unacknowledged",
+      "asOf": "as of {{time}}.",
+      "partial": "Partial: some queues did not report a count.",
+      "source": {
+        "broker-overview": "Reported by the broker,",
+        "queue-sweep": "Summed from the last queue read,"
+      }
+    },
+    "rates": {
+      "title": "Rates",
+      "publish": "Published per second",
+      "deliver": "Delivered per second",
+      "unavailable": {
+        "statistics-off": "Statistics are off on this broker, so it does not report rates.",
+        "not-reported": "The broker does not report rates."
+      }
+    },
+    "nodes": {
+      "title": "Nodes",
+      "caption": "Nodes of the cluster",
+      "name": "Node",
+      "state": "State",
+      "draining": "Draining",
+      "running": "Running",
+      "stopped": "Stopped",
+      "drainingYes": "Being drained",
+      "drainingNo": "Not being drained",
+      "notReported": "not reported"
+    },
+    "alarms": {
+      "title": "Alarms",
+      "none": "No alarm is reported.",
+      "active": "Resource alarms are active:",
+      "item": "{{node}}: {{resource}}",
+      "unknown": "The alarm state could not be read, so it is not known whether an alarm is active.",
+      "resource": {
+        "memory": "memory",
+        "disk": "disk",
+        "other": "another resource"
+      }
+    }
   },
   "counts": "{{matched}} of {{total}} rows",
   "sort": {

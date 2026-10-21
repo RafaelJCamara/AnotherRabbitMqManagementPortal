@@ -9,6 +9,7 @@ import {
 import {
   BRIDGE_VERSION,
   EngineModeSchema,
+  LAUNCH_TOKEN_PARAM,
   type PlatformBridge,
 } from '@app/contracts';
 import { z } from 'zod';
@@ -41,7 +42,8 @@ export type Bootstrap = z.infer<typeof BootstrapSchema>;
 export const BOOTSTRAP_PATH = '/bootstrap.json';
 /** The preload forwards the port with `postMessage({ t: 'engine-port' }, origin, [port])`. */
 export const ENGINE_PORT_MESSAGE = 'engine-port';
-export const LAUNCH_TOKEN_PARAM = 'token';
+/** The fragment parameter of the printed launch URL (#t=<token>), shared with the engine (issue #279). */
+export { LAUNCH_TOKEN_PARAM };
 export const LAUNCH_TOKEN_STORAGE_KEY = 'app.engine-token';
 const LAUNCH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,512}$/;
 export const DEFAULT_PORT_TIMEOUT_MS = 10_000;

@@ -5,6 +5,13 @@ import { EngineModeSchema } from './config/env.ts';
 
 export const BRIDGE_VERSION = 1;
 
+/**
+ * The fragment parameter that carries the local launch token: the engine prints
+ * `http://127.0.0.1:<port>/#t=<token>` (blueprint 1.2) and the web app reads it back (blueprint 7.2).
+ * One constant for both ends, so they cannot drift apart (issue #279).
+ */
+export const LAUNCH_TOKEN_PARAM = 't';
+
 export const SaveTargetSchema = z.strictObject({ fileToken: z.string() });
 export type SaveTarget = z.infer<typeof SaveTargetSchema>;
 

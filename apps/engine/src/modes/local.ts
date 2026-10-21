@@ -14,6 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { LAUNCH_TOKEN_PARAM } from '@app/contracts';
 import { openSqlite } from '@app/persistence';
 import { allowUiPrincipals, isUiPrincipal } from '@app/kernel';
 import {
@@ -78,6 +79,6 @@ export const createLocalMode: ModeFactory = (host) => {
       },
     },
     launchUrl: (address) =>
-      `http://${address.host}:${String(address.port)}/#t=${token}`,
+      `http://${address.host}:${String(address.port)}/#${LAUNCH_TOKEN_PARAM}=${token}`,
   });
 };

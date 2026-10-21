@@ -6,6 +6,7 @@ import {
   BOOTSTRAP_PATH,
   BootstrapError,
   ENGINE_PORT_MESSAGE,
+  LAUNCH_TOKEN_PARAM,
   LAUNCH_TOKEN_STORAGE_KEY,
   bootstrapPlatform,
   consumeLaunchToken,
@@ -78,16 +79,24 @@ function environment(
 describe('consumeLaunchToken', () => {
   it('takes the token from the fragment, stores it for the tab and cleans the URL', () => {
     const { env, store, replaceState } = environment({
-      hash: `#token=${TOKEN}`,
+      hash: `#t=${TOKEN}`,
     });
     expect(consumeLaunchToken(env)).toBe(TOKEN);
     expect(store.get(LAUNCH_TOKEN_STORAGE_KEY)).toBe(TOKEN);
     expect(replaceState).toHaveBeenCalledExactlyOnceWith(null, '', '/app/?q=1');
   });
 
+  it('AC-13 accepts the launch URL exactly as the engine prints it (blueprint 1.2: #t=<token>, issue #279)', () => {
+    const printed = `http://127.0.0.1:4310/#t=${TOKEN}`;
+    const { env, store } = environment({ hash: new URL(printed).hash });
+    expect(LAUNCH_TOKEN_PARAM).toBe('t');
+    expect(consumeLaunchToken(env)).toBe(TOKEN);
+    expect(store.get(LAUNCH_TOKEN_STORAGE_KEY)).toBe(TOKEN);
+  });
+
   it('keeps the other fragment parameters', () => {
     const { env, replaceState } = environment({
-      hash: `#view=a&token=${TOKEN}`,
+      hash: `#view=a&t=${TOKEN}`,
     });
     consumeLaunchToken(env);
     expect(replaceState).toHaveBeenCalledWith(null, '', '/app/?q=1#view=a');
@@ -101,7 +110,7 @@ describe('consumeLaunchToken', () => {
   });
 
   it('removes a malformed token from the URL without using or storing it', () => {
-    const { env, store, replaceState } = environment({ hash: '#token=short' });
+    const { env, store, replaceState } = environment({ hash: '#t=short' });
     expect(consumeLaunchToken(env)).toBeUndefined();
     expect(store.size).toBe(0);
     expect(replaceState).toHaveBeenCalledOnce();
@@ -115,7 +124,7 @@ describe('consumeLaunchToken', () => {
 
   it('still returns the token when storage is blocked', () => {
     const { env } = environment({
-      hash: `#token=${TOKEN}`,
+      hash: `#t=${TOKEN}`,
       storage: {
         getItem: () => {
           throw new Error('blocked');
@@ -209,7 +218,7 @@ describe('bootstrapPlatform', () => {
     });
 
     it('sends the launch token as the bearer credential and leaves it out of the URL', async () => {
-      const { env, replaceState } = environment({ hash: `#token=${TOKEN}` });
+      const { env, replaceState } = environment({ hash: `#t=${TOKEN}` });
       const setup = await bootstrapPlatform(env);
       expect(setup.credentials()).toEqual({ bearer: TOKEN });
       expect(replaceState).toHaveBeenCalledOnce();
@@ -332,9 +341,7 @@ describe('bootstrapPlatform', () => {
 describe('providePlatform', () => {
   let setup: Awaited<ReturnType<typeof bootstrapPlatform>>;
   beforeEach(async () => {
-    setup = await bootstrapPlatform(
-      environment({ hash: `#token=${TOKEN}` }).env,
-    );
+    setup = await bootstrapPlatform(environment({ hash: `#t=${TOKEN}` }).env);
   });
 
   it('provides the transport, the bridge and the credentials', () => {

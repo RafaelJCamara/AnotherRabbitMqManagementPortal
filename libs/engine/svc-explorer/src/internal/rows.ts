@@ -51,6 +51,7 @@ const page = <T extends z.ZodType>(item: T) =>
     items: z.array(item).max(PAGE_ITEMS_MAX),
     page: z.number().int(),
     page_count: z.number().int(),
+    total_count: z.number().int().nonnegative().optional(),
   });
 
 // One schema object per kind: the scheduler dedupes reads by the identity of the schema.

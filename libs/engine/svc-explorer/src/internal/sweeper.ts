@@ -45,6 +45,8 @@ const FIXED_SWEEP_INTERVAL_MS = 60_000;
 /** The broker's own page ceiling; `pageSize` is never above it. */
 const PAGE_SIZE_CEILING = 500;
 
+type Entry = Parameters<InventoryIndex['installAll']>[0][number];
+
 export interface SweepOutcome {
   ended: 'complete' | 'partial' | 'failed';
   requests: number;
@@ -65,8 +67,17 @@ export interface Sweeper {
     cid: ConnectionId,
     listener: (change: IndexChange) => void,
   ): () => void;
+  /** What a reader needs to tell a first load from a settled index (I-13). */
+  status(cid: ConnectionId): SweepStatus;
   /** Stops every sweep and timer and aborts the requests in flight. */
   stop(): Promise<void>;
+}
+
+export interface SweepStatus {
+  /** A sweep is running now. */
+  sweeping: boolean;
+  /** The broker's own object count per kind, as far as the current or last sweep has read it. */
+  expected: ReadonlyMap<InventoryKind, number>;
 }
 
 export type SweeperDeps = Pick<
@@ -80,6 +91,7 @@ interface State {
   inflight?: Promise<SweepOutcome> | undefined;
   cancelTimer?: (() => void) | undefined;
   auto: boolean;
+  expected: Map<InventoryKind, number>;
 }
 
 /** A fixed Problem per failure class: broker text never reaches an output (I-10). */
@@ -116,6 +128,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
         index: createInventoryIndex(limits),
         abort: new AbortController(),
         auto: false,
+        expected: new Map(),
       };
       states.set(cid, state);
     }
@@ -159,14 +172,22 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
           { ...query, enable_queue_totals: true },
           QueuePageSchema,
         );
-        return { rows: answer.items.map(queueRow), pages: answer.page_count };
+        return {
+          rows: answer.items.map(queueRow),
+          pages: answer.page_count,
+          total: answer.total_count,
+        };
       }
       const answer = await get(path, query, ExchangePageSchema);
-      return { rows: answer.items.map(exchangeRow), pages: answer.page_count };
+      return {
+        rows: answer.items.map(exchangeRow),
+        pages: answer.page_count,
+        total: answer.total_count,
+      };
     };
 
     const sweptAt = clock.now();
-    const commits: (() => void)[] = [];
+    const commits: Entry[] = [];
     let installed = 0;
     let failure: unknown;
     try {
@@ -176,9 +197,20 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
       for (const kind of KINDS) {
         const staging: IndexRow[] = [];
         let overflow = 0;
+        let counted: number | undefined = 0;
         for (const vhost of vhosts) {
           for (let n = 1; ; n++) {
-            const { rows, pages } = await readPage(kind, vhost, n);
+            const { rows, pages, total } = await readPage(kind, vhost, n);
+            if (n === 1) {
+              counted =
+                total === undefined || counted === undefined
+                  ? undefined
+                  : counted + total;
+              // A first read shows how much is coming; a re-read keeps the old figure until it ends.
+              if (counted !== undefined && !state.index.has(kind)) {
+                state.expected.set(kind, counted);
+              }
+            }
             for (const row of rows) {
               if (staging.length < limits.maxRowsPerConnection) {
                 staging.push(row);
@@ -189,22 +221,31 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
             if (n >= pages || rows.length === 0) break;
           }
         }
-        const install = () =>
-          state.index.install(kind, staging, {
+        if (counted !== undefined && outcome.skippedVhosts === 0) {
+          state.expected.set(kind, counted);
+        } else {
+          state.expected.delete(kind);
+        }
+        const entry = {
+          kind,
+          rows: staging,
+          meta: {
             sweptAt,
             complete: outcome.skippedVhosts === 0,
             extraDropped: overflow,
-          });
-        // A kind that already has a good version waits until every kind is read; a first read
-        // is installed at once, so the explorer can show what is loaded while it says it is partial.
+          },
+        };
+        // A kind that already has a good version waits until every kind is read (one new version
+        // for the whole sweep); a first read is installed at once, so the explorer can show what is
+        // loaded while it says it is partial.
         if (state.index.has(kind)) {
-          commits.push(install);
+          commits.push(entry);
         } else {
-          install();
+          state.index.installAll([entry]);
           installed++;
         }
       }
-      for (const commit of commits) commit();
+      if (commits.length > 0) state.index.installAll(commits);
       installed += commits.length;
     } catch (error) {
       failure = error;
@@ -266,6 +307,13 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
     index: (cid) => states.get(cid)?.index,
     sweepNow,
     onInstall: (cid, listener) => stateOf(cid).index.subscribe(listener),
+    status(cid) {
+      const state = states.get(cid);
+      return {
+        sweeping: state?.inflight !== undefined,
+        expected: state?.expected ?? new Map(),
+      };
+    },
     async stop() {
       stopped = true;
       for (const state of states.values()) {

@@ -46,18 +46,27 @@ export interface IndexChange {
   membershipChanged: boolean;
 }
 
+interface InstallMeta {
+  sweptAt: number;
+  complete: boolean;
+  /** Rows the sweeper itself left out of `rows`, already counted as dropped. */
+  extraDropped?: number;
+}
+interface InstallEntry {
+  kind: InventoryKind;
+  rows: Iterable<IndexRow>;
+  meta: InstallMeta;
+}
+
 export interface InventoryIndex {
   /** Replaces the rows of one kind with a finished sweep, atomically; keeps the previous version. */
   install(
     kind: InventoryKind,
     rows: Iterable<IndexRow>,
-    meta: {
-      sweptAt: number;
-      complete: boolean;
-      /** Rows the sweeper itself left out of `rows`, already counted as dropped. */
-      extraDropped?: number;
-    },
+    meta: InstallMeta,
   ): IndexVersion;
+  /** Replaces several kinds as one new version (the end of a sweep over a warm index). */
+  installAll(entries: readonly InstallEntry[]): IndexVersion;
   window(query: WindowQuery): {
     rows: readonly IndexRow[];
     matched: number;
@@ -194,11 +203,15 @@ export function createInventoryIndex(
     return hit;
   }
 
-  return {
-    install(kind, rows, meta) {
-      let maxRows = limits.maxRowsPerConnection - rowCount(current, kind);
+  /** Applies finished kinds as ONE new version, so a pinned scroll survives a whole sweep. */
+  function installAll(entries: readonly InstallEntry[]): IndexVersion {
+    let kinds = current.kinds;
+    const changes: { kind: InventoryKind; kept: IndexRow[] }[] = [];
+    for (const { kind, rows, meta } of entries) {
+      const others = { ...current, kinds };
+      let maxRows = limits.maxRowsPerConnection - rowCount(others, kind);
       const maxBytes =
-        limits.maxBytesPerConnection - sum(current, 'bytes', kind);
+        limits.maxBytesPerConnection - sum(others, 'bytes', kind);
       const kept: IndexRow[] = [];
       let bytes = 0;
       let dropped = meta.extraDropped ?? 0;
@@ -214,29 +227,32 @@ export function createInventoryIndex(
         }
       }
       droppedTotal += dropped;
-      const data: KindData = {
-        rows: kept,
-        bytes,
-        dropped,
-        complete: meta.complete,
+      kinds = {
+        ...kinds,
+        [kind]: { rows: kept, bytes, dropped, complete: meta.complete },
       };
-      const kinds = { ...current.kinds, [kind]: data };
-      const next: Snapshot = {
-        kinds,
-        meta: {
-          version: current.meta.version + 1,
-          sweptAt: meta.sweptAt,
-          complete: KINDS.every((k) => kinds[k]?.complete === true),
-          dropped: sum({ ...current, kinds }, 'dropped'),
-          truncated: sum({ ...current, kinds }, 'dropped') > 0,
-          stale: false,
-        },
-      };
-      const before = current.kinds[kind]?.rows ?? [];
-      previous = current.meta.version === 0 ? undefined : current;
-      current = next;
-      if (listeners.size > 0) {
-        const old = new Map(before.map((r) => [r.key as string, r]));
+      changes.push({ kind, kept });
+    }
+    const totals = { ...current, kinds };
+    const next: Snapshot = {
+      kinds,
+      meta: {
+        version: current.meta.version + 1,
+        sweptAt: entries.at(-1)?.meta.sweptAt ?? current.meta.sweptAt,
+        complete: KINDS.every((k) => kinds[k]?.complete === true),
+        dropped: sum(totals, 'dropped'),
+        truncated: sum(totals, 'dropped') > 0,
+        stale: false,
+      },
+    };
+    const before = current;
+    previous = current.meta.version === 0 ? undefined : current;
+    current = next;
+    if (listeners.size > 0) {
+      for (const { kind, kept } of changes) {
+        const old = new Map(
+          (before.kinds[kind]?.rows ?? []).map((r) => [r.key as string, r]),
+        );
         const upserts = kept.filter((r) => {
           const was = old.get(r.key);
           return was === undefined || !sameRow(was, r);
@@ -254,8 +270,13 @@ export function createInventoryIndex(
           });
         }
       }
-      return next.meta;
-    },
+    }
+    return next.meta;
+  }
+
+  return {
+    install: (kind, rows, meta) => installAll([{ kind, rows, meta }]),
+    installAll,
     window(query) {
       const pinned = query.version;
       const snap =

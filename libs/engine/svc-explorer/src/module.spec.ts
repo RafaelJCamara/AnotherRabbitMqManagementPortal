@@ -19,4 +19,14 @@ describe('createExplorerModule', () => {
     expect(Array.isArray(module.topics)).toBe(true);
     expect(Array.isArray(module.jobs)).toBe(true);
   });
+
+  it('serves inventory.query, has no topic source yet and stops its sweeps', async () => {
+    const deps = createExplorerFakeDeps();
+    const module = createExplorerModule(deps);
+
+    expect(module.actions.map((a) => a.def.id)).toEqual(['inventory.query']);
+    expect(module.topicSources).toEqual([]);
+    await expect(module.stop()).resolves.toBeUndefined();
+    expect(deps.broker.requests).toEqual([]);
+  });
 });

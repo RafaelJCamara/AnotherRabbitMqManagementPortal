@@ -1,8 +1,16 @@
 // Fakes for the ports of this module, shared by its specs, by the architecture manifest
 // (tools/arch-tests) and by the HTTP specs (libs/testkit).
+import { BrokerProfileSchema, type BrokerProfile } from '@app/domain-model';
+import {
+  createManualClock,
+  createManualTimers,
+  type ManualClock,
+  type ManualTimers,
+} from '@app/kernel';
 import type { Lane, MgmtGetRequest, MgmtReadPort } from '@app/ports';
 
-import type { ExplorerModuleDeps } from './deps';
+import type { ExplorerLimits, ExplorerModuleDeps } from './deps';
+import { createSweeper, type Sweeper } from './internal/sweeper';
 
 /** The connection every fake starts with: owned by the test principal (`user-1`). */
 export const FAKE_CONNECTION_ID = 'c1';
@@ -153,8 +161,74 @@ export function createScriptedBroker(
   return broker;
 }
 
+/** A probed profile with the fields of the schema and nothing planted in them. */
+export function sampleProfile(
+  overrides: Partial<BrokerProfile> = {},
+): BrokerProfile {
+  return BrokerProfileSchema.parse({
+    schemaVersion: 1,
+    connectionId: FAKE_CONNECTION_ID,
+    probedAt: 1_700_000_000_000,
+    fingerprint: 'fp-1',
+    semanticsVersion: 'sem-test',
+    product: 'rabbitmq',
+    provider: 'self-hosted',
+    versions: {
+      min: { major: 4, minor: 3, patch: 6, raw: '4.3.6' },
+      perNode: { 'rabbit@n0': { major: 4, minor: 3, patch: 6, raw: '4.3.6' } },
+      mixed: false,
+      build: 'oss',
+    },
+    era: { value: '4.3', reasons: [], conservative: false },
+    verification: 'verified',
+    lbFronted: { value: false, evidence: [] },
+    nodes: [{ name: 'rabbit@n0', running: true }],
+    identity: {
+      user: 'guest',
+      tags: ['administrator'],
+      isAdmin: true,
+      canMonitor: true,
+      isPolicymaker: true,
+    },
+    featureFlags: {},
+    deprecatedFeaturesUsed: [],
+    stats: { disabled: true, queueTotals: true },
+    classicEnabled: true,
+    exchangeTypes: ['direct'],
+    extensions: [],
+    restrictions: {
+      operatorPolicyChanges: 'allowed',
+      qqReplicaOps: 'allowed',
+      definitionsExport: 'full',
+    },
+    limits: { preAuthFrameMax: 4096 },
+    prometheus: {
+      endpoints: [],
+      perObjectAllowed: true,
+      queueFilter: true,
+      minIntervalSec: 15,
+    },
+    streams: {
+      supported: true,
+      paths: ['amqp091'],
+      streamProtocolReachable: 'unknown',
+    },
+    firehose: { available: 'none' },
+    auth: { httpChainSeparate: 'unknown' },
+    tls: { verified: true, insecureOverride: false },
+    managedObjects: [],
+    hazards: [],
+    gates: {},
+    ...overrides,
+  });
+}
+
 export interface ExplorerFakeDeps extends ExplorerModuleDeps {
   readonly broker: ScriptedBroker;
+  /** The sweeper over `mgmt`, on manual time: its timers never fire unless a spec advances them. */
+  readonly sweeper: Sweeper;
+  readonly clock: ManualClock;
+  readonly timers: ManualTimers;
 }
 
 export function createExplorerFakeDeps(
@@ -163,9 +237,20 @@ export function createExplorerFakeDeps(
     queueCount?: number;
     vhostCount?: number;
     exchangesPerVhost?: number;
+    /** The connection has a cached profile, as after a probe (default true). */
+    seeded?: boolean;
+    profile?: Partial<BrokerProfile>;
+    /** Replaces the scripted broker as the engine's management port. */
+    mgmt?: MgmtReadPort;
+    limits?: Partial<ExplorerLimits>;
   } = {},
 ): ExplorerFakeDeps {
   const broker = createScriptedBroker(options);
+  const clock = createManualClock();
+  const timers = createManualTimers(clock);
+  const profile = sampleProfile(options.profile);
+  const mgmt = options.mgmt ?? broker.read;
+  const limits = options.limits === undefined ? {} : { limits: options.limits };
   const connection = {
     id: FAKE_CONNECTION_ID,
     name: 'Fake broker',
@@ -179,8 +264,25 @@ export function createExplorerFakeDeps(
   };
   return {
     broker,
-    mgmt: broker.read,
-    profiles: { get: () => Promise.resolve(undefined) },
+    mgmt,
+    clock,
+    timers,
+    ...limits,
+    sweeper: createSweeper({ mgmt, clock, timers, ...limits }),
+    profiles: {
+      get: (id) =>
+        Promise.resolve(
+          options.seeded === false || id !== FAKE_CONNECTION_ID
+            ? undefined
+            : {
+                connectionId: id,
+                fingerprint: profile.fingerprint,
+                verification: profile.verification,
+                probedAt: profile.probedAt,
+                profile,
+              },
+        ),
+    },
     connections: {
       get: (id) =>
         Promise.resolve(id === FAKE_CONNECTION_ID ? connection : undefined),

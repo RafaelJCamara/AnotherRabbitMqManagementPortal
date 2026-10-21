@@ -10,7 +10,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { createTestEngine, type TestEngine } from '../create-test-engine.ts';
 
-const subject = () => createInventoryQueryAction(createExplorerFakeDeps());
+const subject = () =>
+  createInventoryQueryAction(
+    createExplorerFakeDeps({ ownerId: 'local-token' }),
+  );
 const def = inventoryQuery;
 let engine: TestEngine;
 const validBody = { kind: 'queues', window: { offset: 0, limit: 200 } };

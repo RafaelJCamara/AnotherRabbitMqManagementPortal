@@ -19,7 +19,9 @@ describe('explorer-model public API', () => {
       'fitKeys',
       'isFilterEmpty',
       'isSortable',
+      'parseViewDefinition',
       'sanitizeFilter',
+      'serializeView',
       'sortableColumns',
     ]);
   });

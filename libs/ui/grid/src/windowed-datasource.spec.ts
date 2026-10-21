@@ -88,7 +88,10 @@ describe('WindowedDatasource', () => {
     ds.destroy();
     await vi.advanceTimersByTimeAsync(60);
     expect(probe.calls.rows).toBeUndefined();
-    expect(probe.calls.failed).toBe(false);
+    // The block is released (AG Grid frees its slot) but it is not a failure of the query in force.
+    expect(probe.calls.failed).toBe(true);
+    expect(ds.stats().blocksFailed).toBe(0);
+    expect(ds.error()).toBeNull();
     expect(ds.stats().staleAnswers).toBe(1);
     expect(ds.stats().blocksLoaded).toBe(0);
     // an aborting source is cancelled, not counted as a failure
@@ -98,8 +101,27 @@ describe('WindowedDatasource', () => {
     ds2.getRows(p2);
     ds2.destroy();
     await vi.advanceTimersByTimeAsync(60);
-    expect(p2.calls).toEqual({ failed: false });
+    expect(p2.calls).toEqual({ failed: true });
     expect(ds2.stats().blocksFailed).toBe(0);
+  });
+
+  it('a replaced datasource releases every block it is asked for, so the grid never waits for a slot that is not freed', async () => {
+    const source = createFakeWindowSource({ latencyMs: 10 });
+    const ds = new WindowedDatasource({ source, maxConcurrent: 1 });
+    const loading = block(0);
+    const queued = block(200);
+    ds.getRows(loading);
+    ds.getRows(queued); // waits for the only slot
+    ds.destroy();
+    expect(queued.calls).toEqual({ failed: true }); // a block that was waiting is released at once
+    // AG Grid asks the datasource it replaced for a block it had queued: answered, not forgotten.
+    const late = block(400);
+    ds.getRows(late);
+    expect(late.calls).toEqual({ failed: true });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(loading.calls).toEqual({ failed: true });
+    expect(source.requests).toHaveLength(1); // nothing new was sent
+    expect(ds.stats().blocksFailed).toBe(0);
   });
 
   it('AC-7 a failed or oversized block fails whole, is counted and can be retried', async () => {

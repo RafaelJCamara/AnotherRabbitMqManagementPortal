@@ -63,7 +63,8 @@ const DEFAULT_TIME = new Intl.DateTimeFormat(undefined, {
               }}</span>
               {{ t(line.key, line.params) }}
               @if (line.problem; as problem) {
-                <span class="problem">{{ problem.title }}</span>
+                <span class="problem">{{ problem.title }}</span
+                >&ngsp;
                 @if (problem.detail) {
                   <span class="problem">{{ problem.detail }}</span>
                 }

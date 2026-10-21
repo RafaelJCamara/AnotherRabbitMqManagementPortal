@@ -102,7 +102,13 @@ export class WindowedDatasource<Row> {
   }
 
   getRows(request: BlockRequest<Row>): void {
-    if (this.#destroyed) return;
+    if (this.#destroyed) {
+      // AG Grid may still ask a datasource it has replaced (a block it queued before the switch). Never
+      // answering would leave that block counted as loading for good, and with the concurrency cap the
+      // next datasource would wait for a slot that is never freed.
+      request.fail();
+      return;
+    }
     if (this.#inflight.size >= this.#max) {
       if (this.#waiting.length >= GRID_MAX_BLOCKS) {
         this.#failBlock(request, 'too many queued blocks');
@@ -140,7 +146,8 @@ export class WindowedDatasource<Row> {
     this.#unsubscribe?.();
     for (const c of this.#inflight) c.abort();
     this.#inflight.clear();
-    this.#waiting.length = 0;
+    // Blocks that were waiting for a slot are released, not forgotten (see `getRows`).
+    for (const waiting of this.#waiting.splice(0)) waiting.fail();
     this.#syncBusy();
     this.#pending.clear();
     clearTimeout(this.#changeTimer);
@@ -180,7 +187,9 @@ export class WindowedDatasource<Row> {
         (win) => {
           settle();
           if (abort.signal.aborted || this.#destroyed) {
+            // The rows are dropped (they belong to a query that was replaced), but the block is released.
             this.#bump('staleAnswers');
+            request.fail();
             return;
           }
           if (win.rows.length > limit) {
@@ -201,7 +210,10 @@ export class WindowedDatasource<Row> {
         },
         (reason: unknown) => {
           settle();
-          if (abort.signal.aborted || this.#destroyed) return;
+          if (abort.signal.aborted || this.#destroyed) {
+            request.fail(); // released, and not a failure of the query in force
+            return;
+          }
           this.#failBlock(request, reason);
         },
       );

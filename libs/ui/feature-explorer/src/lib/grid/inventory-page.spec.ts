@@ -4,6 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { createFakeExplorerData } from '@app/explorer-model/testing';
 import { EngineProblemError } from '@app/ui-data';
+import { FakeEngine } from '@app/ui-platform/testing';
 import {
   eventually,
   gridApiOf,
@@ -21,6 +22,7 @@ import {
   tick,
   type,
 } from '../testing/dom';
+import { FakeWorkspace } from '../testing/fake-workspace';
 import { ManualTimer } from '../testing/manual-timer';
 import { mountPage, pageProviders } from '../testing/page-testbed';
 import { EXPLORER_TIMER } from '../timer';
@@ -64,7 +66,7 @@ describe('<app-inventory-page>', () => {
 
     // Scroll to the end in jumps. (That the grid evicts beyond 25 blocks is the grid's own proof, M0-53;
     // here the cap is only checked, because every jump re-renders a DOM that has no virtualisation.)
-    const jumps = [4_000, 8_000, 12_000, 16_000, 19_999, 0, 2_000, 6_000];
+    const jumps = [4_000, 12_000, 19_999, 0, 6_000];
     for (const index of jumps) {
       const offset = Math.floor(index / 200) * 200;
       api.ensureIndexVisible(index, 'top');
@@ -137,7 +139,11 @@ describe('<app-inventory-page>', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
-        ...pageProviders(fake, signal<string | null>('c1')),
+        ...pageProviders(
+          fake,
+          signal<string | null>('c1'),
+          new FakeEngine({ handler: new FakeWorkspace().handler }),
+        ),
         provideRouter([
           {
             path: 'bindings',

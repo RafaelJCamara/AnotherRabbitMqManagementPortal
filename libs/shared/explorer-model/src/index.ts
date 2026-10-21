@@ -41,3 +41,14 @@ export {
   type WindowSourceCounters,
   type WindowSourceState,
 } from './window-source';
+export {
+  parseViewDefinition,
+  serializeView,
+  type ColumnEntryJson,
+  type ColumnStateJson,
+  type ExplorerViewDefinition,
+  type ParsedView,
+  type SerializedView,
+  type ViewDrop,
+  type ViewDropped,
+} from './view-definition';

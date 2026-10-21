@@ -16,6 +16,7 @@ import {
   createInventoryWindowSource,
   type ExplorerFilter,
   type ExplorerKind,
+  type ExplorerViewDefinition,
   type InventoryRow,
   type InventoryWindowSource,
   type WindowSourceState,
@@ -36,6 +37,12 @@ import { FilterBar } from './filter-bar.component';
 import { activeFilter, filterChips } from './filter-model';
 import { FreshnessBanner } from './freshness-banner.component';
 import { gridLabels } from './grid-labels';
+import { ProfileStore } from '../profile/profile-store';
+import {
+  ViewsControl,
+  type ViewApplied,
+} from '../views/views-control.component';
+import { ViewsStore } from '../views/views-store';
 
 interface Bundle {
   readonly t: Translate;
@@ -47,7 +54,14 @@ interface Bundle {
 @Component({
   selector: 'app-inventory-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DataGrid, FilterBar, FreshnessBanner, TranslocoDirective],
+  imports: [
+    DataGrid,
+    FilterBar,
+    FreshnessBanner,
+    TranslocoDirective,
+    ViewsControl,
+  ],
+  providers: [ProfileStore, ViewsStore],
   template: `
     <ng-container *transloco="let t">
       @if (connection(); as cid) {
@@ -59,6 +73,12 @@ interface Bundle {
                 {{ t('explorer.counts', counts) }}
               </p>
             }
+            <app-views-control
+              [kind]="kind()"
+              [current]="current()"
+              [viewId]="viewId()"
+              (applied)="onViewApplied($event)"
+            />
           </header>
           <app-filter-bar
             [kind]="kind()"
@@ -92,6 +112,10 @@ interface Bundle {
                 (sortTrimmed)="sortTrimmed.set(true)"
               />
             </div>
+          } @else if (viewPending()) {
+            <p class="notice" role="status">
+              {{ t('explorer.views.loading') }}
+            </p>
           } @else {
             <p class="notice">{{ t('explorer.bindings.needVhost') }}</p>
           }
@@ -151,6 +175,17 @@ export class InventoryPage {
   });
   /** A bindings page was asked to open another vhost (the route puts it in `?vhost=`). */
   readonly vhostChange = output<string>();
+  /** The saved view named in the address (`?view=`); the page reads nothing until it is applied. */
+  readonly viewId = input<string | null>(null);
+  /** A view was applied (or the address's view could not be): the route keeps it in `?view=`. */
+  readonly viewChange = output<string | null>();
+
+  #appliedView: string | null = null;
+  /** A view in the address is applied before the first read, so the first query is the view's own. */
+  protected readonly viewPending = linkedSignal<string | null, boolean>({
+    source: this.viewId,
+    computation: (id) => id !== null && id !== this.#appliedView,
+  });
 
   /** What the engine is asked: the chosen filter, and for bindings the one vhost it requires. */
   protected readonly filter = computed<ExplorerFilter>(() => {
@@ -167,7 +202,7 @@ export class InventoryPage {
       const cid = this.connection();
       const kind = this.kind();
       const filter = this.filter();
-      if (cid === null) return null;
+      if (cid === null || this.viewPending()) return null;
       if (kind === 'bindings' && filter.vhosts?.length !== 1) return null;
       return createInventoryWindowSource<ExplorerKind>(this.#data, {
         cid,
@@ -191,6 +226,14 @@ export class InventoryPage {
     const total = state?.freshness?.loaded ?? null;
     return matched === null || total === null ? null : { matched, total };
   });
+
+  /** What a save would store: the filter and the columns in force. */
+  protected readonly current = computed<ExplorerViewDefinition>(() => ({
+    version: 1,
+    kind: this.kind(),
+    filter: this.filter(),
+    columns: this.columnState() ?? { version: 1, columns: [], sort: [] },
+  }));
 
   /** A filter is active and the engine says nothing matches it (never while the first read is running). */
   protected readonly noMatch = computed(() => {
@@ -220,6 +263,30 @@ export class InventoryPage {
         source.destroy(); // aborts what is in flight and ends the subscription
       });
     });
+  }
+
+  /** Applies what a view says that this kind can take; what it cannot is the control's to list. */
+  protected onViewApplied(event: ViewApplied): void {
+    this.#appliedView = event.id;
+    const parsed = event.parsed;
+    if (parsed !== null && !parsed.appliesNothing) {
+      const { filter, columns } = parsed.definition;
+      if (this.kind() === 'bindings') {
+        const { vhosts, ...rest } = filter;
+        this.userFilter.set(rest);
+        const [vhost] = vhosts ?? [];
+        if (vhost !== undefined) this.vhostChange.emit(vhost);
+      } else {
+        this.userFilter.set(filter);
+      }
+      this.columnState.set(
+        columns.columns.length === 0 && columns.sort.length === 0
+          ? null
+          : columns,
+      );
+    }
+    this.viewPending.set(false);
+    this.viewChange.emit(event.id);
   }
 
   /** "No rows match", with the chips that could be the cause. */

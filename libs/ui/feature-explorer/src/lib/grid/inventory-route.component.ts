@@ -25,7 +25,9 @@ function kindOf(data: unknown): ExplorerKind {
   template: `<app-inventory-page
     [kind]="kind()"
     [vhost]="vhost()"
+    [viewId]="viewId()"
     (vhostChange)="openVhost($event)"
+    (viewChange)="openView($event)"
   />`,
   styles: `
     :host {
@@ -47,12 +49,38 @@ export class InventoryRoute {
     { initialValue: null },
   );
 
+  protected readonly viewId = toSignal(
+    this.#route.queryParamMap.pipe(map((params) => params.get('view'))),
+    { initialValue: null },
+  );
+
+  /** Parameters waiting for the next navigation: one navigation carries all that were asked in a turn. */
+  #pending: Record<string, string | null> = {};
+  #scheduled = false;
+
   /** The vhost of a bindings page lives in the address (`?vhost=`), so a tab can keep it. */
   protected openVhost(vhost: string): void {
-    void this.#router.navigate([], {
-      relativeTo: this.#route,
-      queryParams: { vhost: vhost === '' ? null : vhost },
-      queryParamsHandling: 'merge',
+    this.#navigate({ vhost: vhost === '' ? null : vhost });
+  }
+
+  /** The saved view in force lives in the address (`?view=`). */
+  protected openView(id: string | null): void {
+    this.#navigate({ view: id });
+  }
+
+  #navigate(params: Record<string, string | null>): void {
+    Object.assign(this.#pending, params);
+    if (this.#scheduled) return;
+    this.#scheduled = true;
+    queueMicrotask(() => {
+      const queryParams = this.#pending;
+      this.#pending = {};
+      this.#scheduled = false;
+      void this.#router.navigate([], {
+        relativeTo: this.#route,
+        queryParams,
+        queryParamsHandling: 'merge',
+      });
     });
   }
 }

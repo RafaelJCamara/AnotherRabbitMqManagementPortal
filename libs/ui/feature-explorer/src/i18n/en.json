@@ -132,6 +132,57 @@
       "stale": "Live updates are stale."
     }
   },
+  "views": {
+    "button": "Views",
+    "title": "Saved views",
+    "list": "Your saved views",
+    "loading": "Loading saved views.",
+    "empty": "No saved views for this list yet.",
+    "truncated": "Only the first 200 views are shown.",
+    "name": "View name",
+    "save": "Save the current view",
+    "replace": "Replace",
+    "replaceNamed": "Replace the view {{name}} with the current view",
+    "delete": "Delete",
+    "deleteNamed": "Delete the view {{name}}",
+    "confirm": "Confirm",
+    "confirmDelete": "Delete the view {{name}}?",
+    "confirmReplace": "Replace the view {{name}} with the current filters and columns?",
+    "confirmYes": "Yes",
+    "cancel": "Cancel",
+    "saved": "View saved.",
+    "replaced": "View replaced.",
+    "deleted": "View deleted.",
+    "saveFailed": "The view could not be saved.",
+    "deleteFailed": "The view could not be deleted.",
+    "listFailed": "Saved views could not be read.",
+    "replaceHalf": "The new view was saved but the old one could not be deleted, so both are listed.",
+    "tooLarge": "This view is too large to save (at most {{max}} characters).",
+    "notFound": "The saved view in the address was not found.",
+    "nothingApplied": "Nothing in this view applies to this list, so nothing changed.",
+    "drop": {
+      "newer-version": "Not applied: the view was saved by a newer version.",
+      "wrong-kind": "Not applied: the view is for another list ({{detail}}).",
+      "filter-not-for-kind": "Not applied: the filter {{detail}} does not apply to this list.",
+      "unknown-column": "Not applied: the column {{detail}} is not available in this list.",
+      "filter-over-cap": "Not applied: the filter {{detail}} has more values than the list allows; the extra values were left out.",
+      "invalid": "Not applied: part of the view could not be read ({{detail}})."
+    },
+    "gate": {
+      "whyDisabled": "Why it is not available",
+      "degraded": "Available with limits",
+      "source": "Source",
+      "noReason": "No reason given",
+      "loading": "The permissions of this connection are not known yet.",
+      "unknown": "The permissions of this connection are not known.",
+      "denied": {
+        "views": {
+          "create": "The engine does not allow you to save views.",
+          "delete": "The engine does not allow you to delete views."
+        }
+      }
+    }
+  },
   "announce": {
     "state": {
       "loading": "Loading the inventory.",

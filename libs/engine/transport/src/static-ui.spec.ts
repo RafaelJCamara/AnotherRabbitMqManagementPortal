@@ -33,6 +33,8 @@ describe('static UI', () => {
 
   const get = (path: string, headers: Record<string, string> = {}) =>
     tcp(server, { path, headers });
+  const headerOf = (value: string | string[] | undefined): string =>
+    [value ?? ''].flat().join(', ');
 
   it('static UI: index.html carries the nonce of its own response and the CSP header names the same nonce', async () => {
     const a = await get('/');
@@ -62,6 +64,53 @@ describe('static UI', () => {
     }
     const nonceOf = (body: string) => /content="([^"]+)"/.exec(body)?.[1];
     expect(nonceOf(a.body)).not.toBe(nonceOf(b.body));
+  });
+
+  it('static UI: concurrent page loads each get their own nonce, in the page and in the header, never the placeholder', async () => {
+    const paths = ['/', '/index.html', '/INDEX.HTML', '/c/abc/queues'];
+    const responses = await Promise.all(
+      Array.from({ length: 24 }, (_, i) =>
+        get(paths[i % paths.length] ?? '/', {
+          accept: 'text/html,application/xhtml+xml',
+        }),
+      ),
+    );
+
+    const nonces = new Set<string>();
+    for (const res of responses) {
+      expect(res.status).toBe(200);
+      const inMeta = /<meta name="csp-nonce" content="([^"]+)"/.exec(
+        res.body,
+      )?.[1];
+      const inRoot = /ngCspNonce="([^"]+)"/.exec(res.body)?.[1];
+      const inHeader = /'nonce-([^']+)'/.exec(
+        headerOf(res.headers['content-security-policy']),
+      )?.[1];
+      expect(inMeta).toBeDefined();
+      expect(inRoot).toBe(inMeta);
+      expect(inHeader).toBe(inMeta);
+      expect(res.body).not.toContain('__CSP_NONCE__');
+      nonces.add(inMeta ?? '');
+    }
+    expect(nonces.size).toBe(responses.length);
+  });
+
+  it('static UI: the CSP keeps connect-src self and trusted types, and never allows unsafe-inline or unsafe-eval for scripts or style elements', async () => {
+    const res = await get('/');
+    const policy = headerOf(res.headers['content-security-policy']);
+    const directive = (name: string) =>
+      policy.split('; ').find((part) => part.startsWith(`${name} `)) ?? '';
+
+    expect(directive('connect-src')).toBe("connect-src 'self'");
+    expect(directive('script-src')).toBe("script-src 'self'");
+    expect(directive('style-src')).toMatch(/^style-src 'self' 'nonce-[^']+'$/);
+    expect(directive('require-trusted-types-for')).toBe(
+      "require-trusted-types-for 'script'",
+    );
+    expect(policy).not.toContain('unsafe-eval');
+    // The one `unsafe-inline` is for style attributes (S-04); element styles need the nonce.
+    expect(policy.match(/unsafe-inline/g)).toHaveLength(1);
+    expect(directive('style-src-attr')).toBe("style-src-attr 'unsafe-inline'");
   });
 
   it('static UI: files come from N first, then from N-1; index.html only from N', async () => {

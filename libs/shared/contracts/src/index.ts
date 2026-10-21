@@ -1,7 +1,14 @@
 // @app/contracts: the one contract registry (ADR-003). Isomorphic; depends on zod only.
+// The first import must stay first: it configures zod before any schema below is built (#277).
+import './config/no-dynamic-code-init.ts';
+
 export * from './brands.ts';
 export * from './bridge.ts';
 export * from './config/env.ts';
+export {
+  forbidDynamicCodeUnderTrustedTypes,
+  hasTrustedTypes,
+} from './config/no-dynamic-code.ts';
 export * from './ctl-frames.ts';
 export * from './emit/index.ts';
 export * from './errors.ts';

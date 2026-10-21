@@ -6,8 +6,13 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <!-- The engine replaces the nonce placeholder of this page, in the tag below and in the root
+         element, with that response's own CSP nonce (libs/engine/transport, static-ui.ts).
+         Angular puts the root's value on the style elements of the components (ngCspNonce);
+         libraries without an Angular hook read the meta tag (OQ-552). -->
+    <meta name="csp-nonce" content="__CSP_NONCE__" />
   </head>
   <body>
-    <app-root></app-root>
+    <app-root ngCspNonce="__CSP_NONCE__"></app-root>
   </body>
 </html>

@@ -386,5 +386,9 @@ describe('explorer search.query', () => {
     expect((await harness({}, ['operator']).ask(sampleInput)).results).toEqual(
       [],
     );
-  });
+    // The spec asks for p95 over 500 sequential searches of 20,012 names (AC-25), and that loop is the
+    // time: about 0.8 s of the 1.0 s locally (the reference and the fixture take about 0.15 s), and the
+    // Linux CI runner is about 5x slower, which is past the 5 s default. A larger timeout is only room
+    // for the benchmark the criterion names; the p95 assertion above is the real bound and is unchanged.
+  }, 30_000);
 });

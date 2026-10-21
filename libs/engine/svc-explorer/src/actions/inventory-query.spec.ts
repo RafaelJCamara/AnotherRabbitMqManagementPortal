@@ -129,6 +129,21 @@ interface Spec {
  * named by `typeField`: the type of a queue or exchange, the protocol of a connection.
  */
 function reference(rows: Row[], spec: Spec, typeField = 'type') {
+  // The filtered and sorted rows depend on (filter, sort) only, never on the window, so they are
+  // computed once per combination and each window is a slice of that (the slow part over 20k rows).
+  const memo = referenceMemo.get(rows) ?? new Map<string, Row[]>();
+  referenceMemo.set(rows, memo);
+  const id = JSON.stringify([spec.filter, spec.sort, typeField]);
+  const kept = memo.get(id) ?? filterAndSort(rows, spec, typeField);
+  memo.set(id, kept);
+  return {
+    rows: kept.slice(spec.offset, spec.offset + spec.limit),
+    matched: kept.length,
+  };
+}
+const referenceMemo = new WeakMap<Row[], Map<string, Row[]>>();
+
+function filterAndSort(rows: Row[], spec: Spec, typeField: string): Row[] {
   const text = spec.filter?.text?.toLowerCase();
   const kept = rows.filter(
     (r) =>
@@ -152,10 +167,7 @@ function reference(rows: Row[], spec: Spec, typeField = 'type') {
     }
     return String(a.key) < String(b.key) ? -1 : 1;
   });
-  return {
-    rows: kept.slice(spec.offset, spec.offset + spec.limit),
-    matched: kept.length,
-  };
+  return kept;
 }
 
 describe('explorer inventory.query', () => {
@@ -189,13 +201,20 @@ describe('explorer inventory.query', () => {
       { column: 'messages', dir: 'asc' },
     ];
 
-    for (let i = 0; i < 200; i++) {
-      const spec: Spec = {
+    // The same 200 windows as before (every filter x sort pair, several offsets and limits), grouped
+    // by sort: the index keeps a few sorted copies, so five sorts in rotation re-sort 20k rows on
+    // every query and that, not the check, was most of the time on a slow runner.
+    const specs = Array.from({ length: 200 }, (_, i) => ({
+      i,
+      spec: {
         offset: (i * 977) % 20_000,
         limit: [1, 200, 500][i % 3] ?? 1,
         ...(filters[i % 6] ? { filter: filters[i % 6] } : {}),
         ...(sorts[i % 5] ? { sort: sorts[i % 5] } : {}),
-      };
+      } satisfies Spec,
+    })).sort((a, b) => (a.i % 5) - (b.i % 5) || a.i - b.i);
+
+    for (const { spec } of specs) {
       const { offset, limit, ...more } = spec;
       const answer = await ask(query('queues', { offset, limit }, more));
       const expected = reference(queues, spec);

@@ -77,6 +77,13 @@ describe.each(subjects)('$name', (subject) => {
       const control = await connectControl(
         optionsFor(broker, subject, unique('ctl')),
       );
+      // The healthy release returned the held `m1` the same way (a nack through the queue's log), so
+      // a quorum queue counts it again a moment after the lease is gone, as it did after the barrier.
+      await waitFor(
+        async () => (await control.lease.checkQueue(queue)).messageCount === 3,
+        10_000,
+        'three ready messages after the release',
+      );
       expect((await control.lease.checkQueue(queue)).messageCount).toBe(3);
       await control.lease.release();
     },

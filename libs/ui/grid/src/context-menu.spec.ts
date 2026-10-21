@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { GridCellTarget, GridMenuProvider } from './context-menu';
 import { DataGrid } from './data-grid.component';
@@ -16,6 +16,7 @@ import {
   type Row,
 } from './grid-spec-support';
 import type { GridKeybinding } from './keybindings';
+import { warmUpGrid, WARM_UP_TIMEOUT_MS } from './grid-spec-warm-up';
 import { provideGridRenderAll } from './testing/render-all';
 
 @Component({
@@ -93,6 +94,8 @@ const SIMPLE: GridMenuProvider<Row> = () => [
 ];
 
 describe('grid context menu', () => {
+  beforeAll(warmUpGrid, WARM_UP_TIMEOUT_MS);
+
   it('AC-2 right-click opens the app menu and nothing else', async () => {
     const { el, fixture, host } = await mount(SIMPLE);
     const cell = cellAt(el, 'name', 1);

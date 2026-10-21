@@ -2,7 +2,7 @@ import { Component, signal, type Provider } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { ThemeService } from '@app/ui-design';
 import { getGridApi } from 'ag-grid-community';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { GRID_CLIPBOARD, type GridClipboard } from './clipboard';
 import type { GridColumnState } from './column-state';
@@ -21,6 +21,7 @@ import {
   source,
   type Row,
 } from './grid-spec-support';
+import { warmUpGrid, WARM_UP_TIMEOUT_MS } from './grid-spec-warm-up';
 import { provideGridRenderAll } from './testing/render-all';
 import type { EngineWindowSource } from './window-source';
 function fakeClipboard(refuse = false): GridClipboard & { written: string[] } {
@@ -75,6 +76,8 @@ async function mount(
 }
 
 describe('<app-data-grid>', () => {
+  beforeAll(warmUpGrid, WARM_UP_TIMEOUT_MS);
+
   it('shows the rows the source answers, with the columns in their order', async () => {
     const { el } = await mount();
     await rendered(el, 3);

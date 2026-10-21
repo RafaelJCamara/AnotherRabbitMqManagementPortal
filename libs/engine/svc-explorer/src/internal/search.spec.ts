@@ -65,31 +65,47 @@ function flipCase(rand: () => number, text: string): string {
     .join('');
 }
 
-/** The plain way, written out independently of the service. */
-function reference(items: readonly Item[], text: string, max: number) {
+/**
+ * The plain way, written out independently of the service. The folded name and the key of each
+ * item are made once per item, not once per sort comparison: the key encoder validates and
+ * base64-encodes, so calling it inside the comparator made this reference the slow part of the
+ * test (about 10^5 encodes per seed), and a slow runner pushed the test past its time limit.
+ */
+function prepare(items: readonly Item[]) {
+  return items.map((item) => ({
+    item,
+    lower: item.name.toLowerCase(),
+    key: encodeObjectKey(item.vhost, item.name),
+  }));
+}
+
+function reference(
+  prepared: ReturnType<typeof prepare>,
+  text: string,
+  max: number,
+) {
   const needle = text.toLowerCase();
   const order = ['queues', 'exchanges'];
-  const rank = (n: Item) => {
-    const lower = n.name.toLowerCase();
-    return lower === needle ? 0 : lower.startsWith(needle) ? 1 : 2;
-  };
-  const key = (n: Item) => encodeObjectKey(n.vhost, n.name);
-  const found = items.filter((n) => n.name.toLowerCase().includes(needle));
+  const rank = (n: (typeof prepared)[number]) =>
+    n.lower === needle ? 0 : n.lower.startsWith(needle) ? 1 : 2;
+  const found = prepared.filter((n) => n.lower.includes(needle));
   found.sort(
     (a, b) =>
       rank(a) - rank(b) ||
-      a.name.length - b.name.length ||
-      (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) ||
-      order.indexOf(a.kind) - order.indexOf(b.kind),
+      a.item.name.length - b.item.name.length ||
+      (a.key < b.key ? -1 : a.key > b.key ? 1 : 0) ||
+      order.indexOf(a.item.kind) - order.indexOf(b.item.kind),
   );
   return {
     matched: found.length,
     hits: found
       .slice(0, max)
-      .map((n) => `${n.kind}|${n.vhost}|${n.name}|${String(rank(n))}`),
+      .map(
+        (n) =>
+          `${n.item.kind}|${n.item.vhost}|${n.item.name}|${String(rank(n))}`,
+      ),
   };
 }
-
 describe('explorer search', () => {
   it('explorer search fast path equals the reference ranking', () => {
     for (let seed = 1; seed <= 60; seed++) {
@@ -165,24 +181,29 @@ describe('explorer search', () => {
         '\u{1F407}',
         'zzz-not-there',
       ];
+      // One comparison per seed, not one per query: the label rides inside each answer, so a
+      // failure still names the seed, the text and the max.
+      const prepared = prepare(items);
+      const got: unknown[] = [];
+      const want: unknown[] = [];
       for (const needle of needles) {
         for (const max of [1, 5, 50]) {
-          const got = searchNames(sources, needle, max);
-          const want = reference(items, needle, max);
           const label = `seed ${String(seed)}, text ${JSON.stringify(needle)}, max ${String(max)}`;
-          expect(got.matched, label).toBe(want.matched);
-          expect(
-            got.hits.map(
+          const found = searchNames(sources, needle, max);
+          got.push({
+            label,
+            matched: found.matched,
+            hits: found.hits.map(
               (h) =>
                 `${h.kind}|${h.row.vhost}|${h.row.name}|${String(['exact', 'prefix', 'substring'].indexOf(h.rank))}`,
             ),
-            label,
-          ).toEqual(want.hits);
+          });
+          want.push({ label, ...reference(prepared, needle, max) });
         }
       }
+      expect(got).toEqual(want);
     }
   });
-
   it('explorer search folded names are counted, kept with the version and dropped with it', () => {
     const index = createInventoryIndex({
       maxRowsPerConnection: 100,

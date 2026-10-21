@@ -130,6 +130,7 @@ Run everything from the repository root.
 | Formatting | `pnpm format:check` / `pnpm format` |
 | Architecture tests (mutation funnel I-2, proof minting A-9, plan-purity manifest) | `pnpm nx test arch-tests` |
 | Dev gallery absent from the production web build | `pnpm nx run web-gallery-check:gallery-absent` |
+| Production web build renders styled under the real CSP, zero CSP and Trusted Types reports (real browser; skips loudly without one) | `pnpm nx run web-csp-check:csp-check` |
 | Grid adapter (component specs run with the lint, typecheck and test targets); no AG Grid Enterprise in its bundle | `pnpm nx run-many -t lint typecheck test -p ui-grid` / `pnpm nx run ui-grid:bundle-check` |
 | Action layer (ActionExecutor, PlanStore) | `pnpm nx test kernel --testNamePattern=executor` |
 | Explorer: golden replay with the real adapter / lab run (20k queues; `IT_QUEUES=100000` for S-13; needs a Docker daemon) / synthetic perf (window p95, loop delay, search p95) | `pnpm nx test testkit --testNamePattern=AC-22` / `pnpm nx run svc-explorer:it '--versions=4.2.9,4.3.6'` / `pnpm nx run perf:explorer-20k` |

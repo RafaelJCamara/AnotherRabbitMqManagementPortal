@@ -1,0 +1,30 @@
+{
+  "name": "web-csp-check",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/web-csp-check",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{workspaceRoot}/apps/web/src/index.html",
+        "{workspaceRoot}/libs/engine/transport/src/static-ui.ts"
+      ],
+      "options": {
+        "command": "node --test tools/web-csp-check/csp-check.test.mjs"
+      }
+    },
+    "csp-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [{ "projects": ["web", "engine"], "target": "build" }],
+      "options": {
+        "command": "node tools/web-csp-check/csp-check.mjs"
+      }
+    }
+  }
+}

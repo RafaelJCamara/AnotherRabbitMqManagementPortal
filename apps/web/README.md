@@ -40,4 +40,5 @@ None. The app is an entry point, not a library. Inside it:
 | `pnpm nx run-many -t lint typecheck test -p web` | Specs (AC-1, AC-2, AC-4 to AC-14), types and lint (raw template text, honest wording).                               |
 | `pnpm nx run web:budgets`                        | Production build, then the gzip budgets (`tools/web-budgets`).                                                      |
 | `pnpm nx run web-gallery-check:gallery-absent`   | The gallery is absent from production.                                                                              |
+| `pnpm nx run web-csp-check:csp-check`            | The production build, served by the engine bundle, renders styled in Chrome or Edge under the real CSP (#277).     |
 | `pnpm nx e2e e2e-web --grep=@shell` (planned)    | The browser proof of AC-9 and the axe run; `apps/e2e-web` is M0-60. Interim: `fitLayout` spec and the style checks. |

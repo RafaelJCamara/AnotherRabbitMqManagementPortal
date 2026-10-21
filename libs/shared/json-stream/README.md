@@ -4,7 +4,7 @@ Incremental reader for large JSON arrays: yields the items, stops at a limit, bo
 
 Tags: `type:pure`, `runtime:isomorphic`. It imports nothing from the workspace and nothing from npm; it uses only web-standard globals (`TextDecoder`, `JSON`, `Uint8Array`).
 
-Status: slices A and B of M0-48l ([spec](../../../docs/specs/M0-48l.md), issues #273 and #274): the array reader, `value()` (the paged envelope), `close()`, the abort signal and the cooperative yield. The first consumer (the bindings store) lands with slice C.
+Status: slices A and B of M0-48l ([spec](../../../docs/specs/M0-48l.md), issues #273 and #274): the array reader, `value()` (the paged envelope), `close()`, the abort signal and the cooperative yield. The bindings store reads through it since slice C; slice D is a wire proof in `adapter-mgmt-http` (`src/stream-array.spec.ts`: 32 MB over the real client, early close, event-loop delay).
 
 ## Public API
 

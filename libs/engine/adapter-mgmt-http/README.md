@@ -27,10 +27,15 @@ Tags: `type:adapter`, `runtime:node`.
 
 The recorder lives in the testkit (`libs/testkit/src/golden`, an adapter may not import `type:test`); the nightly `golden-refresh` workflow compares shapes and opens a pull request on a difference.
 
+## Wire proof of the streaming reader (M0-48l, slice D)
+
+`src/stream-array.spec.ts` runs the real client against a local server that answers `/api/bindings/{vhost}` as one bare array of 150,000 bindings (about 32 MB, generated while it is written). It proves that `get` refuses the answer (`response-too-large`, 16 MiB) while `stream` read through `@app/json-stream` delivers every item (AC-13), that a reader that stops early closes the socket after about half a MiB and leaves the pool usable (AC-14), and that the event-loop delay the reader adds stays within 20 ms at the p99 (AC-15, I-5). The adapter's behaviour is not changed: `stream` has no byte ceiling and no body deadline, and the reader and its caller enforce both (spec Q-3).
+
 ## Proof commands
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p adapter-mgmt-http
+pnpm nx test adapter-mgmt-http --testNamePattern=mgmt.stream            # the wire proof: 32 MB over loopback, about 2 s
 pnpm nx run adapter-mgmt-http:test-golden                              # replay the committed fixtures; no Docker
 pnpm nx run adapter-mgmt-http:record-golden --versions=4.3.6 --check   # fresh recording against the committed shapes; needs Docker
 pnpm nx run adapter-mgmt-http:record-golden                            # record everything again (about 12 minutes)

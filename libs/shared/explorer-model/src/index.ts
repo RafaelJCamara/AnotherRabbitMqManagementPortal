@@ -33,6 +33,7 @@ export type {
   WindowRequest,
   WindowSort,
 } from './ports';
+export { SUB_KEYS_BYTES_MAX, fitKeys, type FittedKeys } from './key-budget';
 export {
   createInventoryWindowSource,
   type InventoryQuery,

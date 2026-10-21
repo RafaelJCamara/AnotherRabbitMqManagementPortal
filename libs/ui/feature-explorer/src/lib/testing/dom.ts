@@ -2,6 +2,14 @@
 import type { ComponentFixture } from '@angular/core/testing';
 import { vi } from 'vitest';
 
+/**
+ * The timeout of a spec that mounts a whole page. A page is the real grid in jsdom (no layout, so it renders
+ * every row it holds) with a fake engine and a bar of controls: about two seconds on a developer machine and
+ * three times that on a shared CI runner, over vitest's 5 s default. Nothing in these specs sleeps; the time is
+ * rendering, and a hung wait still ends at its own, shorter bound (`eventually`).
+ */
+export const PAGE_TEST_TIMEOUT_MS = 20_000;
+
 export const textInput = (el: HTMLElement): HTMLInputElement => {
   const input = el.querySelector<HTMLInputElement>('.text-input');
   if (!input) throw new Error('no text field');

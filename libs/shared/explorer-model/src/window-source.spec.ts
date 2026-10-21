@@ -301,7 +301,7 @@ describe('createInventoryWindowSource: following the rows (R3)', () => {
     expect(source.state().counters.markers).toBe(1);
 
     // A delta: a changed row, a row nobody asked for, a removal and a marker.
-    const stranger = data.rows().queues[500];
+    const stranger = data.rows().queues[300];
     if (!stranger) throw new Error('rows');
     changes.length = 0;
     data.emit(

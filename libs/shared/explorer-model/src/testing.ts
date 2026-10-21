@@ -21,7 +21,7 @@ import type {
 export type FakeRows = { [K in ExplorerKind]: InventoryRows[K][] };
 
 export interface FakeExplorerOptions {
-  /** Rows per kind; default 1,000 queues, 100 exchanges, 100 connections and 100 bindings per vhost. */
+  /** Rows per kind; default 400 queues, 60 exchanges, 60 connections and 40 bindings per vhost. */
   readonly rows?: Partial<Record<ExplorerKind, number>>;
   /** The vhosts the rows are spread over; default `/` and `orders`. */
   readonly vhosts?: readonly string[];
@@ -76,7 +76,7 @@ function buildRows(
     options.rows?.[kind] ?? fallback;
   const vhostOf = (i: number): string => vhosts[i % vhosts.length] ?? '/';
   const queues: InventoryRows['queues'][] = [];
-  for (let i = 0; i < count('queues', 1000); i++) {
+  for (let i = 0; i < count('queues', 400); i++) {
     const vhost = vhostOf(i);
     const name = `queue-${pad(i)}`;
     queues.push({
@@ -96,7 +96,7 @@ function buildRows(
     });
   }
   const exchanges: InventoryRows['exchanges'][] = [];
-  for (let i = 0; i < count('exchanges', 100); i++) {
+  for (let i = 0; i < count('exchanges', 60); i++) {
     const vhost = vhostOf(i);
     const name = `exchange-${pad(i)}`;
     exchanges.push({
@@ -110,7 +110,7 @@ function buildRows(
     });
   }
   const connections: InventoryRows['connections'][] = [];
-  for (let i = 0; i < count('connections', 100); i++) {
+  for (let i = 0; i < count('connections', 60); i++) {
     const vhost = vhostOf(i);
     const name = `10.0.0.${String(i % 250)}:${String(40000 + i)} -> 10.0.1.1:5672`;
     connections.push({
@@ -127,7 +127,7 @@ function buildRows(
     });
   }
   const bindings: InventoryRows['bindings'][] = [];
-  for (let i = 0; i < count('bindings', 100) * vhosts.length; i++) {
+  for (let i = 0; i < count('bindings', 40) * vhosts.length; i++) {
     const vhost = vhostOf(i);
     const source = `exchange-${pad(i)}`;
     const destination = `queue-${pad(i)}`;

@@ -15,10 +15,22 @@ export interface ProfileState {
   readonly profile: BrokerProfile | null;
   /** The failure, as received, when the call failed. */
   readonly error: unknown;
+  /** What the engine sent as the profile, before parsing: the capability card reads its gates one by one. */
+  readonly raw: unknown;
 }
 
-const LOADING: ProfileState = { status: 'loading', profile: null, error: null };
-const NONE: ProfileState = { status: 'unknown', profile: null, error: null };
+const LOADING: ProfileState = {
+  status: 'loading',
+  profile: null,
+  error: null,
+  raw: null,
+};
+const NONE: ProfileState = {
+  status: 'unknown',
+  profile: null,
+  error: null,
+  raw: null,
+};
 
 @Injectable()
 export class ProfileStore {
@@ -42,12 +54,22 @@ export class ProfileStore {
             const parsed = BrokerProfileSchema.safeParse(output.profile);
             this.#state.set(
               parsed.success
-                ? { status: 'ready', profile: parsed.data, error: null }
-                : NONE,
+                ? {
+                    status: 'ready',
+                    profile: parsed.data,
+                    error: null,
+                    raw: output.profile,
+                  }
+                : { ...NONE, raw: output.profile },
             );
           },
           error: (error: unknown) => {
-            this.#state.set({ status: 'unknown', profile: null, error });
+            this.#state.set({
+              status: 'unknown',
+              profile: null,
+              error,
+              raw: null,
+            });
           },
         });
       onCleanup(() => {

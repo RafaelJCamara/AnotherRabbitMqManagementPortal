@@ -71,6 +71,34 @@
       }
     }
   },
+  "capabilities": {
+    "title": "Capabilities",
+    "caption": "What the engine says this connection allows",
+    "featureColumn": "Feature",
+    "state": "State",
+    "why": "Why",
+    "noReason": "No reason given",
+    "source": "Source",
+    "unknown": "The capabilities of this connection are not known.",
+    "loading": "Reading the capabilities.",
+    "states": {
+      "open": "Available",
+      "degraded": "Available with limits",
+      "closed": "Not available"
+    },
+    "feature": {
+      "streams": { "browse": "Browse streams" },
+      "tap": { "firehose": "Firehose tap" },
+      "audit": { "event-exchange": "Audit through the event exchange" },
+      "policies": { "operator-edit": "Operator policy edits" },
+      "amqp": {
+        "peek": "Side-effect-aware peek",
+        "tap": "Tap messages",
+        "publish": "Publish messages",
+        "replay": "Replay messages"
+      }
+    }
+  },
   "counts": "{{matched}} of {{total}} rows",
   "sort": {
     "trimmed": "Only one sort column is used. The second one was dropped."

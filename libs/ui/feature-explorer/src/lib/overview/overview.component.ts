@@ -15,7 +15,9 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import { EXPLORER_CONNECTION } from '../connection';
 import { FreshnessBanner } from '../grid/freshness-banner.component';
 import { problemView } from '../problem';
+import { ProfileStore } from '../profile/profile-store';
 import { OverviewAlarmsView } from './alarms.component';
+import { CapabilityCard } from './capability-card.component';
 import { OverviewNodes } from './nodes.component';
 import { countText, rateText, type OverviewRates } from './overview-model';
 import { OverviewStore } from './overview-store';
@@ -31,12 +33,13 @@ let nextPage = 0;
   selector: 'app-overview',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    CapabilityCard,
     FreshnessBanner,
     OverviewAlarmsView,
     OverviewNodes,
     TranslocoDirective,
   ],
-  providers: [OverviewStore],
+  providers: [OverviewStore, ProfileStore],
   template: `
     <ng-container *transloco="let t">
       @if (connection() !== null) {
@@ -233,6 +236,16 @@ let nextPage = 0;
                 {{ t('explorer.overview.alarms.title') }}
               </h2>
               <app-overview-alarms [alarms]="answer.alarms" />
+            </section>
+
+            <section
+              class="region"
+              [attr.aria-labelledby]="'ov-caps-' + pageId"
+            >
+              <h2 [id]="'ov-caps-' + pageId">
+                {{ t('explorer.capabilities.title') }}
+              </h2>
+              <app-capability-card />
             </section>
 
             <section

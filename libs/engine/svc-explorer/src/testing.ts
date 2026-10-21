@@ -66,6 +66,8 @@ export function createScriptedBroker(
     exchangesPerVhost?: number;
     /** Bindings in every vhost (a number), or in the named vhosts (a record; the others hold none). */
     bindingsPerVhost?: number | Readonly<Record<string, number>>;
+    /** `bare`: `/api/bindings/{vhost}` answers every binding as a bare array, as RabbitMQ does (default `paged`). */
+    bindingsAnswer?: 'paged' | 'bare';
   } = {},
 ): ScriptedBroker {
   const queueCount = options.queueCount ?? 0;
@@ -180,17 +182,26 @@ export function createScriptedBroker(
           );
         }
         if (at >= 0 && kind === 'bindings') {
-          return Promise.resolve(
-            paged(request, bindingCount(vhost), (j) => ({
-              source: `exchange-${String(j % 10)}`,
-              vhost,
-              destination: `queue-${String(j).padStart(6, '0')}`,
-              destination_type: 'queue',
-              routing_key: `rk-${String(j)}`,
-              properties_key: `rk-${String(j)}`,
-              arguments: {},
-            })),
-          );
+          const binding = (j: number) => ({
+            source: `exchange-${String(j % 10)}`,
+            vhost,
+            destination: `queue-${String(j).padStart(6, '0')}`,
+            destination_type: 'queue',
+            routing_key: `rk-${String(j)}`,
+            properties_key: `rk-${String(j)}`,
+            arguments: {},
+          });
+          // RabbitMQ ignores `page` here and sends every binding of the vhost as a bare array.
+          if (options.bindingsAnswer === 'bare') {
+            return Promise.resolve(
+              request.schema.parse(
+                Array.from({ length: bindingCount(vhost) }, (_, j) =>
+                  binding(j),
+                ),
+              ),
+            );
+          }
+          return Promise.resolve(paged(request, bindingCount(vhost), binding));
         }
         return Promise.reject(
           Object.assign(new Error('NOT_FOUND: HTTP 404'), {
@@ -287,6 +298,7 @@ export function createExplorerFakeDeps(
     vhostCount?: number;
     exchangesPerVhost?: number;
     bindingsPerVhost?: number | Readonly<Record<string, number>>;
+    bindingsAnswer?: 'paged' | 'bare';
     /** The connection has a cached profile, as after a probe (default true). */
     seeded?: boolean;
     profile?: Partial<BrokerProfile>;

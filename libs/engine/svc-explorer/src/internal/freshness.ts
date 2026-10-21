@@ -13,6 +13,8 @@ export const REASONS = {
     'The last read of the inventory failed; these rows are from an earlier read.',
   partial: 'Part of the inventory could not be read.',
   unavailable: 'The inventory is not being read.',
+  unpaged:
+    'The broker sent every binding of the vhost in one answer, without paging.',
 } as const;
 
 /**
@@ -38,6 +40,8 @@ export interface FreshnessInput {
   sweeping: boolean;
   profileHazards: readonly string[];
   versionChanged: boolean;
+  /** The broker answered the whole list at once and ignored the paging (bindings on RabbitMQ). */
+  unpaged?: boolean;
 }
 
 export function describeFreshness(input: FreshnessInput): Freshness {
@@ -52,6 +56,7 @@ export function describeFreshness(input: FreshnessInput): Freshness {
     reason = REASONS.loading;
   } else if (version.complete) {
     state = 'live';
+    if (input.unpaged === true) reason = REASONS.unpaged;
   } else {
     state = 'stale';
     reason = REASONS.partial;

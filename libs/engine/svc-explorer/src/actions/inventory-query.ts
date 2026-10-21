@@ -94,6 +94,7 @@ export const createInventoryQueryAction: (
             sweeping: false,
             profileHazards: profile.hazards,
             versionChanged: read.versionChanged,
+            unpaged: read.unpaged,
           }),
         };
       }

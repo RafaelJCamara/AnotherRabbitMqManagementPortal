@@ -4,7 +4,9 @@
 // because a person is waiting) and then kept resident. The resident rows of a connection are bounded
 // (I-6): rows past the cap are dropped and counted, and a vhost that no longer fits is evicted, least
 // recently used first, and counted. Nothing is silent (I-13): `dropped` and `truncated` ride in the
-// answer's freshness, and `stats()` shows the evictions.
+// answer's freshness, and `stats()` shows the evictions. RabbitMQ ignores `page` on this endpoint and
+// answers every binding of the vhost as a bare array (the golden recordings, OQ-433): the cap is then
+// applied after that one answer, and the freshness says the broker sent it unpaged (OQ-688).
 import {
   ErrorCodeSchema,
   type ConnectionId,
@@ -47,6 +49,8 @@ export interface BindingsRead {
   versionChanged: boolean;
   /** The broker's own count of the vhost's bindings, when it sent one. */
   expected: number | undefined;
+  /** The broker answered the whole vhost at once (no paging): the cap was applied after the answer. */
+  unpaged: boolean;
 }
 
 export interface BindingsStats {
@@ -83,6 +87,8 @@ interface Entry {
   readonly rows: readonly BindingRow[];
   readonly dropped: number;
   readonly expected: number | undefined;
+  /** The broker sent the whole vhost in one answer and ignored the paging. */
+  readonly unpaged: boolean;
   readonly loadedAt: number;
   /** The last time the broker was asked, whether it answered or not. */
   readonly checkedAt: number;
@@ -162,11 +168,16 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
     return state;
   };
 
-  /** Pages through the vhost; stops at the cap when the broker's own count tells what is left. */
+  /**
+   * Pages through the vhost; stops at the cap when the broker's own count tells what is left. A broker
+   * that ignores `page` (RabbitMQ on this endpoint) answers the whole vhost at once: the cap is then
+   * applied to that one answer, the rest is counted as dropped, and `unpaged` says so.
+   */
   async function read(cid: ConnectionId, vhost: string) {
     const rows: BindingRow[] = [];
     let dropped = 0;
     let expected: number | undefined;
+    let unpaged = false;
     for (let n = 1; ; n++) {
       abort.signal.throwIfAborted();
       const answer = await deps.mgmt.get(
@@ -179,18 +190,21 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
         },
         abort.signal,
       );
-      if (n === 1) expected = answer.total_count;
+      if (n === 1) {
+        expected = answer.total;
+        unpaged = !answer.paged;
+      }
       for (const raw of answer.items) {
         if (rows.length < cap) rows.push(bindingRow(raw));
         else dropped++;
       }
-      if (n >= answer.page_count || answer.items.length === 0) break;
+      if (n >= answer.pageCount || answer.items.length === 0) break;
       if (rows.length >= cap && expected !== undefined) {
         dropped = Math.max(dropped, expected - rows.length);
         break;
       }
     }
-    return { rows, dropped, expected };
+    return { rows, dropped, expected, unpaged };
   }
 
   /** Makes the vhost the most recently used and evicts the others, oldest first, until it all fits. */
@@ -213,12 +227,13 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
     let inflight = state.loading.get(vhost);
     if (inflight === undefined) {
       inflight = read(cid, vhost)
-        .then(({ rows, dropped, expected }) => {
+        .then(({ rows, dropped, expected, unpaged }) => {
           const now = clock.now();
           const entry: Entry = {
             rows,
             dropped,
             expected,
+            unpaged,
             loadedAt: now,
             checkedAt: now,
             version: ++state.versions,
@@ -290,6 +305,7 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
         versionChanged:
           query.version !== undefined && query.version !== current,
         expected: entry.expected,
+        unpaged: entry.unpaged,
       };
     },
     stats(cid) {

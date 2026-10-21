@@ -1,14 +1,45 @@
 // The bindings kind of inventory.query (M0-48 slice H): per vhost, on demand, bounded and counted.
+import { readFileSync } from 'node:fs';
+
 import { ConnectionIdSchema } from '@app/contracts';
 import { createTestContext, createTestExecutor } from '@app/kernel';
+import type { MgmtReadPort } from '@app/ports';
 import { describe, expect, it } from 'vitest';
 
 import { createSubject } from '../actions/inventory-query.fixture';
 import { createInventoryQueryAction } from '../actions/inventory-query';
 import { brokerFailure, createExplorerFakeDeps } from '../testing';
 
+import { REASONS } from './freshness';
+
 const { def } = createSubject();
 const cid = ConnectionIdSchema.parse('c1');
+
+/**
+ * A management port that answers `/api/bindings/golden` with a recorded answer of the golden fixtures
+ * (`testing/fixtures/mgmt/<version>/<variant>`), parsed with the schema of the request as the real
+ * client does. It records what was asked.
+ */
+function replay(recording: readonly [string, string]) {
+  const file = new URL(
+    `../../../../../testing/fixtures/mgmt/${recording[0]}/${recording[1]}/bindings.inVhost.json`,
+    import.meta.url,
+  );
+  const body: unknown = JSON.parse(readFileSync(file, 'utf8'));
+  const requests: { path: string; query: unknown; lane: string }[] = [];
+  const port: MgmtReadPort = {
+    get(request) {
+      requests.push({
+        path: request.path,
+        query: request.query,
+        lane: request.lane,
+      });
+      return Promise.resolve(request.schema.parse(body));
+    },
+    stream: () => Promise.reject(new Error('never streams')),
+  };
+  return { port, requests };
+}
 
 function harness(options: Parameters<typeof createExplorerFakeDeps>[0]) {
   const deps = createExplorerFakeDeps(options);
@@ -141,6 +172,132 @@ describe('explorer bindings', () => {
       evictions: 2,
       evictedRows: 3_000,
     });
+  });
+
+  it('AC-26b explorer bindings handle a bare-array answer without paging', async () => {
+    // RabbitMQ ignores `page` on /api/bindings/{vhost} (OQ-433): the whole vhost is one answer.
+    const { deps, ask, bindings } = harness({
+      bindingsPerVhost: 3_000,
+      bindingsAnswer: 'bare',
+      limits: { maxBindingsResident: 2_000 },
+    });
+    const first = await ask(bindings(['/']));
+    // One request only; the cap applies after the answer, so the rest is counted, never silent.
+    expect(deps.broker.requests).toHaveLength(1);
+    expect(deps.broker.requests[0]).toMatchObject({
+      path: '/api/bindings/%2F',
+      lane: 'interactive',
+    });
+    expect(first).toMatchObject({
+      total: 2_000,
+      matched: 2_000,
+      freshness: {
+        state: 'live',
+        complete: true,
+        loaded: 2_000,
+        expected: 3_000,
+        truncated: true,
+        dropped: 1_000,
+        reason: REASONS.unpaged,
+      },
+    });
+    expect(deps.bindings.stats(cid)).toMatchObject({
+      rows: 2_000,
+      dropped: 1_000,
+    });
+    await ask(bindings(['/'], {}, { offset: 1_990, limit: 50 }));
+    expect(deps.broker.requests).toHaveLength(1);
+
+    // A bare answer under the cap: everything is kept, `expected` is the array length, still unpaged.
+    const small = harness({ bindingsPerVhost: 40, bindingsAnswer: 'bare' });
+    expect(await small.ask(small.bindings(['/']))).toMatchObject({
+      total: 40,
+      freshness: {
+        complete: true,
+        expected: 40,
+        truncated: false,
+        dropped: 0,
+        reason: REASONS.unpaged,
+      },
+    });
+
+    // The recorded answer of RabbitMQ 4.2.9 (statistics off): a bare array of 8 bindings.
+    const recorded = replay(['4.2.9', 'stats-off']);
+    const real = harness({
+      mgmt: recorded.port,
+      limits: { maxBindingsResident: 5 },
+    });
+    const cut = await real.ask(real.bindings(['golden']));
+    expect(recorded.requests).toEqual([
+      {
+        path: '/api/bindings/golden',
+        query: { page: 1, page_size: 500 },
+        lane: 'interactive',
+      },
+    ]);
+    expect(cut).toMatchObject({
+      total: 5,
+      freshness: {
+        expected: 8,
+        truncated: true,
+        dropped: 3,
+        reason: REASONS.unpaged,
+      },
+    });
+    const whole = harness({ mgmt: replay(['4.2.9', 'stats-off']).port });
+    const all = await whole.ask(whole.bindings(['golden']));
+    expect(all).toMatchObject({
+      total: 8,
+      freshness: {
+        expected: 8,
+        truncated: false,
+        dropped: 0,
+        reason: REASONS.unpaged,
+      },
+    });
+    expect(all.rows).toContainEqual(
+      expect.objectContaining({
+        source: 'golden.direct',
+        destination: 'golden.classic',
+        propertiesKey: 'classic~UYRScQ',
+      }),
+    );
+    // The reason is fixed text, never broker text (I-10).
+    expect(JSON.stringify(all)).not.toContain('secret-broker-text');
+  });
+
+  it('explorer bindings read the recorded bare-array answer of every RabbitMQ version', async () => {
+    for (const version of ['3.13.7', '4.0.9', '4.1.8', '4.2.9', '4.3.6']) {
+      for (const stats of ['stats-on', 'stats-off']) {
+        const recorded = replay([version, stats]);
+        const h = harness({ mgmt: recorded.port });
+        const answer = await h.ask(h.bindings(['golden']));
+        expect(answer, `${version} ${stats}`).toMatchObject({
+          total: 8,
+          freshness: { expected: 8, dropped: 0, reason: REASONS.unpaged },
+        });
+        expect(recorded.requests).toHaveLength(1);
+      }
+    }
+  });
+
+  it('explorer bindings read the recorded paged envelope of LavinMQ 2.10.2', async () => {
+    const recorded = replay(['lavinmq-2.10.2', 'default']);
+    const h = harness({ mgmt: recorded.port });
+    const answer = await h.ask(h.bindings(['golden']));
+    expect(recorded.requests).toHaveLength(1);
+    expect(answer).toMatchObject({
+      total: 3,
+      freshness: {
+        state: 'live',
+        complete: true,
+        expected: 3,
+        truncated: false,
+        dropped: 0,
+      },
+    });
+    // A paged answer is not labelled unpaged.
+    expect(answer.freshness.reason).toBeUndefined();
   });
 
   it('explorer bindings evict the least recently used vhost, not the oldest loaded', async () => {

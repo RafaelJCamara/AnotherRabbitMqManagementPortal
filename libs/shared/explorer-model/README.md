@@ -6,11 +6,14 @@ Tags: `type:pure`, `runtime:isomorphic`.
 
 ## Status
 
-Slice A of M0-54: the project exists and exports nothing yet. The data port and the window source come with slices B and C, the view definition with slice F.
+Slices A and B of M0-54: the data port, the inventory model (kinds, columns, facets, caps), the window source (windows and the version pin) and the fake data port. Following the rows on screen (slice C) and the view definition (slice F) follow.
 
 ## Public API
 
-- Nothing yet. List every export of `src/index.ts` here.
+- **Ports** (`ports.ts`): `ExplorerData` (`query(input, signal)` over `inventory.query`; `follow(params, listener)` over `explorer.window`, returning the unsubscribe), `ExplorerLiveEvent` (`snapshot`, `delta`, `gap`, `status`, `reset`, `error`, `end`), the row and answer types of the contracts, and the plain window shapes (`WindowRequest`, `WindowAnswer`, `RowChange`) that `ui-grid`'s `EngineWindowSource` accepts; `feature-explorer` has a compile-time guard that they stay assignable.
+- **Inventory model** (`inventory-model.ts`): `EXPLORER_KINDS`, `COLUMNS_BY_KIND` (the engine's column names, default visibility, sortable), `FACETS_BY_KIND` and `sanitizeFilter` (only the facets that apply to a kind are ever sent), `FILTER_CAPS`, `FILTER_DEBOUNCE_MS`, `WINDOW_BLOCK` (200) and `SUB_KEYS_MAX` (500).
+- **`createInventoryWindowSource(data, {cid, kind, filter})`** (`window-source.ts`): one source is one query. `window()` sends one `inventory.query` per block (offset a multiple of 200, at most 200 rows, one sort column, the answer's `matched` as the total) and refuses anything else before sending; the first answer of a scroll pins its version and later blocks send it; a new sort or `refreshed()` ends the pin; an answer that says the pinned version is gone asks the grid for one reload (a `refresh` change). `state()` and `onState()` carry the last freshness, the matched count, the pin and counters.
+- **Testing** (`@app/explorer-model/testing`): `createFakeExplorerData` (N rows per kind, a two-version history, one controllable topic, failures and held answers); not the engine.
 
 ## Invariants
 

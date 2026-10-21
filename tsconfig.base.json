@@ -29,6 +29,9 @@
       "@app/contracts": ["./libs/shared/contracts/src/index.ts"],
       "@app/domain-model": ["./libs/shared/domain-model/src/index.ts"],
       "@app/explorer-model": ["./libs/shared/explorer-model/src/index.ts"],
+      "@app/explorer-model/testing": [
+        "./libs/shared/explorer-model/src/testing.ts"
+      ],
       "@app/feature-explorer": ["./libs/ui/feature-explorer/src/index.ts"],
       "@app/generators": ["./tools/generators/src/index.ts"],
       "@app/jobs": ["./libs/engine/jobs/src/index.ts"],

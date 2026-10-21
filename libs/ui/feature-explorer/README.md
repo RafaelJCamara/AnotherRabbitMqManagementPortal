@@ -6,13 +6,14 @@ Tags: `type:ui-feature`, `runtime:browser`. Not `trust:critical`.
 
 ## Status
 
-Slice A of M0-54: the project, its `explorer` Transloco scope, the connection token and the lazy route table with a placeholder landing page. The data port, the grid page, the filters, the saved views, the overview and the capability card follow in slices B to H; the shell wiring is slice I. Nothing here has been proved against a real engine: `svc-explorer`, `svc-workspace` and `svc-capabilities` are not registered in the engine yet (OQ-441, OQ-472, OQ-669), so every proof runs against fakes.
+Slices A and B of M0-54: the project, its `explorer` Transloco scope, the connection token, the lazy route table with a placeholder landing page, and the engine-backed data port. The grid page, the filters, the saved views, the overview and the capability card follow in slices B to H; the shell wiring is slice I. Nothing here has been proved against a real engine: `svc-explorer`, `svc-workspace` and `svc-capabilities` are not registered in the engine yet (OQ-441, OQ-472, OQ-669), so every proof runs against fakes.
 
 ## Public API
 
 - `explorerRoutes`: the child routes the web shell mounts at `c/:cid/explorer` (a lazy `loadChildren`). The parent route provides the `explorer` Transloco scope (`provideExplorerScope`, a bundled-JSON `import()` loader; keys read `explorer.<path>`).
 - `EXPLORER_CONNECTION`: an injection token for a `Signal<string | null>` with the connection id. The web shell provides it on the mounting route; a feature never imports `apps/web`. `null` means no content and no call.
 - `EXPLORER_SCOPE`: the scope name.
+- Internal: `createEngineExplorerData(api, live)` (`lib/data`): the `ExplorerData` port over `EngineApi` and `LiveClient`; and a spec testbed (`lib/testing`) that runs the real `EngineApi` and live client over the fake engine with the inventory answered by the model's fake.
 
 ## Invariants
 

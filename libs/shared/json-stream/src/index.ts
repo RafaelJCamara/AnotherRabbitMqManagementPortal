@@ -2,4 +2,4 @@
 export { JsonStreamError } from './errors';
 export type { JsonStreamReason } from './errors';
 export { openJson } from './reader';
-export type { ArrayEnd, ArrayLimits, JsonStream } from './reader';
+export type { ArrayEnd, ArrayLimits, JsonStream, OpenOptions } from './reader';

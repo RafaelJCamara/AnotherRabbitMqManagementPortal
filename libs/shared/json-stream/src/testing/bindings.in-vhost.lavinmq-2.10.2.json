@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "source": "golden.direct",
+      "vhost": "golden",
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "classic",
+      "arguments": {
+        "x-golden": "direct"
+      },
+      "properties_key": "classic~eC1nb2xkZW46ZGlyZWN0"
+    },
+    {
+      "source": "golden.topic",
+      "vhost": "golden",
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "orders.#",
+      "arguments": {},
+      "properties_key": "orders.#"
+    },
+    {
+      "source": "golden.dlx",
+      "vhost": "golden",
+      "destination": "golden.dead",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {},
+      "properties_key": "~"
+    }
+  ],
+  "filtered_count": 3,
+  "item_count": 3,
+  "page": 1,
+  "page_count": 1,
+  "page_size": 100,
+  "total_count": 3
+}

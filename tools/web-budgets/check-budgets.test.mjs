@@ -10,6 +10,7 @@ import {
   GZIP_LEVEL,
   INITIAL_LIMIT,
   initialReferences,
+  LAZY_EXCEPTIONS,
   LAZY_LIMIT,
   measure,
 } from './check-budgets.mjs';
@@ -91,7 +92,9 @@ describe('web budgets', () => {
     const lazyOk = measure(lazyDir, { lazyLimit: lazySize });
     assert.deepEqual(lazyOk.problems, []);
     assert.equal(lazyOk.initial.total, exact);
-    assert.deepEqual(lazyOk.lazy, [{ file: 'lazy-DDD.js', size: lazySize }]);
+    assert.deepEqual(lazyOk.lazy, [
+      { file: 'lazy-DDD.js', size: lazySize, limit: lazySize },
+    ]);
     const lazyOver = measure(lazyDir, { lazyLimit: lazySize - 1 });
     assert.equal(lazyOver.problems.length, 1);
     assert.match(lazyOver.problems[0], /lazy-DDD\.js/);
@@ -145,5 +148,27 @@ describe('web budgets', () => {
       result.lazy.map(({ file }) => file),
       ['deep/lazy-EEE.js'],
     );
+  });
+
+  it('gives the chunk that holds AG Grid its own limit and every other chunk the lazy limit (ADR-021, OQ-757)', () => {
+    const [grid] = LAZY_EXCEPTIONS;
+    assert.ok(grid);
+    assert.ok(grid.limit > LAZY_LIMIT);
+    // A lazy chunk of about 215 000 bytes gzip with the marker in it: over the lazy limit, inside the exception.
+    const marked = (bytes) => `${grid.marker}${noise(bytes)}`;
+    const big = { ...output(), 'lazy-GRID.js': marked(400_000) };
+    const bigSize = gz(big['lazy-GRID.js']);
+    assert.ok(bigSize > LAZY_LIMIT && bigSize < grid.limit, String(bigSize));
+    assert.deepEqual(measure(build(big)).problems, []);
+    // The same bytes without the marker are an ordinary chunk and fail at the lazy limit.
+    const plain = { ...output(), 'lazy-PLAIN.js': noise(400_000) };
+    const plainProblems = measure(build(plain)).problems;
+    assert.equal(plainProblems.length, 1);
+    assert.match(plainProblems[0], new RegExp(`limit of ${LAZY_LIMIT}`));
+    // The exception is a ceiling too: a marked chunk above it fails and names the exception's limit.
+    const huge = { ...output(), 'lazy-HUGE.js': marked(800_000) };
+    const hugeProblems = measure(build(huge)).problems;
+    assert.equal(hugeProblems.length, 1);
+    assert.match(hugeProblems[0], new RegExp(`limit of ${grid.limit}`));
   });
 });

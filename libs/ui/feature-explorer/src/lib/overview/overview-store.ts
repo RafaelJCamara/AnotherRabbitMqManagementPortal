@@ -4,6 +4,7 @@
 // and keeps the engine's Problem as received.
 import {
   computed,
+  DestroyRef,
   effect,
   inject,
   Injectable,
@@ -48,6 +49,11 @@ export class OverviewStore {
   );
 
   constructor() {
+    // A page that goes away stops its read and its floor timer.
+    inject(DestroyRef).onDestroy(() => {
+      this.#subscription?.unsubscribe();
+      this.#cancelFloor?.();
+    });
     // Reads when the page opens and when the connection changes; never again until Refresh is pressed.
     effect(() => {
       const cid = this.#cid();

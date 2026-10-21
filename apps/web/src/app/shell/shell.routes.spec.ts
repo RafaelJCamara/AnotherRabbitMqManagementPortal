@@ -14,8 +14,8 @@ describe('shell routes', () => {
     let host = routed(bed);
     expect(host.tagName.toLowerCase()).toBe('app-shell');
     expect(connection.cid()).toBe('c1');
-    expect(host.querySelector('main app-explorer-home h1')?.textContent).toBe(
-      '[[shell.explorer.title]]',
+    expect(host.querySelector('main app-overview h1')?.textContent).toBe(
+      '[[explorer.overview.title]]',
     );
     expect(host.querySelector('footer .value')?.textContent).toBe('c1');
     expect(host.querySelector('app-not-found')).toBeNull();
@@ -28,7 +28,7 @@ describe('shell routes', () => {
     expect(host.querySelector('main app-not-found h1')?.textContent).toBe(
       '[[system.notFound.title]]',
     );
-    expect(host.querySelector('app-explorer-home')).toBeNull();
+    expect(host.querySelector('app-overview')).toBeNull();
 
     // An id that is not a plain token: no connection, no engine call, nothing routed into the
     // workspace.
@@ -40,7 +40,7 @@ describe('shell routes', () => {
     expect(host.querySelector('main app-no-connection h1')?.textContent).toBe(
       '[[system.noConnection.title]]',
     );
-    expect(host.querySelector('app-explorer-home')).toBeNull();
+    expect(host.querySelector('app-overview')).toBeNull();
     expect(host.querySelector('footer .value')).toBeNull();
 
     expect(bed.engine.requests.length).toBe(before);
@@ -49,7 +49,7 @@ describe('shell routes', () => {
   it('opens /c/:cid at the explorer and shows no connection outside /c/:cid', async () => {
     const bed = await mountShell();
     await visit(bed, '/c/c2');
-    expect(routed(bed).querySelector('app-explorer-home')).not.toBeNull();
+    expect(routed(bed).querySelector('app-overview')).not.toBeNull();
 
     await visit(bed, '/');
     expect(routed(bed).tagName.toLowerCase()).toBe('app-no-connection');
@@ -60,6 +60,7 @@ describe('shell routes', () => {
     expect(bed.engine.requests.map((request) => request.url).sort()).toEqual([
       '/api/v1/connections/c2',
       '/api/v1/connections/c2/layout',
+      '/api/v1/connections/c2/overview', // the explorer's overview page
       '/api/v1/connections/c2/profile',
     ]);
   });

@@ -6,6 +6,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
@@ -253,6 +254,9 @@ export class FilterBar {
   } | null = null;
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.#cancel?.(); // a pause that was running does not apply a filter to a page that is gone
+    });
     // A filter that changed from outside (a chip, a saved view) replaces what was typed.
     effect(() => {
       const text = this.filter().text ?? '';

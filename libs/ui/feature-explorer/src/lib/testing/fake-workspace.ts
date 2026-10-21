@@ -3,6 +3,7 @@
 // `views.delete`) held in memory. A spec can make any of them fail with a Problem. Never part of the
 // library build.
 import type { Problem, SavedView } from '@app/contracts';
+import type { TransportResponse } from '@app/ui-platform';
 import {
   jsonResponse,
   problemResponse,
@@ -118,6 +119,8 @@ export class FakeWorkspace {
   } = {};
   /** The `overview.get` answer of a connection; a missing one answers NOT_FOUND. */
   overview: ((cid: string) => unknown) | null = null;
+  /** While set, overview.get answers only when it settles (the loading state). */
+  holdOverview: Promise<void> | null = null;
   /** A page of views the engine says there are more of. */
   nextCursor: string | undefined;
   readonly #seen: string[] = [];
@@ -152,10 +155,16 @@ export class FakeWorkspace {
     }
     const overview = OVERVIEW_URL.exec(request.url)?.[1];
     if (overview !== undefined && request.method === 'GET') {
-      if (this.failure.overview) return problemResponse(this.failure.overview);
-      return this.overview === null
-        ? problemResponse(problemOf(404, 'NOT_FOUND', { title: 'Not found' }))
-        : jsonResponse(200, this.overview(decodeURIComponent(overview)));
+      const answer = (): TransportResponse => {
+        if (this.failure.overview)
+          return problemResponse(this.failure.overview);
+        return this.overview === null
+          ? problemResponse(problemOf(404, 'NOT_FOUND', { title: 'Not found' }))
+          : jsonResponse(200, this.overview(decodeURIComponent(overview)));
+      };
+      return this.holdOverview === null
+        ? answer()
+        : this.holdOverview.then(answer);
     }
     const views = VIEWS_URL.exec(request.url);
     if (views) {

@@ -14,22 +14,33 @@ import {
 } from './explorer-tree-source';
 
 describe('explorer tree', () => {
-  it('shows the connection itself by default and opens it as a tab', async () => {
+  it('shows the overview and the four kinds by default and opens a node as a tab', async () => {
     const bed = await mountShell();
     await visit(bed, '/c/c1/explorer');
     const items = routed(bed).querySelectorAll('[role="treeitem"]');
-    expect(items).toHaveLength(1);
-    expect(items[0]?.textContent.trim()).toBe('c1');
-    expect(items[0]?.hasAttribute('aria-expanded')).toBe(false);
+    expect([...items].map((item) => item.textContent.trim())).toEqual([
+      '[[shell.tree.kind.overview]]',
+      '[[shell.tree.kind.queues]]',
+      '[[shell.tree.kind.exchanges]]',
+      '[[shell.tree.kind.connections]]',
+      '[[shell.tree.kind.bindings]]',
+    ]);
+    expect(items[1]?.hasAttribute('aria-expanded')).toBe(false);
 
-    (items[0] as HTMLElement).click();
+    (items[1] as HTMLElement).click();
     await settleShell(bed);
     const tabs =
       TestBed.inject(ShellLayoutStore).layout().editor.groups[0]?.tabs;
-    expect(tabs).toEqual([{ id: 't1', url: '/c/c1/explorer', label: 'c1' }]);
-    expect(TestBed.inject(Router).url).toBe('/c/c1/explorer');
+    expect(tabs).toEqual([
+      {
+        id: 't1',
+        url: '/c/c1/explorer/queues',
+        label: '[[shell.tree.kind.queues]]',
+      },
+    ]);
+    expect(TestBed.inject(Router).url).toBe('/c/c1/explorer/queues');
     // The same node again activates the tab it has; it does not open another.
-    (items[0] as HTMLElement).click();
+    (items[1] as HTMLElement).click();
     await settleShell(bed);
     expect(
       TestBed.inject(ShellLayoutStore).layout().editor.groups[0]?.tabs,

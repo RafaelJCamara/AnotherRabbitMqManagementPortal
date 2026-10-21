@@ -15,6 +15,22 @@ import { gzipSync } from 'node:zlib';
 export const INITIAL_LIMIT = 350_000;
 /** One lazy chunk (feature limit of `.claude/rules/ui.md`). */
 export const LAZY_LIMIT = 200_000;
+/**
+ * The one exception to LAZY_LIMIT (ADR-021 addendum, M0-54, OQ-757): the chunk that holds AG Grid Community.
+ * The grid adapter with AG Grid is 214 kB gzip before Angular and the pages are added, so no feature that shows a
+ * grid can sit under 200 kB; every page of the explorer shares this one chunk. The limit is the measured size
+ * (219 724 bytes gzip with the explorer's four grids, the overview and the capability card) plus room for the
+ * next features, not a general relaxation: a chunk is in the exception only if it contains AG Grid's own class
+ * name, and every other lazy chunk is compared with LAZY_LIMIT.
+ */
+export const LAZY_EXCEPTIONS = [
+  {
+    name: 'the grid chunk (AG Grid Community)',
+    marker: 'ag-root-wrapper',
+    limit: 240_000,
+  },
+];
+
 /** The zlib default, close to what a static file server sends. */
 export const GZIP_LEVEL = 6;
 
@@ -35,6 +51,16 @@ function key(dir, path) {
 
 function gzipSize(path) {
   return gzipSync(readFileSync(path), { level: GZIP_LEVEL }).length;
+}
+
+/** The limit of one lazy chunk: the exception when it holds a marked library, else lazyLimit. */
+function lazyLimitOf(path, lazyLimit) {
+  if (!/\.m?js$/.test(path)) return lazyLimit;
+  const text = readFileSync(path, 'utf8');
+  const exception = LAZY_EXCEPTIONS.find(({ marker }) => text.includes(marker));
+  return exception === undefined
+    ? lazyLimit
+    : Math.max(lazyLimit, exception.limit);
 }
 
 /** Local files that `index.html` loads (scripts, modulepreloads, stylesheets), as keys. */
@@ -97,7 +123,11 @@ export function measure(
   for (const path of files(dir)) {
     const name = key(dir, path);
     if (!MEASURED.test(name) || initialSet.has(name)) continue;
-    lazy.push({ file: name, size: gzipSize(path) });
+    lazy.push({
+      file: name,
+      size: gzipSize(path),
+      limit: lazyLimitOf(path, lazyLimit),
+    });
   }
   if (initial.total > initialLimit) {
     const list = initial.files
@@ -108,10 +138,10 @@ export function measure(
       `The initial bundle is ${initial.total} bytes gzip, above the limit of ${initialLimit}:\n${list}`,
     );
   }
-  for (const { file, size } of lazy) {
-    if (size > lazyLimit) {
+  for (const { file, size, limit } of lazy) {
+    if (size > limit) {
       problems.push(
-        `The lazy chunk ${file} is ${size} bytes gzip, above the limit of ${lazyLimit}.`,
+        `The lazy chunk ${file} is ${size} bytes gzip, above the limit of ${limit}.`,
       );
     }
   }

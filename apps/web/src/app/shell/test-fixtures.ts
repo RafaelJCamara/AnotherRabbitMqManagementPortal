@@ -9,6 +9,7 @@ import type { FakeEngine } from '@app/ui-platform/testing';
 import { waitFor } from '@app/ui-platform/testing';
 
 import { appRoutes } from '../app.routes';
+import { provideExplorerKindsSource } from './explorer-tree/explorer-kinds-source';
 import {
   SCOPE_LOADERS,
   provideI18n,
@@ -36,12 +37,18 @@ export async function mountShell(
   extra: readonly Provider[] = [],
 ): Promise<ShellTestbed> {
   const timer = new ManualTimer();
+  // The feature is a lazy library: the app never imports it statically, and neither do its specs.
+  const { EXPLORER_SCOPE_LOADER } = await import('@app/feature-explorer');
+  const { markedExplorerScope } = await import('@app/feature-explorer/testing');
   TestBed.configureTestingModule({
     providers: [
       provideRouter(appRoutes),
       provideI18n(),
       ...layoutProviders(layouts, timer, viewport),
       { provide: SCOPE_LOADERS, useValue: loaders },
+      provideExplorerKindsSource(),
+      // The explorer's own words are the feature's concern: here they are the keys it asked for.
+      { provide: EXPLORER_SCOPE_LOADER, useValue: markedExplorerScope },
       ...extra,
     ],
   });

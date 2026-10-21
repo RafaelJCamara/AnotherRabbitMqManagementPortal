@@ -19,4 +19,6 @@ Tags: `type:tooling`, `runtime:node`. Plain Node, no dependencies.
 | `pnpm nx test web-gallery-check`                | The scan itself: each marker, file names, nested folders, the development control, an empty output.  |
 | `pnpm nx run web-gallery-check:gallery-absent`  | Builds `web` for production and for development into `dist/gallery-check/` and scans both.           |
 
+`explorer-i18n-source.test.mjs` is the source half of M0-54 AC-25 (no browser code may read files, so the scan lives in a node tool): every `explorer.*` key literal in `libs/ui/feature-explorer` is a key of its English file, every key is asked for, and neither the file nor the source makes a forbidden claim or writes `innerHTML`. It runs with `pnpm nx test web-gallery-check`.
+
 If you rename the gallery component or its title, update `MARKERS`; the development control then fails until you do.

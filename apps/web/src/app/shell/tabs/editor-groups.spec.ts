@@ -27,8 +27,8 @@ describe('editor groups', () => {
         ?.textContent.trim(),
     ).toBe('Two');
     // Only the active group has the routed view; the other one says how to show its tab.
-    expect(groups[0]?.querySelector('app-explorer-home')).not.toBeNull();
-    expect(groups[1]?.querySelector('app-explorer-home')).toBeNull();
+    expect(groups[0]?.querySelector('app-overview')).not.toBeNull();
+    expect(groups[1]?.querySelector('app-overview')).toBeNull();
     expect(groups[1]?.querySelector('.hint')?.textContent.trim()).toBe(
       '[[shell.editor.inactive]]',
     );

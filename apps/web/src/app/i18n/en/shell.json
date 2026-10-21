@@ -6,8 +6,7 @@
     "panel": "Panel"
   },
   "explorer": {
-    "title": "Explorer",
-    "empty": "Nothing to browse yet. Inventory arrives with the explorer features."
+    "title": "Explorer"
   },
   "sidebar": {
     "region": "Sidebar",
@@ -28,6 +27,13 @@
   },
   "tree": {
     "label": "Explorer tree",
+    "kind": {
+      "overview": "Overview",
+      "queues": "Queues",
+      "exchanges": "Exchanges",
+      "connections": "Connections",
+      "bindings": "Bindings"
+    },
     "truncated": "The list is longer than the tree shows."
   },
   "tabs": {

@@ -74,3 +74,16 @@ Decisions (OQ-541, OQ-551, OQ-552, OQ-700 to OQ-706; proposed until a maintainer
 - **Measured so far.** The adapter without Angular is 214,025 bytes gzip, over the 200,000-byte lazy-chunk budget (OQ-701). The browser numbers (frame rate, heap, the run under the enforced S-04 policy) are not measured: the `perf` project does not exist yet.
 
 Status: proposed. S-14 stays open until `perf:grid-100k` runs; a version bump of `ag-grid-community` re-runs it and `spikes-csp`.
+
+## Addendum: the explorer's bundle numbers and the grid chunk limit (M0-54 slice I)
+
+- **Date:** 2026-10-21
+- **Evidence:** [docs/specs/M0-54.md](../specs/M0-54.md); `pnpm nx run web:budgets`; `pnpm nx test web-budgets`. Measured on a production build of the worktree on Windows (gzip level 6, 1 kB is 1,000 bytes).
+
+Decisions (OQ-757; proposed until a maintainer accepts them):
+
+- **Measured.** With the explorer mounted at `c/:cid/explorer`, the initial bundle is 216,373 bytes gzip (it was 208,154 before: the app imports the explorer's route table and its connection token statically, the pages stay lazy) against the 350,000 limit. The explorer's pages (the overview, the capability card, the four grids, the filter bar and the saved views) and AG Grid Community are one lazy chunk of 219,724 bytes gzip (780,820 raw). The adapter alone was 214,025 bytes gzip without Angular (the M0-53 addendum), so no feature that shows a grid can sit under the 200,000-byte lazy limit.
+- **The narrowest exception.** `tools/web-budgets` gives one chunk a higher limit: the chunk that contains AG Grid's own class name (`ag-root-wrapper`) may be at most 240,000 bytes gzip (the measured size and room for the next grid features). Every other lazy chunk keeps the 200,000 limit, and the exception is a ceiling too (a test checks that a marked chunk above it fails). It is not a relaxation of the budget: the alternatives are a shared lazy grid chunk (already the case: all four kinds share it) or another grid, which stay open until the maintainer picks (OQ-757).
+- **The app never imports the explorer statically except its route table.** `apps/web` mounts `explorerRoutesFor(() => inject(ActiveConnection).cid)` from a `loadChildren`; the library is lazy and the module-boundary rule forbids any other static import of it.
+
+Status: proposed. A change of `ag-grid-community` or of the explorer's grid features re-measures the chunk; at 240,000 the exception stops being enough and needs its own decision.

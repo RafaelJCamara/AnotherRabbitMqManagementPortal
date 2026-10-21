@@ -46,7 +46,7 @@ import {
   visibleStrings,
 } from './test-fixtures';
 
-const MARKER = /^\[\[([A-Za-z0-9.]+)\]\]$/;
+const MARKER = /^\[\[([A-Za-z0-9.-]+)\]\]$/;
 
 /** Engine data the fixtures supply: a connection id, a Problem's title, reason and source. */
 const ENGINE_DATA: readonly string[] = [
@@ -76,6 +76,7 @@ const ENGINE_DATA: readonly string[] = [
   'Writes are locked on this connection.',
   'prod-lock',
   'guardrail',
+  'Not found', // the title of the 404 the fake engine answers for what it does not serve
 ];
 
 const REFUSALS: readonly LayoutRefusal[] = [
@@ -97,6 +98,8 @@ describe('shell i18n', () => {
       for (const text of strings) {
         const key = MARKER.exec(text)?.[1];
         if (key !== undefined && known.has(key)) seen.add(key);
+        // The explorer's words are its own feature's (proved by its i18n spec): here only that it asked for a key.
+        else if (key?.startsWith('explorer.') === true) continue;
         else if (!ENGINE_DATA.includes(text)) strangers.push(text);
       }
     };

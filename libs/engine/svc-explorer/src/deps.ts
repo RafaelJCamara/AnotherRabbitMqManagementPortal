@@ -30,6 +30,20 @@ export interface ExplorerLimits {
   /** A resident vhost older than this is read again by the next query for it. */
   bindingsMaxAgeMs: number;
   /**
+   * The most bytes taken from the broker for the bindings of one vhost (the streamed answer). A body
+   * past it fails the read closed; the last good rows stay (M0-48l). 256 MiB: 500,000 bindings of the
+   * recorded shape are about 107 MB.
+   */
+  maxBindingsBodyBytes: number;
+  /** The most bytes of one binding in a streamed answer; a bigger one fails the read closed. */
+  maxBindingItemBytes: number;
+  /** The most bytes of one paged answer (at most 500 bindings), which is buffered whole. */
+  maxBindingsEnvelopeBytes: number;
+  /** A read of the bindings of one vhost ends after this long; below the scheduler's hold time (120 s). */
+  bindingsReadDeadlineMs: number;
+  /** Streams open at once for one connection; the other vhosts wait for a free place. */
+  maxBindingReadsPerConnection: number;
+  /**
    * Sorted copies of one kind's rows kept for the windows that follow (one per column and
    * direction, per kind; the oldest goes first). A list of references, not of rows, so a copy costs
    * 8 bytes a row at most; sized for the columns of a kind, so a screen that cycles the sorts does
@@ -49,6 +63,11 @@ export const DEFAULT_EXPLORER_LIMITS: ExplorerLimits = {
   idleStopMs: 600_000,
   maxBindingsResident: 500_000,
   bindingsMaxAgeMs: 60_000,
+  maxBindingsBodyBytes: 256 * 1024 * 1024,
+  maxBindingItemBytes: 256 * 1024,
+  maxBindingsEnvelopeBytes: 8 * 1024 * 1024,
+  bindingsReadDeadlineMs: 90_000,
+  maxBindingReadsPerConnection: 2,
   sortCacheEntriesPerKind: 8,
 };
 

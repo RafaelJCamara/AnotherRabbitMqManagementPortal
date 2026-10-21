@@ -65,6 +65,7 @@ export function withRoutes(
         path: request.path,
         query: request.query ?? {},
         lane: request.lane,
+        via: 'get',
       });
       return Promise.resolve().then(() => {
         if (answer instanceof Error) throw answer;

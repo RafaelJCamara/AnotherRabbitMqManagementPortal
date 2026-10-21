@@ -2,43 +2,110 @@
 import { readFileSync } from 'node:fs';
 
 import { ConnectionIdSchema } from '@app/contracts';
-import { createTestContext, createTestExecutor } from '@app/kernel';
+import {
+  BrokerScheduler,
+  createManualClock,
+  createManualTimers,
+  createTestContext,
+  createTestExecutor,
+  scheduleMgmtRead,
+} from '@app/kernel';
 import type { MgmtReadPort } from '@app/ports';
 import { describe, expect, it } from 'vitest';
 
 import { createSubject } from '../actions/inventory-query.fixture';
 import { createInventoryQueryAction } from '../actions/inventory-query';
-import { brokerFailure, createExplorerFakeDeps } from '../testing';
+import {
+  brokerFailure,
+  createExplorerFakeDeps,
+  createScriptedBroker,
+} from '../testing';
 
+import { createBindingsStore } from './bindings';
 import { REASONS } from './freshness';
+import { LIST_READ_TEXT } from './list-read';
+import { BindingItemSchema, bindingRow } from './rows';
 
 const { def } = createSubject();
 const cid = ConnectionIdSchema.parse('c1');
 
+/** The bytes of a recorded answer of the golden fixtures (`testing/fixtures/mgmt/<version>/<variant>`). */
+function recordedBytes(recording: readonly [string, string]): Uint8Array {
+  return readFileSync(
+    new URL(
+      `../../../../../testing/fixtures/mgmt/${recording[0]}/${recording[1]}/bindings.inVhost.json`,
+      import.meta.url,
+    ),
+  );
+}
+
+/** `bytes` in chunks of `size`, as a body arrives. */
+async function* inChunks(
+  bytes: Uint8Array,
+  size: number,
+): AsyncGenerator<Uint8Array> {
+  for (let at = 0; at < bytes.length; at += size) {
+    yield bytes.subarray(at, at + size);
+  }
+  await Promise.resolve();
+}
+
 /**
- * A management port that answers `/api/bindings/golden` with a recorded answer of the golden fixtures
- * (`testing/fixtures/mgmt/<version>/<variant>`), parsed with the schema of the request as the real
- * client does. It records what was asked.
+ * A management port that answers a stream of `/api/bindings/golden` with a recorded answer (64-byte
+ * chunks, so every item crosses a chunk boundary). A `get` is refused: the bindings are streamed. It
+ * records what was asked.
  */
 function replay(recording: readonly [string, string]) {
-  const file = new URL(
-    `../../../../../testing/fixtures/mgmt/${recording[0]}/${recording[1]}/bindings.inVhost.json`,
-    import.meta.url,
-  );
-  const body: unknown = JSON.parse(readFileSync(file, 'utf8'));
+  const bytes = recordedBytes(recording);
   const requests: { path: string; query: unknown; lane: string }[] = [];
   const port: MgmtReadPort = {
-    get(request) {
+    get: () => Promise.reject(new Error('the bindings are streamed')),
+    stream(request) {
       requests.push({
         path: request.path,
         query: request.query,
         lane: request.lane,
       });
-      return Promise.resolve(request.schema.parse(body));
+      return Promise.resolve(inChunks(bytes, 64));
     },
-    stream: () => Promise.reject(new Error('never streams')),
   };
   return { port, requests };
+}
+
+const encoder = new TextEncoder();
+
+/** A binding as the broker sends it. */
+function binding(j: number, more: Record<string, unknown> = {}) {
+  return {
+    source: `exchange-${String(j % 10)}`,
+    vhost: '/',
+    destination: `queue-${String(j).padStart(6, '0')}`,
+    destination_type: 'queue',
+    routing_key: `rk-${String(j)}`,
+    properties_key: `rk-${String(j)}`,
+    arguments: {},
+    ...more,
+  };
+}
+
+const bare = (items: readonly unknown[]): string => JSON.stringify(items);
+
+/** A body that sends `prefix` and then nothing, ever: the broker went silent. */
+function silent(prefix = '['): AsyncIterable<Uint8Array> {
+  let sent = false;
+  return {
+    [Symbol.asyncIterator]: () => ({
+      next: () =>
+        sent
+          ? new Promise<IteratorResult<Uint8Array>>(() => undefined)
+          : ((sent = true),
+            Promise.resolve({
+              done: false as const,
+              value: encoder.encode(prefix),
+            })),
+      return: () => Promise.resolve({ done: true as const, value: undefined }),
+    }),
+  };
 }
 
 function harness(options: Parameters<typeof createExplorerFakeDeps>[0]) {
@@ -182,7 +249,8 @@ describe('explorer bindings', () => {
       limits: { maxBindingsResident: 2_000 },
     });
     const first = await ask(bindings(['/']));
-    // One request only; the cap applies after the answer, so the rest is counted, never silent.
+    // One request only; the read stops at the cap, so the rest is not counted: `dropped` is a minimum
+    // and the number left out is said to be unknown (M0-48l), never silent.
     expect(deps.broker.requests).toHaveLength(1);
     expect(deps.broker.requests[0]).toMatchObject({
       path: '/api/bindings/%2F',
@@ -195,15 +263,15 @@ describe('explorer bindings', () => {
         state: 'live',
         complete: true,
         loaded: 2_000,
-        expected: 3_000,
         truncated: true,
-        dropped: 1_000,
-        reason: REASONS.unpaged,
+        dropped: 1,
+        reason: REASONS.unpagedCut,
       },
     });
+    expect(first.freshness.expected).toBeUndefined();
     expect(deps.bindings.stats(cid)).toMatchObject({
       rows: 2_000,
-      dropped: 1_000,
+      dropped: 1,
     });
     await ask(bindings(['/'], {}, { offset: 1_990, limit: 50 }));
     expect(deps.broker.requests).toHaveLength(1);
@@ -238,12 +306,12 @@ describe('explorer bindings', () => {
     expect(cut).toMatchObject({
       total: 5,
       freshness: {
-        expected: 8,
         truncated: true,
-        dropped: 3,
-        reason: REASONS.unpaged,
+        dropped: 1,
+        reason: REASONS.unpagedCut,
       },
     });
+    expect(cut.freshness.expected).toBeUndefined();
     const whole = harness({ mgmt: replay(['4.2.9', 'stats-off']).port });
     const all = await whole.ask(whole.bindings(['golden']));
     expect(all).toMatchObject({
@@ -354,4 +422,373 @@ describe('explorer bindings', () => {
     expect(failed).toMatchObject({ code: 'BROKER_UNREACHABLE' });
     expect(JSON.stringify(failed)).not.toContain('secret-broker-text');
   });
+
+  it('AC-8 explorer bindings are read as a stream with the same request the get path sent', async () => {
+    // The recorded RabbitMQ 4.2.9 answer (a bare array of 8 bindings) for a vhost that needs escaping.
+    const { deps, ask, bindings } = harness({});
+    const recorded = recordedBytes(['4.2.9', 'stats-off']);
+    deps.broker.bindingsBody = () => recorded;
+    const answer = await ask(bindings(['a/b c']));
+    expect(deps.broker.requests).toEqual([
+      {
+        path: '/api/bindings/a%2Fb%20c',
+        query: { page: 1, page_size: 500 },
+        lane: 'interactive',
+        via: 'stream',
+      },
+    ]);
+    const former = (JSON.parse(readBody(recorded)) as unknown[]).map((raw) =>
+      bindingRow(BindingItemSchema.parse(raw)),
+    );
+    expect(answer.total).toBe(8);
+    expect([...answer.rows].sort(byKey)).toEqual([...former].sort(byKey));
+    expect(
+      deps.broker.streams.map((s) => [s.ended, s.cancelled, s.open]),
+    ).toEqual([[true, false, false]]);
+
+    // The paged envelope (LavinMQ): 1,100 bindings are 3 pages of at most 500, each a stream.
+    const paged = harness({ bindingsPerVhost: 1_100 });
+    const all = await paged.ask(paged.bindings(['/']));
+    expect(all).toMatchObject({
+      total: 1_100,
+      freshness: { expected: 1_100, dropped: 0, truncated: false },
+    });
+    expect(paged.deps.broker.requests.map((r) => r.via)).toEqual([
+      'stream',
+      'stream',
+      'stream',
+    ]);
+    expect(paged.deps.broker.requests.map((r) => r.query)).toEqual([
+      { page: 1, page_size: 500 },
+      { page: 2, page_size: 500 },
+      { page: 3, page_size: 500 },
+    ]);
+    for (const s of paged.deps.broker.streams) {
+      expect(s).toMatchObject({ ended: true, cancelled: false, open: false });
+    }
+  });
+
+  it('AC-9 explorer bindings stop at the cap, cancel the body and say the total is not known', async () => {
+    const chunk = 4_096;
+    const { deps, ask, bindings } = harness({
+      bindingsPerVhost: 20_000,
+      bindingsAnswer: 'bare',
+      bindingsChunkBytes: chunk,
+      limits: { maxBindingsResident: 500 },
+    });
+    const cut = await ask(bindings(['/']));
+    expect(cut).toMatchObject({
+      total: 500,
+      freshness: {
+        state: 'live',
+        complete: true,
+        loaded: 500,
+        truncated: true,
+        dropped: 1,
+        reason: REASONS.unpagedCut,
+      },
+    });
+    expect(cut.freshness.expected).toBeUndefined();
+    const [stream] = deps.broker.streams;
+    const first500 = encoder.encode(
+      bare(Array.from({ length: 500 }, (_, j) => binding(j))),
+    ).length;
+    expect(stream?.cancelled).toBe(true);
+    expect(stream?.open).toBe(false);
+    expect(stream?.bytesSent).toBeLessThanOrEqual(first500 + 2 * chunk);
+
+    // Exactly the cap: nothing was cut, the length is exact.
+    const exact = harness({
+      bindingsPerVhost: 500,
+      bindingsAnswer: 'bare',
+      limits: { maxBindingsResident: 500 },
+    });
+    const whole = await exact.ask(exact.bindings(['/']));
+    expect(whole).toMatchObject({
+      total: 500,
+      freshness: {
+        expected: 500,
+        dropped: 0,
+        truncated: false,
+        reason: REASONS.unpaged,
+      },
+    });
+    expect(exact.deps.broker.streams[0]).toMatchObject({
+      ended: true,
+      cancelled: false,
+    });
+    for (const reason of [cut.freshness.reason, whole.freshness.reason]) {
+      expect(reason).not.toMatch(/non-destructive|read-only/i);
+    }
+  });
+
+  it('AC-10 explorer bindings fail closed, install nothing and keep the last good rows stale', async () => {
+    const canary = 'canary-secret-name';
+    const many = (n: number) => Array.from({ length: n }, (_, j) => binding(j));
+    const cases: readonly { name: string; body: string; text: string }[] = [
+      {
+        name: 'ends inside an item',
+        body: bare(many(1_001)).slice(0, -30),
+        text: LIST_READ_TEXT.incomplete,
+      },
+      {
+        name: 'a binding without a source',
+        body: bare([
+          binding(0),
+          binding(1, { source: undefined, destination: canary }),
+        ]),
+        text: LIST_READ_TEXT.incomplete,
+      },
+      {
+        name: 'a binding of 300 KiB',
+        body: bare([
+          binding(0, { arguments: { pad: 'x'.repeat(300 * 1024) } }),
+        ]),
+        text: LIST_READ_TEXT.tooLarge,
+      },
+      {
+        name: 'a body over the byte limit',
+        body: bare(many(10_000)),
+        text: LIST_READ_TEXT.tooLarge,
+      },
+      {
+        name: 'a body that is not JSON',
+        body: `<html>${canary}</html>`,
+        text: LIST_READ_TEXT.incomplete,
+      },
+    ];
+    const options = {
+      bindingsPerVhost: 30,
+      bindingsAnswer: 'bare' as const,
+      limits: { maxBindingsBodyBytes: 1024 * 1024, bindingsMaxAgeMs: 60_000 },
+    };
+    const never = (error: unknown): void => {
+      const text = JSON.stringify(error) + (error as Error).message;
+      expect(text).not.toContain(canary);
+      expect(text).not.toContain('secret-broker-text');
+    };
+
+    for (const c of cases) {
+      // A resident vhost: the failed read installs nothing and the rows are served stale.
+      const h = harness(options);
+      const good = await h.ask(h.bindings(['/']));
+      h.deps.clock.advance(60_000);
+      h.deps.broker.bindingsBody = () => c.body;
+      const stale = await h.ask(h.bindings(['/']));
+      expect(stale, c.name).toMatchObject({
+        total: 30,
+        version: good.version,
+        freshness: { state: 'stale', reason: REASONS.failed },
+      });
+      expect(h.deps.bindings.stats(cid), c.name).toMatchObject({ rows: 30 });
+      expect(h.deps.broker.streams.length, c.name).toBe(2);
+      expect(
+        h.deps.broker.streams.every((s) => !s.open),
+        c.name,
+      ).toBe(true);
+      never(stale);
+
+      // A vhost that was never read: the Problem has one of the fixed texts.
+      const fresh = harness(options);
+      fresh.deps.broker.bindingsBody = () => c.body;
+      const error: unknown = await fresh
+        .ask(fresh.bindings(['/']))
+        .catch((e: unknown) => e);
+      expect(error, c.name).toMatchObject({ code: 'BROKER_ERROR' });
+      expect((error as Error).message, c.name).toContain(c.text);
+      expect(fresh.deps.broker.streams.every((s) => !s.open)).toBe(true);
+      expect(fresh.deps.bindings.stats(cid).rows).toBe(0);
+      never(error);
+    }
+
+    // A 503 on the stream: no body is handed out; the adapter's own code is kept with a fixed text.
+    const down = harness(options);
+    await down.ask(down.bindings(['/']));
+    down.deps.clock.advance(60_000);
+    down.deps.broker.intercept = () => brokerFailure();
+    const served = await down.ask(down.bindings(['/']));
+    expect(served).toMatchObject({
+      total: 30,
+      freshness: { state: 'stale', reason: REASONS.failed },
+    });
+    never(served);
+    const refused = harness(options);
+    refused.deps.broker.intercept = () => brokerFailure();
+    const problem: unknown = await refused
+      .ask(refused.bindings(['/']))
+      .catch((e: unknown) => e);
+    expect(problem).toMatchObject({ code: 'BROKER_UNREACHABLE' });
+    expect((problem as Error).message).toContain(LIST_READ_TEXT.failed);
+    never(problem);
+  });
+
+  it('AC-11 explorer bindings release the scheduler slot on every ending and stop a silent body at the deadline', async () => {
+    const clock = createManualClock();
+    const timers = createManualTimers(clock);
+    const scheduler = new BrokerScheduler({ clock, timers });
+    const broker = createScriptedBroker({
+      vhostCount: 6,
+      bindingsPerVhost: { '/': 50, 'vhost-1': 1_000 },
+      bindingsAnswer: 'bare',
+    });
+    const seen: AbortSignal[] = [];
+    const store = createBindingsStore({
+      mgmt: scheduleMgmtRead(
+        {
+          get: (request, signal) => broker.read.get(request, signal),
+          stream(request, signal) {
+            seen.push(signal);
+            return broker.read.stream(request, signal);
+          },
+        },
+        scheduler,
+      ),
+      clock,
+      timers,
+      limits: { maxBindingsResident: 100 },
+    });
+    const window = (vhost: string) =>
+      store.window(
+        cid,
+        vhost,
+        { offset: 0, limit: 10 },
+        new AbortController().signal,
+      );
+    const slots = () =>
+      scheduler.snapshot().brokers.find((b) => b.connectionId === cid)?.inFlight
+        .interactive ?? 0;
+    const settled = (promise: Promise<unknown>) => {
+      const state = { done: false };
+      void promise.then(
+        () => (state.done = true),
+        () => (state.done = true),
+      );
+      return state;
+    };
+
+    // Ends normally, ends at the cap, fails: the slot is back and the watchdog never fired.
+    await window('/');
+    expect(slots()).toBe(0);
+    await window('vhost-1');
+    expect(slots()).toBe(0);
+    broker.bindingsBody = () => '<html>not a list</html>';
+    await expect(window('vhost-2')).rejects.toMatchObject({
+      code: 'BROKER_ERROR',
+    });
+    expect(slots()).toBe(0);
+    expect(scheduler.snapshot().holdTimeouts).toBe(0);
+    expect(timers.pending()).toBe(0);
+
+    // A body that goes silent: read until the deadline, 30 s before the scheduler's own hold time.
+    broker.bindingsBody = () => silent();
+    const quiet = window('vhost-3').catch((e: unknown) => e);
+    const done = settled(quiet);
+    await timers.settle();
+    expect(slots()).toBe(1);
+    await timers.advance(89_999);
+    expect(done.done).toBe(false);
+    expect(slots()).toBe(1);
+    await timers.advance(1);
+    await expect(quiet).resolves.toMatchObject({
+      code: 'BROKER_UNREACHABLE',
+      detail: LIST_READ_TEXT.late,
+    });
+    expect(seen.at(-1)?.aborted).toBe(true);
+    expect(slots()).toBe(0);
+    expect(scheduler.snapshot().holdTimeouts).toBe(0);
+    expect(timers.pending()).toBe(0);
+
+    // stop() in the middle of a body: the read ends at once, the stream is cancelled, no timer is left.
+    broker.bindingsBody = () => silent();
+    const midway = window('vhost-4').catch((e: unknown) => e);
+    await timers.settle();
+    expect(slots()).toBe(1);
+    store.stop();
+    await expect(midway).resolves.toMatchObject({
+      code: 'ENGINE_SHUTTING_DOWN',
+    });
+    await timers.settle();
+    expect(broker.streams.at(-1)).toMatchObject({
+      cancelled: true,
+      open: false,
+    });
+    expect(slots()).toBe(0);
+    expect(scheduler.snapshot().holdTimeouts).toBe(0);
+    expect(timers.pending()).toBe(0);
+    scheduler.close();
+  });
+
+  it('AC-12 explorer bindings keep at most two streams open per connection', async () => {
+    const make = () => {
+      const clock = createManualClock();
+      const timers = createManualTimers(clock);
+      const broker = createScriptedBroker({
+        vhostCount: 6,
+        bindingsPerVhost: 5,
+        bindingsAnswer: 'bare',
+      });
+      const store = createBindingsStore({
+        mgmt: broker.read,
+        clock,
+        timers,
+        limits: { maxBindingReadsPerConnection: 2 },
+      });
+      const ask = (vhost: string) =>
+        store.window(
+          cid,
+          vhost,
+          { offset: 0, limit: 10 },
+          new AbortController().signal,
+        );
+      return { broker, store, timers, ask };
+    };
+
+    // Six vhosts at once: two streams open, four wait; every one is answered in the end.
+    const run = make();
+    let go: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      go = resolve;
+    });
+    run.broker.bindingsBody = () => ({
+      async *[Symbol.asyncIterator]() {
+        await gate;
+        yield encoder.encode(bare([binding(0), binding(1)]));
+      },
+    });
+    const six = run.broker.vhosts.map((vhost) => run.ask(vhost));
+    await run.timers.settle();
+    expect(run.broker.streams).toHaveLength(2);
+    go();
+    const answers = await Promise.all(six);
+    expect(answers.map((a) => a.total)).toEqual([2, 2, 2, 2, 2, 2]);
+    expect(run.broker.streams).toHaveLength(6);
+    expect(run.broker.maxOpenStreams).toBe(2);
+
+    // stop() with two open and two waiting: all four end with ENGINE_SHUTTING_DOWN, no stream starts.
+    const stopped = make();
+    stopped.broker.bindingsBody = () => silent();
+    const four = stopped.broker.vhosts
+      .slice(0, 4)
+      .map((vhost) => stopped.ask(vhost).catch((e: unknown) => e));
+    await stopped.timers.settle();
+    expect(stopped.broker.streams).toHaveLength(2);
+    stopped.store.stop();
+    for (const outcome of await Promise.all(four)) {
+      expect(outcome).toMatchObject({ code: 'ENGINE_SHUTTING_DOWN' });
+    }
+    await stopped.timers.settle();
+    expect(stopped.broker.streams).toHaveLength(2);
+    expect(stopped.broker.streams.every((s) => s.cancelled && !s.open)).toBe(
+      true,
+    );
+    expect(stopped.timers.pending()).toBe(0);
+  });
 });
+
+function byKey(a: { key: string }, b: { key: string }): number {
+  return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+}
+
+function readBody(bytes: Uint8Array): string {
+  return new TextDecoder().decode(bytes);
+}

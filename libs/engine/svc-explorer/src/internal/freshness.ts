@@ -15,6 +15,9 @@ export const REASONS = {
   unavailable: 'The inventory is not being read.',
   unpaged:
     'The broker sent every binding of the vhost in one answer, without paging.',
+  // The read stopped at the limit and did not count the rest (M0-48l): `dropped` is a minimum.
+  unpagedCut:
+    'The broker sent every binding of the vhost in one answer, without paging; the read stopped at the limit and the number left out is not known.',
 } as const;
 
 /**
@@ -45,6 +48,8 @@ export interface FreshnessInput {
   versionChanged: boolean;
   /** The broker answered the whole list at once and ignored the paging (bindings on RabbitMQ). */
   unpaged?: boolean;
+  /** `dropped` is a minimum, not a count: the read stopped at the limit without counting the rest. */
+  droppedIsMinimum?: boolean;
 }
 
 export function describeFreshness(input: FreshnessInput): Freshness {
@@ -59,7 +64,8 @@ export function describeFreshness(input: FreshnessInput): Freshness {
     reason = REASONS.loading;
   } else if (version.complete) {
     state = 'live';
-    if (input.unpaged === true) reason = REASONS.unpaged;
+    if (input.droppedIsMinimum === true) reason = REASONS.unpagedCut;
+    else if (input.unpaged === true) reason = REASONS.unpaged;
   } else {
     state = 'stale';
     reason = REASONS.partial;

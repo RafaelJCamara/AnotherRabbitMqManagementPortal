@@ -5,27 +5,40 @@
 // (I-6): rows past the cap are dropped and counted, and a vhost that no longer fits is evicted, least
 // recently used first, and counted. Nothing is silent (I-13): `dropped` and `truncated` ride in the
 // answer's freshness, and `stats()` shows the evictions. RabbitMQ ignores `page` on this endpoint and
-// answers every binding of the vhost as a bare array (the golden recordings, OQ-433): the cap is then
-// applied after that one answer, and the freshness says the broker sent it unpaged (OQ-688).
+// answers every binding of the vhost as a bare array (the golden recordings, OQ-433). That answer is
+// read as a stream (M0-48l): item by item, up to the cap, then the body is cancelled. The number left
+// out is then not known, only that it is at least 1, and the freshness says so (OQ-688).
 import {
   ErrorCodeSchema,
   type ConnectionId,
   type InventoryFilterSchema,
   type InventorySortSchema,
 } from '@app/contracts';
-import { AppError, systemClock, type Clock } from '@app/kernel';
+import { AppError, systemClock, systemTimers, type Clock } from '@app/kernel';
 import type { z } from 'zod';
 
 import { DEFAULT_EXPLORER_LIMITS, type ExplorerModuleDeps } from '../deps';
 
 import { comparator, type IndexVersion } from './index';
-import { BindingPageSchema, bindingRow, type BindingRow } from './rows';
+import {
+  LIST_READ_TEXT,
+  readBoundedList,
+  type ListReadLimits,
+} from './list-read';
+import {
+  BindingEnvelopeSchema,
+  BindingItemSchema,
+  bindingRow,
+  type BindingRow,
+} from './rows';
 
 type InventoryFilter = z.infer<typeof InventoryFilterSchema>;
 type InventorySort = z.infer<typeof InventorySortSchema>;
 
 const PAGE_SIZE_CEILING = 500;
 const SORT_CACHE_ENTRIES = 4;
+/** Reads of other vhosts that may wait for a free stream place, per connection; more are refused. */
+const WAITING_READS_MAX = 64;
 /** The order of a window when the caller names none; the key breaks every tie. */
 const DEFAULT_SORT: InventorySort = { column: 'source', dir: 'asc' };
 
@@ -51,6 +64,8 @@ export interface BindingsRead {
   expected: number | undefined;
   /** The broker answered the whole vhost at once (no paging): the cap was applied after the answer. */
   unpaged: boolean;
+  /** False: the read stopped at the cap and the number left out is a minimum (at least 1), not a count. */
+  countExact: boolean;
 }
 
 export interface BindingsStats {
@@ -58,7 +73,7 @@ export interface BindingsStats {
   vhosts: readonly string[];
   /** Resident rows across those vhosts. */
   rows: number;
-  /** Rows the cap kept out of the resident vhosts, counted. */
+  /** Rows the cap kept out of the resident vhosts, counted (a minimum for a vhost whose read was cut). */
   dropped: number;
   /** Vhosts evicted to stay under the cap, and the rows that left with them. */
   evictions: number;
@@ -80,15 +95,17 @@ export interface BindingsStore {
 
 export type BindingsDeps = Pick<
   ExplorerModuleDeps,
-  'mgmt' | 'clock' | 'limits'
+  'mgmt' | 'clock' | 'timers' | 'limits'
 >;
 
 interface Entry {
   readonly rows: readonly BindingRow[];
+  /** Rows the cap left out: a count, or a minimum when `countExact` is false. */
   readonly dropped: number;
   readonly expected: number | undefined;
   /** The broker sent the whole vhost in one answer and ignored the paging. */
   readonly unpaged: boolean;
+  readonly countExact: boolean;
   readonly loadedAt: number;
   /** The last time the broker was asked, whether it answered or not. */
   readonly checkedAt: number;
@@ -98,10 +115,18 @@ interface Entry {
   readonly sorted: Map<string, readonly BindingRow[]>;
 }
 
+interface PlaceWaiter {
+  readonly resolve: () => void;
+  readonly reject: (error: unknown) => void;
+}
+
 interface ConnectionState {
   /** In use order: the first is the least recently used. */
   readonly vhosts: Map<string, Entry>;
   readonly loading: Map<string, Promise<Entry>>;
+  /** Streams open now, and the reads that wait for a free place (`maxBindingReadsPerConnection`). */
+  openReads: number;
+  readonly waitingReads: PlaceWaiter[];
   rows: number;
   versions: number;
   evictions: number;
@@ -111,15 +136,17 @@ interface ConnectionState {
 function failure(error: unknown, aborted: boolean): AppError {
   if (aborted) {
     return new AppError('ENGINE_SHUTTING_DOWN', {
-      detail: 'The bindings read was cancelled.',
+      detail: LIST_READ_TEXT.cancelled,
     });
   }
+  // An AppError here carries one of the fixed texts of `list-read` or of this store.
+  if (error instanceof AppError) return error;
   const code = ErrorCodeSchema.safeParse(
     (error as { code?: unknown } | null)?.code,
   );
   // Fixed text: broker text never reaches an output (I-10).
   return new AppError(code.success ? code.data : 'BROKER_ERROR', {
-    detail: 'The bindings of the vhost could not be read.',
+    detail: LIST_READ_TEXT.failed,
   });
 }
 
@@ -145,9 +172,17 @@ function matcher(
 
 export function createBindingsStore(deps: BindingsDeps): BindingsStore {
   const clock: Clock = deps.clock ?? systemClock;
+  const timers = deps.timers ?? systemTimers;
   const limits = { ...DEFAULT_EXPLORER_LIMITS, ...deps.limits };
   const pageSize = Math.min(limits.pageSize, PAGE_SIZE_CEILING);
   const cap = limits.maxBindingsResident;
+  const listLimits: ListReadLimits = {
+    maxItems: cap,
+    maxBytes: limits.maxBindingsBodyBytes,
+    maxItemBytes: limits.maxBindingItemBytes,
+    maxEnvelopeBytes: limits.maxBindingsEnvelopeBytes,
+    deadlineMs: limits.bindingsReadDeadlineMs,
+  };
   const states = new Map<ConnectionId, ConnectionState>();
   const abort = new AbortController();
   const stopped = (): boolean => abort.signal.aborted;
@@ -158,6 +193,8 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
       state = {
         vhosts: new Map(),
         loading: new Map(),
+        openReads: 0,
+        waitingReads: [],
         rows: 0,
         versions: 0,
         evictions: 0,
@@ -168,43 +205,103 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
     return state;
   };
 
+  const incomplete = (): AppError =>
+    new AppError('BROKER_ERROR', { detail: LIST_READ_TEXT.incomplete });
+
   /**
-   * Pages through the vhost; stops at the cap when the broker's own count tells what is left. A broker
-   * that ignores `page` (RabbitMQ on this endpoint) answers the whole vhost at once: the cap is then
-   * applied to that one answer, the rest is counted as dropped, and `unpaged` says so.
+   * Reads the vhost as a stream. A bare array (RabbitMQ on this endpoint, which ignores `page`) is read
+   * item by item up to the cap and then cancelled: the number left out is not known, only that it is at
+   * least 1 (`countExact` false). A paged envelope is paged through, and stops at the cap when the
+   * broker's own count tells what is left. Nothing of a failed read is returned.
    */
   async function read(cid: ConnectionId, vhost: string) {
     const rows: BindingRow[] = [];
     let dropped = 0;
     let expected: number | undefined;
     let unpaged = false;
+    let countExact = true;
     for (let n = 1; ; n++) {
       abort.signal.throwIfAborted();
-      const answer = await deps.mgmt.get(
+      const answer = await readBoundedList(
+        deps.mgmt,
         {
           connectionId: cid,
           path: `/api/bindings/${encodeURIComponent(vhost)}`,
           query: { page: n, page_size: pageSize },
-          schema: BindingPageSchema,
           lane: 'interactive',
         },
+        listLimits,
         abort.signal,
+        timers,
       );
-      if (n === 1) {
-        expected = answer.total;
-        unpaged = !answer.paged;
+      if (answer.shape === 'array') {
+        if (n > 1) throw incomplete();
+        unpaged = true;
+        for (const raw of answer.items) {
+          const item = BindingItemSchema.safeParse(raw);
+          if (!item.success) throw incomplete();
+          rows.push(bindingRow(item.data));
+        }
+        if (answer.end.kind === 'complete') expected = rows.length;
+        else {
+          dropped = 1;
+          countExact = false;
+        }
+        break;
       }
-      for (const raw of answer.items) {
+      const parsed = BindingEnvelopeSchema.safeParse(answer.value);
+      if (!parsed.success) throw incomplete();
+      const page = parsed.data;
+      if (n === 1) expected = page.total;
+      for (const raw of page.items) {
         if (rows.length < cap) rows.push(bindingRow(raw));
         else dropped++;
       }
-      if (n >= answer.pageCount || answer.items.length === 0) break;
+      if (n >= page.pageCount || page.items.length === 0) break;
       if (rows.length >= cap && expected !== undefined) {
         dropped = Math.max(dropped, expected - rows.length);
         break;
       }
     }
-    return { rows, dropped, expected, unpaged };
+    return { rows, dropped, expected, unpaged, countExact };
+  }
+
+  /** At most `maxBindingReadsPerConnection` reads run at once for a connection; the others wait. */
+  async function enter(state: ConnectionState): Promise<void> {
+    abort.signal.throwIfAborted();
+    if (state.openReads < limits.maxBindingReadsPerConnection) {
+      state.openReads++;
+      return;
+    }
+    if (state.waitingReads.length >= WAITING_READS_MAX) {
+      throw new AppError('BUDGET_EXCEEDED', {
+        detail: 'Too many bindings reads are waiting for this connection.',
+        retryable: true,
+      });
+    }
+    // The place is handed over by `leave`, which keeps `openReads` as it is.
+    await new Promise<void>((resolve, reject) => {
+      state.waitingReads.push({ resolve, reject });
+    });
+  }
+
+  function leave(state: ConnectionState): void {
+    const next = state.waitingReads.shift();
+    if (next === undefined) state.openReads--;
+    else next.resolve();
+  }
+
+  async function readInPlace(
+    cid: ConnectionId,
+    vhost: string,
+    state: ConnectionState,
+  ) {
+    await enter(state);
+    try {
+      return await read(cid, vhost);
+    } finally {
+      leave(state);
+    }
   }
 
   /** Makes the vhost the most recently used and evicts the others, oldest first, until it all fits. */
@@ -226,14 +323,15 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
   function load(cid: ConnectionId, vhost: string, state: ConnectionState) {
     let inflight = state.loading.get(vhost);
     if (inflight === undefined) {
-      inflight = read(cid, vhost)
-        .then(({ rows, dropped, expected, unpaged }) => {
+      inflight = readInPlace(cid, vhost, state)
+        .then(({ rows, dropped, expected, unpaged, countExact }) => {
           const now = clock.now();
           const entry: Entry = {
             rows,
             dropped,
             expected,
             unpaged,
+            countExact,
             loadedAt: now,
             checkedAt: now,
             version: ++state.versions,
@@ -306,6 +404,7 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
           query.version !== undefined && query.version !== current,
         expected: entry.expected,
         unpaged: entry.unpaged,
+        countExact: entry.countExact,
       };
     },
     stats(cid) {
@@ -323,6 +422,12 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
     },
     stop() {
       abort.abort();
+      // The reads that wait for a place never start; the ones that are open end by the abort.
+      for (const state of states.values()) {
+        for (const waiter of state.waitingReads.splice(0)) {
+          waiter.reject(failure(undefined, true));
+        }
+      }
     },
   };
 }

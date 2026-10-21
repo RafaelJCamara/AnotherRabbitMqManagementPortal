@@ -7,7 +7,12 @@ import {
   type ManualClock,
   type ManualTimers,
 } from '@app/kernel';
-import type { Lane, MgmtGetRequest, MgmtReadPort } from '@app/ports';
+import type {
+  Lane,
+  MgmtGetRequest,
+  MgmtReadPort,
+  MgmtStreamRequest,
+} from '@app/ports';
 
 import type { ExplorerLimits, ExplorerModuleDeps } from './deps';
 import { createBindingsStore, type BindingsStore } from './internal/bindings';
@@ -21,13 +26,42 @@ export interface RecordedRequest {
   readonly path: string;
   readonly query: Readonly<Record<string, string | number | boolean>>;
   readonly lane: Lane;
+  /** `get`: a parsed answer; `stream`: a body read as chunks. */
+  readonly via: 'get' | 'stream';
 }
+
+/** One streamed answer, from the moment the scripted broker handed it out. */
+export interface RecordedStream {
+  readonly request: RecordedRequest;
+  /** Bytes of the chunks the reader has taken. */
+  bytesSent: number;
+  /** The body was read to its end. */
+  ended: boolean;
+  /** The reader stopped before the end (a `break`, an error or an abort). */
+  cancelled: boolean;
+  /** Handed out and neither ended nor cancelled. */
+  open: boolean;
+}
+
+/** What `/api/bindings/{vhost}` answers when a spec scripts it: bytes, a text or chunks. */
+export type ScriptedBody = string | Uint8Array | AsyncIterable<Uint8Array>;
 
 export interface ScriptedBroker {
   /** The read port a module is given. */
   readonly read: MgmtReadPort;
   /** Every request, in order. */
   readonly requests: RecordedRequest[];
+  /** Every streamed answer, in order. */
+  readonly streams: RecordedStream[];
+  /** The most streams that were open at the same time. */
+  maxOpenStreams: number;
+  /**
+   * Replaces the body of a `/api/bindings/{vhost}` stream for any vhost (return `undefined` for the
+   * default). Settable by a spec.
+   */
+  bindingsBody?:
+    | ((request: RecordedRequest, ordinal: number) => ScriptedBody | undefined)
+    | undefined;
   /** The vhosts the broker holds, in the order `/api/vhosts` lists them. */
   readonly vhosts: readonly string[];
   readonly queueCount: number;
@@ -44,6 +78,14 @@ export interface ScriptedBroker {
 /** The broker's own page ceiling. */
 const BROKER_MAX_PAGE_SIZE = 500;
 
+/** A path the scripted broker does not serve, like a broker without the endpoint. */
+function notFound(): Error {
+  return Object.assign(new Error('NOT_FOUND: HTTP 404'), {
+    code: 'NOT_FOUND',
+    broker: { protocol: 'http', code: 404 },
+  });
+}
+
 /** A management failure as the scheduled port throws it. */
 export function brokerFailure(status = 503): Error {
   return Object.assign(new Error(`HTTP ${String(status)} secret-broker-text`), {
@@ -59,7 +101,9 @@ export function brokerFailure(status = 503): Error {
  * `/api/connections` (all vhosts, `connectionCount` connections across the vhosts);
  * `/api/vhosts` answers a bare array; `/api/overview`, `/api/nodes` and `/api/health/checks/alarms`
  * answer a statistics-off single node; every other path answers 404, like a broker without the
- * endpoint. Every request is recorded.
+ * endpoint. `/api/bindings/{vhost}` is answered by `stream` only (a bare array or the paged envelope,
+ * in chunks of `bindingsChunkBytes`, or the body a spec scripts with `bindingsBody`); `get` of it is
+ * a 404, so a reader that still used `get` would fail. Every request and every stream is recorded.
  */
 export function createScriptedBroker(
   options: {
@@ -72,6 +116,8 @@ export function createScriptedBroker(
     bindingsPerVhost?: number | Readonly<Record<string, number>>;
     /** `bare`: `/api/bindings/{vhost}` answers every binding as a bare array, as RabbitMQ does (default `paged`). */
     bindingsAnswer?: 'paged' | 'bare';
+    /** Bytes of each chunk of a streamed bindings answer (default 4096). */
+    bindingsChunkBytes?: number;
   } = {},
 ): ScriptedBroker {
   const queueCount = options.queueCount ?? 0;
@@ -104,24 +150,26 @@ export function createScriptedBroker(
     ssl: i % 7 === 0,
   });
   const requests: RecordedRequest[] = [];
+  const streams: RecordedStream[] = [];
+  const encoder = new TextEncoder();
 
-  const paged = <T>(
-    request: MgmtGetRequest<T>,
+  /** The paged envelope of one page of `total` items. */
+  const envelope = (
+    query: MgmtGetRequest<unknown>['query'],
     total: number,
     item: (i: number) => unknown,
-  ): T => {
-    const query = request.query ?? {};
+  ) => {
     const pageSize = Math.min(
-      Number(query.page_size ?? BROKER_MAX_PAGE_SIZE),
+      Number(query?.page_size ?? BROKER_MAX_PAGE_SIZE),
       BROKER_MAX_PAGE_SIZE,
     );
-    const page = Number(query.page ?? 1);
+    const page = Number(query?.page ?? 1);
     const from = (page - 1) * pageSize;
     const items = Array.from(
       { length: Math.max(0, Math.min(pageSize, total - from)) },
       (_, i) => item(from + i),
     );
-    return request.schema.parse({
+    return {
       items,
       page,
       page_size: pageSize,
@@ -129,8 +177,108 @@ export function createScriptedBroker(
       total_count: total,
       filtered_count: total,
       item_count: items.length,
-    });
+    };
   };
+
+  const paged = <T>(
+    request: MgmtGetRequest<T>,
+    total: number,
+    item: (i: number) => unknown,
+  ): T => request.schema.parse(envelope(request.query, total, item));
+
+  /** Cuts a body into chunks; a spec's own chunks pass through as they are. */
+  async function* chunked(body: Uint8Array): AsyncGenerator<Uint8Array> {
+    const size = Math.max(1, options.bindingsChunkBytes ?? 4096);
+    for (let at = 0; at < body.length; at += size) {
+      yield await Promise.resolve(body.subarray(at, at + size));
+    }
+  }
+
+  /** The chunks of `body`, with what the reader did to them written into `record`. */
+  function recordStream(
+    request: RecordedRequest,
+    body: ScriptedBody,
+  ): AsyncIterable<Uint8Array> {
+    const source: AsyncIterable<Uint8Array> =
+      typeof body === 'string'
+        ? chunked(encoder.encode(body))
+        : body instanceof Uint8Array
+          ? chunked(body)
+          : body;
+    const record: RecordedStream = {
+      request,
+      bytesSent: 0,
+      ended: false,
+      cancelled: false,
+      open: true,
+    };
+    streams.push(record);
+    broker.maxOpenStreams = Math.max(
+      broker.maxOpenStreams,
+      streams.filter((s) => s.open).length,
+    );
+    const close = (): void => {
+      record.open = false;
+    };
+    return {
+      [Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
+        const iterator = source[Symbol.asyncIterator]();
+        return {
+          async next() {
+            try {
+              const step = await iterator.next();
+              if (step.done === true) {
+                record.ended = true;
+                close();
+              } else record.bytesSent += step.value.length;
+              return step;
+            } catch (error) {
+              record.cancelled = true;
+              close();
+              throw error;
+            }
+          },
+          return(value?: unknown) {
+            if (!record.ended) record.cancelled = true;
+            close();
+            return (
+              iterator.return?.(value) ??
+              Promise.resolve({ done: true as const, value: undefined })
+            );
+          },
+        };
+      },
+    };
+  }
+
+  /** What the broker would send for `/api/bindings/{vhost}`: a bare array, or one page of the envelope. */
+  function bindingsOf(
+    request: RecordedRequest,
+    vhost: string,
+    at: number,
+  ): ScriptedBody | undefined {
+    const binding = (j: number) => ({
+      source: `exchange-${String(j % 10)}`,
+      vhost,
+      destination: `queue-${String(j).padStart(6, '0')}`,
+      destination_type: 'queue',
+      routing_key: `rk-${String(j)}`,
+      properties_key: `rk-${String(j)}`,
+      arguments: {},
+    });
+    const scripted = broker.bindingsBody?.(request, requests.length);
+    if (scripted !== undefined) return scripted;
+    if (at < 0) return undefined;
+    // RabbitMQ ignores `page` here and sends every binding of the vhost as a bare array.
+    if (options.bindingsAnswer === 'bare') {
+      return JSON.stringify(
+        Array.from({ length: bindingCount(vhost) }, (_, j) => binding(j)),
+      );
+    }
+    return JSON.stringify(
+      envelope(request.query, bindingCount(vhost), binding),
+    );
+  }
 
   const broker: ScriptedBroker = {
     read: {
@@ -139,6 +287,7 @@ export function createScriptedBroker(
           path: request.path,
           query: request.query ?? {},
           lane: request.lane,
+          via: 'get' as const,
         };
         requests.push(recorded);
         const failure = broker.intercept?.(recorded, requests.length);
@@ -200,38 +349,32 @@ export function createScriptedBroker(
             })),
           );
         }
-        if (at >= 0 && kind === 'bindings') {
-          const binding = (j: number) => ({
-            source: `exchange-${String(j % 10)}`,
-            vhost,
-            destination: `queue-${String(j).padStart(6, '0')}`,
-            destination_type: 'queue',
-            routing_key: `rk-${String(j)}`,
-            properties_key: `rk-${String(j)}`,
-            arguments: {},
-          });
-          // RabbitMQ ignores `page` here and sends every binding of the vhost as a bare array.
-          if (options.bindingsAnswer === 'bare') {
-            return Promise.resolve(
-              request.schema.parse(
-                Array.from({ length: bindingCount(vhost) }, (_, j) =>
-                  binding(j),
-                ),
-              ),
-            );
-          }
-          return Promise.resolve(paged(request, bindingCount(vhost), binding));
-        }
-        return Promise.reject(
-          Object.assign(new Error('NOT_FOUND: HTTP 404'), {
-            code: 'NOT_FOUND',
-            broker: { protocol: 'http', code: 404 },
-          }),
-        );
+        return Promise.reject(notFound());
       },
-      stream: () => Promise.reject(new Error('the explorer never streams')),
+      stream(request: MgmtStreamRequest): Promise<AsyncIterable<Uint8Array>> {
+        const recorded = {
+          path: request.path,
+          query: request.query ?? {},
+          lane: request.lane,
+          via: 'stream' as const,
+        };
+        requests.push(recorded);
+        const failure = broker.intercept?.(recorded, requests.length);
+        if (failure) return Promise.reject(failure);
+        const [, , kind, rawVhost] = request.path.split('/');
+        if (kind !== 'bindings' || rawVhost === undefined) {
+          return Promise.reject(new Error('the explorer never streams'));
+        }
+        const vhost = decodeURIComponent(rawVhost);
+        const body = bindingsOf(recorded, vhost, vhosts.indexOf(vhost));
+        return body === undefined
+          ? Promise.reject(notFound())
+          : Promise.resolve(recordStream(recorded, body));
+      },
     },
     requests,
+    streams,
+    maxOpenStreams: 0,
     vhosts,
     queueCount,
     connectionCount,
@@ -320,6 +463,7 @@ export function createExplorerFakeDeps(
     connectionCount?: number;
     bindingsPerVhost?: number | Readonly<Record<string, number>>;
     bindingsAnswer?: 'paged' | 'bare';
+    bindingsChunkBytes?: number;
     /** The connection has a cached profile, as after a probe (default true). */
     seeded?: boolean;
     profile?: Partial<BrokerProfile>;
@@ -352,7 +496,7 @@ export function createExplorerFakeDeps(
     timers,
     ...limits,
     sweeper: createSweeper({ mgmt, clock, timers, ...limits }),
-    bindings: createBindingsStore({ mgmt, clock, ...limits }),
+    bindings: createBindingsStore({ mgmt, clock, timers, ...limits }),
     profiles: {
       get: (id) =>
         Promise.resolve(

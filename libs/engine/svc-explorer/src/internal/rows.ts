@@ -91,31 +91,24 @@ const page = <T extends z.ZodType>(item: T) =>
   });
 
 /**
- * One answer of `/api/bindings/{vhost}`, whoever sent it. RabbitMQ 3.13 to 4.3 ignores `page` on this
- * endpoint and answers a bare array with every binding of the vhost (recorded on all five versions,
- * OQ-433); LavinMQ answers the paged envelope. A bare array has no item limit here: the broker already
- * sent all of it, so the cap can only be applied after the answer (OQ-688).
+ * One answer of `/api/bindings/{vhost}` is a bare array of bindings (RabbitMQ 3.13 to 4.3 ignores
+ * `page` on this endpoint and sends every binding of the vhost, recorded on all five versions,
+ * OQ-433) or the paged envelope (LavinMQ). The bindings store reads the array item by item, with
+ * `BindingItemSchema` for each, and the envelope whole, with `BindingEnvelopeSchema` (M0-48l).
  */
-const bindingAnswer = z.union([
-  page(MgmtBindingSchema).transform((body) => ({
+export const BindingItemSchema = MgmtBindingSchema;
+export const BindingEnvelopeSchema = page(MgmtBindingSchema).transform(
+  (body) => ({
     items: body.items,
     pageCount: body.page_count,
     total: body.total_count,
-    paged: true,
-  })),
-  z.array(MgmtBindingSchema).transform((items) => ({
-    items,
-    pageCount: 1,
-    total: items.length,
-    paged: false,
-  })),
-]);
+  }),
+);
 
 // One schema object per kind: the scheduler dedupes reads by the identity of the schema.
 export const QueuePageSchema = page(MgmtQueueSchema);
 export const ExchangePageSchema = page(MgmtExchangeSchema);
 export const ConnectionPageSchema = page(MgmtConnectionSchema);
-export const BindingPageSchema = bindingAnswer;
 export const VhostListSchema = z.array(z.object({ name: z.string() }));
 
 /** Drops the members the broker left out (undefined or null). */

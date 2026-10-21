@@ -106,6 +106,7 @@ export const createInventoryQueryAction: (
             profileHazards: profile.hazards,
             versionChanged: read.versionChanged,
             unpaged: read.unpaged,
+            droppedIsMinimum: !read.countExact,
           }),
         };
       }

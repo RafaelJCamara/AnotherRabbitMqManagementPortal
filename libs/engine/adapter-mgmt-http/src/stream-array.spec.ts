@@ -5,7 +5,7 @@
 // What this file proves that the unit tests of the reader and of the bindings store cannot: that the
 // bytes of a 32 MB answer go through `read.stream` and `@app/json-stream` item by item where `read.get`
 // stops at its 16 MiB limit (AC-13), that a reader that stops early closes the socket and leaves the
-// pool usable (AC-14), and that reading the body does not hold the event loop (AC-15, I-5).
+// pool usable (AC-14), and that the reader gives the event loop a turn at the sizes AC-7 of the reader sets (AC-15, I-5; counted per turn, not timed, OQ-775).
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { createServer, type Server, type ServerResponse } from 'node:http';
@@ -173,6 +173,85 @@ async function readStream(
 /** How often the loop-delay sampler wakes: an idle loop then reads about this on Linux. */
 const RESOLUTION_MS = 1;
 
+/** The defaults of `openJson`: bytes scanned and items delivered between two turns of the loop. */
+const YIELD_EVERY_BYTES = 262_144;
+const YIELD_EVERY_ITEMS = 5_000;
+
+/** What the reader did between two turns of the event loop. */
+interface Turn {
+  readonly ms: number;
+  readonly bytes: number;
+  readonly items: number;
+}
+
+interface TurnProbe {
+  /** Bytes pulled from the socket by the reader, counted in the turn they were pulled. */
+  readonly bytes: (n: number) => void;
+  /** One item delivered to the caller. */
+  readonly item: () => void;
+  /** Stops the probe; the turns in which the reader pulled bytes or delivered items. */
+  readonly stop: () => readonly Turn[];
+}
+
+/**
+ * Counts the turns of the event loop with a `setImmediate` chain (one tick per loop iteration, so
+ * a turn is a turn whatever the OS does with the process) and books the reader's work to the turn
+ * it ran in. Only the work is a figure here; the milliseconds are the wall time of that turn.
+ */
+function probeTurns(): TurnProbe {
+  const worked: Turn[] = [];
+  let bytes = 0;
+  let items = 0;
+  let last = performance.now();
+  let running = true;
+  const tick = (): void => {
+    if (!running) return;
+    const now = performance.now();
+    if (bytes > 0 || items > 0) worked.push({ ms: now - last, bytes, items });
+    bytes = 0;
+    items = 0;
+    last = now;
+    setImmediate(tick);
+  };
+  setImmediate(tick);
+  return {
+    bytes: (n) => {
+      bytes += n;
+    },
+    item: () => {
+      items++;
+    },
+    stop: () => {
+      running = false;
+      // The turn running when the read ended is a turn too: a reader that never yields has only this one.
+      if (bytes > 0 || items > 0)
+        worked.push({ ms: performance.now() - last, bytes, items });
+      return worked;
+    },
+  };
+}
+
+/** Chunks that are ready at once: every `next()` settles without the loop turning. */
+async function* replay(
+  chunks: readonly Uint8Array[],
+): AsyncGenerator<Uint8Array, void, undefined> {
+  for (const chunk of chunks) {
+    await Promise.resolve(); // a microtask: the loop does not turn
+    yield chunk;
+  }
+}
+
+/** The body of a read, each chunk booked to the probe as the reader pulls it. */
+async function* counted(
+  body: AsyncIterable<Uint8Array>,
+  probe: TurnProbe,
+): AsyncGenerator<Uint8Array, void, undefined> {
+  for await (const chunk of body) {
+    probe.bytes(chunk.length);
+    yield chunk;
+  }
+}
+
 /** Runs `work` with the event-loop delay sampled; the p99 and the maximum are in milliseconds. */
 async function measureLoop(
   work: () => Promise<unknown>,
@@ -311,44 +390,67 @@ describe('mgmt stream wire proof (150,000 bindings, about 32 MB)', () => {
     async () => {
       const { h } = await setup();
       const idle = await measureLoop(() => sleep(500));
+      // The body of the real read, taken whole first (about 31 MiB in memory in this test only): the
+      // reader is then handed a source that is always ready, as a fast broker or a full socket buffer
+      // would, so nothing but its own yield can give the loop a turn. A reader paced by the socket
+      // would let the loop run between two chunks whether it yields or not.
+      const chunks: Uint8Array[] = [];
       let transferred = 0;
-      // The same transfer without the reader: what the server and the socket alone do to the loop.
-      const transfer = await measureLoop(async () => {
-        const body = await h.client.read.stream(bindingsRequest, h.signal);
-        for await (const chunk of body) transferred += chunk.length;
-      });
+      const body = await h.client.read.stream(bindingsRequest, h.signal);
+      for await (const chunk of body) {
+        chunks.push(chunk);
+        transferred += chunk.length;
+      }
+      const maxChunk = Math.max(...chunks.map((c) => c.length));
+
+      const probe = probeTurns();
       let count = 0;
       let end: ArrayEnd | undefined;
-      const heapBefore = process.memoryUsage().heapUsed;
-      let heapPeak = heapBefore;
-      const sampler = setInterval(() => {
-        heapPeak = Math.max(heapPeak, process.memoryUsage().heapUsed);
-      }, 20);
       const reader = await measureLoop(async () => {
-        end = await readStream(h, { maxItems: 200_000, ...LIMITS }, () => {
+        const json = await openJson(counted(replay(chunks), probe));
+        const items = json.array({ maxItems: 200_000, ...LIMITS });
+        for (;;) {
+          const step = await items.next();
+          if (step.done === true) {
+            end = step.value;
+            return;
+          }
+          probe.item();
           count++;
-        });
+        }
       });
-      clearInterval(sampler);
-      // `monitorEventLoopDelay` reports the whole interval between two ticks of its timer, so an idle
-      // loop reads about the resolution on Linux and about 16 ms on Windows (a 15.6 ms timer tick),
-      // and a busy machine adds to every figure. The limit is therefore on what the reader adds: the
-      // p99 above the floor of the platform and above the p99 of the transfer alone (OQ-724, OQ-731).
-      // On a quiet Linux runner both are about 1 ms and this is the 20 ms limit of I-5 as written.
-      const floor = Math.max(idle.p99Ms - RESOLUTION_MS, transfer.p99Ms);
-      const added = Math.max(0, reader.p99Ms - floor);
+      const turns = probe.stop();
+
+      // What is asserted does not depend on how busy the machine is. (1) Work per turn is counted: the
+      // bytes the reader pulled and the items it delivered between two turns of the loop, which the
+      // OS cannot stretch. (2) The cheapest of the turns that did a full share of bytes is a time
+      // that preemption can only lengthen, so a turn of the reader costs at best this much.
+      const mostBytes = Math.max(...turns.map((t) => t.bytes));
+      const mostItems = Math.max(...turns.map((t) => t.items));
+      const full = turns.filter((t) => t.bytes >= 0.9 * YIELD_EVERY_BYTES);
+      const fullTurnMs = Math.min(...full.map((t) => t.ms));
+      const worstTurnMs = Math.max(...turns.map((t) => t.ms));
+      // `monitorEventLoopDelay` is a measurement here, printed and not asserted: it reports the whole
+      // interval between two ticks, so it reads the OS scheduler (OQ-720, OQ-731, OQ-775).
       process.stdout.write(
-        `AC-15 read of ${String(end?.items)} bindings (${((end?.bytes ?? 0) / MIB).toFixed(1)} MiB) took ${reader.tookMs.toFixed(0)} ms ` +
-          `(${transfer.tookMs.toFixed(0)} ms without the reader); event-loop delay p99: idle ${idle.p99Ms.toFixed(1)} ms, ` +
-          `transfer alone ${transfer.p99Ms.toFixed(1)} ms, with the reader ${reader.p99Ms.toFixed(1)} ms ` +
-          `(${added.toFixed(1)} ms added), max ${reader.maxMs.toFixed(1)} ms; ` +
-          `heap peak grew ${((heapPeak - heapBefore) / MIB).toFixed(1)} MiB (sampled every 20 ms, not asserted)\n`,
+        `AC-15 read of ${String(end?.items)} bindings (${((end?.bytes ?? 0) / MIB).toFixed(1)} MiB, ${String(chunks.length)} chunks) ` +
+          `took ${reader.tookMs.toFixed(0)} ms in ${String(turns.length)} turns of the loop; at most ${String(mostBytes)} bytes and ` +
+          `${String(mostItems)} items per turn, a turn of 90% of the byte share or more took ${fullTurnMs.toFixed(1)} ms at best ` +
+          `and ${worstTurnMs.toFixed(1)} ms at worst; event-loop delay p99 (not asserted): idle ${idle.p99Ms.toFixed(1)} ms, ` +
+          `with the reader ${reader.p99Ms.toFixed(1)} ms, max ${reader.maxMs.toFixed(1)} ms\n`,
       );
 
       expect(end?.kind).toBe('complete');
       expect(count).toBe(ITEMS);
-      expect(transferred).toBe(end?.bytes);
-      expect(added).toBeLessThanOrEqual(20);
+      expect(end?.bytes).toBe(transferred);
+      // Without the yield the reader takes every chunk in one turn: 31 MiB and 150,000 items.
+      expect(turns.length).toBeGreaterThan(
+        transferred / (YIELD_EVERY_BYTES + maxChunk),
+      );
+      expect(mostBytes).toBeLessThan(YIELD_EVERY_BYTES + maxChunk);
+      expect(mostItems).toBeLessThanOrEqual(YIELD_EVERY_ITEMS);
+      expect(full.length).toBeGreaterThan(0);
+      expect(fullTurnMs).toBeLessThanOrEqual(20);
     },
   );
 });

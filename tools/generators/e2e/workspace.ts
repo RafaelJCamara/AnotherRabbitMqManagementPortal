@@ -50,6 +50,8 @@ const FULL_COPIED = [
   'libs/shared',
   'libs/testkit',
   'testing/broker-lab',
+  // The golden recordings the explorer replay (testkit, M0-48 AC-22) reads.
+  'testing/fixtures',
   'tools/arch-tests',
   'tools/api-docs',
   'docs/api',

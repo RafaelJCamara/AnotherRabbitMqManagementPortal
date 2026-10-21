@@ -4,7 +4,7 @@ Windowed inventory, overview and the explorer.window topic, served from an engin
 
 Tags: `type:service`, `runtime:node`, `trust:critical`.
 
-Status: work package M0-48 ([spec](../../../docs/specs/M0-48.md)), slices A to E, G, H and I of nine. Slice A shipped the module skeleton, the shared contract types, the `inventory.query` contract, the ports and their fakes. Slice B shipped the bounded index and the sweeper. Slice C makes `inventory.query` real: it reads windows from the index. Slice D ships `overview.get`. Slice E ships the `explorer.window` topic source. Slice G ships `search.query`. Slice H ships the `bindings` kind. Slice I ships the `connections` kind. The sweep cadence and the idle stop (AC-5) are in the sweeper. The module is not yet registered in `coreModules`, and its topic source is not yet registered with the hub (OQ-669).
+Status: work package M0-48 ([spec](../../../docs/specs/M0-48.md)), slices A to E, F, G, H and I of nine. Slice F ships no engine code: the golden replay, the lab run and the perf harness described under "Proof of scale" below. Slice A shipped the module skeleton, the shared contract types, the `inventory.query` contract, the ports and their fakes. Slice B shipped the bounded index and the sweeper. Slice C makes `inventory.query` real: it reads windows from the index. Slice D ships `overview.get`. Slice E ships the `explorer.window` topic source. Slice G ships `search.query`. Slice H ships the `bindings` kind. Slice I ships the `connections` kind. The sweep cadence and the idle stop (AC-5) are in the sweeper. The module is not yet registered in `coreModules`, and its topic source is not yet registered with the hub (OQ-669).
 
 ## Public API
 
@@ -30,6 +30,14 @@ Status: work package M0-48 ([spec](../../../docs/specs/M0-48.md)), slices A to E
 - `bindings.ts` (slice H): `createBindingsStore`, the per-connection resident LRU of vhosts with its bounds, counts and single-flight reads; see `kind: 'bindings'` of `inventory.query` above.
 - `rows.ts`: the service's own zod schemas for the part of each management answer it reads, and the mapping to rows; a field the broker left out or sent as null is absent from the row.
 
+## Proof of scale (slice F)
+
+- `createSweeper` and the `Sweeper` and `SweepOutcome` types are exported from the package index for the lab run (`libs/testkit/src/it/svc-explorer.it.ts`), which needs the sweeper on the real clock and the outcome of a sweep. The module owns its own sweeper; nothing else should create one.
+- AC-22, `libs/testkit/src/golden/explorer-replay.spec.ts`: the sweeper over the golden recordings (RabbitMQ 3.13.7, 4.0.9, 4.1.8, 4.2.9, 4.3.6 with statistics on and off, LavinMQ 2.10.2), served by a local HTTP server and read by the real management adapter behind a real `BrokerScheduler`. It checks what is sent on the wire: `page`, a `page_size` of at most 500, `disable_stats` and `enable_queue_totals` on RabbitMQ lists, neither flag on LavinMQ, and no request other than the vhost list, a queue and an exchange list per vhost and one connection list. No Docker.
+- AC-23, `libs/testkit/src/it/svc-explorer.it.ts` (`pnpm nx run svc-explorer:it '--versions=4.2.9,4.3.6'`, needs a Docker daemon): a lab broker seeded with 20,000 queues (`IT_QUEUES=100000` for 100,000) by `src/it/seed-queues.ts` (a definitions import), swept through the adapter and the scheduler with a recording proxy in front of the broker. It asserts paging and flags as the broker received them, that the index count equals `object_totals.queues`, that windows make no request and have a p95 of at most 100 ms, and that a pinned scroll sees every queue once. It prints the figures S-13 records (`src/it/s13-alternatives.ts` adds the other ways of listing, measured and not asserted).
+- AC-24, `apps/perf/src/explorer-20k/explorer-20k.perf.ts` (`pnpm nx run perf:explorer-20k`, node only, synthetic broker): window p95 and event-loop delay p99 while sweeps keep installing versions; asserted at 20,000 queues, printed at 100,000. It also prints the `search.query` p95 at 20,000 and 100,000 names.
+- The record is [S-13](../../../docs/architecture/s-13-mgmt-api-cost-100k.md) and the addendum to ADR-024.
+
 ## Invariants
 
 - Never imports another service or an adapter; cross-service needs are ports wired in the composition root (blueprint 2.2).
@@ -43,4 +51,7 @@ Status: work package M0-48 ([spec](../../../docs/specs/M0-48.md)), slices A to E
 pnpm nx run-many -t lint typecheck test -p svc-explorer contracts testkit arch-tests
 pnpm nx test svc-explorer --testNamePattern=explorer
 pnpm nx run contracts:api-docs-check
+pnpm nx test testkit --testNamePattern=AC-22
+pnpm nx run perf:explorer-20k
+pnpm nx run svc-explorer:it '--versions=4.2.9,4.3.6'   # needs a Docker daemon
 ```

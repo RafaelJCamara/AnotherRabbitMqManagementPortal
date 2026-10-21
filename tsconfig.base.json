@@ -38,6 +38,7 @@
       "@app/net-truststore/testing": [
         "./libs/engine/net-truststore/src/testing/index.ts"
       ],
+      "@app/perf": ["./apps/perf/src/index.ts"],
       "@app/persistence": ["./libs/engine/persistence/src/index.ts"],
       "@app/ports": ["./libs/engine/ports/src/index.ts"],
       "@app/ports/testing": ["./libs/engine/ports/src/testing/index.ts"],

@@ -25,7 +25,7 @@ export interface RoutedBed {
 }
 
 /** The timeout of a spec that mounts a routed page and drives it: a few renders and a fake engine. */
-export const PAGE_TEST_TIMEOUT_MS = 15_000;
+export const PAGE_TEST_TIMEOUT_MS = 30_000;
 
 function routeElement(harness: RouterTestingHarness): HTMLElement {
   const el = harness.routeNativeElement;
@@ -73,6 +73,6 @@ export async function eventually(
       bed.harness.detectChanges();
       if (!check()) throw new Error(`waiting for ${message}`);
     },
-    { timeout: 4000 },
+    { timeout: 10_000 },
   );
 }

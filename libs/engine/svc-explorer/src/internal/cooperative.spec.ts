@@ -53,10 +53,15 @@ describe('explorer cooperative work', () => {
     );
     expect(longer).toBe(20);
     let none = 0;
-    await forEachCooperative([1, 2, 3], () => undefined, 3, () => {
-      none++;
-      return Promise.resolve();
-    });
+    await forEachCooperative(
+      [1, 2, 3],
+      () => undefined,
+      3,
+      () => {
+        none++;
+        return Promise.resolve();
+      },
+    );
     expect(none).toBe(0);
     // A throw ends the walk where it happens.
     let visited = 0;
@@ -93,11 +98,18 @@ describe('explorer cooperative work', () => {
         Promise.resolve(),
       );
 
-      expect(got, `${String(count)} items every ${String(every)}`).toEqual(want);
+      expect(got, `${String(count)} items every ${String(every)}`).toEqual(
+        want,
+      );
     }
     // The input is not touched.
     const input = [3, 1, 2];
-    await sortCooperative(input, (a, b) => a - b, 1, () => Promise.resolve());
+    await sortCooperative(
+      input,
+      (a, b) => a - b,
+      1,
+      () => Promise.resolve(),
+    );
     expect(input).toEqual([3, 1, 2]);
   });
 

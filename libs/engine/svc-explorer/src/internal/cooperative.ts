@@ -43,8 +43,7 @@ async function merge<T>(
     const left = a[i];
     const right = b[j];
     const takeRight =
-      i >= a.length ||
-      (j < b.length && compare(right as T, left as T) < 0);
+      i >= a.length || (j < b.length && compare(right as T, left as T) < 0);
     out.push(takeRight ? (right as T) : (left as T));
     if (takeRight) j += 1;
     else i += 1;

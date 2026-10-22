@@ -319,7 +319,8 @@ export function createInventoryIndex(
     for (const kind of KINDS) {
       const now = current.kinds[kind];
       const before = previous?.kinds[kind];
-      if (now?.byKey !== undefined) bytes += now.rows.length * BYKEY_ENTRY_BYTES;
+      if (now?.byKey !== undefined)
+        bytes += now.rows.length * BYKEY_ENTRY_BYTES;
       if (before !== undefined && before !== now) {
         bytes += before.bytes + (before.foldedBytes ?? 0);
         if (before.byKey !== undefined) {

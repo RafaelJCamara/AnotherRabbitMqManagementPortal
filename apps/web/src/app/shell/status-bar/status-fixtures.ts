@@ -9,6 +9,7 @@ import { jsonResponse, problemResponse } from '@app/ui-platform/testing';
 import { LayoutBackend, problem } from '../layout/layout-fixtures';
 
 const CONNECTION_URL = /^\/api\/v1\/connections\/([^/]+)$/;
+const ARM_URL = /^\/api\/v1\/connections\/([^/]+)\/(arm|disarm)$/;
 const PROFILE_URL = /^\/api\/v1\/connections\/([^/]+)\/profile$/;
 
 /** A `connections.get` answer body (secrets are only reported as set or not). */
@@ -134,6 +135,12 @@ export class StatusBackend extends LayoutBackend {
   /** `profile.get` bodies; a missing entry answers 404, a `null` profile is `{ profile: null }`. */
   readonly profiles = new Map<string, unknown>();
   readonly profileRequests: string[] = [];
+  /** The arm and disarm calls, as rm c1. */
+  readonly armRequests: string[] = [];
+  /** The length of the window ops.arm answers with. */
+  armWindowMs = 15 * 60_000;
+  /** How many times the list of connections was read. */
+  listRequests = 0;
   #held: Promise<void> | null = null;
   #release: (() => void) | null = null;
 
@@ -160,6 +167,35 @@ export class StatusBackend extends LayoutBackend {
         : problemResponse(
             problem(500, 'INTERNAL', { title: 'Profile failed' }),
           );
+    }
+    // connections.list: the switcher reads the profiles the spec put in connections.
+    if (
+      request.method === 'GET' &&
+      request.url.split('?')[0] === '/api/v1/connections'
+    ) {
+      this.listRequests += 1;
+      return jsonResponse(200, {
+        items: [...this.connections.values()].map(
+          (body) => (body as { profile: unknown }).profile,
+        ),
+      });
+    }
+    // ops.arm and ops.disarm: the engine's answers, with a window the spec can choose.
+    const arm = ARM_URL.exec(request.url);
+    if (arm?.[1] !== undefined && request.method === 'POST') {
+      this.armRequests.push(`${arm[2] ?? ''} ${arm[1]}`);
+      return arm[2] === 'arm'
+        ? jsonResponse(200, {
+            armed: true,
+            connectionId: arm[1],
+            armedAt: 5_000,
+            expiresAt: 5_000 + this.armWindowMs,
+          })
+        : jsonResponse(200, {
+            armed: false,
+            connectionId: arm[1],
+            wasArmed: true,
+          });
     }
     const connection = CONNECTION_URL.exec(request.url)?.[1];
     if (connection !== undefined && request.method === 'GET') {

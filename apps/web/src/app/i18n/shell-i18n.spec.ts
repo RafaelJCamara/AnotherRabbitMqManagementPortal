@@ -206,6 +206,17 @@ describe('shell i18n', () => {
       takeShell(bed);
     }
 
+    // The switcher: choosing another connection from an address that is not a page leaves its notice behind.
+    await visit(bed, '/c/c1/nope');
+    const select = routed(bed).querySelector<HTMLSelectElement>(
+      '#connection-switcher',
+    );
+    if (select === null) throw new Error('the switcher is not there');
+    select.value = 'c2';
+    select.dispatchEvent(new Event('change'));
+    await settleShell(bed);
+    takeShell(bed);
+
     // The status bar while the profile is on its way, and for each lock and health state.
     backend.hold();
     await bed.harness.navigateByUrl('/c/c7/explorer');

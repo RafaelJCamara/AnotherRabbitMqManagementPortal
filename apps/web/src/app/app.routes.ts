@@ -25,4 +25,21 @@ const devRoutes: Route[] =
       ]
     : [];
 
-export const appRoutes: Route[] = [...devRoutes, shellRoute, noConnectionRoute];
+/**
+ * The connections pages (M0-52): the list, the create form, one connection and its edit form. They are outside
+ * c/:cid, which needs a connection. The library is lazy and loads when the address is first visited.
+ */
+const connectionsRoute: Route = {
+  path: 'connections',
+  loadChildren: () =>
+    import('@app/feature-connections').then(
+      (module) => module.connectionsRoutes,
+    ),
+};
+
+export const appRoutes: Route[] = [
+  ...devRoutes,
+  connectionsRoute,
+  shellRoute,
+  noConnectionRoute,
+];

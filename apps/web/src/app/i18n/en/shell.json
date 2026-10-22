@@ -73,5 +73,12 @@
     "loadTitle": "The saved layout could not be loaded.",
     "unreachable": "The engine did not answer.",
     "retry": "Retry saving"
+  },
+  "switcher": {
+    "label": "Connection",
+    "manage": "Manage connections",
+    "failed": "The connections could not be read.",
+    "missing": "{{address}} does not exist on {{name}}. The explorer of {{name}} is shown instead.",
+    "dismiss": "Dismiss"
   }
 }

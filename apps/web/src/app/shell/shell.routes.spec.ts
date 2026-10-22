@@ -56,12 +56,13 @@ describe('shell routes', () => {
     await visit(bed, '/somewhere/else');
     expect(routed(bed).tagName.toLowerCase()).toBe('app-no-connection');
     expect(TestBed.inject(ActiveConnection).cid()).toBeNull();
-    // The only requests are the ones for the one connection that was shown.
+    // The only requests are the ones for the one connection that was shown, and the switcher's one list.
     expect(bed.engine.requests.map((request) => request.url).sort()).toEqual([
       '/api/v1/connections/c2',
       '/api/v1/connections/c2/layout',
       '/api/v1/connections/c2/overview', // the explorer's overview page
       '/api/v1/connections/c2/profile',
+      '/api/v1/connections?limit=100', // the connection switcher
     ]);
   });
 

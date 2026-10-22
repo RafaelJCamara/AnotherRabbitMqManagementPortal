@@ -17,6 +17,7 @@ import {
 } from '../i18n/i18n.config';
 import { markerLoaders } from '../i18n/test-fixtures';
 import type { Viewport } from './layout/fit-layout';
+import { provideLockState } from './status-bar/lock-state';
 import {
   LayoutBackend,
   ManualTimer,
@@ -47,6 +48,7 @@ export async function mountShell(
       ...layoutProviders(layouts, timer, viewport),
       { provide: SCOPE_LOADERS, useValue: loaders },
       provideExplorerKindsSource(),
+      provideLockState(),
       // The explorer's own words are the feature's concern: here they are the keys it asked for.
       { provide: EXPLORER_SCOPE_LOADER, useValue: markedExplorerScope },
       ...extra,

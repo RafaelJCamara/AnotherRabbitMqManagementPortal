@@ -172,6 +172,11 @@ describe('the explorer under the shell', () => {
     expect(host.querySelector('main app-no-connection')).not.toBeNull();
     expect(host.querySelector('app-inventory-page, app-overview')).toBeNull();
     expect(backend.inventory).toEqual([]);
-    expect(bed.engine.requests.length).toBe(before);
+    // The shell's switcher reads the list of connections; nothing names the connection that is not an id.
+    expect(
+      bed.engine.requests.filter(
+        (request) => request.url !== '/api/v1/connections?limit=100',
+      ).length,
+    ).toBe(before);
   });
 });

@@ -19,7 +19,8 @@
   },
   "noConnection": {
     "title": "No connection selected",
-    "hint": "Choose a connection to start. Nothing has been requested from the engine."
+    "hint": "Choose a connection to start. Nothing has been requested from the engine.",
+    "manage": "Add or choose a connection"
   },
   "skew": {
     "message": "A newer version of the app is available.",

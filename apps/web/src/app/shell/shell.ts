@@ -15,6 +15,7 @@ import { map } from 'rxjs';
 import { ActiveConnection, parseConnectionParam } from './active-connection';
 import { ActivityBar, ACTIVITY_ENTRIES } from './activity-bar/activity-bar';
 import { BottomPanel } from './bottom-panel/bottom-panel';
+import { ConnectionSwitcher } from './connection-switcher/connection-switcher';
 import { ExplorerTree } from './explorer-tree/explorer-tree';
 import { FIT, panelBounds, sidebarBounds } from './layout/fit-layout';
 import { setPanelHeight, setSidebarWidth } from './layout/layout-ops';
@@ -41,6 +42,7 @@ import { NoConnection } from './views/no-connection';
   imports: [
     ActivityBar,
     BottomPanel,
+    ConnectionSwitcher,
     EditorGroups,
     ExplorerTree,
     LayoutNotices,

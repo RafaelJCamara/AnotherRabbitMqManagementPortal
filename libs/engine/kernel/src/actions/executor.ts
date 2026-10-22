@@ -46,6 +46,7 @@ import {
   type ReceiptSink,
 } from './hooks.ts';
 import { isImplementedAction, isMutatingAction } from './implement-action.ts';
+import { declaresLocalScope, namesATarget } from './local-scope.ts';
 import {
   createIdempotencyGuard,
   type IdempotencyGuard,
@@ -328,14 +329,23 @@ export function createActionExecutor(
   }
 
   function targetOf(def: ActionDef, input: unknown): TargetRef {
+    let target: TargetRef;
     try {
-      return def.target(input);
+      target = def.target(input);
     } catch (cause) {
       throw new AppError('INTERNAL', {
         detail: 'The action could not name its target.',
         cause,
       });
     }
+    // `scope: 'local'` promises that no broker is involved. A call that names a target breaks the
+    // promise, so it is refused before anything else looks at it (fail closed, never run).
+    if (declaresLocalScope(def) && namesATarget(target)) {
+      throw new AppError('INTERNAL', {
+        detail: `The action ${def.id} declares scope 'local' but named a target; it was not run.`,
+      });
+    }
+    return target;
   }
 
   function riskOf(def: ActionDef, input: unknown, env: EnvClass): Risk {

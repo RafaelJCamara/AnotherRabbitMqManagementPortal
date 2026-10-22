@@ -75,25 +75,40 @@ Registered and answering on a running engine (`Engine.served` lists them; the en
 | Area | Actions and topics | Notes |
 | --- | --- | --- |
 | Meta, arming, diagnostics | `meta.get`, `ops.arm`, `ops.disarm`, `diagnostics.bundle` | |
-| Connections | `connections.list`, `connections.get`, `connections.update`, `connections.delete`, `connections.test-http`, `connections.test-amqp`, `bundles.export` | See the limitation below: nothing can be created, so the list is empty. |
+| Connections | `connections.create`, `bundles.import`, `connections.list`, `connections.get`, `connections.update`, `connections.delete`, `connections.test-http`, `connections.test-amqp`, `bundles.export` | A connection is added with `connections.create` (next section); the page has no form for it yet. `update` and `delete` name a connection, so on a production-classed one they need it armed (see below). |
 | Capabilities | `probe.run`, `profile.get` | Read the broker through the management API, build and cache a BrokerProfile in the engine's own database. |
 | Explorer | `inventory.query` (queues, exchanges, connections, bindings), `overview.get`, `search.query`, live topic `explorer.window` | Windows are read from an engine-resident index that sweeps in the background and stops when nobody asks; reads only, no message is read. |
-| Workspace | `views.list`, `settings.get`, `keybindings.get`, `layouts.get` | Reads. |
+| Workspace | `views.list`, `views.create`, `views.delete`, `settings.get`, `settings.put`, `keybindings.get`, `keybindings.put`, `layouts.get`, `layouts.put` | The writes except `layouts.put` run with nothing armed (they declare scope `local`). `layouts.put` names the connection, so on a production-classed one it is refused until the connection is armed. |
 
 Every management request goes through the BrokerScheduler (a per-broker load budget; interactive work pre-empts background sweeps), every socket through the Dialer and the TrustStore, and a stored login is opened for one request and kept in no log or error.
 
+## Add a connection
+
+`connections.create` saves a connection profile in the engine's own database; it needs no arming, because it changes only the engine's state and never a broker (OQ-783). The password is sealed at once and is never returned or logged. Using the token from the URL:
+
+```sh
+TOKEN=<the token from the URL>
+curl -s -X POST http://127.0.0.1:4310/api/v1/connections \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H "Idempotency-Key: $(date +%s)-lab" \
+  -d '{"name":"Lab","envClass":"dev","http":{"host":"127.0.0.1","port":15672,"auth":{"kind":"basic","username":"guest","password":"guest"}},"amqp":{"host":"127.0.0.1","port":5672,"auth":{"kind":"plain","username":"guest","password":"guest"}}}'
+```
+
+PowerShell users send the same URL, headers and body with `Invoke-RestMethod`. The answer holds the profile with its `id`; open `/c/<id>/explorer` in the served page, or run `connections.test-http` and `connections.test-amqp` with `{"cid":"<id>"}` to check it. A pasted `amqp://` or `amqps://` URI in the `uri` field works too. Environment class `prod` is allowed: it only makes changes that name that connection need arming.
+
 ## The explorer in the served page (M0-54)
 
-After `pnpm nx run engine:serve`, open the printed URL. The left tree lists the overview and the four kinds (queues, exchanges, connections, bindings) of a connection; the same pages are at `/c/<connection id>/explorer`, `/c/<id>/explorer/queues`, `.../exchanges`, `.../connections` and `.../bindings?vhost=%2F`. Each reads through `overview.get`, `profile.get`, `inventory.query` and the `explorer.window` topic. Two limits apply until the maintainer rules on them (below): with no connection in the store the pages show the engine's answer for an unknown connection instead of rows, and the saved-views commands are refused by the prod lock. What the pages do with rows (windows, filters, sorts, freshness, the capability card) is proved in component specs against fakes and against the real router, not in a browser run.
+After `pnpm nx run engine:serve`, open the printed URL. The left tree lists the overview and the four kinds (queues, exchanges, connections, bindings) of a connection; the same pages are at `/c/<connection id>/explorer`, `/c/<id>/explorer/queues`, `.../exchanges`, `.../connections` and `.../bindings?vhost=%2F`. Each reads through `overview.get`, `profile.get`, `inventory.query` and the `explorer.window` topic. With no connection in the store the pages show the engine's answer for an unknown connection instead of rows, so add one first (next section). Saved views are saved and deleted by the engine without arming anything (they declare scope `local`). What the pages do with rows (windows, filters, sorts, freshness, the capability card) is proved in component specs against fakes and against the real router, not in a browser run.
 
 ## What does not work, and why
 
-1. **No connection can be created on a running engine (known, left for the maintainer).** `connections.create` and `bundles.import` are commands that name no connection, so the router (which sends no environment class, OQ-283) treats them as production and the prod lock refuses them until a connection is armed, and there is nothing to arm. The same holds for `views.create`, `views.delete`, `settings.put` and `keybindings.put` (OQ-380) and, until the connection is armed, `layouts.put` (OQ-529). Each answers **422 `GATE_BLOCKED`** with `prod-lock`. The engine test `AC-5` pins this refusal. The guardrails are not changed by this build; the options are in OQ-380 and OQ-770. Until the maintainer rules, `probe.run`, `inventory.query` and the rest are reachable by the engine's tests (which seed a connection straight into the store) and not through the UI.
-2. **The served page and the engine are not yet a usable product.** The shell and the explorer grids are built, but with no connection to open (item 1) the explorer shows its empty state. The Content-Security-Policy nonce of the served page (issue #277) has landed, so the page is styled under the real policy.
-3. **Nothing that writes to a broker or reads a message is served.** Peek, publish, source, replay and the broker write ports are not wired (`CAPABILITY_MISSING`, `apps/engine/src/unwired-writes.ts`).
-4. **Plans carry no BrokerProfile fingerprint or gates yet:** the executor's `ProfileResolver` is not wired (OQ-764). No served action needs one today.
-5. **The diagnostics bundle holds no broker profile** (OQ-765).
-6. A broker that answers 401 makes `probe.run` answer 401 `UNAUTHENTICATED` with the broker's reason; this is the action's current mapping and is easy to mistake for the launch token being refused (OQ-768).
+1. **The page has no form to add a connection yet** (the connections feature, M0-52, is not built). You add one through the engine's API, which is what that form will call (next section).
+2. **Anything that names a connection is still locked on a production-classed one.** The router sends no environment class (OQ-283), so every connection counts as production, and `connections.update`, `connections.delete` and `layouts.put` answer **422 `GATE_BLOCKED`** (`prod-lock`, with the fix `ops.arm`) until the person arms that connection (`ops.arm`, 15 minutes). Only an action whose contract declares `scope: 'local'` (it changes only the engine's own state) and that names no connection skips the lock (OQ-783). Because `layouts.put` is still locked, a saved layout is not restored after a restart on an unarmed connection (OQ-529).
+3. **The served page and the engine are not yet a usable product.** The shell and the explorer grids are built; the connection form is not (item 1). The Content-Security-Policy nonce of the served page (issue #277) has landed, so the page is styled under the real policy.
+4. **Nothing that writes to a broker or reads a message is served.** Peek, publish, source, replay and the broker write ports are not wired (`CAPABILITY_MISSING`, `apps/engine/src/unwired-writes.ts`).
+5. **Plans carry no BrokerProfile fingerprint or gates yet:** the executor's `ProfileResolver` is not wired (OQ-764). No served action needs one today.
+6. **The diagnostics bundle holds no broker profile** (OQ-765).
+7. A broker that answers 401 makes `probe.run` answer 401 `UNAUTHENTICATED` with the broker's reason; this is the action's current mapping and is easy to mistake for the launch token being refused (OQ-768).
 
 ## Problems
 

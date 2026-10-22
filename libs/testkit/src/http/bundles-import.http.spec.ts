@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 describe('POST /bundles/import', () => {
-  it('GP-1 (OQ-380) the route runs bundles.import only where a connection can be armed: with no connection the prod lock answers 422', async () => {
+  it('GP-1 (OQ-783) the route runs bundles.import with no connection armed: it declares scope local, so the prod lock does not apply and the call answers 200', async () => {
     engine = createTestEngine({ actions: [subject()] });
     const answer = await engine.inject({
       method: 'POST',
@@ -40,11 +40,11 @@ describe('POST /bundles/import', () => {
       headers: { 'idempotency-key': KEY },
     });
 
-    // The same as connections.create (OQ-380): an import makes profiles, so it has no connection to arm.
-    expect(answer.statusCode).toBe(422);
-    expect(answer.json()).toMatchObject({ code: 'GATE_BLOCKED' });
-    expect(def.output.safeParse(answer.json()).success).toBe(false);
-    expect(engine.audit.attempts).toEqual([]);
+    // The router sends no environment class, so the call is "prod". The action declares scope 'local' (it
+    // changes only the engine's own state), so the lock has nothing to arm and lets it through (OQ-783).
+    expect(answer.statusCode).toBe(200);
+    expect(def.output.safeParse(answer.json()).success).toBe(true);
+    expect(engine.audit.attempts).toHaveLength(1);
   });
 
   it('GP-2 a request without the launch token is refused and nothing runs', async () => {

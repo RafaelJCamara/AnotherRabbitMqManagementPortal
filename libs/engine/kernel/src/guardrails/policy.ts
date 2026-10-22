@@ -11,6 +11,10 @@
 //     it can neither arm nor use someone else's arming (blueprint 5.9, table row "AI").
 //   - Only a person at the UI or CLI can arm: not an unattended principal, not a delegate.
 //   - Arming is per person and per connection, and lives in memory: a restart locks everything again.
+//   - One exception to "no target, no way in": a contract that declares `scope: 'local'` (it changes
+//     only the engine's own state, such as a saved profile or a view) and names no target is not
+//     locked, since there is no connection to arm. Nothing else is exempt: not an action by name,
+//     not an environment class. It is still authorised, audited and refused to an AI client.
 //
 // Besides the lock the policy keeps the rules of the M0-29 stand-in: the action's own typed phrase,
 // a plan for a high-risk or critical mutation in prod and staging, and a plan for everything an
@@ -20,6 +24,7 @@ import type { Principal } from '@app/ports';
 
 import { chainOf } from '../actions/principal.ts';
 import type { GuardrailInput, GuardrailPolicy } from '../actions/hooks.ts';
+import { isLocalCall } from '../actions/local-scope.ts';
 import type { GuardrailDecision } from '../actions/types.ts';
 import type { Clock } from '../clock/clock.ts';
 import { AppError } from '../problem/problem.ts';
@@ -260,6 +265,10 @@ export function createGuardrails(options: GuardrailsOptions): Guardrails {
       ) {
         return Promise.resolve(base);
       }
+      // The one other way past the lock: the contract declares `scope: 'local'` (engine-local state
+      // only, never a broker) and the call names no target. There is nothing to arm for it. This
+      // comes after the AI-client refusal above, and the permission check ran before this policy.
+      if (isLocalCall(def, target)) return Promise.resolve(base);
       return deny(
         'GATE_BLOCKED',
         `${PROD_LOCK_GATE}: this connection is production and is not armed. Arm it with ops.arm to make changes for 15 minutes.`,

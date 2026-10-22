@@ -169,6 +169,63 @@ describe('kit invariants', () => {
     ]);
   });
 
+  it("OQ-783 scope 'local' is accepted on a command that addresses no broker object", () => {
+    const local = command({
+      id: 'views.create',
+      scope: 'local',
+      input: z.strictObject({ name: z.string() }),
+      http: { method: 'POST', path: '/views' },
+    });
+
+    expect(rulesOf(actions(local))).toEqual([]);
+  });
+
+  it("OQ-783 scope 'local' is refused on a peek, a job and any other value", () => {
+    const base = {
+      scope: 'local' as const,
+      input: z.strictObject({ name: z.string() }),
+      http: { method: 'POST', path: '/x' } as const,
+    };
+
+    for (const kind of ['peek', 'job'] as const) {
+      expect(rulesOf(actions(command({ ...base, kind })))).toEqual([
+        'local-scope',
+      ]);
+    }
+    const other = command({
+      ...base,
+      scope: 'global' as unknown as 'local',
+    });
+    expect(rulesOf(actions(other))).toEqual(['local-scope']);
+  });
+
+  it("OQ-783 scope 'local' is refused when the input or the path addresses a connection or a broker object", () => {
+    for (const field of ['cid', 'connectionId', 'vhost', 'qkey']) {
+      const bad = command({
+        scope: 'local',
+        input: z.strictObject({ [field]: z.string() }),
+        http: { method: 'POST', path: `/things/{${field}}` },
+      });
+
+      const violations = checkRegistry(actions(bad));
+
+      expect(violations.map((v) => v.rule)).toEqual(['local-scope']);
+      expect(violations[0]?.message).toContain(`'${field}'`);
+    }
+  });
+
+  it("OQ-783 scope 'local' is refused on an action an AI client may call to mutate", () => {
+    const mcp = { expose: true, mutating: true, title: 't', description: 'd' };
+    const bad = command({
+      scope: 'local',
+      mcp,
+      input: z.strictObject({ name: z.string() }),
+      http: { method: 'POST', path: '/x' },
+    });
+
+    expect(rulesOf(actions(bad))).toEqual(['local-scope']);
+  });
+
   it('assertRegistry lists every violation in its message', () => {
     expect(() => {
       assertRegistry(actions(command({ audit: 'none', id: 'x' })));

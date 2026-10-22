@@ -39,6 +39,7 @@ Enforced by `checkRegistry`, which both emitters call first, so an invalid regis
 - every `{param}` in a path is a required field of the input;
 - GET is bound to `kind: 'query'` only and carries flat inputs (scalars and arrays of scalars);
 - a mutating action (`command`, `job`, `peek`, or `mcp.mutating`) has `audit: 'attempt+outcome'`;
+- `scope: 'local'` (the action changes only the engine's own state; the one way past the prod lock for an action with no target connection, OQ-783) is allowed on a `command` or `query` only, with no input or path field that addresses a connection or broker object (`cid`, `connectionId`, `vhost`, `qkey`, `queue`, `exchange`), and not on an action an AI client may call to mutate; the executor refuses a call whose `target()` names anything, and the architecture test fails a local action's module if it names a broker write port;
 - a secret is write-only (I-10): no secretInput() field in an action output, in a topic's params or items, in a path parameter or in any field of a GET;
 - a topic is bounded (`ring.items` and `ring.bytes` positive integers), has a positive `maxHz` when set, and has `key()` when its flow is `snapshot-delta`.
 

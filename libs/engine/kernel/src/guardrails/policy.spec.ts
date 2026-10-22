@@ -814,6 +814,201 @@ describe('guardrail policy keeps the rules of the stand-in', () => {
   });
 });
 
+describe("guardrail scope 'local': the one declared way past the lock for an action with no target (OQ-783)", () => {
+  const localShape = {
+    kind: 'command',
+    summary: 'Change only the engine-local state',
+    input: z.strictObject({}),
+    output: z.strictObject({ ok: z.boolean() }),
+    permission: 'ops.local-ping',
+    risk: 'low',
+    planning: 'none',
+    audit: 'attempt+outcome',
+    since: '1.0',
+  } as const;
+  const localDef = defineAction({
+    ...localShape,
+    id: 'ops.local-ping',
+    target: () => ({}),
+    scope: 'local',
+  });
+  /** The same action without the declaration. */
+  const undeclaredDef = defineAction({
+    ...localShape,
+    id: 'ops.undeclared-ping',
+    target: () => ({}),
+  });
+  /** A broken contract: it declares local scope and names a broker connection. */
+  const liarDef = defineAction({
+    ...localShape,
+    id: 'ops.liar-ping',
+    target: () => ({ connectionId: CONNECTION as never }),
+    scope: 'local',
+  });
+
+  const impl = (def: ActionDef, w: World) =>
+    implementAction(def as typeof localDef, {
+      plan: () =>
+        Promise.resolve({
+          preview: {},
+          gates: [],
+          warnings: [],
+          consentsRequired: [],
+        }),
+      revalidate: () => Promise.resolve('valid'),
+      execute: () => {
+        w.probe.executed += 1;
+        return Promise.resolve({ ok: true });
+      },
+    });
+
+  function localWorld(): World {
+    const w = world();
+    w.executor.register(
+      impl(localDef, w),
+      impl(undeclaredDef, w),
+      impl(liarDef, w),
+    );
+    return w;
+  }
+  const call = (w: World, def: ActionDef, env: EnvClass = 'prod') =>
+    w.executor.run(
+      def,
+      {},
+      createTestContext({ env, idempotencyKey: freshKey() }),
+    );
+
+  it('AC-783-1 a local action with no target runs on prod with nothing armed, and is audited', async () => {
+    const w = localWorld();
+
+    const outcome = await call(w, localDef);
+
+    expect(outcome).toMatchObject({ kind: 'output', output: { ok: true } });
+    expect(w.probe.executed).toBe(1);
+    expect(w.auditRows.rows).toHaveLength(2);
+    expect(w.auditRows.rows[0]).toMatchObject({ actionId: 'ops.local-ping' });
+  });
+
+  it('AC-783-2 the same action WITHOUT the declaration stays 422 GATE_BLOCKED on prod, with no fix', async () => {
+    const w = localWorld();
+
+    const error = await expectBlocked(call(w, undeclaredDef));
+
+    expect(error.gate?.fix).toBeUndefined();
+    expect(w.probe.executed).toBe(0);
+    expect(w.auditRows.rows).toHaveLength(0);
+  });
+
+  it('AC-783-3 a local action does not unlock a broker action: a targeted command is still locked until armed', async () => {
+    const w = localWorld();
+    await call(w, localDef);
+
+    await expectBlocked(w.executor.plan(purgeDef, input, prodCtx()));
+    await expectBlocked(w.executor.plan(peekDef, input, prodCtx()));
+
+    expect(w.guardrails.arming.status(person, CONNECTION).armed).toBe(false);
+  });
+
+  it('AC-783-4 a local action is still authorised: a refusal is FORBIDDEN_RBAC and nothing runs or is audited', async () => {
+    const w = localWorld();
+    const denying = createActionExecutor({
+      ...optionsOf(w),
+      authorizer: {
+        authorize: () => Promise.resolve({ allowed: false, reason: 'no' }),
+      },
+    });
+    denying.register(impl(localDef, w));
+
+    const error = await refusalOf(
+      denying.run(
+        localDef,
+        {},
+        createTestContext({ env: 'prod', idempotencyKey: freshKey() }),
+      ),
+    );
+
+    expect(error.code).toBe<ErrorCode>('FORBIDDEN_RBAC');
+    expect(w.probe.executed).toBe(0);
+    expect(w.auditRows.rows).toHaveLength(0);
+  });
+
+  it('AC-783-5 an AI client still has no mutations on prod, local or not', async () => {
+    const w = localWorld();
+    const everything = createActionExecutor({
+      ...optionsOf(w),
+      authorizer: { authorize: () => Promise.resolve({ allowed: true }) },
+    });
+    everything.register(impl(localDef, w));
+    const agent = createTestPrincipal({
+      kind: 'mcp-client',
+      id: 'agent-3',
+      surface: 'mcp',
+      unattended: true,
+    });
+
+    const error = await refusalOf(
+      everything.plan(
+        localDef,
+        {},
+        createTestContext({ principal: agent, env: 'prod' }),
+      ),
+    );
+
+    expect(error.code).toBe('GATE_BLOCKED');
+    expect(error.gate?.source).toBe('prod-lock');
+    expect(w.probe.executed).toBe(0);
+  });
+
+  it('AC-783-6 a contract that declares local but names a target is refused by the executor, before anything runs', async () => {
+    const w = localWorld();
+
+    for (const env of ['prod', 'dev'] as const) {
+      const error = await refusalOf(call(w, liarDef, env));
+
+      expect(error.code).toBe<ErrorCode>('INTERNAL');
+      expect(error.detail).toMatch(/scope 'local' but named a target/);
+    }
+    expect(w.probe.executed).toBe(0);
+    expect(w.auditRows.rows).toHaveLength(0);
+  });
+
+  it('AC-783-7 the policy alone is closed too: a local scope with a target, on a peek or a job, or any other value, is locked', async () => {
+    const { policy } = createGuardrails({ clock: createManualClock(1) });
+    const none = { target: {} };
+    const wrongScope = { ...localDef, scope: 'global' } as unknown as ActionDef;
+
+    const decisions = await Promise.all([
+      policy.decide(decideInput(liarDef, { target: liarDef.target({}) })),
+      policy.decide(decideInput(localDef, { target: { vhost: '/' } })),
+      policy.decide(decideInput(localDef, { target: { name: 'q' } })),
+      policy.decide(decideInput({ ...localDef, kind: 'peek' }, none)),
+      policy.decide(decideInput({ ...localDef, kind: 'job' }, none)),
+      policy.decide(decideInput(wrongScope, none)),
+      policy.decide(decideInput(undeclaredDef, none)),
+    ]);
+
+    for (const decision of decisions) {
+      expect(decision.denied).toMatchObject({ code: 'GATE_BLOCKED' });
+    }
+    expect(
+      (await policy.decide(decideInput(localDef, none))).denied,
+    ).toBeUndefined();
+  });
+
+  it('AC-783-8 an action name is never the key: a different id with the same declaration behaves the same', async () => {
+    const { policy } = createGuardrails({ clock: createManualClock(1) });
+    const renamed = defineAction({
+      ...localShape,
+      id: 'connections.create',
+      target: () => ({}),
+    });
+
+    const decision = await policy.decide(decideInput(renamed, { target: {} }));
+
+    expect(decision.denied).toMatchObject({ code: 'GATE_BLOCKED' });
+  });
+});
+
 // ---- helpers -------------------------------------------------------------------------------
 
 function decideInput(

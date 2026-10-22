@@ -20,6 +20,8 @@ export const viewsDelete = defineAction({
   planning: 'none',
   audit: 'attempt+outcome',
   target: () => ({}),
+  // Changes only the engine's own state, never a broker: the prod lock has nothing to arm (OQ-783).
+  scope: 'local',
   http: { method: 'DELETE', path: '/views/{viewId}' },
   since: '1.0',
 });

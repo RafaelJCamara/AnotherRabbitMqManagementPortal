@@ -39,5 +39,5 @@ pnpm nx run perf:explorer-ui-20k                              # AC-26: interacti
 
 ## Known limits
 
-- The two view commands, `views.create` and `views.delete`, answer 422 `GATE_BLOCKED` from a running engine today (the prod lock has no connection to arm, OQ-380), so a view cannot be saved or deleted against the real engine yet. The control shows the engine's Problem as sent and loses nothing (AC-19, against the fake engine); `views.list` works.
+- The two view commands, `views.create` and `views.delete`, declare `scope: 'local'` (they change only the engine's own state), so a running engine runs them with nothing armed (OQ-783; OQ-380 is answered). The control still shows an engine Problem as sent and loses nothing (AC-19, against the fake engine); a view saved against the real router is proved in the testkit (AC-28).
 - A running engine cannot create a connection yet (see `docs/runbooks/run-locally.md`), so the explorer pages show their empty and error states there until a connection exists.

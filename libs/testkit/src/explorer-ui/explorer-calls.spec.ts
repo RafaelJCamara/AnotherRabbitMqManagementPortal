@@ -56,7 +56,7 @@ function explorerEngine(): TestEngine {
 }
 
 describe('the calls of the explorer UI through the real router', () => {
-  it('AC-28 the read calls of the explorer answer in the shape the UI parses, and the view commands answer as the engine does today', async () => {
+  it('AC-28 the read calls and the view commands of the explorer answer in the shape the UI parses', async () => {
     engine = explorerEngine();
 
     // inventory.query: the first block of each kind, the way the window source asks for it.
@@ -114,9 +114,8 @@ describe('the calls of the explorer UI through the real router', () => {
     expect(list.statusCode).toBe(200);
     expect(viewsList.output.safeParse(list.json()).success).toBe(true);
 
-    // views.create and views.delete are commands on no connection, so the prod lock has nothing to arm: the engine
-    // answers a 422 GATE_BLOCKED Problem today (OQ-380; the same as the generated specs of both actions). The UI
-    // shows that Problem as sent (M0-54 AC-19, proved against the fake engine) and loses nothing.
+    // views.create and views.delete are commands on no connection and declare scope 'local' (they change only
+    // the engine's own state), so the prod lock has nothing to arm and the engine runs them (OQ-783).
     const create = await engine.inject({
       method: 'POST',
       path: '/views',
@@ -127,17 +126,15 @@ describe('the calls of the explorer UI through the real router', () => {
       },
       headers: { 'idempotency-key': 'explorer-calls-spec-0001' },
     });
-    expect(create.statusCode).toBe(422);
-    expect(create.json()).toMatchObject({ code: 'GATE_BLOCKED' });
-    expect(viewsCreate.output.safeParse(create.json()).success).toBe(false);
+    expect(create.statusCode).toBe(200);
+    const created = viewsCreate.output.parse(create.json());
     const remove = await engine.inject({
       method: 'DELETE',
-      path: '/views/view-0001',
+      path: `/views/${created.view.id}`,
       headers: { 'idempotency-key': 'explorer-calls-spec-0002' },
     });
-    expect(remove.statusCode).toBe(422);
-    expect(remove.json()).toMatchObject({ code: 'GATE_BLOCKED' });
-    expect(viewsDelete.output.safeParse(remove.json()).success).toBe(false);
+    expect(remove.statusCode).toBe(200);
+    expect(viewsDelete.output.safeParse(remove.json()).success).toBe(true);
 
     // Nothing the explorer calls changed the broker.
     expect(engine.writeCalls).toEqual([]);

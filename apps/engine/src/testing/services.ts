@@ -103,7 +103,7 @@ export interface Booted {
   readonly input: () => Parameters<BrokerPortsFactory>[0];
   /** One request to the real router, in process, as the launch-token user. */
   call(
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     payload?: unknown,
   ): Promise<{ status: number; body: Record<string, unknown> }>;

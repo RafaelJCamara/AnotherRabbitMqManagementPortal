@@ -21,6 +21,8 @@ export const keybindingsPut = defineAction({
   planning: 'none',
   audit: 'attempt+outcome',
   target: () => ({}),
+  // Changes only the engine's own state, never a broker: the prod lock has nothing to arm (OQ-783).
+  scope: 'local',
   http: { method: 'PUT', path: '/keybindings' },
   since: '1.0',
 });

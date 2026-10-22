@@ -20,7 +20,7 @@ afterEach(async () => {
 });
 
 describe('PUT /settings', () => {
-  it('GP-1 (OQ-380) the route runs settings.put only where a connection can be armed: with no connection the prod lock answers 422', async () => {
+  it('GP-1 (OQ-783) the route runs settings.put with no connection armed: it declares scope local, so the prod lock does not apply and the call answers 200', async () => {
     engine = createTestEngine({ actions: [subject()] });
     const answer = await engine.inject({
       method: 'PUT',
@@ -29,13 +29,11 @@ describe('PUT /settings', () => {
       headers: { 'idempotency-key': KEY },
     });
 
-    // The router sends no environment class, so the call is "prod" and a command is locked until its
-    // connection is armed (OQ-283). This command has no connection, so nothing can arm it: the gate
-    // has no fix. OQ-380 asks for the rule; when it lands this test becomes the 200 of the golden path.
-    expect(answer.statusCode).toBe(422);
-    expect(answer.json()).toMatchObject({ code: 'GATE_BLOCKED' });
-    expect(def.output.safeParse(answer.json()).success).toBe(false);
-    expect(engine.audit.attempts).toEqual([]);
+    // The router sends no environment class, so the call is "prod". The action declares scope 'local' (it
+    // changes only the engine's own state), so the lock has nothing to arm and lets it through (OQ-783).
+    expect(answer.statusCode).toBe(200);
+    expect(def.output.safeParse(answer.json()).success).toBe(true);
+    expect(engine.audit.attempts).toHaveLength(1);
   });
 
   it('GP-2 a request without the launch token is refused and nothing runs', async () => {

@@ -94,6 +94,52 @@ export function checkMutationFunnel(
 }
 
 // ---------------------------------------------------------------------------------------------
+// OQ-783: a `scope: 'local'` action module never reaches a broker
+// ---------------------------------------------------------------------------------------------
+
+/** An action module paired with the contract it implements (the plan-purity manifest has both). */
+export interface LocalScopeSample {
+  path: string;
+  scope: unknown;
+  actionId: string;
+}
+
+/**
+ * `scope: 'local'` lets an action past the prod lock because it changes only the engine's own
+ * state. The contract cannot see which ports the module uses, so this rule reads the module: a
+ * file that implements a local-scope action may name no write-capable broker symbol (the write
+ * halves of the ports, the role leases, the connection manager, `ctx.writes`). The local stores
+ * (`store`, `workspace`, `sealer`) are not in that list, so they pass.
+ */
+export function checkLocalScopeModules(
+  samples: readonly LocalScopeSample[],
+  files: readonly SourceFile[],
+): ArchViolation[] {
+  const violations: ArchViolation[] = [];
+  for (const sample of samples) {
+    if (sample.scope !== 'local') continue;
+    const file = files.find((candidate) => candidate.path === sample.path);
+    if (file === undefined) {
+      violations.push({
+        rule: 'local-scope-module',
+        path: sample.path,
+        message: `${sample.actionId} declares scope 'local' but its module was not found, so it cannot be checked`,
+      });
+      continue;
+    }
+    const names = mentionsWriteCapability(readFacts(file.path, file.text));
+    if (names.length > 0) {
+      violations.push({
+        rule: 'local-scope-module',
+        path: sample.path,
+        message: `${sample.actionId} declares scope 'local' but its module names ${names.join(', ')}; a local action reaches no broker port (OQ-783)`,
+      });
+    }
+  }
+  return violations;
+}
+
+// ---------------------------------------------------------------------------------------------
 // A-9: settlement proofs are minted in a few places only
 // ---------------------------------------------------------------------------------------------
 

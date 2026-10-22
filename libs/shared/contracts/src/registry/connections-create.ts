@@ -36,7 +36,10 @@ export const connectionsCreate = defineAction({
   planning: 'none',
   audit: 'attempt+outcome',
   // A new profile has no connection to name yet, so the production lock cannot be armed for it (OQ-380).
+  // The declared local scope below is what lets it through (OQ-783).
   target: () => ({}),
+  // Changes only the engine's own state, never a broker: the prod lock has nothing to arm (OQ-783).
+  scope: 'local',
   http: { method: 'POST', path: '/connections' },
   since: '1.0',
 });

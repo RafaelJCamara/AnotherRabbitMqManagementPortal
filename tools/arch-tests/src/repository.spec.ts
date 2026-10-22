@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { registeredActions } from './registered-actions.ts';
 import {
+  checkLocalScopeModules,
   checkMutationFunnel,
   checkProofMinting,
   checkRecorderIndependence,
@@ -30,6 +31,30 @@ describe('architecture: the real tree', () => {
 
   it('I-2 write-capable ports are named only in action and job modules, outside the plumbing', () => {
     expect(checkMutationFunnel(sources)).toEqual([]);
+  });
+
+  it('OQ-783 every scope-local action is implemented by a module that names no broker write port', () => {
+    const samples = registeredActions().map((entry) => ({
+      path: entry.path,
+      scope: entry.impl.def.scope,
+      actionId: entry.impl.def.id,
+    }));
+
+    // The six declared today are really in the manifest, so the rule is not passing on an empty set.
+    expect(
+      samples
+        .filter((sample) => sample.scope === 'local')
+        .map((sample) => sample.actionId)
+        .sort(),
+    ).toEqual([
+      'bundles.import',
+      'connections.create',
+      'keybindings.put',
+      'settings.put',
+      'views.create',
+      'views.delete',
+    ]);
+    expect(checkLocalScopeModules(samples, sources)).toEqual([]);
   });
 
   it('A-9 settlement proofs are minted only where the amendment allows', () => {

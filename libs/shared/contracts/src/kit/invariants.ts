@@ -38,6 +38,56 @@ function isFlat(schema: z.core.JSONSchema.BaseSchema): boolean {
   return true;
 }
 
+/** Input fields that address a connection, a vhost or a broker object: a local action has none. */
+const BROKER_ADDRESS_FIELDS: ReadonlySet<string> = new Set([
+  'cid',
+  'connectionId',
+  'vhost',
+  'qkey',
+  'queue',
+  'exchange',
+]);
+
+/**
+ * `scope: 'local'` (define-action.ts) is the one way past the prod lock for an action with no
+ * target connection, so its declaration is checked hard. The input rules are static; the target
+ * itself is checked by the executor on every call, and the module by the architecture test.
+ */
+function checkLocalScope(
+  action: ActionDef,
+  shape: Record<string, z.ZodType> | undefined,
+  fail: (rule: string, message: string) => void,
+): void {
+  const scope: unknown = action.scope;
+  if (scope === undefined) return;
+  if (scope !== 'local') {
+    fail('local-scope', `scope must be 'local' or left out`);
+    return;
+  }
+  if (action.kind !== 'command' && action.kind !== 'query') {
+    fail(
+      'local-scope',
+      `a ${action.kind} action touches messages or runs on a broker and cannot be scope 'local'`,
+    );
+  }
+  const addressed = [
+    ...Object.keys(shape ?? {}),
+    ...(action.http ? pathParamNames(action.http.path) : []),
+  ].filter((name) => BROKER_ADDRESS_FIELDS.has(name));
+  if (addressed.length > 0) {
+    fail(
+      'local-scope',
+      `scope 'local' means no broker target, but the input addresses one through '${[...new Set(addressed)].join("', '")}'`,
+    );
+  }
+  if (action.mcp?.expose === true && action.mcp.mutating) {
+    fail(
+      'local-scope',
+      `scope 'local' is not for an action an AI client may call to mutate`,
+    );
+  }
+}
+
 function checkAction(action: ActionDef, out: Violation[]): void {
   const subject = action.id;
   const fail = (rule: string, message: string) =>
@@ -54,6 +104,7 @@ function checkAction(action: ActionDef, out: Violation[]): void {
       `a ${action.kind} action that mutates or touches messages needs audit 'attempt+outcome'`,
     );
   }
+  checkLocalScope(action, shape, fail);
   if (!action.http) return;
 
   const { method, path } = action.http;

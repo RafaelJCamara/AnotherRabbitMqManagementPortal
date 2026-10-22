@@ -7,10 +7,9 @@
 // adapter over the Dialer, the wire probe over the AMQP adapter, the explorer's sweeper and the live
 // hub, and a RabbitMQ from the broker lab with seeded queues.
 //
-// A connection cannot be created through the engine yet: `connections.create` names no connection, so
-// the prod lock refuses it (OQ-380, OQ-770). The test therefore writes the profile into the database
-// before the engine starts, with the stores and the vault it uses (a test, not a feature), and asserts
-// the refusal so the day it is ruled on this test says so.
+// The seeded profile is written into the database before the engine starts, with the stores and the vault it
+// uses, so that the read tests have a connection; the last tests create one through the running engine
+// (`connections.create` declares scope local, OQ-783) and show that changing a saved one is still locked.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -51,7 +50,7 @@ describe(`the composed engine against RabbitMQ ${String(version)}`, () => {
   let token = '';
 
   const call = async (
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PATCH',
     path: string,
     payload?: unknown,
   ): Promise<{ status: number; body: Record<string, unknown> }> => {
@@ -260,14 +259,59 @@ describe(`the composed engine against RabbitMQ ${String(version)}`, () => {
     expect(JSON.stringify(refused.body)).not.toContain('wrong-pass');
   });
 
-  it('connections.create is refused by the prod lock on a running engine (OQ-380, OQ-770: the known limitation)', async () => {
+  it('connections.create saves a connection on the running engine (scope local, OQ-783), and the saved profile reaches the broker', async () => {
+    const login = broker.credentials;
     const created = await call('POST', '/connections', {
       name: 'Another',
       envClass: 'dev',
-      http: { host: '127.0.0.1', port: portOf(broker.http) },
+      http: {
+        host: '127.0.0.1',
+        port: portOf(broker.http),
+        auth: {
+          kind: 'basic',
+          username: login.username,
+          password: login.password,
+        },
+      },
+      amqp: {
+        host: '127.0.0.1',
+        port: portOf(broker.amqp),
+        auth: {
+          kind: 'plain',
+          username: login.username,
+          password: login.password,
+        },
+      },
     });
 
-    expect(created.status).toBe(422);
-    expect(created.body).toMatchObject({ code: 'GATE_BLOCKED' });
+    expect(created.status).toBe(200);
+    const profile = created.body.profile as { id: string; name: string };
+    expect(profile.name).toBe('Another');
+    // The answer says a password is set and never carries it (I-10). The lab login uses one word for the
+    // user and the password, so the check is on the shape, not on the text.
+    expect(created.body.profile).toMatchObject({
+      http: { auth: { secret: { isSet: true } } },
+    });
+    expect(JSON.stringify(created.body)).not.toContain('"password"');
+    const tested = await call('POST', '/connections/test-http', {
+      cid: profile.id,
+    });
+    expect(tested.body).toMatchObject({
+      ok: true,
+      broker: { product: 'RabbitMQ', version },
+    });
+    const listed = await call('GET', '/connections');
+    expect(
+      (listed.body.items as { id: string }[]).map((item) => item.id),
+    ).toContain(profile.id);
+  });
+
+  it('changing a saved connection is still locked on prod until it is armed (the lock stays closed for a target)', async () => {
+    const answer = await call('PATCH', `/connections/${CID}`, {
+      name: 'Renamed',
+    });
+
+    expect(answer.status).toBe(422);
+    expect(answer.body).toMatchObject({ code: 'GATE_BLOCKED' });
   });
 });

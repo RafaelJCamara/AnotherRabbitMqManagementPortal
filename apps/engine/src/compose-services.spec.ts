@@ -201,8 +201,9 @@ describe('probe, profile, inventory and overview through the real router', () =>
     expect(booted.broker.requests).toEqual([]);
   });
 
-  it('AC-5 workspace and connection writes answer 422 GATE_BLOCKED on a real engine until the prod lock is ruled on (OQ-380, OQ-283, OQ-529)', async () => {
+  it("AC-5 workspace and connection writes that declare scope 'local' run on a real engine with nothing armed, and a write that names a connection is still locked (OQ-783)", async () => {
     const booted = await boot();
+    await booted.seed('c1');
 
     const created = await booted.call('POST', '/connections', {
       name: 'Lab',
@@ -220,12 +221,18 @@ describe('probe, profile, inventory and overview through the real router', () =>
     });
     // Reads of the same state are not locked.
     const views = await booted.call('GET', '/views');
+    // A write that names a connection is still locked until the person arms it.
+    const renamed = await booted.call('PATCH', '/connections/c1', {
+      name: 'Renamed',
+    });
 
-    expect(created.status).toBe(422);
-    expect(created.body).toMatchObject({ code: 'GATE_BLOCKED' });
-    expect(view.status).toBe(422);
-    expect(settings.status).toBe(422);
+    expect(created.status).toBe(200);
+    expect(created.body).toMatchObject({ profile: { name: 'Lab' } });
+    expect(view.status).toBe(200);
+    expect(settings.status).toBe(200);
     expect(views.status).toBe(200);
+    expect(renamed.status).toBe(422);
+    expect(renamed.body).toMatchObject({ code: 'GATE_BLOCKED' });
   });
 });
 

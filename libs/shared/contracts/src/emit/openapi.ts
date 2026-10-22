@@ -43,6 +43,7 @@ function operation(action: ActionDef): JsonObject {
     'x-audit': action.audit,
     'x-since': action.since,
   };
+  if (action.scope) op['x-scope'] = action.scope;
   if (action.mcp) op['x-mcp'] = { ...action.mcp };
   if (action.cli) op['x-cli'] = { ...action.cli };
 

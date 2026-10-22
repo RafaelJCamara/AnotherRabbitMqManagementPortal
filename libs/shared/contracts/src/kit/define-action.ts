@@ -36,6 +36,17 @@ export interface ActionDef<
   };
   readonly audit: 'none' | 'outcome' | 'attempt+outcome';
   target(input: z.infer<I>): TargetRef;
+  /**
+   * `'local'` declares that the action changes only the engine's own local state (a saved profile,
+   * a view, a setting) and never a broker, a message or a connection to one. It is the only thing
+   * that lets a mutating action with no target connection past the prod lock, which has nothing to
+   * arm for it (OQ-380, OQ-283, OQ-529, OQ-770). The declaration must hold on three levels:
+   *   - `checkRegistry` rejects it on a peek or a job, and on an input that addresses a connection;
+   *   - the executor rejects a call whose `target()` names anything (a broker target contradicts it);
+   *   - the architecture test fails the action module if it names a write-capable broker port.
+   * Left out, a mutating action with no target stays locked in prod. It is never inferred.
+   */
+  readonly scope?: 'local';
   readonly http?: { method: HttpMethod; path: `/${string}` };
   readonly mcp?: {
     expose: boolean;

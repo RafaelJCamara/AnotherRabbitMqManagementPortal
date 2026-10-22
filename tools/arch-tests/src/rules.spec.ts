@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  checkLocalScopeModules,
   checkMutationFunnel,
   checkProofMinting,
   checkRecorderIndependence,
@@ -232,6 +233,52 @@ export const ack = (p: AckProof) => p;`,
     );
 
     expect(checkProofMinting([fine])).toEqual([]);
+  });
+});
+
+describe('OQ-783 a scope-local action module reaches no broker port', () => {
+  const sample = (scope: unknown) => ({
+    path: 'libs/engine/svc-a/src/actions/x.ts',
+    scope,
+    actionId: 'a.x',
+  });
+
+  it('fails a local action whose module names a write port, a lease or ctx.writes', () => {
+    for (const body of [
+      `import type { MgmtWritePort } from '@app/ports'; implementAction(d, {});`,
+      `import type { PublishLease } from '@app/ports'; implementAction(d, {});`,
+      `implementAction(d, { execute: (i, ctx) => ctx.writes.mgmt.send() });`,
+    ]) {
+      const violations = checkLocalScopeModules(
+        [sample('local')],
+        [file('libs/engine/svc-a/src/actions/x.ts', body)],
+      );
+
+      expect(violations).toHaveLength(1);
+      expect(violations[0]).toMatchObject({ rule: 'local-scope-module' });
+    }
+  });
+
+  it('passes a local action that uses only the engine-local stores', () => {
+    const source = file(
+      'libs/engine/svc-a/src/actions/x.ts',
+      `implementAction(d, { execute: (i) => deps.store.save(i) });`,
+    );
+
+    expect(checkLocalScopeModules([sample('local')], [source])).toEqual([]);
+  });
+
+  it('does not look at an action that does not declare scope local', () => {
+    const source = file(
+      'libs/engine/svc-a/src/actions/x.ts',
+      `import type { MgmtWritePort } from '@app/ports'; implementAction(d, {});`,
+    );
+
+    expect(checkLocalScopeModules([sample(undefined)], [source])).toEqual([]);
+  });
+
+  it('fails closed when the module of a local action cannot be found', () => {
+    expect(checkLocalScopeModules([sample('local')], [])).toHaveLength(1);
   });
 });
 

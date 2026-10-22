@@ -58,7 +58,6 @@ export async function mountRouted(
   const harness = await RouterTestingHarness.create();
   await harness.navigateByUrl(url);
   const el = routeElement(harness);
-  document.body.append(el);
   return { harness, fake, clock, router: TestBed.inject(Router), el };
 }
 

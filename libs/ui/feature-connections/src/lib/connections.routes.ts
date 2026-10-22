@@ -23,6 +23,22 @@ export const connectionsRoutes: Routes = [
           ),
       },
       {
+        path: 'new',
+        data: { mode: 'create' },
+        loadComponent: () =>
+          import('./form/connection-form.component').then(
+            (m) => m.ConnectionForm,
+          ),
+      },
+      {
+        path: ':id/edit',
+        data: { mode: 'edit' },
+        loadComponent: () =>
+          import('./form/connection-form.component').then(
+            (m) => m.ConnectionForm,
+          ),
+      },
+      {
         path: ':id',
         pathMatch: 'full',
         loadComponent: () =>

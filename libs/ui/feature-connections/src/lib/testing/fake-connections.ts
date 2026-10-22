@@ -157,6 +157,8 @@ export class FakeConnections {
     arm?: Problem;
     probe?: Problem;
     profile?: Problem;
+    testHttp?: Problem;
+    testAmqp?: Problem;
   } = {};
   /** While set, the test calls answer only when it settles (the busy state). */
   holdTests: Promise<void> | null = null;
@@ -205,11 +207,15 @@ export class FakeConnections {
     }
     if (request.method === 'POST' && path === '/connections/test-http') {
       await this.holdTests;
-      return jsonResponse(200, this.testHttp(body));
+      return this.failure.testHttp
+        ? problemResponse(this.failure.testHttp)
+        : jsonResponse(200, this.testHttp(body));
     }
     if (request.method === 'POST' && path === '/connections/test-amqp') {
       await this.holdTests;
-      return jsonResponse(200, this.testAmqp(body));
+      return this.failure.testAmqp
+        ? problemResponse(this.failure.testAmqp)
+        : jsonResponse(200, this.testAmqp(body));
     }
     const one = new RegExp(`^/connections/${SEGMENT}$`).exec(path);
     if (one?.[1] !== undefined) {

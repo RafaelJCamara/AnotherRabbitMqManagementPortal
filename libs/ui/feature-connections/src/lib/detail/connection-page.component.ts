@@ -28,6 +28,7 @@ import { envLabels, gatedLabels } from '../labels';
 import { ConnectionLock } from '../lock/connection-lock.component';
 import { offersUnlock, problemView, type ProblemView } from '../problem';
 import { ProblemAlert } from '../problem-alert.component';
+import { TestPanel } from '../test/test-panel.component';
 import type { Translate } from '../translate';
 
 type Load =
@@ -46,6 +47,7 @@ type Load =
     Gated,
     ProblemAlert,
     RouterLink,
+    TestPanel,
     TranslocoDirective,
   ],
   template: `
@@ -146,6 +148,7 @@ type Load =
                 <dd>{{ profile.updatedAt | date: 'medium' }}</dd>
               </dl>
             </section>
+            <app-test-panel [target]="{ cid: profile.id }" source="saved" />
             @if (deleteOpen()) {
               <app-confirm-dialog
                 [heading]="

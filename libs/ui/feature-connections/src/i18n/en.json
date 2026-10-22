@@ -91,6 +91,45 @@
     "busy": "Deleting"
   },
   "form": {
+    "region": "Connection details",
+    "createTitle": "Add a connection",
+    "editTitle": "Edit the connection",
+    "summary": "Some fields need a change before the connection can be saved:",
+    "general": "Connection",
+    "name": "Name",
+    "env": "Environment class",
+    "envHint": "The class sets the colour of the strip above and how careful the app is. Production connections are locked until you unlock them.",
+    "uriLegend": "Paste an address instead (optional)",
+    "uri": "Connection URI",
+    "uriHint": "An amqp:// or amqps:// address, or the management URL. It may hold the user name and the password. What you type in the fields below wins over it. It is not shown again after you save.",
+    "http": "Management API",
+    "amqp": "AMQP",
+    "host": "Host",
+    "hostHint": "A name or an IP address, without a port. Leave it empty when the URI holds it.",
+    "amqpHostHint": "Leave it empty to use the management host.",
+    "port": "Port",
+    "httpPortHint": "Leave it empty for the usual port (15672, or 15671 with TLS).",
+    "amqpPortHint": "Leave it empty for the usual port (5672, or 5671 with TLS).",
+    "tls": "Use TLS",
+    "tlsHint": "The engine trusts the certificate authorities of the system. A certificate it does not trust fails the test; custom authorities cannot be set here yet.",
+    "pathPrefix": "Path prefix",
+    "pathPrefixHint": "Only when the broker serves the management API under a path, for example /rabbitmq.",
+    "vhost": "Virtual host",
+    "vhostHint": "Leave it empty for /.",
+    "login": "Login",
+    "username": "User name",
+    "password": "Password",
+    "token": "Token",
+    "secret": "Secret",
+    "sameLogin": "Use the same user name and password for AMQP",
+    "secretHintNew": "Write-only: it is sent once and never shown again.",
+    "secretHintSet": "A secret is stored. Leave this empty to keep it; type a new one to replace it. It is never shown.",
+    "secretHintNotSet": "No secret is stored. It is sent once and never shown again.",
+    "secretPlaceholderSet": "set - leave empty to keep",
+    "create": "Add the connection",
+    "save": "Save changes",
+    "saving": "Saving",
+    "cancel": "Cancel",
     "error": {
       "required": "This field is needed.",
       "invalid": "This value is not valid here.",
@@ -98,6 +137,94 @@
       "pathPrefix": "Start with a slash and leave out the one at the end, for example /rabbitmq.",
       "tooLong": "This value is too long.",
       "secretAgain": "The address changed, so the stored secret cannot follow it. Enter the secret again."
+    }
+  },
+  "test": {
+    "title": "Tests",
+    "hintSaved": "These tests use the saved connection and its stored login. Save your changes first to test them.",
+    "hintDraft": "These tests use what you typed, without saving it.",
+    "needAddress": "Enter an address and a login first.",
+    "headingHttp": "Management API",
+    "headingAmqp": "AMQP",
+    "run": "Test",
+    "running": "Testing",
+    "okHttp": "The management API answered in {{ms}} ms: {{product}} {{version}}.",
+    "okAmqp": "AMQP connection to {{host}}:{{port}}, virtual host {{vhost}}, opened and closed in {{ms}} ms.",
+    "cluster": "Cluster",
+    "user": "Signed in as",
+    "tags": "Tags",
+    "target": "Address tested",
+    "ports": "The broker says AMQP listens on {{plain}} (plain) and {{tls}} (TLS).",
+    "noPort": "no port",
+    "usePorts": "Use for the AMQP port",
+    "engineSaid": "The engine said:",
+    "gates": "Features that need an AMQP connection",
+    "feature": "Feature",
+    "state": "State",
+    "why": "Why",
+    "open": "Available",
+    "closed": "Not available",
+    "failure": {
+      "HTTP_UNREACHABLE": {
+        "title": "The management API could not be reached",
+        "hint": "Check the host and the port, and that the management plugin is enabled."
+      },
+      "HTTP_TIMEOUT": {
+        "title": "The management API did not answer in time",
+        "hint": "The broker may be busy, or a firewall may be dropping the connection."
+      },
+      "HTTP_EGRESS_DENIED": {
+        "title": "The engine may not connect to this address",
+        "hint": "The outbound policy of the engine refuses it."
+      },
+      "HTTP_TLS_UNTRUSTED": {
+        "title": "The certificate is not trusted",
+        "hint": "The engine trusts the certificate authorities of the system only. Custom authorities cannot be set here yet."
+      },
+      "HTTP_AUTH_REFUSED": {
+        "title": "The login was refused",
+        "hint": "Check the user name and the password or token."
+      },
+      "HTTP_MISSING_TAG": {
+        "title": "The user has no tag that allows the management API",
+        "hint": "Give the user the monitoring, management or administrator tag."
+      },
+      "HTTP_NOT_MANAGEMENT": {
+        "title": "This is not a management API",
+        "hint": "Check the port and the path prefix."
+      },
+      "HTTP_UNEXPECTED": {
+        "title": "The answer was not what a management API sends",
+        "hint": "The engine's own words are below."
+      },
+      "SECRET_UNAVAILABLE": {
+        "title": "The stored login could not be opened",
+        "hint": "Enter the secret again and save the connection."
+      },
+      "AMQP_PORT_BLOCKED": {
+        "title": "Nothing answered on the AMQP port",
+        "hint": "Check the host and the port, and that no firewall blocks it."
+      },
+      "AMQP_EGRESS_DENIED": {
+        "title": "The engine may not connect to this address",
+        "hint": "The outbound policy of the engine refuses it."
+      },
+      "AMQP_TLS_UNTRUSTED": {
+        "title": "The certificate is not trusted",
+        "hint": "The engine trusts the certificate authorities of the system only. Custom authorities cannot be set here yet."
+      },
+      "AMQP_AUTH_REFUSED": {
+        "title": "The login was refused",
+        "hint": "Check the user name and the password."
+      },
+      "AMQP_VHOST_REFUSED": {
+        "title": "The virtual host was refused",
+        "hint": "Check that the virtual host exists and that the user may use it."
+      },
+      "AMQP_UNEXPECTED": {
+        "title": "The AMQP connection failed in an unexpected way",
+        "hint": "The engine's own words are below."
+      }
     }
   }
 }

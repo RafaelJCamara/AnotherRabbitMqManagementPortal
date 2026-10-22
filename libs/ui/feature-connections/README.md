@@ -6,12 +6,12 @@ Tags: `type:ui-feature`, `runtime:browser`. Not `trust:critical`.
 
 ## Status
 
-Slices C and D of M0-52: the project, its `connections` Transloco scope, the Problem view and alert, the form model, the confirmation dialog, the connection list, the connection page (environment chrome, addresses and logins with secrets as set or not set, the lock line with the unlock dialog, Delete behind the lock gate and its confirmation), the routes and the service that makes the calls. The form (create and edit), the tests, the capability card and the shell wiring follow in the next slices.
+Slices C to E of M0-52: the project, its `connections` Transloco scope, the Problem view and alert, the confirmation dialog, the connection list, the connection page (environment chrome, addresses and logins with secrets as set or not set, the lock line with the unlock dialog, Delete behind the lock gate), the create and edit form (masked write-only secrets, a pasted URI sent as typed, a per-endpoint TLS flag, the strip that follows the chosen class, Save of an edit behind the lock gate) and the two tests (management API and AMQP, each with its own result and cause). The capability card and the shell wiring follow in the next slices.
 
 ## Public API
 
 - `CONNECTIONS_SCOPE` and `CONNECTIONS_SCOPE_LOADER`: the scope name and the token a spec replaces to see which key a view asked for. Keys read `connections.<path>`.
-- `connectionsRoutes`: the child routes the web shell mounts at `/connections` (list, one connection; the form routes come with slice E). The parent route provides the `connections` Transloco scope.
+- `connectionsRoutes`: the child routes the web shell mounts at `/connections` (list, create form, one connection, edit form). The parent route provides the `connections` Transloco scope.
 - `@app/feature-connections/testing`: `markedConnectionsScope`, the English file with every text replaced by `[[connections.<path>]]`, for specs of an app that mounts the feature.
 
 ## Invariants

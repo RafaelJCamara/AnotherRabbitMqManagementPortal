@@ -25,6 +25,15 @@
       "options": {
         "command": "vitest run --config libs/testkit/vitest.config.mts"
       }
+    },
+    "seed-lab": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "continuous": true,
+      "options": {
+        "command": "node libs/testkit/src/it/seed-lab.ts",
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }

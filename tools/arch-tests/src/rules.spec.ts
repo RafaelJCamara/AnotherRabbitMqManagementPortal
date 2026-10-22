@@ -262,7 +262,7 @@ describe('OQ-783 a scope-local action module reaches no broker port', () => {
   it('fails a local action that reaches the writes through element access with a literal key', () => {
     for (const body of [
       `implementAction(d, { execute: (i, ctx) => ctx['writes'].mgmt.send() });`,
-      "implementAction(d, { execute: (i, ctx) => ctx[`writes`].mgmt.send() });",
+      'implementAction(d, { execute: (i, ctx) => ctx[`writes`].mgmt.send() });',
     ]) {
       const violations = checkLocalScopeModules(
         [sample('local')],

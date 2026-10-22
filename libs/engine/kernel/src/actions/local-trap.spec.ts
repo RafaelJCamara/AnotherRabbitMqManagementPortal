@@ -28,11 +28,15 @@ const shape = {
   since: '1.0',
 } as const;
 
-const localDef = defineAction({ ...shape, id: 'ops.local-trap', scope: 'local' });
+const localDef = defineAction({
+  ...shape,
+  id: 'ops.local-trap',
+  scope: 'local',
+});
 const brokerDef = defineAction({ ...shape, id: 'ops.broker-trap' });
 
 let keys = 0;
-const run = (t: TestExecutor, def: typeof localDef  ) => {
+const run = (t: TestExecutor, def: typeof localDef) => {
   keys += 1;
   return t.executor.run(
     def,

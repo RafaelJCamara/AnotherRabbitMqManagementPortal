@@ -45,7 +45,7 @@ function isFlat(schema: z.core.JSONSchema.BaseSchema): boolean {
  * names a connection by one of these field names) and nothing more: an input that addresses a
  * broker under another name (`target`, `node`, `bindingKey`) passes it. What actually keeps a local
  * action off a broker is the executor, which refuses a call whose target is named and hands the
- * action a `writes` bundle that throws on every access (OQ-840, OQ-783).
+ * action a `writes` bundle that throws on every access (OQ-880, OQ-783).
  */
 const BROKER_ADDRESS_FIELDS: ReadonlySet<string> = new Set([
   'cid',

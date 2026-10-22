@@ -6,11 +6,12 @@ Tags: `type:ui-feature`, `runtime:browser`. Not `trust:critical`.
 
 ## Status
 
-Slice C of M0-52: the project, its `connections` Transloco scope, the Problem view, the form model (pure: what the contract takes, which field is wrong, which secrets are held) and the confirmation dialog. The pages (list, detail, form), the capability card, the routes and the shell wiring follow in the next slices; this README is extended with each.
+Slices C and D of M0-52: the project, its `connections` Transloco scope, the Problem view and alert, the form model, the confirmation dialog, the connection list, the connection page (environment chrome, addresses and logins with secrets as set or not set, the lock line with the unlock dialog, Delete behind the lock gate and its confirmation), the routes and the service that makes the calls. The form (create and edit), the tests, the capability card and the shell wiring follow in the next slices.
 
 ## Public API
 
 - `CONNECTIONS_SCOPE` and `CONNECTIONS_SCOPE_LOADER`: the scope name and the token a spec replaces to see which key a view asked for. Keys read `connections.<path>`.
+- `connectionsRoutes`: the child routes the web shell mounts at `/connections` (list, one connection; the form routes come with slice E). The parent route provides the `connections` Transloco scope.
 - `@app/feature-connections/testing`: `markedConnectionsScope`, the English file with every text replaced by `[[connections.<path>]]`, for specs of an app that mounts the feature.
 
 ## Invariants

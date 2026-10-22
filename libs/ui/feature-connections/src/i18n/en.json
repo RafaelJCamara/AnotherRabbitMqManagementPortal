@@ -1,5 +1,10 @@
 {
   "title": "Connections",
+  "main": "Connections",
+  "nav": {
+    "label": "Breadcrumb",
+    "list": "All connections"
+  },
   "env": {
     "prod": "Production",
     "staging": "Staging",
@@ -7,11 +12,83 @@
     "dev": "Development",
     "local": "Local"
   },
+  "gate": {
+    "whyDisabled": "Why this is disabled:",
+    "degraded": "Works with limits:",
+    "source": "Source:",
+    "noReason": "The engine gave no reason."
+  },
   "problem": {
     "unknown": "The request failed.",
     "why": "Why:",
     "source": "Source:",
-    "code": "Code:"
+    "code": "Code:",
+    "unlock": "Unlock this connection"
+  },
+  "lock": {
+    "region": "Lock of this connection",
+    "locked": "Locked. Changes that name this connection need an unlock first.",
+    "armedUntil": "Unlocked until {{time}}.",
+    "unlock": "Unlock…",
+    "lockAgain": "Lock again",
+    "reason": "This is a production connection and it is locked. Unlock it to make changes for 15 minutes.",
+    "dialog": {
+      "title": "Unlock {{name}}?",
+      "confirm": "Unlock",
+      "cancel": "Cancel",
+      "busy": "Unlocking",
+      "body": "{{name}} is a {{env}} connection. Unlocking lets changes that name it go through for 15 minutes.",
+      "audit": "The unlock is recorded in the audit log."
+    }
+  },
+  "list": {
+    "add": "Add a connection",
+    "loading": "Reading the connections.",
+    "retry": "Try again",
+    "caption": "The connections you can use",
+    "name": "Name",
+    "environment": "Environment",
+    "management": "Management API",
+    "amqp": "AMQP",
+    "open": "Explorer",
+    "openExplorer": "Open the explorer",
+    "more": "Show more connections",
+    "empty": "There are no connections yet. Add one to start."
+  },
+  "page": {
+    "loading": "Reading the connection.",
+    "failedTitle": "The connection could not be read",
+    "notFound": "There is no connection with this address.",
+    "openExplorer": "Open the explorer",
+    "edit": "Edit",
+    "delete": "Delete…",
+    "notOwner": "Only the person who owns this connection can change or delete it.",
+    "endpoints": "Addresses and logins",
+    "managementUrl": "Management API",
+    "managementLogin": "Management login",
+    "managementSecret": "Management secret",
+    "amqpAddress": "AMQP address",
+    "amqpLogin": "AMQP login",
+    "amqpSecret": "AMQP secret",
+    "vhost": "virtual host",
+    "tlsOn": "TLS on",
+    "tlsOff": "TLS off",
+    "secretSet": "set",
+    "secretNotSet": "not set",
+    "updated": "Last changed",
+    "auth": {
+      "basic": "user name and password",
+      "bearer": "token",
+      "plain": "user name and password",
+      "none": "no login"
+    }
+  },
+  "delete": {
+    "title": "Delete {{name}}?",
+    "body": "{{name}} and the credentials stored for it are removed. The credentials cannot be recovered.",
+    "confirm": "Delete",
+    "cancel": "Cancel",
+    "busy": "Deleting"
   },
   "form": {
     "error": {

@@ -79,7 +79,7 @@ const unknownText = (el: HTMLElement): string =>
 
 describe('<app-capability-card>', () => {
   it(
-    'AC-22 the capability card renders the gates as sent and fails closed',
+    'M0-54 AC-22 the capability card renders the gates as sent and fails closed',
     async () => {
       const bed = await card((cid) => brokerProfileBody(cid, { gates: GATES }));
       const byName = rows(bed.el);

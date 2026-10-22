@@ -48,7 +48,7 @@ function reasons(value: unknown): string[] {
 }
 
 describe('explorer outputs', () => {
-  it('AC-21 explorer outputs carry no secret, no broker text and no forbidden wording', async () => {
+  it('M0-48 AC-21 explorer outputs carry no secret, no broker text and no forbidden wording', async () => {
     const scripted = createScriptedBroker({
       queueCount: 30,
       vhostCount: 2,

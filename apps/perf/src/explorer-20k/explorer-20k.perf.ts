@@ -279,7 +279,7 @@ const print = (label: string, result: ExplorerPerfResult): void => {
 };
 
 describe('explorer perf', () => {
-  it('AC-24 explorer 20k windows stay under 100 ms p95 and 20 ms loop delay p99', async () => {
+  it('M0-48 AC-24 explorer 20k windows stay under 100 ms p95 and 20 ms loop delay p99', async () => {
     const asserted = await runExplorerPerf(20_000);
     print('explorer-20k', asserted);
     if (largeQueues > 0) {

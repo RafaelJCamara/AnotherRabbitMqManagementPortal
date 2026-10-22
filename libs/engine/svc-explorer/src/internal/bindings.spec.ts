@@ -136,7 +136,7 @@ function harness(options: Parameters<typeof createExplorerFakeDeps>[0]) {
 }
 
 describe('explorer bindings', () => {
-  it('AC-26 explorer bindings are per vhost, bounded and counted', async () => {
+  it('M0-48 AC-26 explorer bindings are per vhost, bounded and counted', async () => {
     const { deps, ask, bindings } = harness({
       vhostCount: 3,
       bindingsPerVhost: { '/': 3_000, 'vhost-1': 1_000, 'vhost-2': 50 },
@@ -290,7 +290,7 @@ describe('explorer bindings', () => {
     expect(broker.requests).toHaveLength(1);
   });
 
-  it('AC-26b explorer bindings handle a bare-array answer without paging', async () => {
+  it('M0-48 AC-26b explorer bindings handle a bare-array answer without paging', async () => {
     // RabbitMQ ignores `page` on /api/bindings/{vhost} (OQ-433): the whole vhost is one answer.
     const { deps, ask, bindings } = harness({
       bindingsPerVhost: 3_000,
@@ -472,7 +472,7 @@ describe('explorer bindings', () => {
     expect(JSON.stringify(failed)).not.toContain('secret-broker-text');
   });
 
-  it('AC-8 explorer bindings are read as a stream with the same request the get path sent', async () => {
+  it('M0-48l AC-8 explorer bindings are read as a stream with the same request the get path sent', async () => {
     // The recorded RabbitMQ 4.2.9 answer (a bare array of 8 bindings) for a vhost that needs escaping.
     const { deps, ask, bindings } = harness({});
     const recorded = recordedBytes(['4.2.9', 'stats-off']);
@@ -517,7 +517,7 @@ describe('explorer bindings', () => {
     }
   });
 
-  it('AC-9 explorer bindings stop at the cap, cancel the body and say the total is not known', async () => {
+  it('M0-48l AC-9 explorer bindings stop at the cap, cancel the body and say the total is not known', async () => {
     const chunk = 4_096;
     const { deps, ask, bindings } = harness({
       bindingsPerVhost: 20_000,
@@ -571,7 +571,7 @@ describe('explorer bindings', () => {
     }
   });
 
-  it('AC-10 explorer bindings fail closed, install nothing and keep the last good rows stale', async () => {
+  it('M0-48l AC-10 explorer bindings fail closed, install nothing and keep the last good rows stale', async () => {
     const canary = 'canary-secret-name';
     const many = (n: number) => Array.from({ length: n }, (_, j) => binding(j));
     const cases: readonly { name: string; body: string; text: string }[] = [
@@ -671,7 +671,7 @@ describe('explorer bindings', () => {
     never(problem);
   });
 
-  it('AC-11 explorer bindings release the scheduler slot on every ending and stop a silent body at the deadline', async () => {
+  it('M0-48l AC-11 explorer bindings release the scheduler slot on every ending and stop a silent body at the deadline', async () => {
     const clock = createManualClock();
     const timers = createManualTimers(clock);
     const scheduler = new BrokerScheduler({ clock, timers });
@@ -767,7 +767,7 @@ describe('explorer bindings', () => {
     scheduler.close();
   });
 
-  it('AC-12 explorer bindings keep at most two streams open per connection', async () => {
+  it('M0-48l AC-12 explorer bindings keep at most two streams open per connection', async () => {
     const make = () => {
       const clock = createManualClock();
       const timers = createManualTimers(clock);

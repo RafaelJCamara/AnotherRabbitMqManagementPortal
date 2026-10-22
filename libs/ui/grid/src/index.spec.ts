@@ -4,7 +4,7 @@ import * as api from './index';
 
 describe('ui-grid public API', () => {
   // Update this list, and the README, together with every export you add.
-  it('AC-18 the public API exports exactly the documented names and no AG Grid symbol', () => {
+  it('M0-53 AC-18 the public API exports exactly the documented names and no AG Grid symbol', () => {
     expect(Object.keys(api).sort()).toEqual([
       'CHANGE_WINDOW_MS',
       'COLUMN_DEFAULT_WIDTH',

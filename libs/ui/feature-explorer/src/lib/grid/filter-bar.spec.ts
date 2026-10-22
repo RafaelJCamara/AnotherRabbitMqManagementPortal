@@ -58,7 +58,7 @@ describe('<app-filter-bar>', () => {
   afterAll(restoreGridSpecEnvironment);
 
   it(
-    'AC-11 filters are text and facets of the contract, applied after a pause, and are never a pattern',
+    'M0-54 AC-11 filters are text and facets of the contract, applied after a pause, and are never a pattern',
     async () => {
       // --- the engine side: a pause, Enter, a new source that aborts the old one, a literal pattern.
       const timer = new ManualTimer();

@@ -104,7 +104,7 @@ describe('<app-data-grid>', () => {
     expect(el.querySelector('[role="treegrid"], [role="grid"]')).not.toBeNull();
   });
 
-  it('AC-9 cell values are rendered as text only', async () => {
+  it('M0-53 AC-9 cell values are rendered as text only', async () => {
     // No quote in it: a cell with a quote is quoted in the copy (AC-11), and AC-9 is about markup.
     const hostile = "<img src=x onerror='window.__pwned = 1'><b>bold</b>";
     const rows: Row[] = [{ id: 'x', name: hostile, size: 1 }];
@@ -309,7 +309,7 @@ describe('<app-data-grid>', () => {
     }
   });
 
-  it('AC-2 single sort mode keeps one sort column', async () => {
+  it('M0-53 AC-5b single sort mode keeps one sort column', async () => {
     const twoColumns: GridColumn<Row>[] = COLUMNS.map((c) => ({
       ...c,
       sortable: true,

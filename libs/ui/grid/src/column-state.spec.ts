@@ -17,7 +17,7 @@ const columns = resolveColumns<{ a: string }>([
 ]);
 
 describe('column state', () => {
-  it('AC-12 column state round-trips and tolerates what it does not know', () => {
+  it('M0-53 AC-12 column state round-trips and tolerates what it does not know', () => {
     const state = normalizeColumnState(
       {
         version: 1,

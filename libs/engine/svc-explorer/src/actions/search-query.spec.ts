@@ -107,7 +107,7 @@ function reference(names: Name[], text: string) {
 }
 
 describe('explorer search.query', () => {
-  it('AC-25 explorer search is bounded, ranked and answered from the index', async () => {
+  it('M0-48 AC-25 explorer search is bounded, ranked and answered from the index', async () => {
     expect(checkRegistry({ actions: [def], topics: [] })).toEqual([]);
     expect(def.input.safeParse(sampleInput).success).toBe(true);
     const scripted = createScriptedBroker({

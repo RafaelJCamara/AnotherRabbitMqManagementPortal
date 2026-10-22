@@ -74,7 +74,7 @@ describe('the requests of the explorer', () => {
   afterAll(restoreGridSpecEnvironment);
 
   it(
-    'AC-28 the explorer calls only its read actions and the two view commands',
+    'M0-54 AC-28b the explorer calls only its read actions and the two view commands',
     async () => {
       // A direct `fetch` would bypass the engine API altogether.
       const direct = vi.fn<typeof fetch>(() =>

@@ -16,7 +16,7 @@ const meta = { sweptAt: 5, complete: true };
 const all = { kind: 'queues', offset: 0, limit: 500 } as const;
 
 describe('explorer index', () => {
-  it('AC-2 explorer index is bounded and counts what it drops', () => {
+  it('M0-48 AC-2 explorer index is bounded and counts what it drops', () => {
     const index = createInventoryIndex(roomy);
     const version = index.install('queues', queues(1_500), meta);
 
@@ -59,14 +59,20 @@ describe('explorer index', () => {
 
     const read = index.window(all);
     expect(read).toMatchObject({ total: 3, matched: 3 });
-    expect(read.rows.map((r) => r.key)).toEqual([...new Set(read.rows.map((r) => r.key))]);
+    expect(read.rows.map((r) => r.key)).toEqual([
+      ...new Set(read.rows.map((r) => r.key)),
+    ]);
     // The first row wins, so the same read twice gives the same index.
     expect(read.rows.find((r) => r.name === 'q-00000')).toMatchObject({
       messages: 0,
     });
     expect(index.byKeys('queues', [again.key])).toHaveLength(1);
     // Counted, never silent (I-13), and the version is not claimed complete.
-    expect(version).toMatchObject({ complete: false, duplicates: 1, dropped: 0 });
+    expect(version).toMatchObject({
+      complete: false,
+      duplicates: 1,
+      dropped: 0,
+    });
     expect(index.queueTotals()).toMatchObject({ complete: false, queues: 3 });
     expect(index.stats).toMatchObject({ rows: 3, dropped: 0, duplicates: 1 });
 
@@ -123,14 +129,20 @@ describe('explorer index', () => {
   it('M0-48 explorer index hasConsumers matches queues with a consumer count above zero only', () => {
     const index = createInventoryIndex(roomy);
     const queue = (name: string, consumers?: number) =>
-      queueRow({ name, vhost: '/', ...(consumers === undefined ? {} : { consumers }) });
+      queueRow({
+        name,
+        vhost: '/',
+        ...(consumers === undefined ? {} : { consumers }),
+      });
     index.install(
       'queues',
       [queue('a-none'), queue('b-idle', 0), queue('c-busy', 2)],
       meta,
     );
     const names = (hasConsumers: boolean) =>
-      index.window({ ...all, filter: { hasConsumers } }).rows.map((r) => r.name);
+      index
+        .window({ ...all, filter: { hasConsumers } })
+        .rows.map((r) => r.name);
 
     expect(names(true)).toEqual(['c-busy']);
     // A queue that did not report consumers matches neither answer.

@@ -171,7 +171,7 @@ function filterAndSort(rows: Row[], spec: Spec, typeField: string): Row[] {
 }
 
 describe('explorer inventory.query', () => {
-  it('AC-6 explorer windows are served from the index and match the reference', async () => {
+  it('M0-48 AC-6 explorer windows are served from the index and match the reference', async () => {
     expect(checkRegistry({ actions: [def], topics: [] })).toEqual([]);
     expect(def.input.safeParse(sampleInput).success).toBe(true);
     const { deps, engine, ask, sweepNow } = harness({
@@ -297,7 +297,7 @@ describe('explorer inventory.query', () => {
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
-  it('AC-7explorer scrolling is stable on a pinned version and says when the version is gone', async () => {
+  it('M0-48 AC-7 explorer scrolling is stable on a pinned version and says when the version is gone', async () => {
     let broker = createScriptedBroker({ queueCount: 1_200, vhostCount: 2 });
     const hidden = new Set<string>();
     const mgmt: MgmtReadPort = {
@@ -384,7 +384,11 @@ describe('explorer inventory.query', () => {
       let seen: Awaited<ReturnType<typeof ask>> | undefined;
       for (let offset = 0; offset < 1_200; offset += 500) {
         seen = await ask(
-          query('queues', { offset, limit: 500, ...(version ? { version } : {}) }),
+          query('queues', {
+            offset,
+            limit: 500,
+            ...(version ? { version } : {}),
+          }),
         );
         rows.push(...(seen.rows as Row[]));
       }
@@ -393,7 +397,11 @@ describe('explorer inventory.query', () => {
 
     expect((await sweepNow()).ended).toBe('complete');
     const clean = await scroll();
-    expect(clean.last?.freshness).toMatchObject({ state: 'live', complete: true, loaded: 1_200 });
+    expect(clean.last?.freshness).toMatchObject({
+      state: 'live',
+      complete: true,
+      loaded: 1_200,
+    });
 
     shifted = true;
     const outcome = await sweepNow();
@@ -430,7 +438,7 @@ describe('explorer inventory.query', () => {
     });
   });
 
-  it('AC-8 explorer cold start answers at once and never calls a partial index complete', async () => {
+  it('M0-48 AC-8 explorer cold start answers at once and never calls a partial index complete', async () => {
     const scripted = createScriptedBroker({ queueCount: 10_000 });
     const hold = (read: MgmtReadPort, prefix: string, nth: number) => {
       let seen = 0;
@@ -518,7 +526,7 @@ describe('explorer inventory.query', () => {
     expect(deps.broker.requests).toEqual([]);
   });
 
-  it('AC-9 explorer stats-off rows show what the broker sent and name the hazard', async () => {
+  it('M0-48 AC-9 explorer stats-off rows show what the broker sent and name the hazard', async () => {
     const root = join(import.meta.dirname, '..', '..', '..', '..', '..');
     const fixture = (target: string, file: string) =>
       JSON.parse(
@@ -656,7 +664,7 @@ describe('explorer inventory.query', () => {
     }
   });
 
-  it('AC-10 explorer inventory.query denies by default and hides connections the caller cannot see', async () => {
+  it('M0-48 AC-10 explorer inventory.query denies by default and hides connections the caller cannot see', async () => {
     const body = query('queues', { offset: 0, limit: 10 });
     const as = (roles: string[], deps: ExplorerFakeDeps, input = body) => {
       const engine: TestExecutor = createTestExecutor({
@@ -712,7 +720,7 @@ describe('explorer inventory.query', () => {
     expect(answer.kind).toBe('output');
   });
 
-  it('AC-27 explorer connections kind is swept, paged and shows only what the broker sent', async () => {
+  it('M0-48 AC-27 explorer connections kind is swept, paged and shows only what the broker sent', async () => {
     const root = join(import.meta.dirname, '..', '..', '..', '..', '..');
     const recorded = (target: string, mode: string) =>
       JSON.parse(

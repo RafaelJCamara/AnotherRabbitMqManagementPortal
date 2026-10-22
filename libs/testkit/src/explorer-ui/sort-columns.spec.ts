@@ -54,7 +54,7 @@ const sourceFor = (kind: ExplorerKind) =>
   });
 
 describe('the sortable columns of the explorer UI', () => {
-  it('AC-12 the sortable columns of the UI are the ones the engine accepts', async () => {
+  it('M0-54 AC-12 the sortable columns of the UI are the ones the engine accepts', async () => {
     engine = createTestEngine({
       actions: [
         createInventoryQueryAction(

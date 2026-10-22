@@ -204,7 +204,7 @@ describe.each(versions)('svc-explorer against RabbitMQ %s', (version) => {
     await broker.stop();
   });
 
-  it('AC-23 explorer on a lab broker with 20k queues stays within the paging and latency budget', async () => {
+  it('M0-48 AC-23 explorer on a lab broker with 20k queues stays within the paging and latency budget', async () => {
     // The first sweep. `touch` starts it the way a first window query does; `sweepNow` joins it.
     sweeper.touch(cid);
     const began = performance.now();

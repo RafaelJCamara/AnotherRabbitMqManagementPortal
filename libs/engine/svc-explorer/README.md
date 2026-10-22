@@ -45,7 +45,7 @@ Status: work package M0-48 ([spec](../../../docs/specs/M0-48.md)), slices A to E
 - Never imports another service or an adapter; cross-service needs are ports wired in the composition root (blueprint 2.2).
 - Every mutation is an `implementAction` file in `src/actions/`; nothing writes through a WritePort outside one (mutation funnel). This module is read-only: it is handed a `MgmtReadPort`, never a write port (I-2, I-8).
 - Engine buffers are `BoundedRing` or `BoundedQueue` (`@app/bounded-buffers-only`).
-- No contract allows an unbounded input or output: a window is required, its `limit` is at most 500, filters and key lists are capped, and every output array has a maximum (I-7). The test `AC-1 explorer contracts allow no unbounded input or output` proves it.
+- No contract allows an unbounded input or output: a window is required, its `limit` is at most 500, filters and key lists are capped, and every output array has a maximum (I-7). The test `M0-48 AC-1 explorer contracts allow no unbounded input or output` proves it.
 
 ## Proof commands
 

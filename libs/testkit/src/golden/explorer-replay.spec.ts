@@ -179,7 +179,7 @@ async function serve(recording: Recording) {
 }
 
 describe('explorer sweep over the golden recordings', () => {
-  it('AC-22 explorer sweep requests are correct on the wire for every recorded broker', async () => {
+  it('M0-48 AC-22 explorer sweep requests are correct on the wire for every recorded broker', async () => {
     for (const key of RECORDINGS) {
       const recording = loadRecording(key);
       const broker = await serve(recording);

@@ -89,7 +89,7 @@ async function update(
 }
 
 describe('<app-freshness-banner>', () => {
-  it('AC-13 freshness is shown as the engine sent it: partial, stale, truncated and dropped are never silent', async () => {
+  it('M0-54 AC-13 freshness is shown as the engine sent it: partial, stale, truncated and dropped are never silent', async () => {
     // A list that is live and complete says only when it was updated.
     const calm = await banner('queues', {});
     expect(lines(calm.el)).toEqual(['Info Updated at 1000']);
@@ -169,7 +169,7 @@ describe('<app-freshness-banner>', () => {
     expect(all(hazards.el)).toContain('future-hazard-id');
   });
 
-  it('AC-13 the live line says what is followed, what is paused and how the topic ended', async () => {
+  it('M0-54 AC-13b the live line says what is followed, what is paused and how the topic ended', async () => {
     const following = await banner(
       'queues',
       {},
@@ -215,7 +215,7 @@ describe('<app-freshness-banner>', () => {
     expect(all(degraded.el)).toContain('Live updates are degraded.');
   });
 
-  it('AC-29 the edge states of a first session each say what happened: sweep not started, inventory not read, broker unreachable, login refused', async () => {
+  it('M0-54 AC-29 the edge states of a first session each say what happened: sweep not started, inventory not read, broker unreachable, login refused', async () => {
     // The sweep has not delivered anything yet: loading with nothing loaded, never "no rows".
     const starting = await banner('queues', {
       state: 'loading',
@@ -289,7 +289,7 @@ describe('<app-freshness-banner>', () => {
     expect(all(other.el)).not.toContain('refused the login');
   });
 
-  it('AC-13 a state is announced once: the announcement carries no count', async () => {
+  it('M0-54 AC-13c a state is announced once: the announcement carries no count', async () => {
     const loading = await banner('queues', {
       state: 'loading',
       complete: false,

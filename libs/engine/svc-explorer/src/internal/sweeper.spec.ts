@@ -11,7 +11,7 @@ const cid = ConnectionIdSchema.parse('c1');
 const first = { kind: 'queues', offset: 0, limit: 1 } as const;
 
 describe('explorer sweeper', () => {
-  it('AC-3 explorer sweep of 20k queues is paged at 500 with stats-off flags in the background lane', async () => {
+  it('M0-48 AC-3 explorer sweep of 20k queues is paged at 500 with stats-off flags in the background lane', async () => {
     const broker = createScriptedBroker({ queueCount: 20_000, vhostCount: 4 });
     const sweeper = createSweeper({ mgmt: broker.read });
 
@@ -53,7 +53,7 @@ describe('explorer sweeper', () => {
     expect(sweeper.index(cid)?.window(first).total).toBe(20_000);
   });
 
-  it('AC-4 explorer failed or partial sweep keeps the last good index and says stale', async () => {
+  it('M0-48 AC-4 explorer failed or partial sweep keeps the last good index and says stale', async () => {
     const broker = createScriptedBroker({ queueCount: 3_000, vhostCount: 2 });
     const sweeper = createSweeper({ mgmt: broker.read });
     const run = (signal = new AbortController().signal) =>
@@ -229,7 +229,8 @@ describe('explorer sweeper', () => {
           const before = last;
           last = page.items.at(-1);
           // A queue was created while the sweep paged: this page starts with the row that ended the last.
-          if (before !== undefined) page.items = [before, ...page.items.slice(0, -1)];
+          if (before !== undefined)
+            page.items = [before, ...page.items.slice(0, -1)];
         }
         return out;
       },
@@ -249,7 +250,7 @@ describe('explorer sweeper', () => {
     expect(sweeper.status(cid).expected.get('queues')).toBe(1_200);
   });
 
-  it('AC-5 explorer sweeps follow demand, the cost-based cadence and the drain', async () => {
+  it('M0-48 AC-5 explorer sweeps follow demand, the cost-based cadence and the drain', async () => {
     const broker = createScriptedBroker({ queueCount: 3 });
     const clock = createManualClock();
     const timers = createManualTimers(clock);

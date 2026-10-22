@@ -102,7 +102,7 @@ describe('grid context menu', () => {
   beforeAll(warmUpGrid, WARM_UP_TIMEOUT_MS);
   afterAll(restoreGridSpecEnvironment);
 
-  it('AC-2 right-click opens the app menu and nothing else', async () => {
+  it('M0-53 AC-2 right-click opens the app menu and nothing else', async () => {
     const { el, fixture, host } = await mount(SIMPLE);
     const cell = cellAt(el, 'name', 1);
     cell.focus();
@@ -262,7 +262,7 @@ describe('grid context menu', () => {
     expect(seen).toEqual(['a']);
   });
 
-  it('AC-14 a closed gate never activates a menu item', async () => {
+  it('M0-53 AC-14 a closed gate never activates a menu item', async () => {
     const provider: GridMenuProvider<Row> = () => [
       {
         kind: 'gated',

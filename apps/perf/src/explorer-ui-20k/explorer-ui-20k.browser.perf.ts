@@ -66,7 +66,7 @@ interface AttemptReport {
 }
 
 describe('explorer ui browser perf', () => {
-  it('AC-27 explorer ui 20k: p95 interaction under 300 ms in a browser', async (ctx) => {
+  it('M0-54 AC-27 explorer ui 20k: p95 interaction under 300 ms in a browser', async (ctx) => {
     const executable = findBrowser();
     if (executable === undefined) {
       const message = `AC-27 SKIPPED: no Chromium-family browser binary found (looked at ${BROWSER_ENV.join(', ')}, then Chrome and Edge in their default locations). NOTHING WAS PROVED and no browser figure exists. Install Chrome or Edge, or set PERF_BROWSER to its path.`;

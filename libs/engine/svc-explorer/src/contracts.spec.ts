@@ -57,7 +57,7 @@ function arrays(node: unknown, path: string, out: [string, unknown][]) {
 }
 
 describe('explorer contracts', () => {
-  it('AC-1 explorer contracts allow no unbounded input or output', async () => {
+  it('M0-48 AC-1 explorer contracts allow no unbounded input or output', async () => {
     expect(actions.map((a) => a.id)).toContain('inventory.query');
     expect(checkRegistry({ actions, topics })).toEqual([]);
 

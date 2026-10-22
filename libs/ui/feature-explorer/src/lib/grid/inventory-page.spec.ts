@@ -50,7 +50,7 @@ describe('<app-inventory-page>', () => {
   afterAll(restoreGridSpecEnvironment);
 
   it(
-    'AC-15 20,000 queues: scrolling and filtering never request more than a block',
+    'M0-54 AC-15 20,000 queues: scrolling and filtering never request more than a block',
     async () => {
       const fake = createFakeExplorerData({
         rows: { queues: 20_000 },
@@ -145,7 +145,7 @@ describe('<app-inventory-page>', () => {
   );
 
   it(
-    'AC-14 a bindings page asks for exactly one vhost before it reads',
+    'M0-54 AC-14 a bindings page asks for exactly one vhost before it reads',
     async () => {
       const fake = createFakeExplorerData({ autoSnapshot: true });
       TestBed.resetTestingModule();
@@ -392,7 +392,7 @@ describe('<app-inventory-page>', () => {
     PAGE_TEST_TIMEOUT_MS,
   );
   it(
-    'AC-29 a broker with no queues says so in words, and a list that is still loading never says it',
+    'M0-54 AC-29 a broker with no queues says so in words, and a list that is still loading never says it',
     async () => {
       // The whole list was read and it is empty: a sentence, not a blank grid.
       const empty = createFakeExplorerData({
@@ -494,7 +494,7 @@ describe('<app-inventory-page>', () => {
   );
 
   it(
-    'AC-16 the grid page is operable by keyboard with named controls and calm live regions',
+    'M0-54 AC-16 the grid page is operable by keyboard with named controls and calm live regions',
     async () => {
       const fake = createFakeExplorerData({ autoSnapshot: true });
       const { el, fixture } = await mountPage(InventoryPage, {

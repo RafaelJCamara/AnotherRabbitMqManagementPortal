@@ -96,7 +96,7 @@ describe('<app-views-control>', () => {
   afterAll(restoreGridSpecEnvironment);
 
   it(
-    'AC-17 a saved view reopened on another connection applies its filters, sort and columns',
+    'M0-54 AC-17 a saved view reopened on another connection applies its filters, sort and columns',
     async () => {
       const workspace = new FakeWorkspace();
       const saved = workspace.add(SAVED);
@@ -187,7 +187,7 @@ describe('<app-views-control>', () => {
   );
 
   it(
-    'AC-18 what a view names and this kind cannot apply is dropped and said, never applied silently',
+    'M0-54 AC-18 what a view names and this kind cannot apply is dropped and said, never applied silently',
     async () => {
       const workspace = new FakeWorkspace();
       const exchange = (name: string, definition: Record<string, unknown>) =>
@@ -286,7 +286,7 @@ describe('<app-views-control>', () => {
   );
 
   it(
-    "AC-19 saving a view is bounded, a refusal shows the engine's reason, and replacing never loses a view",
+    "M0-54 AC-19 saving a view is bounded, a refusal shows the engine's reason, and replacing never loses a view",
     async () => {
       // A definition over the contract's limit is refused before any call (the control is given one directly:
       // the UI itself cannot make one this large).

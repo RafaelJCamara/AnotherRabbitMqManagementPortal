@@ -290,7 +290,7 @@ const print = (label: string, result: UiPerfResult): void => {
 };
 
 describe('explorer ui perf', () => {
-  it('AC-26 explorer ui 20k: interactions stay under 300 ms p95 in the adapter and engine', async () => {
+  it('M0-54 AC-26 explorer ui 20k: interactions stay under 300 ms p95 in the adapter and engine', async () => {
     const asserted = await runUiPerf(20_000);
     print('explorer-ui-20k', asserted);
     if (largeQueues > 0) {

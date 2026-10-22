@@ -62,7 +62,7 @@ describe('the first run of the explorer', () => {
   afterAll(restoreGridSpecEnvironment);
 
   it(
-    'AC-29 a never-probed connection shows a prompt and reads nothing; one press probes, a refusal is shown as sent with help, and the next press loads the list',
+    'M0-54 AC-29 a never-probed connection shows a prompt and reads nothing; one press probes, a refusal is shown as sent with help, and the next press loads the list',
     async () => {
       const workspace = new FakeWorkspace();
       workspace.profile = null; // NOT_FOUND, as the engine answers before the first probe
@@ -129,7 +129,7 @@ describe('the first run of the explorer', () => {
   );
 
   it(
-    'AC-29 a stored profile this version cannot read is said to be out of date and offers the same probe',
+    'M0-54 AC-29 a stored profile this version cannot read is said to be out of date and offers the same probe',
     async () => {
       const workspace = new FakeWorkspace();
       workspace.profile = () => ({ schemaVersion: 0, notAProfile: true });
@@ -150,7 +150,7 @@ describe('the first run of the explorer', () => {
   );
 
   it(
-    'AC-29 the capability card of the overview offers the probe for a never-probed connection and shows the gates after it',
+    'M0-54 AC-29 the capability card of the overview offers the probe for a never-probed connection and shows the gates after it',
     async () => {
       const workspace = new FakeWorkspace();
       workspace.profile = null;
@@ -185,7 +185,7 @@ describe('the first run of the explorer', () => {
   );
 
   it(
-    'AC-29 a connection the engine cannot probe (no such connection) shows the engine problem and no list',
+    'M0-54 AC-29 a connection the engine cannot probe (no such connection) shows the engine problem and no list',
     async () => {
       const workspace = new FakeWorkspace();
       workspace.profile = null;

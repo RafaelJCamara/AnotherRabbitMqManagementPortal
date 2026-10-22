@@ -46,7 +46,7 @@ function recording(): GridClipboard & { readonly written: string[] } {
 }
 
 describe('grid clipboard', () => {
-  it('AC-11 copy writes the displayed values, is capped and reports failure', async () => {
+  it('M0-53 AC-11 copy writes the displayed values, is capped and reports failure', async () => {
     const rows = [row('orders', 3), row('billing', null), row('audit', 8)];
     // The visible columns only: the user hid `size`, so its values are not in the text.
     const visible = COLUMNS.filter((c) => c.id !== 'size');

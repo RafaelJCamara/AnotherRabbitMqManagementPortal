@@ -91,7 +91,7 @@ async function drain(
 }
 
 describe('json-stream open', () => {
-  it('AC-5 json-stream tells the shape first and reads an envelope within a byte limit', async () => {
+  it('M0-48l AC-5 json-stream tells the shape first and reads an envelope within a byte limit', async () => {
     // The shape comes from the first significant byte; blanks may span chunks.
     const shapes: readonly [Uint8Array[], string][] = [
       [texts('[1]'), 'array'],
@@ -194,7 +194,7 @@ describe('json-stream open', () => {
     expect(() => unread.array(WIDE)).toThrow('already read');
   });
 
-  it('AC-6 json-stream ends on abort even when the source is silent', async () => {
+  it('M0-48l AC-6 json-stream ends on abort even when the source is silent', async () => {
     // Two chunks, then silence: the signal ends the read without waiting for the source.
     const silent = source(texts('[1,2,', '3,'), { silent: true });
     const controller = new AbortController();
@@ -274,7 +274,7 @@ describe('json-stream open', () => {
     expect(slow.state.returned).toBe(1);
   });
 
-  it('AC-7 json-stream yields to the event loop at fixed byte and item intervals', async () => {
+  it('M0-48l AC-7 json-stream yields to the event loop at fixed byte and item intervals', async () => {
     const CHUNK = 16 * 1024;
     const YIELD_BYTES = 262_144;
     const YIELD_ITEMS = 5_000;

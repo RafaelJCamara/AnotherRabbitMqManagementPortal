@@ -42,7 +42,7 @@ import {
 const topic = explorerWindowTopic;
 
 describe('explorer.window', () => {
-  it('AC-1 the contract passes the kit invariants: bounded ring, keyed, no secret', () => {
+  it('M0-48 KIT-T1 the contract passes the kit invariants: bounded ring, keyed, no secret', () => {
     expect(checkRegistry({ actions: [], topics: [topic] })).toEqual([]);
     // Bounded by items and by bytes (I-6): whatever the numbers are, both are finite.
     expect(Number.isSafeInteger(topic.ring.items) && topic.ring.items > 0).toBe(
@@ -53,7 +53,7 @@ describe('explorer.window', () => {
     );
   });
 
-  it('AC-2 the sample params and item fit the schemas, and travel in live frames', () => {
+  it('M0-48 KIT-T2 the sample params and item fit the schemas, and travel in live frames', () => {
     const item = topic.item.parse(sampleItem);
 
     expect(topic.params.safeParse(sampleParams).success).toBe(true);
@@ -85,7 +85,7 @@ describe('explorer.window', () => {
     ).toBe(true);
   });
 
-  it('AC-3 an item has one stable key, so coalescing and removals agree', () => {
+  it('M0-48 KIT-T3 an item has one stable key, so coalescing and removals agree', () => {
     const first = topic.key?.(topic.item.parse(sampleItem));
     const second = topic.key?.(topic.item.parse({ ...sampleItem }));
 
@@ -93,13 +93,13 @@ describe('explorer.window', () => {
     expect(first).toBe(second);
   });
 
-  it('AC-4 the module declares the topic', () => {
+  it('M0-48 KIT-T4 the module declares the topic', () => {
     expect(createExplorerModule(createExplorerFakeDeps()).topics).toContain(
       topic,
     );
   });
 
-  it('AC-5 a provider feeds the topic: the module hands its source to the composition root', () => {
+  it('M0-48 KIT-T5 a provider feeds the topic: the module hands its source to the composition root', () => {
     const { topicSources } = createExplorerModule(createExplorerFakeDeps());
 
     expect(topicSources.map((binding) => binding.def)).toEqual([topic]);
@@ -259,7 +259,7 @@ const problemOf = (frames: ServerFrame[]) =>
   frames.flatMap((f) => (f.t === 'end' && f.problem ? [f.problem] : []))[0];
 
 describe('explorer.window source', () => {
-  it('AC-17 explorer.window publishes deltas for visible keys only', async () => {
+  it('M0-48 AC-17 explorer.window publishes deltas for visible keys only', async () => {
     const w = setup(20_000, 4);
     const spy = spied(createWindowSource(w.deps));
     const { client } = open(w.deps, spy.source);
@@ -326,7 +326,7 @@ describe('explorer.window source', () => {
     expect(spy.published).toHaveLength(9);
   });
 
-  it('AC-18 explorer.window removes gone keys and signals a membership change with a version marker', async () => {
+  it('M0-48 AC-18 explorer.window removes gone keys and signals a membership change with a version marker', async () => {
     const w = setup(1_050, 2, 2, 20);
     for (let i = 1_000; i < 1_050; i++) w.hidden.add(queueName(i));
     const spy = spied(createWindowSource(w.deps));
@@ -411,7 +411,7 @@ describe('explorer.window source', () => {
     expect(got.map((item) => item.key)).toEqual(['~version']);
   });
 
-  it('AC-19 explorer.window snapshot fits one frame and overflow becomes a gap then a snapshot', async () => {
+  it('M0-48 AC-19 explorer.window snapshot fits one frame and overflow becomes a gap then a snapshot', async () => {
     const BIG = 255;
     const vhost = 'v'.repeat(BIG);
     const bigName = (i: number) =>
@@ -540,7 +540,7 @@ describe('explorer.window source', () => {
     });
   });
 
-  it('AC-20 explorer.window refuses oversized, forbidden and unknown subscriptions', async () => {
+  it('M0-48 AC-20 explorer.window refuses oversized, forbidden and unknown subscriptions', async () => {
     const w = setup(10, 1);
     const source = createWindowSource(w.deps);
     const spy = spied(source);

@@ -24,7 +24,7 @@ function text(
 }
 
 describe('inventoryColumns', () => {
-  it('AC-10 cells show what the broker sent and "not reported" for what it did not', () => {
+  it('M0-54 AC-10 cells show what the broker sent and "not reported" for what it did not', () => {
     // R7: the columns of each kind, in order, and which of them are shown by default.
     const shown = (kind: ExplorerKind): string[] =>
       inventoryColumns(kind, translate)

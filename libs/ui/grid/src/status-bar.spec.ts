@@ -50,7 +50,7 @@ async function mount() {
 }
 
 describe('<app-grid-status-bar>', () => {
-  it('AC-13 the status bar tells unknown from zero and announces state', async () => {
+  it('M0-53 AC-13 the status bar tells unknown from zero and announces state', async () => {
     const { host, text, live, settle, el } = await mount();
 
     // Unknown is said to be unknown; it is never 0.
@@ -97,7 +97,7 @@ describe('<app-grid-status-bar>', () => {
     expect(el.querySelector('.error')).toBeNull();
   });
 
-  it('AC-13 every word comes from labels', async () => {
+  it('M0-53 AC-13b every word comes from labels', async () => {
     const { host, live, settle } = await mount();
     const words: GridStatusLabels = {
       total: 'T{count}',

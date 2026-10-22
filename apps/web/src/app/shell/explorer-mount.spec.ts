@@ -70,7 +70,7 @@ const MOUNT_TEST_TIMEOUT_MS = 20_000;
 
 describe('the explorer under the shell', () => {
   it(
-    'AC-24 the explorer routes mount under c/:cid and the tree opens them',
+    'M0-54 AC-24 the explorer routes mount under c/:cid and the tree opens them',
     async () => {
       const backend = new ExplorerBackend();
       const bed = await mountShell(undefined, backend);
@@ -163,7 +163,7 @@ describe('the explorer under the shell', () => {
     MOUNT_TEST_TIMEOUT_MS,
   );
 
-  it('AC-24 a connection that is not a plain token shows no explorer content and the explorer makes no call', async () => {
+  it('M0-54 AC-24b a connection that is not a plain token shows no explorer content and the explorer makes no call', async () => {
     const backend = new ExplorerBackend();
     const bed = await mountShell(undefined, backend);
     const before = bed.engine.requests.length;

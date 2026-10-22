@@ -26,11 +26,11 @@ const clean = (overrides: Partial<AttemptData> = {}): AttemptData => ({
 });
 
 describe('AC-27 harness (no browser): the judgement', () => {
-  it('AC-27 harness: a clean run passes', () => {
+  it('M0-54 harness (AC-27): a clean run passes', () => {
     expect(judge(clean())).toEqual({ deterministic: [], timing: [] });
   });
 
-  it('AC-27 harness: a p95 at the budget fails, one under it passes', () => {
+  it('M0-54 harness (AC-27): a p95 at the budget fails, one under it passes', () => {
     const slow = (ms: number, count: number): AttemptData =>
       clean({
         samples: [
@@ -48,7 +48,7 @@ describe('AC-27 harness (no browser): the judgement', () => {
     expect(judge(slow(BUDGETS.interactionP95Ms - 1, 6)).timing).toEqual([]);
   });
 
-  it('AC-27 harness: any long task above 50 ms is a timing failure', () => {
+  it('M0-54 harness (AC-27): any long task above 50 ms is a timing failure', () => {
     expect(
       judge(clean({ longTasks: [{ start: 1, duration: 51 }] })).timing,
     ).toHaveLength(1);
@@ -57,13 +57,13 @@ describe('AC-27 harness (no browser): the judgement', () => {
     ).toEqual([]);
   });
 
-  it('AC-27 harness: a CSP or Trusted Types report is deterministic and never retried', () => {
+  it('M0-54 harness (AC-27): a CSP or Trusted Types report is deterministic and never retried', () => {
     const verdict = judge(clean({ violations: ['console: Refused to apply'] }));
     expect(verdict.deterministic).toHaveLength(1);
     expect(nextStep(verdict, 1, 3)).toBe('failed');
   });
 
-  it('AC-27 harness: a request over a block is deterministic', () => {
+  it('M0-54 harness (AC-27): a request over a block is deterministic', () => {
     const requests = [
       ...clean().requests,
       { offset: 0, limit: BUDGETS.blockLimit + 1 },
@@ -83,14 +83,14 @@ describe('AC-27 harness (no browser): the judgement', () => {
     ).toEqual([]);
   });
 
-  it('AC-27 harness: fewer timed interactions than planned, or fewer requests than needing steps, fails', () => {
+  it('M0-54 harness (AC-27): fewer timed interactions than planned, or fewer requests than needing steps, fails', () => {
     expect(judge(clean({ planned: 101 })).deterministic).toHaveLength(1);
     expect(
       judge(clean({ requests: [], requestingSteps: 80 })).deterministic,
     ).toHaveLength(1);
   });
 
-  it('AC-27 harness: only timing failures are retried, and only while attempts remain', () => {
+  it('M0-54 harness (AC-27): only timing failures are retried, and only while attempts remain', () => {
     const timing = judge(clean({ longTasks: [{ start: 0, duration: 99 }] }));
     expect(nextStep(timing, 1, 3)).toBe('retry');
     expect(nextStep(timing, 2, 3)).toBe('retry');
@@ -98,7 +98,7 @@ describe('AC-27 harness (no browser): the judgement', () => {
     expect(nextStep(judge(clean()), 1, 3)).toBe('passed');
   });
 
-  it('AC-27 harness: the percentile is the nearest rank', () => {
+  it('M0-54 harness (AC-27): the percentile is the nearest rank', () => {
     const sorted = Array.from({ length: 100 }, (_, i) => i + 1);
     expect(percentile(sorted, 0.95)).toBe(95);
     expect(percentile([7], 0.95)).toBe(7);
@@ -115,7 +115,7 @@ describe('AC-27 harness (no browser): the interaction plan', () => {
     sortColumns: ['name', 'vhost', 'type', 'state'],
   } as const;
 
-  it('AC-27 harness: the plan is the same on every run and uses every kind of interaction', async () => {
+  it('M0-54 harness (AC-27): the plan is the same on every run and uses every kind of interaction', async () => {
     const first = await planInteractions(options);
     const second = await planInteractions(options);
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
@@ -126,7 +126,7 @@ describe('AC-27 harness (no browser): the interaction plan', () => {
     expect(JSON.stringify(other)).not.toBe(JSON.stringify(first));
   });
 
-  it('AC-27 harness: every expectation is a window of real rows of the oracle', async () => {
+  it('M0-54 harness (AC-27): every expectation is a window of real rows of the oracle', async () => {
     const plan = await planInteractions(options);
     for (const step of plan) {
       const { rows, scrolledRows, matched } = step.expect;
@@ -149,7 +149,7 @@ describe('AC-27 harness (no browser): the interaction plan', () => {
     }
   });
 
-  it('AC-27 harness: a text filter step shows only rows whose name holds the text', async () => {
+  it('M0-54 harness (AC-27): a text filter step shows only rows whose name holds the text', async () => {
     const plan = await planInteractions({ ...options, steps: 200 });
     const texts = plan.filter(
       (step): step is Extract<Step, { kind: 'text-filter' }> =>
@@ -163,7 +163,7 @@ describe('AC-27 harness (no browser): the interaction plan', () => {
     }
   });
 
-  it('AC-27 harness: no step repeats the screen the one before left, so none times nothing', async () => {
+  it('M0-54 harness (AC-27): no step repeats the screen the one before left, so none times nothing', async () => {
     const plan = await planInteractions({ ...options, steps: 200 });
     let previous = '';
     for (const step of plan) {
@@ -175,7 +175,7 @@ describe('AC-27 harness (no browser): the interaction plan', () => {
     }
   });
 
-  it('AC-27 harness: a sort click cycles ascending, descending, none on one column', async () => {
+  it('M0-54 harness (AC-27): a sort click cycles ascending, descending, none on one column', async () => {
     const plan = await planInteractions({
       ...options,
       steps: 400,
@@ -199,11 +199,11 @@ describe('AC-27 harness (no browser): the interaction plan', () => {
 });
 
 describe('AC-27 harness (no browser): the page script and the browser search', () => {
-  it('AC-27 harness: the page script compiles', () => {
+  it('M0-54 harness (AC-27): the page script compiles', () => {
     expect(() => new Script(PAGE_SCRIPT)).not.toThrow();
   });
 
-  it('AC-27 harness: a variable that names a missing browser is no browser, not a fall-through', () => {
+  it('M0-54 harness (AC-27): a variable that names a missing browser is no browser, not a fall-through', () => {
     const exists = (path: string): boolean => path === '/real/chrome';
     expect(findBrowser({ PERF_BROWSER: '/missing' }, 'linux', exists)).toBe(
       undefined,
@@ -214,7 +214,7 @@ describe('AC-27 harness (no browser): the page script and the browser search', (
     expect(findBrowser({}, 'linux', () => false)).toBe(undefined);
   });
 
-  it('AC-27 harness: Chrome is looked for before Edge, and on PATH on Linux', () => {
+  it('M0-54 harness (AC-27): Chrome is looked for before Edge, and on PATH on Linux', () => {
     const chrome = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     const edge =
       'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';

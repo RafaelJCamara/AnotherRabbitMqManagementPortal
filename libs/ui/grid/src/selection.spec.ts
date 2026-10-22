@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { GRID_MAX_SELECTION, selectRow } from './selection';
 
 describe('selection', () => {
-  it('AC-15 selection is by row id and survives block eviction', () => {
+  it('M0-53 AC-15 selection is by row id and survives block eviction', () => {
     // The set holds ids, never indexes or row objects, so a block leaving the cache cannot touch it.
     let s = selectRow(new Set(), 'multiple', 'row-3', false).selection;
     s = selectRow(s, 'multiple', 'row-90000', true).selection;

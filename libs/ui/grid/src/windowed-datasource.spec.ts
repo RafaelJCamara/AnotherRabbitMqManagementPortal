@@ -37,7 +37,7 @@ describe('WindowedDatasource', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('AC-5 requests are block-aligned, bounded and carry the sort', async () => {
+  it('M0-53 AC-5 requests are block-aligned, bounded and carry the sort', async () => {
     const source = createFakeWindowSource({ latencyMs: 10 });
     const ds = new WindowedDatasource({ source, maxConcurrent: 2 });
     const probes = [0, 200, 400, 600].map((s) =>
@@ -80,7 +80,7 @@ describe('WindowedDatasource', () => {
     expect(ds.total()).toBe(250);
   });
 
-  it('AC-6 a stale answer never reaches the grid', async () => {
+  it('M0-53 AC-6 a stale answer never reaches the grid', async () => {
     const source = createFakeWindowSource({ latencyMs: 50, ignoreAbort: true });
     const ds = new WindowedDatasource({ source });
     const probe = block(0);
@@ -124,7 +124,7 @@ describe('WindowedDatasource', () => {
     expect(ds.stats().blocksFailed).toBe(0);
   });
 
-  it('AC-7 a failed or oversized block fails whole, is counted and can be retried', async () => {
+  it('M0-53 AC-7 a failed or oversized block fails whole, is counted and can be retried', async () => {
     const source = createFakeWindowSource({ failAt: (o) => o === 200 });
     const onRefresh = vi.fn();
     const ds = new WindowedDatasource({ source, onRefresh });
@@ -152,7 +152,7 @@ describe('WindowedDatasource', () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it('AC-8 live changes touch visible rows only and refresh at most every 5 s', async () => {
+  it('M0-53 AC-8 live changes touch visible rows only and refresh at most every 5 s', async () => {
     vi.setSystemTime(100_000);
     const source = createFakeWindowSource();
     const onApply = vi.fn();
@@ -188,7 +188,7 @@ describe('WindowedDatasource', () => {
     expect(onRefresh).toHaveBeenCalledTimes(2);
     expect(ds.stats().refreshes).toBe(2);
   });
-  it('AC-1 a refresh change reloads the cache at most every 5 s and tells the source', async () => {
+  it('M0-53 AC-8b a refresh change reloads the cache at most every 5 s and tells the source', async () => {
     vi.setSystemTime(100_000);
     const source = createFakeWindowSource();
     const onRefresh = vi.fn();

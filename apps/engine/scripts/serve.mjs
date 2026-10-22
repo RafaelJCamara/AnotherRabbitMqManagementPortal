@@ -12,6 +12,10 @@
 //
 // Environment: ENGINE_PORT (default 4310; 0 asks the system), ENGINE_DATA_DIR (default
 // tmp/engine-data), ENGINE_LOG_LEVEL (default info).
+//
+// Extra arguments are passed to the engine: `node apps/engine/scripts/serve.mjs --open` opens the
+// default browser at the launch URL (the engine does it, and never puts the token on a command line).
+// `APP_*` variables of the shell reach the engine too (docs/runbooks/run-locally.md).
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -63,6 +67,9 @@ const child = spawn(
     `--data-dir=${dataDir}`,
     `--kek-file=${kekFile}`,
     `--log-level=${logLevel}`,
+    // Anything else after the script name goes to the engine (`--open`, `--token-file=...`,
+    // `--host=...` is refused by the engine unless it is loopback).
+    ...process.argv.slice(2),
   ],
   { stdio: 'inherit' },
 );

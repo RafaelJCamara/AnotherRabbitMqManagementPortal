@@ -2,6 +2,7 @@
 // supervisor starts it. A forked child has an IPC channel, which is the control channel here, so the
 // graceful stop works on Windows too (where a signal would kill the process outright).
 import { spawn, type ChildProcess } from 'node:child_process';
+import { request as httpRequest } from 'node:http';
 import { builtinModules } from 'node:module';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
@@ -28,10 +29,11 @@ interface Started {
 const children: ChildProcess[] = [];
 const dirs: string[] = [];
 
-function launch(args: string[]): Started {
+function launch(args: string[], env?: Record<string, string>): Started {
   const child = spawn(process.execPath, [bundle, ...args], {
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     serialization: 'advanced',
+    ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
   });
   children.push(child);
   const stdout: string[] = [];
@@ -327,6 +329,111 @@ describe('the bundle', () => {
     expect(JSON.parse(engine.stderr.join('').trim())).toMatchObject({
       reason: 'mode-unavailable',
     });
+    expect(await readdir(data)).toEqual([]);
+  });
+
+  it('M0-59 AC-12 native mode refuses a bind outside loopback with its own exit code and guidance, before it touches the data directory', async () => {
+    const data = await newDir();
+    const engine = launch([
+      '--mode=local',
+      '--port=0',
+      '--host=0.0.0.0',
+      `--data-dir=${data}`,
+    ]);
+
+    expect(await engine.exit).toBe(78);
+    const failure = JSON.parse(engine.stderr.join('').trim()) as Record<
+      string,
+      unknown
+    >;
+    expect(failure).toMatchObject({
+      event: 'engine.start.failed',
+      reason: 'mode-unavailable',
+    });
+    expect(String(failure.detail)).toContain('SSH tunnel');
+    expect(await readdir(data)).toEqual([]);
+    expect(engine.stdout.filter((line) => line.startsWith('http'))).toEqual([]);
+  });
+
+  it('M0-59 AC-12 container mode: banner, token on every route, foreign Host refused, healthcheck green, drains on shutdown', async () => {
+    const data = await newDir();
+    const token = randomBytes(32).toString('base64url');
+    const engine = launch(['--mode=local', '--port=0'], {
+      APP_RUNTIME: 'container',
+      APP_DATA_DIR: data,
+      APP_TOKEN: token,
+    });
+    const ready = await until('engine.ready', () =>
+      event(engine, 'engine.ready'),
+    );
+    const url = await until('the launch URL', () =>
+      engine.stdout.find((line) => line.startsWith('http://')),
+    );
+    const port = Number(ready.port);
+    const callWithHost = (host: string, authorized: boolean) =>
+      new Promise<number>((resolve, reject) => {
+        const request = httpRequest(
+          {
+            host: '127.0.0.1',
+            port,
+            path: '/api/v1/meta',
+            headers: {
+              host,
+              ...(authorized ? { authorization: `Bearer ${token}` } : {}),
+            },
+          },
+          (response) => {
+            response.resume();
+            resolve(response.statusCode ?? 0);
+          },
+        );
+        request.on('error', reject);
+        request.end();
+      });
+
+    const banner = engine.stdout
+      .filter((line) => !line.startsWith('{'))
+      .join('\n');
+    expect(banner).toContain(
+      `docker run -p 127.0.0.1:${String(port)}:${String(port)}`,
+    );
+    expect(banner).toContain('--network host');
+    expect(url).toBe(`http://127.0.0.1:${String(port)}/#t=${token}`);
+    expect(await callWithHost(`127.0.0.1:${String(port)}`, false)).toBe(401);
+    expect(await callWithHost('localhost:12345', true)).toBe(200);
+    expect(await callWithHost('evil.example', true)).toBe(403);
+    expect(await callWithHost('10.0.0.5:8765', true)).toBe(403);
+    // The healthcheck the image runs, with the environment of the container.
+    const check = spawn(
+      process.execPath,
+      [join(root, 'apps', 'engine', 'scripts', 'healthcheck.mjs')],
+      { env: { ...process.env, APP_PORT: String(port) }, stdio: 'ignore' },
+    );
+    expect(await new Promise((resolve) => check.on('exit', resolve))).toBe(0);
+    // I-10: the token is in the one console line that is meant to hold it, and nowhere else.
+    expect(engine.stdout.filter((line) => line.includes(token))).toEqual([url]);
+    expect(engine.stderr.join('')).not.toContain(token);
+
+    engine.child.send({ t: 'shutdown', deadlineMs: 2000 });
+    expect(await engine.exit).toBe(0);
+    expect(await readdir(data)).not.toContain('engine.lock');
+  });
+
+  it('M0-59 AC-12 container mode refuses a public origin outside loopback and a made-up runtime, with usage or refusal exit codes', async () => {
+    const data = await newDir();
+    const origin = launch(['--mode=local', '--port=0'], {
+      APP_RUNTIME: 'container',
+      APP_DATA_DIR: data,
+      APP_PUBLIC_ORIGIN: 'https://portal.example.com',
+    });
+    const runtime = launch(['--mode=local', '--port=0', `--data-dir=${data}`], {
+      APP_RUNTIME: 'cloud9',
+    });
+
+    expect(await origin.exit).toBe(78);
+    expect(origin.stderr.join('')).toContain('A-12');
+    expect(await runtime.exit).toBe(64);
+    expect(runtime.stderr.join('')).not.toContain('cloud9');
     expect(await readdir(data)).toEqual([]);
   });
 

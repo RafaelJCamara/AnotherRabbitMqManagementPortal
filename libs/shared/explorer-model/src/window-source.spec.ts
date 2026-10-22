@@ -24,7 +24,7 @@ function query<K extends ExplorerKind>(
 }
 
 describe('createInventoryWindowSource: windows (R1)', () => {
-  it('AC-3 windows are 200-row blocks mapped to inventory.query and nothing larger is sent', async () => {
+  it('M0-54 AC-3 windows are 200-row blocks mapped to inventory.query and nothing larger is sent', async () => {
     const data = createFakeExplorerData({ rows: { queues: 20_000 } });
     const caps = {
       text: 'x'.repeat(FILTER_CAPS.text),
@@ -107,7 +107,7 @@ describe('createInventoryWindowSource: windows (R1)', () => {
     expect(data.queries).toHaveLength(before);
   });
 
-  it('AC-3 sends only the facets that apply to the kind, and a bindings source needs exactly one vhost', async () => {
+  it('M0-54 AC-3b sends only the facets that apply to the kind, and a bindings source needs exactly one vhost', async () => {
     const data = createFakeExplorerData();
     const exchanges = createInventoryWindowSource(
       data,
@@ -164,7 +164,7 @@ describe('createInventoryWindowSource: windows (R1)', () => {
 });
 
 describe('createInventoryWindowSource: the version pin (R2)', () => {
-  it('AC-4 a scroll is pinned to one version, and the pin ends on a new sort or a reload', async () => {
+  it('M0-54 AC-4 a scroll is pinned to one version, and the pin ends on a new sort or a reload', async () => {
     const data = createFakeExplorerData({ version: 7 });
     const source = createInventoryWindowSource(data, query('queues'));
     const changes: RowChange<unknown>[] = [];
@@ -222,7 +222,54 @@ describe('createInventoryWindowSource: the version pin (R2)', () => {
     expect(source.state().pin).toBe(12);
   });
 
-  it('AC-4 an answer that belongs to an older epoch never sets the pin and never asks for a reload', async () => {
+  it('M0-54 AC-4b blocks of one scroll that all find the version gone ask for one reload, and a late answer after destroy asks for none', async () => {
+    const data = createFakeExplorerData({ version: 7 });
+    const source = createInventoryWindowSource(data, query('queues'));
+    const changes: RowChange<unknown>[] = [];
+    source.onChanges((c) => changes.push(...c));
+    await source.window(request(0), signal()); // the pin is 7
+    for (let i = 0; i < 4; i++) data.bump(); // 11: version 7 is gone
+
+    // Two blocks are in flight, both pinned to 7; both come back from 11 and say the version changed.
+    const hold = data.hold();
+    const blocks = [
+      source.window(request(200), signal()),
+      source.window(request(400), signal()),
+    ];
+    hold.release();
+    await Promise.all(blocks);
+
+    expect(data.queries.slice(-2).map((q) => q.window.version)).toEqual([7, 7]);
+    expect(source.state().counters.versionChanges).toBe(2);
+    expect(changes).toEqual([{ kind: 'refresh' }]);
+    expect(source.state().counters.refreshes).toBe(1);
+    // Once the grid has reloaded, a later gone version may ask again.
+    source.refreshed();
+    await source.window(request(0), signal()); // pin 11
+    for (let i = 0; i < 4; i++) data.bump();
+    await source.window(request(200), signal());
+    expect(source.state().counters.refreshes).toBe(2);
+
+    // A port that ignores the abort delivers an answer after destroy(): nothing is asked of a dead grid.
+    const stubborn = createFakeExplorerData({ version: 7 });
+    const quiet = createInventoryWindowSource(
+      { ...stubborn, query: (input) => stubborn.query(input, signal()) },
+      query('queues'),
+    );
+    const quietChanges: RowChange<unknown>[] = [];
+    quiet.onChanges((c) => quietChanges.push(...c));
+    await quiet.window(request(0), signal());
+    for (let i = 0; i < 4; i++) stubborn.bump();
+    const late = stubborn.hold();
+    const pending = quiet.window(request(200), signal());
+    quiet.destroy();
+    late.release();
+    await pending;
+    expect(quietChanges).toEqual([]);
+    expect(quiet.state().counters.refreshes).toBe(0);
+  });
+
+  it('M0-54 AC-4c an answer that belongs to an older epoch never sets the pin and never asks for a reload', async () => {
     const data = createFakeExplorerData({ version: 7 });
     const source = createInventoryWindowSource(data, query('queues'));
     const changes: RowChange<unknown>[] = [];
@@ -286,7 +333,7 @@ function following(rows = 3) {
 const MARKER = '~version';
 
 describe('createInventoryWindowSource: following the rows (R3)', () => {
-  it('AC-5 topic items regain their key and the version marker is not a row', () => {
+  it('M0-54 AC-5 topic items regain their key and the version marker is not a row', () => {
     const { data, source, changes, queues, follower, itemOf } = following();
     const [a, b, c] = queues;
     if (!a || !b || !c) throw new Error('rows');
@@ -327,7 +374,7 @@ describe('createInventoryWindowSource: following the rows (R3)', () => {
     }
   });
 
-  it('AC-6 a snapshot is reconciled and only a newer marker asks for a reload', async () => {
+  it('M0-54 AC-6 a snapshot is reconciled and only a newer marker asks for a reload', async () => {
     const { data, source, changes, queues, follower, itemOf } = following();
     const [a, b, c] = queues;
     if (!a || !b || !c) throw new Error('rows');
@@ -382,7 +429,7 @@ describe('createInventoryWindowSource: following the rows (R3)', () => {
     expect(fresh.changes.some((c2) => c2.kind === 'refresh')).toBe(false);
   });
 
-  it('AC-7 the subscription follows the visible keys with one resubscribe per change', () => {
+  it('M0-54 AC-7 the subscription follows the visible keys with one resubscribe per change', () => {
     const data = createFakeExplorerData();
     const source = createInventoryWindowSource(data, query('queues'));
     const ids = 'abcdefghijklmnopqrst'.split('');
@@ -435,7 +482,7 @@ describe('createInventoryWindowSource: following the rows (R3)', () => {
     expect(data.followers).toHaveLength(3); // two of the first source, one of the second
   });
 
-  it('AC-9 a failed window, a gap, a reset and an ended topic are each counted, shown and recoverable', async () => {
+  it('M0-54 AC-9 a failed window, a gap, a reset and an ended topic are each counted, shown and recoverable', async () => {
     const { data, source, changes, queues, follower, itemOf } = following();
     const [a, b] = queues;
     if (!a || !b) throw new Error('rows');

@@ -63,12 +63,12 @@ async function runToEnd(engine: TestExecutor) {
 }
 
 describe('overview.get', () => {
-  it('AC-1 the contract passes the kit invariants and the sample input fits it', () => {
+  it('M0-48 KIT-1 the contract passes the kit invariants and the sample input fits it', () => {
     expect(checkRegistry({ actions: [def], topics: [] })).toEqual([]);
     expect(def.input.safeParse(sampleInput).success).toBe(true);
   });
 
-  it('AC-3 a principal that does not hold broker.read is refused before anything runs', async () => {
+  it('M0-48 KIT-3a a principal that does not hold broker.read is refused before anything runs', async () => {
     const engine = createTestExecutor({
       executor: {
         authorizer: createRoleAuthorizer({ operator: ['broker.read'] }),
@@ -89,7 +89,7 @@ describe('overview.get', () => {
     expect(engine.writeCalls).toEqual([]);
   });
 
-  it('AC-3 with no authorizer wired every call is refused: deny by default', async () => {
+  it('M0-48 KIT-3b with no authorizer wired every call is refused: deny by default', async () => {
     const engine = createTestExecutor({
       executor: { authorizer: denyAllAuthorizer },
     });
@@ -103,7 +103,7 @@ describe('overview.get', () => {
     expect(engine.writeCalls).toEqual([]);
   });
 
-  it('AC-3 a principal that holds broker.read is let through', async () => {
+  it('M0-48 KIT-3c a principal that holds broker.read is let through', async () => {
     const engine = createTestExecutor({
       executor: {
         authorizer: createRoleAuthorizer({ operator: ['broker.read'] }),
@@ -120,7 +120,7 @@ describe('overview.get', () => {
     expect(['output', 'job', 'planRequired']).toContain(outcome.kind);
   });
 
-  it('AC-4 a query leaves no audit row and no receipt, and answers in the shape of the contract', async () => {
+  it('M0-48 KIT-4 a query leaves no audit row and no receipt, and answers in the shape of the contract', async () => {
     const engine = createTestExecutor();
     engine.executor.register(subject());
 
@@ -205,7 +205,7 @@ function without(...members: string[]): unknown {
 }
 
 describe('explorer overview', () => {
-  it('AC-11 explorer overview on 4.2.9 stats off sums the queue totals and labels rates unavailable', async () => {
+  it('M0-48 AC-11 explorer overview on 4.2.9 stats off sums the queue totals and labels rates unavailable', async () => {
     const mgmt = routed(golden('4.2.9', 'stats-off'));
 
     const full = await overviewOf(mgmt, sweeperOf(indexOf(five())));
@@ -268,7 +268,7 @@ describe('explorer overview', () => {
     });
   });
 
-  it('AC-12 explorer overview on stats on reads the broker totals and rates and never invents zeros', async () => {
+  it('M0-48 AC-12 explorer overview on stats on reads the broker totals and rates and never invents zeros', async () => {
     const swept = sweeperOf(indexOf(five()));
 
     const on = await overviewOf(routed(golden('4.2.9', 'stats-on')), swept);
@@ -316,7 +316,7 @@ describe('explorer overview', () => {
 
   // The alarm shape is ASSUMED: no recording holds an alarm (spec Q-8), so the node flags
   // `mem_alarm` and `disk_free_alarm` are scripted. A recording replaces them in a follow-up.
-  it('AC-13 explorer overview names the node and the resource of an alarm', async () => {
+  it('M0-48 AC-13 explorer overview names the node and the resource of an alarm', async () => {
     const broker = createScriptedBroker();
     const mgmt = withRoutes(broker, {
       ...golden('4.2.9', 'stats-on'),
@@ -350,7 +350,7 @@ describe('explorer overview', () => {
     expect(quiet.alarms).toEqual({ state: 'none' });
   });
 
-  it('AC-14 explorer overview never reports no alarms when the alarm state could not be read', async () => {
+  it('M0-48 AC-14 explorer overview never reports no alarms when the alarm state could not be read', async () => {
     const off = golden('4.2.9', 'stats-off');
     const cases: Record<string, Partial<OverviewRoutes>> = {
       'the alarm check answers 503': {
@@ -362,6 +362,16 @@ describe('explorer overview', () => {
         '/api/health/checks/alarms': '<html>secret-broker-text</html>',
       },
       'no alarm fields at all': { ...off, '/api/health/checks/alarms': {} },
+      // A 200 whose status is not `ok` says something is wrong without naming a node or a resource:
+      // it can be neither "none" nor attributed, so it is unknown (fail closed, I-13).
+      'a 200 answer whose status is failed': {
+        ...off,
+        '/api/health/checks/alarms': { status: 'failed' },
+      },
+      'a 200 answer with an empty status': {
+        ...off,
+        '/api/health/checks/alarms': { status: '' },
+      },
       'a broker without the check': golden('lavinmq-2.10.2', 'default'),
       'flags on some nodes only': {
         ...off,
@@ -382,7 +392,7 @@ describe('explorer overview', () => {
     expect((await overviewOf(routed(off))).alarms).toEqual({ state: 'none' });
   });
 
-  it('AC-15 explorer overview pre-empts the sweep and never lists the inventory', async () => {
+  it('M0-48 AC-15 explorer overview pre-empts the sweep and never lists the inventory', async () => {
     const clock = createManualClock();
     const timers = createManualTimers(clock);
     const scheduler = new BrokerScheduler({ clock, timers });
@@ -469,7 +479,7 @@ describe('explorer overview', () => {
     await stopped;
   });
 
-  it('AC-16 explorer overview.get denies by default and hides connections the caller cannot see', async () => {
+  it('M0-48 AC-16 explorer overview.get denies by default and hides connections the caller cannot see', async () => {
     const fake = createExplorerFakeDeps(); // a private connection of user-1
     const sweeper = sweeperOf();
     const fail = async (

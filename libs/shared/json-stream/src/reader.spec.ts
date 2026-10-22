@@ -155,7 +155,7 @@ const arrayText = fc
   );
 
 describe('json-stream array reader', () => {
-  it('AC-1 json-stream yields the same items as JSON.parse for every chunking', async () => {
+  it('M0-48l AC-1 json-stream yields the same items as JSON.parse for every chunking', async () => {
     const check = async (
       body: string,
       cutPoints: readonly number[],
@@ -192,7 +192,7 @@ describe('json-stream array reader', () => {
     await check(recorded, [3, 40, 41, 700, 1000]);
   });
 
-  it('AC-2 json-stream stops at the item limit, cancels the source and says the total is not known', async () => {
+  it('M0-48l AC-2 json-stream stops at the item limit, cancels the source and says the total is not known', async () => {
     const limits = { ...WIDE, maxItems: 100 };
 
     // 1,000 items in 64-byte chunks: the 100th is followed by `,` and the start of the 101st.
@@ -240,7 +240,7 @@ describe('json-stream array reader', () => {
     expect(third.state.returned).toBe(1);
   });
 
-  it('AC-3 json-stream is bounded in bytes, in item size and in nesting', async () => {
+  it('M0-48l AC-3 json-stream is bounded in bytes, in item size and in nesting', async () => {
     const CHUNK = 64 * 1024;
     const settled = (state: { ended: boolean; returned: number }): void => {
       expect(state.ended || state.returned === 1).toBe(true);
@@ -296,7 +296,36 @@ describe('json-stream array reader', () => {
     settled(nested.state);
   });
 
-  it('AC-4 json-stream fails closed on malformed or truncated input with a fixed text', async () => {
+  it('M0-48l AC-3b json-stream measures an item that lies whole inside one chunk against maxItemBytes', async () => {
+    // The check at the end of an item (the item never crossed a chunk) is its own line of the
+    // scanner: no earlier part was held, so only the length of the last piece decides.
+    const item = `"${'a'.repeat(20)}"`; // 22 bytes
+    for (const terminator of [',"b"]', ']']) {
+      const body = encoder.encode(`[${item}${terminator}`);
+      const make = () => fromChunks([body]);
+
+      // Exactly at the limit passes, one byte under fails; the same body is read both ways.
+      const atLimit = await readAll(make().source, {
+        ...WIDE,
+        maxItemBytes: 22,
+      });
+      expect(atLimit.items[0], terminator).toBe('a'.repeat(20));
+
+      const over = make();
+      const failed = await readFailing(over.source, {
+        ...WIDE,
+        maxItemBytes: 21,
+      });
+      expect(failed.error.reason, terminator).toBe('too-large');
+      expect(failed.error.message).toBe(REASON_TEXT['too-large']);
+      expect(failed.items).toEqual([]);
+      expect(failed.error.delivered).toBe(0);
+      // The source is settled even though the whole body was in one chunk.
+      expect(over.state.returned + Number(over.state.ended)).toBeGreaterThan(0);
+    }
+  });
+
+  it('M0-48l AC-4 json-stream fails closed on malformed or truncated input with a fixed text', async () => {
     const bytesOf = (...parts: (string | number)[]): Uint8Array =>
       Uint8Array.from(
         parts.flatMap((p) =>

@@ -1,8 +1,7 @@
 // The shapes the chart components take, and how a series looks (M1-54, R1, R7). A series has a colour token, a dash
 // pattern and a marker shape of its own, so colour is never the only signal. The host passes every text in
 // (`ChartLabels`): this library has no copy of its own.
-import type { Point } from './draw/downsample';
-import type { Unit } from './draw/format';
+import { type Point, type Unit } from '@app/chart-math';
 
 /** A line is `drawn` (it has points) or `not-reported` (the engine holds no such series: no line, never a zero). */
 export interface ChartSeries {

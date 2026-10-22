@@ -11,6 +11,7 @@ import {
   type WritableSignal,
 } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
+import { createFakeMetricsData } from '@app/metrics-model/testing';
 import {
   createFakeExplorerData,
   type FakeExplorerData,
@@ -36,6 +37,7 @@ import { createEngineExplorerData } from '../data/engine-explorer-data';
 import { EXPLORER_DATA } from '../data/explorer-data';
 import { provideExplorerScope } from '../explorer-scope';
 import { METRICS_FRAME } from '../metrics/frame';
+import { METRICS_DATA } from '../metrics/metrics-data';
 import { answerInventory } from './explorer-testbed';
 import { FakeWorkspace } from './fake-workspace';
 
@@ -74,6 +76,9 @@ export function pageProviders(
     { provide: ENGINE_PARSE, useValue: true },
     { provide: EXPLORER_CONNECTION, useValue: connection },
     { provide: EXPLORER_DATA, useValue: fake },
+    // The explorer's older pages mount the overview, which embeds the trends: they read from a quiet fake unless a
+    // spec provides its own (the metrics specs do).
+    { provide: METRICS_DATA, useValue: createFakeMetricsData() },
     // The metrics views redraw at once in a spec; one that checks the coalescing provides its own scheduler.
     {
       provide: METRICS_FRAME,

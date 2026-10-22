@@ -9,9 +9,13 @@ import {
 } from '@angular/core';
 
 import { styleOf } from './chart-types';
-import { downsample, type Point } from './draw/downsample';
-import { gapThreshold, pathOf } from './draw/path';
-import { linearScale } from './draw/scales';
+import {
+  downsample,
+  gapThreshold,
+  linearScale,
+  pathOf,
+  type Point,
+} from '@app/chart-math';
 
 @Component({
   selector: 'app-sparkline',

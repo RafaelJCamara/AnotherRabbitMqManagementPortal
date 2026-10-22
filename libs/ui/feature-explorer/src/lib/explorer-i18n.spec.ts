@@ -18,6 +18,12 @@ import { EXPLORER_SCOPE_LOADER } from './explorer-scope';
 import { InventoryPage } from './grid/inventory-page.component';
 import { OverviewPage } from './overview/overview.component';
 import { PAGE_TEST_TIMEOUT_MS } from './testing/dom';
+import {
+  engineProblem,
+  forecastAnswer,
+  mountQueueMetrics,
+  NOTHING_REPORTED,
+} from './testing/metrics-bed';
 import { FakeWorkspace, problemOf } from './testing/fake-workspace';
 import { mountPage } from './testing/page-testbed';
 import { followerAt, mountEntity, queueRow } from './testing/entity-bed';
@@ -357,5 +363,114 @@ describe('the explorer strings', () => {
       ).toBeGreaterThan(20);
     },
     PAGE_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'M1-54 AC-22 the metrics strings are keys and make no forbidden claim',
+    async () => {
+      /** What a view shows as words: the axis labels (formatted numbers and times) are data, not strings. */
+      const words = (el: Element): Element => {
+        const copy = el.cloneNode(true) as Element;
+        for (const data of copy.querySelectorAll(
+          'svg[aria-hidden="true"], .readout',
+        )) {
+          data.remove();
+        }
+        return copy;
+      };
+      const seen = new Set<string>();
+      const check = (el: Element, engineWords: RegExp | null = null): void => {
+        const shown = classify(words(el));
+        expect(
+          shown.strangers.filter(
+            // The queue's name is engine data.
+            (text) => text !== 'orders' && engineWords?.test(text) !== true,
+          ),
+        ).toEqual([]);
+        for (const key of shown.keys) {
+          expect(KEY_SET.has(key), key).toBe(true);
+          seen.add(key);
+        }
+      };
+      const settle = async (
+        bed: Awaited<ReturnType<typeof mountQueueMetrics>>,
+      ) => {
+        await eventually(() => {
+          bed.fixture.detectChanges();
+          expect(bed.el.querySelector('app-chart-card')).not.toBeNull();
+        }, 8000);
+        bed.fixture.detectChanges();
+      };
+
+      // Healthy charts with a forecast, then a forecast tab, a source that reports nothing, a failure and a live end.
+      const healthy = await mountQueueMetrics({
+        providers: [scopeLoader],
+        configure: (metrics) => {
+          metrics.answerForecast = forecastAnswer({
+            state: 'ok',
+            etaMs: 600_000,
+            band: { lowMs: 500_000, highMs: null },
+            ratePerSec: -2.5,
+            r2: 0.97,
+            windowMs: 900_000,
+            points: 20,
+          });
+        },
+      });
+      await settle(healthy);
+      healthy.metrics.emit({ kind: 'error', error: engineProblem() });
+      healthy.fixture.detectChanges();
+      check(
+        healthy.el,
+        /^(The engine could not do that|Some detail of the failure\.)$/,
+      );
+
+      const forecast = await mountQueueMetrics({
+        tab: 'forecast',
+        providers: [scopeLoader],
+        configure: (metrics) => {
+          metrics.answerForecast = forecastAnswer({
+            state: 'insufficient-data',
+            points: 3,
+            spanMs: 30_000,
+            needed: { points: 8, spanMs: 60_000 },
+          });
+          metrics.failNextForecast(
+            engineProblem('INTERNAL', 'Forecast failed', 'Busy.'),
+          );
+        },
+      });
+      await settle(forecast);
+      check(forecast.el, /^(Forecast failed|Busy\.)$/);
+
+      const nothing = await mountQueueMetrics({
+        providers: [scopeLoader],
+        configure: (metrics) => {
+          metrics.answer = NOTHING_REPORTED;
+        },
+      });
+      await settle(nothing);
+      check(nothing.el);
+
+      const failed = await mountQueueMetrics({
+        providers: [scopeLoader],
+        configure: (metrics) => {
+          metrics.failNext(
+            engineProblem(
+              'BROKER_UNREACHABLE',
+              'Broker unreachable',
+              'No route.',
+            ),
+          );
+        },
+      });
+      await settle(failed);
+      check(failed.el, /^(Broker unreachable|No route\.)$/);
+
+      expect(
+        [...seen].filter((key) => key.startsWith('explorer.metrics.')).length,
+      ).toBeGreaterThan(30);
+    },
+    PAGE_TEST_TIMEOUT_MS * 2,
   );
 });

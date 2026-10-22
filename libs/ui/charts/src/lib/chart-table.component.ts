@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 
 import type { ChartLabels, ChartSeries } from './chart-types';
-import { formatClock, formatValue } from './draw/format';
+import { formatClock, formatValue } from '@app/chart-math';
 
 /** The most rows the table shows. */
 export const TABLE_ROWS_MAX = 100;

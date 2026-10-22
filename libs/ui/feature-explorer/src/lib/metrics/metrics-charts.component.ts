@@ -22,7 +22,7 @@ import {
   seriesOf,
   type SessionConfig,
 } from '@app/metrics-model';
-import type { YScaleKind } from '@app/ui-charts';
+import type { YScaleKind } from '@app/chart-math';
 import { TranslocoDirective } from '@jsverse/transloco';
 
 import { EXPLORER_CONNECTION } from '../connection';

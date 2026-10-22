@@ -4,8 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { drawn, LABELS, missing, points, vertices } from './chart-spec-support';
 import type { ChartSeries } from './chart-types';
-import type { OverlayForecast } from './draw/overlay';
-import type { YScaleKind } from './draw/scales';
+import { type OverlayForecast, type YScaleKind } from '@app/chart-math';
 import { LineChart } from './line-chart.component';
 
 @Component({

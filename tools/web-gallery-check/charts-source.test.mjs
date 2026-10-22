@@ -8,15 +8,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
-const LIBRARY = join(
-  import.meta.dirname,
-  '..',
-  '..',
-  'libs',
-  'ui',
-  'charts',
-  'src',
-);
+const ROOT = join(import.meta.dirname, '..', '..');
+/** The components and the pure draw maths they use. */
+const LIBRARIES = [
+  join(ROOT, 'libs', 'ui', 'charts', 'src'),
+  join(ROOT, 'libs', 'shared', 'chart-math', 'src'),
+];
 
 function sources() {
   const found = [];
@@ -34,14 +31,14 @@ function sources() {
       }
     }
   };
-  walk(LIBRARY);
+  for (const library of LIBRARIES) walk(library);
   return found;
 }
 
 describe('the chart library, read as text', () => {
   it('AC-22 it writes no innerHTML, calls no network, imports no charting package and makes no forbidden claim', () => {
     const files = sources();
-    assert.ok(files.length >= 10, `only ${files.length} source files found`);
+    assert.ok(files.length >= 12, `only ${files.length} source files found`);
     const FORBIDDEN =
       /read-only|read only|non-destructive|nondestructive|without side effects/i;
     for (const file of files) {

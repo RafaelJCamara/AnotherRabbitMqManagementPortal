@@ -15,13 +15,8 @@ import {
   type ForecastView,
   type SessionState,
 } from '@app/metrics-model';
-import {
-  formatValue,
-  LineChart,
-  type ChartLabels,
-  type ChartSeries,
-  type YScaleKind,
-} from '@app/ui-charts';
+import { formatValue, type YScaleKind } from '@app/chart-math';
+import { LineChart, type ChartLabels, type ChartSeries } from '@app/ui-charts';
 import { TranslocoDirective } from '@jsverse/transloco';
 
 import type { Translate } from '../translate';

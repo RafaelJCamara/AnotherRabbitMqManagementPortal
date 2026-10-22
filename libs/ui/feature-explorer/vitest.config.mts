@@ -13,7 +13,7 @@ export default defineConfig({
     include: ['src/**/*.spec.ts'],
     exclude: [
       'src/**/*.component.spec.ts',
-      'src/**/{inventory-page,filter-bar,freshness-banner,views-control,overview,capability-card,explorer-requests,explorer-i18n,entity-page,entity-tabs,entity-routing,queue-charts,forecast-panel}.spec.ts',
+      'src/**/{inventory-page,filter-bar,freshness-banner,views-control,overview,capability-card,explorer-requests,explorer-i18n,entity-page,entity-tabs,entity-routing,queue-charts,forecast-panel,cluster-trends}.spec.ts',
       '**/node_modules/**',
     ],
   },

@@ -15,6 +15,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import { registerOverviewCommands } from '../commands/explorer-commands';
 import { EXPLORER_CONNECTION } from '../connection';
 import { FreshnessBanner } from '../grid/freshness-banner.component';
+import { MetricsCharts } from '../metrics/metrics-charts.component';
 import { hintKey, problemView } from '../problem';
 import { ProfileStore } from '../profile/profile-store';
 import { OverviewAlarmsView } from './alarms.component';
@@ -36,6 +37,7 @@ let nextPage = 0;
   imports: [
     CapabilityCard,
     FreshnessBanner,
+    MetricsCharts,
     OverviewAlarmsView,
     OverviewNodes,
     TranslocoDirective,
@@ -266,6 +268,11 @@ let nextPage = 0;
                 [time]="time()"
               />
             </section>
+
+            <!-- The trends are their own lazy chunk, loaded after the overview (M1-54). -->
+            @defer (on immediate) {
+              <app-metrics-charts mode="cluster" [nodes]="nodeNames()" />
+            }
           }
         </section>
       }
@@ -370,6 +377,14 @@ export class OverviewPage {
     'channels',
     'consumers',
   ] as const;
+  /** The node names the trends are drawn for; the same array until the nodes change (a refresh keeps the session). */
+  protected readonly nodeNames = computed(
+    () => this.store.answer()?.nodes.map((node) => node.name) ?? [],
+    {
+      equal: (a, b) =>
+        a.length === b.length && a.every((name, i) => name === b[i]),
+    },
+  );
   protected readonly problem = computed(() => {
     const error = this.store.error();
     return error === null ? null : problemView(error);

@@ -1,6 +1,6 @@
 // Shared by the component specs of this library: texts, series and a point generator. Never part of the build.
 import type { ChartLabels, ChartSeries } from './chart-types';
-import type { Point } from './draw/downsample';
+import type { Point } from '@app/chart-math';
 
 export const LABELS: ChartLabels = {
   keyboardHint: 'Use the arrow keys to move along the chart.',

@@ -1,4 +1,4 @@
-// Public API of this library. Export only what other projects need.
+// Public API of this library. Export only what other projects need. The pure draw maths are `@app/chart-math`.
 export { ChartTable, TABLE_ROWS_MAX } from './lib/chart-table.component';
 export {
   DASHES,
@@ -10,25 +10,5 @@ export {
   type MarkerShape,
   type SeriesStyle,
 } from './lib/chart-types';
-export { downsample, type Point } from './lib/draw/downsample';
-export { formatClock, formatValue, type Unit } from './lib/draw/format';
-export {
-  forecastOverlay,
-  OVERLAY_ROOM,
-  withOverlayRoom,
-  type Overlay,
-  type OverlayForecast,
-} from './lib/draw/overlay';
-export { areaOf, gapThreshold, pathOf, segments } from './lib/draw/path';
-export { atOrBefore, nearestIndex, stepCursor } from './lib/draw/pick';
-export {
-  linearScale,
-  symlog,
-  yAxis,
-  type YAxis,
-  type YScaleKind,
-} from './lib/draw/scales';
-export { niceStep, niceTicks, type NiceTicks } from './lib/draw/ticks';
-export { TIME_STEPS_MS, timeStep, timeTicks } from './lib/draw/time-ticks';
 export { LineChart } from './lib/line-chart.component';
 export { Sparkline } from './lib/sparkline.component';

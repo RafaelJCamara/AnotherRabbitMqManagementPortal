@@ -28,17 +28,24 @@ import {
   type ChartSeries,
   type MarkerShape,
 } from './chart-types';
-import { downsample } from './draw/downsample';
-import { formatClock, formatValue } from './draw/format';
 import {
+  areaOf,
+  atOrBefore,
+  downsample,
   forecastOverlay,
-  withOverlayRoom,
+  formatClock,
+  formatValue,
+  gapThreshold,
+  linearScale,
+  nearestIndex,
+  pathOf,
+  stepCursor,
+  timeTicks,
   type OverlayForecast,
-} from './draw/overlay';
-import { areaOf, gapThreshold, pathOf } from './draw/path';
-import { atOrBefore, nearestIndex, stepCursor } from './draw/pick';
-import { linearScale, yAxis, type YScaleKind } from './draw/scales';
-import { timeTicks } from './draw/time-ticks';
+  type YScaleKind,
+  withOverlayRoom,
+  yAxis,
+} from '@app/chart-math';
 
 let nextChart = 0;
 
@@ -108,7 +115,7 @@ const filled = (shape: MarkerShape): boolean =>
                 />
               </svg>
               <span class="name">{{ item.label }}</span>
-              <span class="why">{{ notReportedText(item) }}</span>
+              <span class="reason">{{ notReportedText(item) }}</span>
             </span>
           }
         }
@@ -324,7 +331,7 @@ const filled = (shape: MarkerShape): boolean =>
       stroke: var(--ds-color-text-muted);
     }
     .approx,
-    .why {
+    .reason {
       color: var(--ds-color-text-muted);
       font-size: 0.9em;
     }

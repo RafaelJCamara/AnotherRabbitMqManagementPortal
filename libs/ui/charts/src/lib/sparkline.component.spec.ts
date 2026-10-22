@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 
 import { points, vertices } from './chart-spec-support';
-import type { Point } from './draw/downsample';
+import type { Point } from '@app/chart-math';
 import { Sparkline } from './sparkline.component';
 
 @Component({

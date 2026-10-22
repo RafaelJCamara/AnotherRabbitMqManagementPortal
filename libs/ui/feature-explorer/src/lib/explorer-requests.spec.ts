@@ -4,7 +4,9 @@
 // (`createEngineExplorerData`) and the real `EngineApi` and live client over the fake engine, which records every
 // request and every client frame, and the spec checks the whole record against an allow-list. Nothing here reaches
 // a real engine: the answers come from the model's fake and the fake workspace.
+import { inject } from '@angular/core';
 import { metricsLiveTopic } from '@app/contracts';
+import { EngineApi, LiveClient } from '@app/ui-data';
 import { createFakeExplorerData } from '@app/explorer-model/testing';
 import { createFakeMetricsData, liveItem } from '@app/metrics-model/testing';
 import {
@@ -16,6 +18,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { InventoryPage } from './grid/inventory-page.component';
+import { createEngineMetricsData, METRICS_DATA } from './metrics/metrics-data';
 import { OverviewPage } from './overview/overview.component';
 import {
   barReady,
@@ -51,6 +54,13 @@ const ALLOWED: readonly RegExp[] = [
   // (`profile/first-run.component.spec.ts` proves that press); this run has a probed connection and never makes it.
   /^POST \/api\/v1\/connections\/[^/]+\/probe$/,
 ];
+
+/** The metrics through the real data layer (the testbed's default is a quiet fake). */
+const ENGINE_METRICS = {
+  provide: METRICS_DATA,
+  useFactory: () =>
+    createEngineMetricsData(inject(EngineApi), inject(LiveClient)),
+};
 
 const line = (request: { method: string; url: string }): string =>
   `${request.method} ${request.url}`;
@@ -360,7 +370,7 @@ describe('the requests of the explorer', () => {
       try {
         const metrics = createFakeMetricsData();
         metrics.answer = queueHistory();
-        const beds = [];
+        const beds: PageBed<unknown>[] = [];
         // The Charts and the Forecast tab of a queue, through the real data layer (EngineApi and the live
         // client) over the fake engine, which records every request and every client frame.
         for (const tab of ['charts', 'forecast'] as const) {
@@ -370,6 +380,7 @@ describe('the requests of the explorer', () => {
             // The entity itself comes from the model's fake; the metrics go through the real data layer.
             routes: metricsRoutes(metrics),
             topics: [metricsLiveTopic],
+            providers: [ENGINE_METRICS],
           });
           beds.push(bed);
           await eventually(() => {
@@ -415,6 +426,22 @@ describe('the requests of the explorer', () => {
           }
         }
 
+        // The cluster trends of the overview: the same three contracts, for the cluster, with no queue demand.
+        const workspace = new FakeWorkspace();
+        workspace.overview = () => OVERVIEW;
+        const overview = await mountPage(OverviewPage, {
+          workspace,
+          routes: metricsRoutes(metrics),
+          topics: [metricsLiveTopic],
+          providers: [ENGINE_METRICS],
+        });
+        beds.push(overview);
+        await eventually(() => {
+          overview.fixture.detectChanges();
+          expect(overview.el.querySelectorAll('app-chart-card')).toHaveLength(
+            5,
+          );
+        }, 8000);
         // The record: only the two POST contracts of the metrics group, besides the profile and the inventory.
         const lines = beds.flatMap((bed) => bed.engine.requests).map(line);
         const metricsLines = lines.filter((l) => l.includes('/metrics/'));
@@ -448,25 +475,25 @@ describe('the requests of the explorer', () => {
             expect(body.rate).toBe(false);
           }
           if (request.url.endsWith('/metrics/forecasts')) {
-            expect(body.target).toEqual({
-              scope: 'queue',
-              vhost: '/',
-              name: 'orders',
-            });
+            expect([
+              { scope: 'cluster' },
+              { scope: 'queue', vhost: '/', name: 'orders' },
+            ]).toContainEqual(body.target);
           }
         }
-        // Every subscription to the metrics topic names one queue; the others are the inventory's.
+        // The queue pages' subscriptions name their one queue; the overview's names none (the cluster).
         const subs = beds
           .flatMap((bed) => bed.engine.clientFrames)
           .flatMap((frame) =>
             frame.t === 'sub' && frame.topic === 'metrics.live' ? [frame] : [],
           );
-        expect(subs.length).toBeGreaterThanOrEqual(2);
-        for (const frame of subs) {
-          expect((frame.params as { queues: unknown[] }).queues).toHaveLength(
-            1,
-          );
-        }
+        expect(
+          subs
+            .map(
+              (frame) => (frame.params as { queues: unknown[] }).queues.length,
+            )
+            .sort(),
+        ).toEqual([0, 1, 1]);
         expect(
           JSON.stringify(beds.flatMap((bed) => bed.engine.requests)),
         ).not.toMatch(/password|secret|credential|authorization|bearer/i);

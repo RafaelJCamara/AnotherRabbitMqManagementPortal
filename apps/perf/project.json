@@ -58,6 +58,13 @@
         "cwd": "{workspaceRoot}"
       }
     },
+    "charts-50": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config apps/perf/vitest.perf.config.mts src/charts-50",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "explorer-20k": {
       "executor": "nx:run-commands",
       "options": {

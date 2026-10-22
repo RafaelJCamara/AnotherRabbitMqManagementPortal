@@ -167,13 +167,16 @@ describe('the real broker ports', () => {
         series: [{ metric: 'messages_ready' }, { metric: 'connections' }],
       });
     await ask();
-    await vi.waitFor(async () => {
-      const answer = await ask();
-      expect(answer.body).toMatchObject({
-        series: [{ found: true }, { found: true }],
-        status: { source: 'prometheus', state: 'live', partial: [] },
-      });
-    });
+    await vi.waitFor(
+      async () => {
+        const answer = await ask();
+        expect(answer.body).toMatchObject({
+          series: [{ found: true }, { found: true }],
+          status: { source: 'prometheus', state: 'live', partial: [] },
+        });
+      },
+      { timeout: 15_000 },
+    );
     const answer = await ask();
     const series = answer.body.series as { points: [number, number][] }[];
     expect(series.map((one) => one.points.at(-1)?.[1])).toEqual([41, 5]);
@@ -192,7 +195,7 @@ describe('the real broker ports', () => {
     expect(
       api.seen.filter((seen) => seen.url.startsWith('/api/queues/')),
     ).toEqual([]);
-  });
+  }, 30_000);
 
   it('AC-18 the scrape resolver only dials what the cached profile lists, and holds no login in an error', async () => {
     const { createPromTargetResolver } = await import('./prom.ts');

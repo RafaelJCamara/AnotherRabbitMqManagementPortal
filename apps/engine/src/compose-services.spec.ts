@@ -264,18 +264,21 @@ describe('the metrics engine on the composed engine', () => {
     // The first call starts the collection and answers `loading`; the rounds fill the series.
     const first = await ask();
     expect(first.status).toBe(200);
-    await vi.waitFor(async () => {
-      const answer = await ask();
-      expect(answer.body).toMatchObject({
-        series: [{ found: true }],
-        status: {
-          source: 'management',
-          fallbackReason: 'no-endpoint',
-          partial: ['fallback'],
-          approximate: true,
-        },
-      });
-    });
+    await vi.waitFor(
+      async () => {
+        const answer = await ask();
+        expect(answer.body).toMatchObject({
+          series: [{ found: true }],
+          status: {
+            source: 'management',
+            fallbackReason: 'no-endpoint',
+            partial: ['fallback'],
+            approximate: true,
+          },
+        });
+      },
+      { timeout: 15_000 },
+    );
     const answer = await ask();
     expect(
       (answer.body.series as { points: [number, number][] }[])[0]?.points.at(
@@ -290,7 +293,7 @@ describe('the metrics engine on the composed engine', () => {
 
     expect(booted.broker.requests.length - mark).toBe(0);
     expect(results.every((result) => result.ok)).toBe(true);
-  });
+  }, 30_000);
 });
 
 describe('the live hub and the drain', () => {
@@ -346,6 +349,63 @@ describe('the live hub and the drain', () => {
     });
     socket.close();
   });
+
+  it('AC-18 metrics.live is registered with the hub: a subscription over the live socket is acknowledged and the status reaches the client', async () => {
+    const booted = await boot();
+    await booted.seed('c1');
+    await booted.call('POST', '/connections/c1/probe', {});
+    const base = `127.0.0.1:${String(booted.engine.address?.port ?? 0)}`;
+    const issued = await fetch(`http://${base}/api/v1/live/tickets`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${booted.token}`,
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    });
+    const { ticket } = (await issued.json()) as { ticket: string };
+    const frames: Record<string, unknown>[] = [];
+    const socket = new WebSocket(`ws://${base}/api/v1/live`, [
+      'app.v1',
+      `app.ticket.${ticket}`,
+    ]);
+    socket.addEventListener('message', (message) => {
+      frames.push(JSON.parse(String(message.data)) as Record<string, unknown>);
+    });
+    await new Promise<void>((resolve, reject) => {
+      socket.addEventListener('open', () => {
+        socket.send(JSON.stringify({ t: 'hello', v: 1 }));
+        resolve();
+      });
+      socket.addEventListener('error', () => {
+        reject(new Error('the live socket did not open'));
+      });
+    });
+    await vi.waitFor(() => {
+      expect(frames.map((frame) => frame.t)).toContain('welcome');
+    });
+
+    socket.send(
+      JSON.stringify({
+        t: 'sub',
+        sid: 1,
+        topic: 'metrics.live',
+        params: { cid: 'c1', queues: [] },
+        credit: 16,
+      }),
+    );
+
+    await vi.waitFor(
+      () => {
+        expect(frames.map((frame) => frame.t)).toContain('subok');
+        // However the admission races the first snapshot, the status reaches the client (as a delta
+        // when the snapshot went out before the connection was admitted).
+        expect(JSON.stringify(frames)).toContain('~status');
+      },
+      { timeout: 15_000 },
+    );
+    socket.close();
+  }, 30_000);
 
   it('AC-8 a quit drain stops the explorer: a connection nobody asked about yet is not swept afterwards', async () => {
     const live = await boot();

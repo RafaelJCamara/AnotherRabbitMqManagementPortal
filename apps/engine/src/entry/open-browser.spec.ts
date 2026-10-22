@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import { readFile, readdir, rm, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,6 +8,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   createBrowserOpener,
   openerCommand,
+  openerEnv,
+  type ExitSource,
   type OpenerChild,
   type OpenerDeps,
 } from './open-browser.ts';
@@ -29,14 +32,41 @@ afterEach(async () => {
 interface Call {
   command: string;
   args: readonly string[];
+  env: NodeJS.ProcessEnv;
+}
+
+/** A process-like emitter that remembers its 'exit' listeners and can fire them. */
+function fakeProcess(): ExitSource & {
+  listeners: () => number;
+  end: () => void;
+} {
+  const listeners = new Set<() => void>();
+  return {
+    once(_event, listener) {
+      listeners.add(listener);
+      return this;
+    },
+    removeListener(_event, listener) {
+      listeners.delete(listener);
+      return this;
+    },
+    listeners: () => listeners.size,
+    end() {
+      for (const listener of [...listeners]) {
+        listeners.delete(listener);
+        listener();
+      }
+    },
+  };
 }
 
 function fakes(outcome: 'spawn' | 'error') {
   const calls: Call[] = [];
   const timers: { work: () => void; ms: number }[] = [];
+  const exit = fakeProcess();
   let unref = 0;
-  const spawn: OpenerDeps['spawn'] = (command, args) => {
-    calls.push({ command, args });
+  const spawn: OpenerDeps['spawn'] = (command, args, options) => {
+    calls.push({ command, args, env: options.env });
     const child: OpenerChild = {
       once(event, listener) {
         if (event === outcome) queueMicrotask(listener);
@@ -52,8 +82,10 @@ function fakes(outcome: 'spawn' | 'error') {
     calls,
     timers,
     unrefs: () => unref,
+    exit,
     deps: {
       spawn,
+      exit,
       later: (work: () => void, ms: number) => {
         timers.push({ work, ms });
       },
@@ -127,6 +159,94 @@ describe('the browser opener', () => {
     expect(await readdir(tempRoot)).toEqual([]);
   });
 
+  it('SEC-N7 the redirect file is removed synchronously when the process exits inside the delay', async () => {
+    const tempRoot = await root();
+    const fake = fakes('spawn');
+
+    await createBrowserOpener({ ...fake.deps, tempRoot })(URL_WITH_TOKEN);
+    expect(await readdir(tempRoot)).toHaveLength(1);
+    expect(fake.exit.listeners()).toBe(1);
+
+    // The timer never ran: only the process ending removes the directory, and it must do so
+    // before `end()` returns (an 'exit' listener cannot wait for anything).
+    fake.exit.end();
+    expect(readdirSync(tempRoot)).toEqual([]);
+  });
+
+  it('SEC-N7 the exit listener is dropped once the timed removal ran, so none piles up', async () => {
+    const tempRoot = await root();
+    const fake = fakes('spawn');
+
+    await createBrowserOpener({ ...fake.deps, tempRoot })(URL_WITH_TOKEN);
+    fake.timers[0]?.work();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(fake.exit.listeners()).toBe(0);
+    expect(await readdir(tempRoot)).toEqual([]);
+  });
+
+  it('SEC-N7 a failed spawn also drops the exit listener', async () => {
+    const tempRoot = await root();
+    const fake = fakes('error');
+
+    await createBrowserOpener({ ...fake.deps, tempRoot })(URL_WITH_TOKEN).catch(
+      () => undefined,
+    );
+
+    expect(fake.exit.listeners()).toBe(0);
+  });
+
+  it('SEC-N8 the opener gets a copy of the environment without any APP_* or secret variable', async () => {
+    const tempRoot = await root();
+    const fake = fakes('spawn');
+    const env = {
+      PATH: '/usr/bin',
+      HOME: '/home/a',
+      DISPLAY: ':0',
+      APP_TOKEN: TOKEN,
+      APP_TOKEN_FILE: '/run/secrets/t',
+      app_data_dir: '/data',
+      APP_KEK_PATH: '/k',
+      ENGINE_TOKEN: TOKEN,
+      DB_PASSWORD: 'x',
+      TOKENIZER_HOME: '/keep',
+    };
+
+    await createBrowserOpener({ ...fake.deps, tempRoot, env })(URL_WITH_TOKEN);
+
+    expect(fake.calls[0]?.env).toEqual({
+      PATH: '/usr/bin',
+      HOME: '/home/a',
+      DISPLAY: ':0',
+      TOKENIZER_HOME: '/keep',
+    });
+    // The engine's own environment is untouched: the copy is what loses the names.
+    expect(env.APP_TOKEN).toBe(TOKEN);
+  });
+
+  it('SEC-N8 openerEnv keeps the Windows system variables the opener needs', () => {
+    expect(
+      openerEnv({ SystemRoot: 'C:\\Windows', Path: 'C:\\x', APP_TOKEN: TOKEN }),
+    ).toEqual({ SystemRoot: 'C:\\Windows', Path: 'C:\\x' });
+  });
+
+  it('SEC-N8 on Windows the opener is the system rundll32.exe by full path, whatever the search path holds', async () => {
+    const tempRoot = await root();
+    const fake = fakes('spawn');
+
+    await createBrowserOpener({
+      ...fake.deps,
+      tempRoot,
+      platform: 'win32',
+      env: { SYSTEMROOT: 'D:\\WinNT', Path: 'C:\\evil' },
+    })(URL_WITH_TOKEN);
+
+    expect(fake.calls[0]?.command).toBe('D:\\WinNT\\System32\\rundll32.exe');
+    expect(openerCommand('win32', 'f', {}).command).toBe(
+      'C:\\Windows\\System32\\rundll32.exe',
+    );
+  });
+
   it('M0-59 AC-6 a failed spawn rejects without the token, and removes the file at once', async () => {
     const tempRoot = await root();
     const fake = fakes('error');
@@ -142,8 +262,10 @@ describe('the browser opener', () => {
   });
 
   it('M0-59 AC-6 picks the opener of each platform', () => {
-    expect(openerCommand('win32', 'C:\\t\\open.html')).toEqual({
-      command: 'rundll32.exe',
+    expect(
+      openerCommand('win32', 'C:\\t\\open.html', { SystemRoot: 'C:\\Windows' }),
+    ).toEqual({
+      command: 'C:\\Windows\\System32\\rundll32.exe',
       args: ['url.dll,FileProtocolHandler', 'C:\\t\\open.html'],
     });
     expect(openerCommand('darwin', '/t/open.html')).toEqual({

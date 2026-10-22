@@ -1,0 +1,26 @@
+{
+  "category": {
+    "navigate": "Go to",
+    "connection": "Connection",
+    "view": "View"
+  },
+  "go": {
+    "overview": "Go to the explorer overview",
+    "queues": "Go to queues",
+    "exchanges": "Go to exchanges",
+    "connections": "Go to connections of the broker",
+    "bindings": "Go to bindings"
+  },
+  "connection": {
+    "add": "Add a connection",
+    "manage": "Manage connections",
+    "check": "Check the capabilities of this connection"
+  },
+  "switch": {
+    "title": "Switch to {name}",
+    "missing": "{{name}} does not have {{address}}. The explorer of {{name}} is open instead."
+  },
+  "theme": {
+    "toggle": "Toggle the light and dark theme"
+  }
+}

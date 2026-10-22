@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, viewChild } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 
@@ -32,6 +32,7 @@ class Host {
   readonly labels = LABELS.columnChooser;
   readonly state = signal<GridColumnState>(defaultColumnState(RESOLVED));
   readonly emitted: GridColumnState[] = [];
+  readonly chooser = viewChild.required(GridColumnChooser);
 }
 
 async function mount() {
@@ -178,6 +179,18 @@ describe('<app-grid-column-chooser>', () => {
     expect(host.state().columns.find((c) => c.id === 'name')?.hidden).toBe(
       false,
     );
+  });
+
+  it('show() opens the panel for a command and puts focus on its first control', async () => {
+    const { fixture, host, el } = await mount();
+    expect(el.querySelector('.panel')).toBeNull();
+    host.chooser().show();
+    await fixture.whenStable();
+    expect(
+      el.querySelector('button.toggle')?.getAttribute('aria-expanded'),
+    ).toBe('true');
+    expect(el.querySelector('.panel')).not.toBeNull();
+    expect(document.activeElement).toBe(el.querySelector('.panel input'));
   });
 
   it('closes with Escape and gives focus back to its button', async () => {

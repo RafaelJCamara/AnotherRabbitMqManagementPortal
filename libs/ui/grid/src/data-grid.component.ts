@@ -185,6 +185,7 @@ export class DataGrid<Row> {
   } | null>(null);
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
+  private readonly chooser = viewChild(GridColumnChooser);
   private readonly theme = inject(ThemeService);
   private readonly nonce = inject(GRID_STYLE_NONCE);
   private readonly renderAll = inject(GRID_RENDER_ALL);
@@ -514,6 +515,11 @@ export class DataGrid<Row> {
   }
 
   /** The user asks to load failed blocks again. */
+  /** Opens the column chooser, for a command (M1-41). */
+  openColumnChooser(): void {
+    this.chooser()?.show();
+  }
+
   retry(): void {
     this.datasource()?.retry();
   }

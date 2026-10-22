@@ -284,6 +284,7 @@ export class ViewsControl {
   protected readonly store = inject(ViewsStore);
   readonly #profile = inject(ProfileStore);
   readonly #injector = inject(Injector);
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly toggle =
     viewChild.required<ElementRef<HTMLButtonElement>>('toggle');
 
@@ -370,6 +371,19 @@ export class ViewsControl {
     } else {
       this.#applyView(view);
     }
+  }
+
+  /** Opens the panel on the name field of the save form, for a command (M1-41). */
+  openSave(): void {
+    this.open.set(true);
+    afterNextRender(
+      () => {
+        this.#host.nativeElement
+          .querySelector<HTMLInputElement>('.name-input')
+          ?.focus();
+      },
+      { injector: this.#injector },
+    );
   }
 
   protected apply(view: SavedView): void {

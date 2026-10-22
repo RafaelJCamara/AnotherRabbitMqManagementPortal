@@ -1,4 +1,16 @@
 {
+  "commands": {
+    "category": "Explorer",
+    "focusFilter": "Focus the filter",
+    "reload": "Reload the list",
+    "saveView": "Save the view",
+    "columns": "Choose the columns",
+    "copy": "Copy the selected rows",
+    "refresh": "Refresh the overview",
+    "noList": "No list is open: the connection has not been probed yet.",
+    "noGrid": "The list is not shown yet.",
+    "noSelection": "No row is selected."
+  },
   "kinds": {
     "queues": "Queues",
     "exchanges": "Exchanges",

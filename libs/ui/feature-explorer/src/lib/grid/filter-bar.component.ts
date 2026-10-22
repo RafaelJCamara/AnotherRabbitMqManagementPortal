@@ -268,6 +268,13 @@ export class FilterBar {
     });
   }
 
+  /** Puts focus on the name text field, for a command (M1-41). */
+  focus(): void {
+    this.#host.nativeElement
+      .querySelector<HTMLInputElement>('.text-input')
+      ?.focus();
+  }
+
   /** The list facets of the kind; the vhost of a bindings page is chosen apart, not filtered. */
   protected facets(): readonly ListFacet[] {
     const kind = this.kind();

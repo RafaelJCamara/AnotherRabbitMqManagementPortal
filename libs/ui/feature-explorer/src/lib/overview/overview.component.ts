@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { TranslocoDirective } from '@jsverse/transloco';
 
+import { registerOverviewCommands } from '../commands/explorer-commands';
 import { EXPLORER_CONNECTION } from '../connection';
 import { FreshnessBanner } from '../grid/freshness-banner.component';
 import { hintKey, problemView } from '../problem';
@@ -377,6 +378,15 @@ export class OverviewPage {
   protected readonly hint = computed(() =>
     hintKey(this.problem()?.code ?? null),
   );
+
+  constructor() {
+    registerOverviewCommands({
+      refreshClosed: () => this.store.refreshClosed(),
+      refresh: () => {
+        this.store.refresh();
+      },
+    });
+  }
 
   protected count(value: number | undefined): string | null {
     return countText(value);

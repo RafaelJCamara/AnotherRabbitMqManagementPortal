@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 
+import { Announcer } from './announcer';
 import type { CommandDefinition } from './command';
 import { KEYMAP_SAVE_DELAY_MS, KeymapStore } from './keymap-store';
 import { COUNT_ANNOUNCE_DELAY_MS } from './palette.component';
@@ -285,6 +286,13 @@ describe('palette i18n', () => {
       'the conflict line',
     );
     take(); // announce.conflict
+    TestBed.inject(Announcer).say('text', { text: 'Said by the app' });
+    await until(
+      bed.fixture,
+      () => document.body.textContent.includes('palette.announce.text'),
+      'the text line',
+    );
+    take(); // announce.text
 
     expect(unknown).toEqual([]);
     expect([...known].filter((key) => !seen.has(key))).toEqual([]);

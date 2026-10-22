@@ -8,6 +8,7 @@ import { provideDesignSystem } from '@app/ui-design';
 import { providePlatform, type PlatformSetup } from '@app/ui-platform';
 
 import { appRoutes } from './app.routes';
+import { provideCommands } from './commands/provide-commands';
 import { provideI18n } from './i18n/i18n.config';
 import { provideExplorerKindsSource } from './shell/explorer-tree/explorer-kinds-source';
 import { provideChunkReload } from './shell/skew/chunk-reload';
@@ -23,6 +24,7 @@ export function appConfig(setup: PlatformSetup): ApplicationConfig {
       provideDesignSystem(),
       provideI18n(),
       provideRouter(appRoutes),
+      provideCommands(),
       provideExplorerKindsSource(),
       provideLockState(),
       provideChunkReload(),

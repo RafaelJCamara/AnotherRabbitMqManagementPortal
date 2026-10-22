@@ -12,6 +12,7 @@ import {
   linkedSignal,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   createInventoryWindowSource,
@@ -33,6 +34,7 @@ import {
 } from '@app/ui-grid';
 import { TranslocoDirective } from '@jsverse/transloco';
 
+import { registerInventoryCommands } from '../commands/explorer-commands';
 import { EXPLORER_CONNECTION } from '../connection';
 import { EXPLORER_DATA } from '../data/explorer-data';
 import type { Translate } from '../translate';
@@ -219,6 +221,11 @@ export class InventoryPage {
   readonly #navigation = inject(EXPLORER_NAVIGATION);
   readonly #clipboard = inject(GRID_CLIPBOARD);
   readonly #document = inject(DOCUMENT);
+  /** Bumped by the command that reloads the list: a new source reads it again (M1-41). */
+  readonly #reload = signal(0);
+  private readonly gridRef = viewChild(DataGrid);
+  private readonly viewsRef = viewChild(ViewsControl);
+  private readonly filterRef = viewChild(FilterBar);
   /** What the last Copy link did, until the next row is opened or copied. */
   protected readonly linkNotice = signal<'copied' | 'failed' | null>(null);
 
@@ -267,6 +274,7 @@ export class InventoryPage {
    */
   protected readonly source =
     computed<InventoryWindowSource<ExplorerKind> | null>(() => {
+      this.#reload();
       const cid = this.connection();
       const kind = this.kind();
       const filter = this.filter();
@@ -335,6 +343,27 @@ export class InventoryPage {
   #bundle: Bundle | null = null;
 
   constructor() {
+    registerInventoryCommands({
+      kind: this.kind,
+      hasList: () => this.source() !== null,
+      hasGrid: () => this.gridRef() !== undefined,
+      hasSelection: () => (this.gridRef()?.selection().size ?? 0) > 0,
+      focusFilter: () => {
+        this.filterRef()?.focus();
+      },
+      reload: () => {
+        this.#reload.update((count) => count + 1);
+      },
+      saveView: () => {
+        this.viewsRef()?.openSave();
+      },
+      chooseColumns: () => {
+        this.gridRef()?.openColumnChooser();
+      },
+      copy: async () => {
+        await this.gridRef()?.copySelection();
+      },
+    });
     effect((onCleanup) => {
       const source = this.source();
       if (source === null) {

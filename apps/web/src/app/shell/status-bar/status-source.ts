@@ -12,7 +12,11 @@ import {
   type Signal,
 } from '@angular/core';
 import { connectionsGet, profileGet, type EnvClass } from '@app/contracts';
-import { BrokerProfileSchema, type Verification } from '@app/domain-model';
+import {
+  BrokerProfileSchema,
+  type BrokerProfile,
+  type Verification,
+} from '@app/domain-model';
 import { LiveClient, engineResource, type LiveClientState } from '@app/ui-data';
 
 import { ActiveConnection } from '../active-connection';
@@ -20,6 +24,10 @@ import { ActiveConnection } from '../active-connection';
 export type EngineHealth = 'ok' | 'reconnecting' | 'down' | 'unknown';
 export type LockState = 'locked' | 'armed' | 'unknown';
 export type StatsMode = 'on' | 'totals-only' | 'off';
+
+export type ProfileView =
+  | { readonly status: 'none' | 'loading' | 'unknown' }
+  | { readonly status: 'ready'; readonly profile: BrokerProfile };
 
 export interface StatusModel {
   readonly profileName: string | null;
@@ -81,6 +89,28 @@ export class StatusSource {
       (this.#profileName.status() === 'loading' ||
         this.#brokerProfile.status() === 'loading'),
   );
+
+  /**
+   * The parsed broker profile of the connection in view, for whoever needs more than the status bar shows (the
+   * command palette closes commands with its `gates` and `allowedActions`). `unknown`: the call failed or the
+   * profile does not parse; never a guess.
+   */
+  readonly profile: Signal<ProfileView> = computed((): ProfileView => {
+    if (this.#connection.cid() === null) return { status: 'none' };
+    if (!this.#brokerProfile.hasValue()) {
+      const status = this.#brokerProfile.status();
+      return {
+        status:
+          status === 'loading' || status === 'idle' ? 'loading' : 'unknown',
+      };
+    }
+    const parsed = BrokerProfileSchema.safeParse(
+      this.#brokerProfile.value().profile,
+    );
+    return parsed.success
+      ? { status: 'ready', profile: parsed.data }
+      : { status: 'unknown' };
+  });
 
   readonly model: Signal<StatusModel> = computed(() => {
     const connection = this.#profileName.hasValue()

@@ -3,10 +3,13 @@
 // set its width; and a reset. At least one column stays visible. Every change is a new
 // `GridColumnState` the grid applies and the feature can store; the chooser holds no state of its own.
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   ElementRef,
+  inject,
+  Injector,
   input,
   output,
   signal,
@@ -272,5 +275,21 @@ export class GridColumnChooser<Row> {
   protected close(): void {
     this.open.set(false);
     this.toggle().nativeElement.focus();
+  }
+
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly #injector = inject(Injector);
+
+  /** Opens the panel and puts focus on its first control, for a command that opens the chooser (M1-41). */
+  show(): void {
+    this.open.set(true);
+    afterNextRender(
+      () => {
+        this.#host.nativeElement
+          .querySelector<HTMLElement>('.panel input, .panel button')
+          ?.focus();
+      },
+      { injector: this.#injector },
+    );
   }
 }

@@ -12,6 +12,7 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
+import { registerShellCommands } from '../commands/shell-commands';
 import { ActiveConnection, parseConnectionParam } from './active-connection';
 import { ActivityBar, ACTIVITY_ENTRIES } from './activity-bar/activity-bar';
 import { BottomPanel } from './bottom-panel/bottom-panel';
@@ -90,6 +91,7 @@ export class Shell {
   });
 
   constructor() {
+    registerShellCommands();
     effect(() => {
       const cid = this.cid();
       this.#connection.select(cid);

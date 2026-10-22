@@ -23,6 +23,7 @@
     "unknown": "The capabilities of this connection are not known."
   },
   "announce": {
+    "text": "{{text}}",
     "closed": "{{title}} is not available: {{reason}}",
     "failed": "{{title}} failed.",
     "conflict": "{{chord}} is assigned to more than one command ({{titles}}), so it did nothing. Use the command palette or change one of them.",

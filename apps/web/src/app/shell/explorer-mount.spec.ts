@@ -8,7 +8,7 @@ import { EXPLORER_TREE_SOURCE } from './explorer-tree/explorer-tree-source';
 import { isSafeTabUrl } from './layout/shell-layout';
 import { ShellLayoutStore } from './layout/shell-layout-store';
 import { StatusBackend } from './status-bar/status-fixtures';
-import { mountShell, routed, settleShell, visit } from './test-fixtures';
+import { mountShell, routed, settleShell, until, visit } from './test-fixtures';
 
 const FRESHNESS = {
   state: 'live',
@@ -76,7 +76,15 @@ describe('the explorer under the shell', () => {
       const bed = await mountShell(undefined, backend);
 
       // Each known address renders its view under the shell: the overview, a grid per kind.
+      // The page's words arrive after the router settles (the scope is a lazy chunk): wait for the heading, not for a guess.
+      const heading = (selector: string): string | undefined =>
+        routed(bed).querySelector(selector)?.textContent;
       await visit(bed, '/c/c1/explorer');
+      await until(
+        bed,
+        () => heading('main app-overview h1') !== undefined,
+        'the overview heading',
+      );
       let host = routed(bed);
       expect(host.tagName.toLowerCase()).toBe('app-shell');
       expect(host.querySelector('main app-overview h1')?.textContent).toBe(
@@ -85,21 +93,47 @@ describe('the explorer under the shell', () => {
       expect(host.querySelector('app-explorer-home')).toBeNull(); // the placeholder is gone
 
       await visit(bed, '/c/c1/explorer/queues');
+      await until(
+        bed,
+        () => heading('main app-inventory-page h1') !== undefined,
+        'the queues heading',
+      );
       host = routed(bed);
       expect(
         host.querySelector('main app-inventory-page h1')?.textContent,
       ).toBe('[[explorer.kinds.queues]]');
       await visit(bed, '/c/c1/explorer/exchanges');
+      await until(
+        bed,
+        () =>
+          heading('main app-inventory-page h1') ===
+          '[[explorer.kinds.exchanges]]',
+        'the exchanges heading',
+      );
       expect(
         routed(bed).querySelector('main app-inventory-page h1')?.textContent,
       ).toBe('[[explorer.kinds.exchanges]]');
       await visit(bed, '/c/c1/explorer/connections');
+      await until(
+        bed,
+        () =>
+          heading('main app-inventory-page h1') ===
+          '[[explorer.kinds.connections]]',
+        'the connections heading',
+      );
       expect(
         routed(bed).querySelector('main app-inventory-page h1')?.textContent,
       ).toBe('[[explorer.kinds.connections]]');
 
       // Bindings read exactly one vhost, which the address carries.
       await visit(bed, '/c/c1/explorer/bindings?vhost=%2F');
+      await until(
+        bed,
+        () =>
+          heading('main app-inventory-page h1') ===
+          '[[explorer.kinds.bindings]]',
+        'the bindings heading',
+      );
       expect(
         routed(bed).querySelector('main app-inventory-page h1')?.textContent,
       ).toBe('[[explorer.kinds.bindings]]');

@@ -33,6 +33,50 @@ Without the helper: `pnpm nx build engine && pnpm nx build web`, then
 node dist/apps/engine/main.mjs --mode=local --port=4310 --data-dir=tmp/engine-data --kek-file=tmp/engine-data.kek
 ```
 
+## Local web mode in detail (M0-59)
+
+Local web mode is `--mode=local`. It binds `127.0.0.1` only, serves the built web UI, prints one launch URL with the token in the URL fragment, and keeps its data in `--data-dir` under the single-instance lock (a second engine on the same directory exits 75). Extra arguments after `engine:serve --` go to the engine:
+
+```sh
+pnpm nx run engine:serve -- --open        # also open the default browser at the launch URL
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--open` / `--no-open` | Open the default browser once the engine listens. The default is no browser. The token never appears on a command line: the engine opens a private redirect file in a temporary directory and removes it after 30 seconds. If no browser can be opened you get a warning and the URL to copy. |
+| `--host=127.0.0.1` | The only accepted values are `127.0.0.1`, `::1` and `localhost`. `--host=0.0.0.0` (or any LAN address) is refused with exit 78 and guidance: outside loopback the engine would need real authentication and TLS, which it does not have yet (DC-36). To use it from another machine, tunnel: `ssh -L 4310:127.0.0.1:4310 user@host`. |
+| `--token-file=<path>` | Use a fixed launch token from a file (32 to 512 characters of `A-Za-z0-9_-`, for example `openssl rand -base64 32 \| tr '+/' '-_' \| tr -d '=\n'`). Without it, a random token is made at every start. A bad file is a usage error (exit 64) that names the flag and prints neither the path nor the content. |
+| `--public-origin=<origin>` | Only loopback-form origins (`http://127.0.0.1:9000`, `http://localhost:9000`) are accepted; anything else is refused (A-12). |
+
+A page on another origin, or any other `Host`, cannot call the engine even with the token: a request whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` (on any port) or a listed public origin is answered 403, so is an `Origin` that is not that same host, and so is `Sec-Fetch-Site: cross-site`. No response carries a CORS header.
+
+## Container mode (ADR-016)
+
+The container image (work package M0-64, not built yet) sets `APP_RUNTIME=container`. Until it exists you can try the runtime on your own machine with the bundle:
+
+```sh
+APP_RUNTIME=container APP_DATA_DIR=tmp/container-data node dist/apps/engine/main.mjs --mode=local --port=8765
+```
+
+In container mode the engine binds `0.0.0.0:8765` **inside the container's network namespace** (published traffic arrives there), so exposure is decided by how you publish the port, not by the engine:
+
+```sh
+docker run -p 127.0.0.1:8765:8765 -v app-data:/data -v ./secrets:/run/secrets:ro \
+  -e APP_KEK_PATH=/run/secrets/kek -e APP_TOKEN_FILE=/run/secrets/token <image>
+```
+
+Publish on `127.0.0.1` only. **Do not** use `-p 8765:8765`, `-p 0.0.0.0:8765:8765` or `--network host`: a published port bypasses host firewalls such as ufw, and the token is then the only barrier. The engine prints a banner with the exact `docker run -p 127.0.0.1:HOSTPORT:8765` line before the launch URL.
+
+| Rule | Behaviour |
+| --- | --- |
+| Token | Always required. `APP_TOKEN_FILE` (a file secret) is the safe form; `APP_TOKEN` works but `docker inspect` can show it; with neither, the engine makes one and prints it in the banner (it is in `docker logs`). |
+| Host and Origin | Loopback names on any port (`127.0.0.1:9000`, `localhost:49152`, `[::1]:1`) so a port remap works; every other Host is 403. The Origin must be that Host as an origin. |
+| `APP_PUBLIC_ORIGIN` | Loopback-form origins only; its port is the host port the banner and the URL use. A public name (`https://portal.example.com`) is refused until real authentication and https exist (A-12): use an SSH tunnel to the published loopback port. |
+| Data and key | `/data` (a volume) holds the database and the lock. `APP_KEK_PATH` names a key-encryption-key file (a path; mount it as a secret). Without one the vault stays locked and stored passwords cannot be used. |
+| Healthcheck | `node healthcheck.mjs` (`apps/engine/scripts/healthcheck.mjs`) asks `/healthz` on `127.0.0.1` (`APP_PORT` or `--port`, default 8765) and exits 0 only on `{"status":"ok"}`. |
+| Reaching a broker on the host | Use `host.docker.internal` (Docker Desktop) or `--add-host=host.docker.internal:host-gateway` (Linux) as the broker host in the connection. |
+| Unknown `APP_*` variable | A usage error (a misspelt setting is not ignored). Set only `APP_RUNTIME`, `APP_HOST`, `APP_PORT`, `APP_DATA_DIR`, `APP_KEK_PATH`, `APP_UI_DIR`, `APP_PUBLIC_ORIGIN`, `APP_TOKEN`, `APP_TOKEN_FILE` and `APP_LOG_LEVEL`. |
+
 ## A broker to point it at
 
 Any RabbitMQ with the management plugin works. Two quick ways to get a lab broker (Docker needed):
@@ -127,4 +171,5 @@ pnpm nx test engine                      # composed engine over fake ports, and 
 pnpm nx run engine:smoke                 # the bundle as a process
 pnpm nx run engine:it                    # the bundle against a lab broker (Docker): probe, profile, inventory, overview, tests
 pnpm nx run engine:serve                 # this page
+pnpm nx test engine --testNamePattern="M0-59"   # the local web mode and container mode criteria
 ```

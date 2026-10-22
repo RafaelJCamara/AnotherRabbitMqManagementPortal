@@ -19,7 +19,10 @@ node dist/apps/engine/main.mjs --mode=desktop                                   
 | `src/modes/`             | `desktop.ts`, `local.ts`, `team.ts`: each builds a `ModeProfile` (storage, key wraps, authenticators, authorisation, listener, job recovery). May name modes.         |
 | `src/modules/`           | The modules the engine ships and the factory that gives each its capabilities: `meta`, `ops`, `svc-ops`, `svc-connections`, `svc-capabilities`, `svc-workspace` and `svc-explorer` (issue #278). `EngineModule` carries actions, jobs, live topics and drain phases. |
 | `src/broker/`            | The broker-facing ports, built once by `composeEngine` (`createBrokerPorts`): the management client (behind the BrokerScheduler), the target resolver (stored profile, opened login, TrustStore, cached BrokerProfile), the error mapper (`MgmtHttpError` to `AppError`), the wire probe and the connection prober. Every socket is the Dialer's. |
-| `scripts/serve.mjs`      | The `engine:serve` command: the built engine in local mode with the built web app ([run-locally](../../docs/runbooks/run-locally.md)). |
+| `scripts/serve.mjs`      | The `engine:serve` command: the built engine in local mode with the built web app ([run-locally](../../docs/runbooks/run-locally.md)). Extra arguments go to the engine (`-- --open`). |
+| `scripts/healthcheck.mjs` | The container HEALTHCHECK client: `/healthz` on `127.0.0.1`, exit 0 only on ok (M0-59). |
+| `src/entry/env.ts`, `src/entry/open-browser.ts` | The `APP_*` environment layer and the `--open` browser opener (M0-59). |
+| `src/modes/web-binding.ts` | Host, port, token, public origins and banner of the local web mode, native and container (M0-59). |
 | `src/data-dir-lock.ts`   | The one-engine-per-data-directory lock.                                                                                                                               |
 | `src/reconcile.ts`       | Reconciliation at start: jobs for real, the other records of blueprint 1.5 as named `pending` steps.                                                                  |
 | `src/unwired-writes.ts`  | The write ports of this build: every one refuses until the adapters land.                                                                                             |
@@ -40,12 +43,32 @@ node dist/apps/engine/main.mjs --mode=desktop                                   
 | `local`   | SQLite `engine.db` in `--data-dir`        | file KEK (`--kek-file`), keyring (absent), passphrase | the launch token, one UI principal | `127.0.0.1:--port` | interrupt all running; none resumes by itself  |
 | `team`    | refuses to start until M3, before it opens or binds anything | | | | |
 
-`desktop` and `local` take the data-directory lock. A listener outside loopback is refused by `composeEngine` itself.
+`desktop` and `local` take the data-directory lock. A listener outside loopback is refused by `composeEngine` itself, except for the container namespace (next section).
+
+## Local web mode and container mode (M0-59, ADR-016)
+
+`--mode=local` is the local web mode. Where it listens and how it is reached is decided in `src/modes/web-binding.ts` (pure, tested without a socket); `src/entry/env.ts` reads the `APP_*` variables with the kernel's `loadConfig` (the placeholder product prefix is `APP`, ADR-029). A flag wins over its variable.
+
+| Flag | Variable | Native (default) | Container (`APP_RUNTIME=container`) |
+| --- | --- | --- | --- |
+| `--host` | `APP_HOST` | `127.0.0.1`, `::1` or `localhost`; any other value is refused (exit 78) with the SSH-tunnel and container guidance | `0.0.0.0` (default), `::` or loopback; nothing else |
+| `--port` | `APP_PORT` | `0` (the system picks) | `8765` |
+| `--data-dir` | `APP_DATA_DIR` | required | `/data` |
+| `--kek-file` | `APP_KEK_PATH` | optional file KEK | optional file KEK (a path; without one the vault stays locked) |
+| `--token-file` | `APP_TOKEN_FILE` (or `APP_TOKEN`) | a made token if absent | a made token if absent (printed in the banner) |
+| `--public-origin` | `APP_PUBLIC_ORIGIN` | loopback-form origins only (A-12) | loopback-form origins only; sets the host port in the banner |
+| `--open` / `--no-open` | - | `--open` opens the default browser (default: no) | refused: there is no browser |
+| `--ui-dir` | `APP_UI_DIR` | the web build next to the bundle | the same |
+| `--log-level` | `APP_LOG_LEVEL` | `info` | `info` |
+
+Container mode is the one exception to "no bind outside loopback" (DC-36): the bind is the container's own namespace, so the wildcard is not a LAN exposure; what is exposed is decided by `docker run -p 127.0.0.1:HOSTPORT:8765`. The mode file sets `listener.containerNamespace`, and `composeEngine` accepts a non-loopback host only with that flag **and** an authenticator. The token is always required; the Host allow-list is the transport's (loopback names on any port plus the listed public origins, exact match); the Origin must be that Host as an origin. A non-loopback `PUBLIC_ORIGIN` is refused until real authentication and https exist (A-12). The banner (console only, before the launch URL) prints the exact `docker run -p 127.0.0.1:...` line and the publishes the docs forbid. The HEALTHCHECK is `node healthcheck.mjs` (`scripts/healthcheck.mjs`, copied into the image by M0-64): it asks `/healthz` on `127.0.0.1` and exits 0 only on `{"status":"ok"}`.
+
+`--open` never puts the token on a command line: the engine writes a private one-page redirect file in a fresh temporary directory (`src/entry/open-browser.ts`), gives the platform opener (`rundll32`, `open`, `xdg-open`) that file's path, and removes the file after 30 s. A browser that cannot be opened is a warning; the URL is still printed.
 
 ## Invariants
 
 - **ADR-001.** Mode logic lives in `entry/`, `modes/` and `modules/` only. `entry.spec.ts` scans the other files for a mode name, and lint enforces the rule.
-- **I-1, T1.** The only listener is `127.0.0.1` in local mode; every request, `/healthz` included, passes the Host, Origin and Sec-Fetch guards, and every route but the health checks and the static UI needs the launch token.
+- **I-1, T1.** The only listener is `127.0.0.1` in local mode (or the container namespace of ADR-016, with the token mandatory); every request, `/healthz` included, passes the Host, Origin and Sec-Fetch guards, and every route but the health checks and the static UI needs the launch token.
 - **I-8.** Services get the management API only as `scheduleMgmtRead(adapter, scheduler)` with its errors mapped to Problems; the raw adapter is handed to nothing else. A draft endpoint tried by `connections.test-*` has no connection id and is read once on its own client.
 - **I-10.** A stored login is opened by the resolver for one request (a locked vault, or a credential sealed for another row, fails closed with `GATE_BLOCKED` before any request) and is in no log line, error or cache.
 - **Guardrails are not wired around.** The prod lock, arming and the authorizer are the kernel's and the mode's; a command that names no connection and does not declare `scope: 'local'` still answers 422 `GATE_BLOCKED` on a running engine; the ones that do declare it (`connections.create`, `bundles.import`, `views.create`, `views.delete`, `settings.put`, `keybindings.put`) run with nothing armed (OQ-783), and a command that names a connection is locked until it is armed.
@@ -65,6 +88,8 @@ pnpm nx run engine:smoke      # the bundle as a process: local and desktop start
 pnpm nx run engine:egress     # the same egress soak for 10 minutes (EGRESS_SOAK_SECONDS=600)
 pnpm nx run engine:it         # the bundle as a process against a lab broker; needs a Docker daemon (libs/testkit/src/it/engine.it.ts)
 pnpm nx run engine:serve      # build the engine and the web app, start local mode, print the launch URL
+pnpm nx run engine:serve -- --open   # the same, and open the default browser at the launch URL
+pnpm nx test engine --testNamePattern="M0-59"   # the web-mode and container-mode criteria (no build needed)
 pnpm nx run supply-chain:gates
 ```
 

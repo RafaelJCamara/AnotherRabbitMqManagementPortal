@@ -25,6 +25,7 @@ import {
   createInventoryIndex,
   KINDS,
   type IndexChange,
+  type IndexVersion,
   type InventoryIndex,
 } from './index';
 import {
@@ -50,6 +51,12 @@ export interface SweepOutcome {
   serverTimeMs: number;
   /** Vhosts past `maxVhostsPerSweep`, counted and not swept. */
   skippedVhosts: number;
+  /**
+   * Rows that repeated the key of an earlier row of the same kind and were left out, counted (I-13).
+   * The management paging is not a snapshot, so a queue created or deleted between two pages can
+   * send one key twice and miss another; the kind is then installed incomplete.
+   */
+  duplicates: number;
   problem?: Problem;
 }
 
@@ -144,6 +151,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
       requests: 0,
       serverTimeMs: 0,
       skippedVhosts: 0,
+      duplicates: 0,
     };
     const get = async <T>(
       path: string,
@@ -205,6 +213,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
     const sweptAt = clock.now();
     const commits: Entry[] = [];
     let installed = 0;
+    let latest: IndexVersion | undefined;
     let failure: unknown;
     try {
       const all = await get('/api/vhosts', {}, VhostListSchema);
@@ -259,18 +268,24 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
         if (state.index.has(kind)) {
           commits.push(entry);
         } else {
-          state.index.installAll([entry]);
+          latest = state.index.installAll([entry]);
           installed++;
         }
       }
-      if (commits.length > 0) state.index.installAll(commits);
+      if (commits.length > 0) latest = state.index.installAll(commits);
       installed += commits.length;
+      // The last install of the sweep holds every kind this sweep read: its repeats are this sweep's.
+      outcome.duplicates = latest?.duplicates ?? 0;
     } catch (error) {
       failure = error;
     }
     state.index.setStale(failure !== undefined);
     if (failure === undefined) {
-      outcome.ended = outcome.skippedVhosts > 0 ? 'partial' : 'complete';
+      // A repeated key is a read that moved under the paging: partial, like a skipped vhost.
+      outcome.ended =
+        outcome.skippedVhosts > 0 || outcome.duplicates > 0
+          ? 'partial'
+          : 'complete';
     } else {
       outcome.ended = installed > 0 ? 'partial' : 'failed';
       outcome.problem = sweepProblem(failure, signal.aborted);
@@ -288,6 +303,7 @@ export function createSweeper(deps: SweeperDeps): Sweeper {
         requests: 0,
         serverTimeMs: 0,
         skippedVhosts: 0,
+        duplicates: 0,
         problem: sweepProblem(undefined, true),
       });
     }

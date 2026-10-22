@@ -354,6 +354,82 @@ describe('explorer inventory.query', () => {
     expect(gone.rows.map((r) => (r as Row).name)).not.toContain(nameAt(5));
   });
 
+  it('M0-48 explorer a key that two pages both carry appears once in every window and the answer says the read is partial', async () => {
+    const broker = createScriptedBroker({ queueCount: 1_200 });
+    let shifted = false;
+    let last: { messages?: number } | undefined;
+    const mgmt: MgmtReadPort = {
+      async get<T>(request: MgmtGetRequest<T>, signal: AbortSignal) {
+        const out = await broker.read.get(request, signal);
+        const page = out as { items?: { messages?: number }[] };
+        if (request.path.startsWith('/api/queues/') && page.items) {
+          const before = request.query?.page === 1 ? undefined : last;
+          last = page.items.at(-1);
+          if (shifted && before !== undefined) {
+            // A queue was created while the sweep paged: this page starts with the row that ended the
+            // last one, now with other counts, and the last queue of the broker falls off the end.
+            page.items = [
+              { ...before, messages: 4_242 },
+              ...page.items.slice(0, -1),
+            ];
+          }
+        }
+        return out;
+      },
+      stream: (request, signal) => broker.read.stream(request, signal),
+    };
+    const { deps, ask, sweepNow } = harness({ mgmt });
+    const scroll = async (version?: number) => {
+      const rows: Row[] = [];
+      let seen: Awaited<ReturnType<typeof ask>> | undefined;
+      for (let offset = 0; offset < 1_200; offset += 500) {
+        seen = await ask(
+          query('queues', { offset, limit: 500, ...(version ? { version } : {}) }),
+        );
+        rows.push(...(seen.rows as Row[]));
+      }
+      return { rows, last: seen };
+    };
+
+    expect((await sweepNow()).ended).toBe('complete');
+    const clean = await scroll();
+    expect(clean.last?.freshness).toMatchObject({ state: 'live', complete: true, loaded: 1_200 });
+
+    shifted = true;
+    const outcome = await sweepNow();
+
+    expect(outcome).toMatchObject({ ended: 'partial', duplicates: 1 });
+    const { rows, last: answer } = await scroll();
+    // One key, one row: the window never shows a row twice, and the first row of the key is the one kept.
+    expect(rows).toHaveLength(1_199);
+    expect(new Set(rows.map((r) => r.key)).size).toBe(1_199);
+    expect(rows.find((r) => r.name === 'queue-000499')).toMatchObject({
+      messages: 99,
+    });
+    expect(answer).toMatchObject({ total: 1_199, matched: 1_199 });
+    // The inventory is not called whole: the broker said 1,200 and 1,199 were read.
+    expect(answer?.freshness).toMatchObject({
+      state: 'stale',
+      complete: false,
+      loaded: 1_199,
+      expected: 1_200,
+      reason: 'Part of the inventory could not be read.',
+    });
+    // Counted, not silent (I-13).
+    expect(deps.sweeper.index(cid)?.stats.duplicates).toBe(1);
+
+    // The next clean read is whole again.
+    shifted = false;
+    expect((await sweepNow()).ended).toBe('complete');
+    const healed = await scroll();
+    expect(healed.rows).toHaveLength(1_200);
+    expect(healed.last?.freshness).toMatchObject({
+      state: 'live',
+      complete: true,
+      loaded: 1_200,
+    });
+  });
+
   it('AC-8 explorer cold start answers at once and never calls a partial index complete', async () => {
     const scripted = createScriptedBroker({ queueCount: 10_000 });
     const hold = (read: MgmtReadPort, prefix: string, nth: number) => {

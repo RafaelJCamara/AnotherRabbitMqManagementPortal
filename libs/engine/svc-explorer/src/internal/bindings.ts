@@ -397,6 +397,7 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
           sweptAt: entry.loadedAt,
           complete: true,
           dropped: entry.dropped,
+          duplicates: 0,
           truncated: entry.dropped > 0,
           stale: entry.stale,
         },

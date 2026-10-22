@@ -93,6 +93,7 @@ export const UNAVAILABLE_VERSION: IndexVersion = {
   sweptAt: 0,
   complete: false,
   dropped: 0,
+  duplicates: 0,
   truncated: false,
   stale: true,
 };

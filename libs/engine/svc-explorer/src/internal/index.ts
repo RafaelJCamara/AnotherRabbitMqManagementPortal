@@ -24,6 +24,13 @@ export interface IndexVersion {
   readonly complete: boolean;
   /** Rows the caps dropped from this version, counted. */
   readonly dropped: number;
+  /**
+   * Rows of this version that repeated the key of an earlier row of the same read and were left out,
+   * counted (I-13). The management paging is not a snapshot: a queue created or deleted between two
+   * pages moves rows across the page edge, so one key can arrive twice while another is missed. A
+   * kind that saw a repeat is never `complete`.
+   */
+  readonly duplicates: number;
   readonly truncated: boolean;
   /** The last sweep did not finish; the rows are from the last good one. */
   readonly stale: boolean;
@@ -109,13 +116,36 @@ export interface InventoryIndex {
   current(): IndexVersion;
   setStale(stale: boolean): void;
   subscribe(listener: (change: IndexChange) => void): () => void;
-  readonly stats: { rows: number; bytes: number; dropped: number };
+  readonly stats: IndexStats;
+}
+
+export interface IndexStats {
+  /** Rows of the current version. */
+  rows: number;
+  /**
+   * The estimate the byte cap works on: the current rows (as installed) plus the folded names where a
+   * search has built them. It is what `maxBytesPerConnection` bounds at install, not all the memory.
+   */
+  bytes: number;
+  /**
+   * Estimated bytes held beyond `bytes`: the previous version (kept for pinned windows), the by-key
+   * lookups, and the sorted copies the windows read. Counted, not capped: it is at most one more
+   * version of rows plus eight bytes a row for each sorted copy and a lookup entry for each row.
+   */
+  retainedBytes: number;
+  /** Sorted copies held now (current and previous version only). */
+  sortCacheEntries: number;
+  /** Rows dropped by the caps, counted over the life of the index. */
+  dropped: number;
+  /** Repeated keys left out of a read, counted over the life of the index. */
+  duplicates: number;
 }
 
 interface KindData {
   readonly rows: readonly IndexRow[];
   readonly bytes: number;
   readonly dropped: number;
+  readonly duplicates: number;
   readonly complete: boolean;
   byKey?: Map<string, IndexRow>;
   /** Case-folded names for the search, built lazily; at most one more copy of the names. */
@@ -130,6 +160,14 @@ interface Snapshot {
 const ROW_OVERHEAD_BYTES = 256;
 /** A reference in the folded-name list, in the estimate. */
 const REFERENCE_BYTES = 8;
+/** One entry of a by-key `Map`: the key reference, the row reference and the table slot. */
+const BYKEY_ENTRY_BYTES = 48;
+
+/** A sorted copy of one kind's rows (references, not rows), tied to the version it was cut from. */
+interface SortedCopy {
+  readonly version: number;
+  readonly rows: readonly IndexRow[];
+}
 
 /** A cheap estimate: a fixed overhead plus two bytes per character of the strings. */
 function rowBytes(row: IndexRow): number {
@@ -209,6 +247,7 @@ export function createInventoryIndex(
       sweptAt: 0,
       complete: false,
       dropped: 0,
+      duplicates: 0,
       truncated: false,
       stale: false,
     },
@@ -217,11 +256,17 @@ export function createInventoryIndex(
   let current = empty;
   let previous: Snapshot | undefined;
   let droppedTotal = 0;
+  let duplicatesTotal = 0;
   const listeners = new Set<(change: IndexChange) => void>();
   // One FIFO per kind, so a busy kind never pushes out another kind's sorts (I-6: each is bounded).
-  const sortCache = new Map<SweptKind, Map<string, readonly IndexRow[]>>();
+  // Only the current and the previous version are kept: an install drops the rest.
+  const sortCache = new Map<SweptKind, Map<string, SortedCopy>>();
 
-  const sum = (snap: Snapshot, field: 'bytes' | 'dropped', skip?: string) =>
+  const sum = (
+    snap: Snapshot,
+    field: 'bytes' | 'dropped' | 'duplicates',
+    skip?: string,
+  ) =>
     KINDS.reduce(
       (n, k) => n + (k === skip ? 0 : (snap.kinds[k]?.[field] ?? 0)),
       0,
@@ -241,14 +286,53 @@ export function createInventoryIndex(
     }
     let hit = cache.get(id);
     if (hit === undefined) {
-      hit = [...(snap.kinds[kind]?.rows ?? [])].sort(comparator(sort));
+      hit = {
+        version: snap.meta.version,
+        rows: [...(snap.kinds[kind]?.rows ?? [])].sort(comparator(sort)),
+      };
       if (cache.size >= sortCacheEntries) {
         const oldest = cache.keys().next();
         if (!oldest.done) cache.delete(oldest.value);
       }
       cache.set(id, hit);
     }
-    return hit;
+    return hit.rows;
+  }
+
+  /** A new version retires every sorted copy of a version nobody can read any more (I-6). */
+  function purgeSortCache(): void {
+    const readable = new Set([current.meta.version, previous?.meta.version]);
+    for (const cache of sortCache.values()) {
+      for (const [id, copy] of cache) {
+        if (!readable.has(copy.version)) cache.delete(id);
+      }
+    }
+  }
+
+  /**
+   * The estimated bytes held beyond `stats.bytes` (see `IndexStats.retainedBytes`): the previous
+   * version where it differs from the current one, the by-key lookups built so far, and the sorted
+   * copies.
+   */
+  function retainedBytes(): number {
+    let bytes = 0;
+    for (const kind of KINDS) {
+      const now = current.kinds[kind];
+      const before = previous?.kinds[kind];
+      if (now?.byKey !== undefined) bytes += now.rows.length * BYKEY_ENTRY_BYTES;
+      if (before !== undefined && before !== now) {
+        bytes += before.bytes + (before.foldedBytes ?? 0);
+        if (before.byKey !== undefined) {
+          bytes += before.rows.length * BYKEY_ENTRY_BYTES;
+        }
+      }
+    }
+    for (const cache of sortCache.values()) {
+      for (const copy of cache.values()) {
+        bytes += copy.rows.length * REFERENCE_BYTES;
+      }
+    }
+    return bytes;
   }
 
   function foldedNames(kind: SweptKind): readonly string[] {
@@ -278,12 +362,20 @@ export function createInventoryIndex(
       const maxBytes =
         limits.maxBytesPerConnection - sum(others, 'bytes', kind);
       const kept: IndexRow[] = [];
+      // The keys of the kept rows, so a key that arrives twice keeps its first row (bounded by the cap).
+      const seen = new Set<string>();
       let bytes = 0;
       let dropped = meta.extraDropped ?? 0;
+      let duplicates = 0;
       for (const row of rows) {
+        if (seen.has(row.key)) {
+          duplicates++;
+          continue;
+        }
         const size = rowBytes(row);
         if (kept.length < maxRows && bytes + size <= maxBytes) {
           kept.push(row);
+          seen.add(row.key);
           bytes += size;
         } else {
           // Everything past the first row that does not fit is dropped, in sweep order.
@@ -292,9 +384,17 @@ export function createInventoryIndex(
         }
       }
       droppedTotal += dropped;
+      duplicatesTotal += duplicates;
       kinds = {
         ...kinds,
-        [kind]: { rows: kept, bytes, dropped, complete: meta.complete },
+        [kind]: {
+          rows: kept,
+          bytes,
+          dropped,
+          duplicates,
+          // A repeated key means the pages moved under the read: another row may have been missed.
+          complete: meta.complete && duplicates === 0,
+        },
       };
       changes.push({ kind, kept });
     }
@@ -306,6 +406,7 @@ export function createInventoryIndex(
         sweptAt: entries.at(-1)?.meta.sweptAt ?? current.meta.sweptAt,
         complete: KINDS.every((k) => kinds[k]?.complete === true),
         dropped: sum(totals, 'dropped'),
+        duplicates: sum(totals, 'duplicates'),
         truncated: sum(totals, 'dropped') > 0,
         stale: false,
       },
@@ -313,6 +414,7 @@ export function createInventoryIndex(
     const before = current;
     previous = current.meta.version === 0 ? undefined : current;
     current = next;
+    purgeSortCache();
     if (listeners.size > 0) {
       for (const { kind, kept } of changes) {
         const old = new Map(
@@ -416,9 +518,15 @@ export function createInventoryIndex(
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    get stats() {
+    get stats(): IndexStats {
       return {
         rows: rowCount(current),
+        retainedBytes: retainedBytes(),
+        sortCacheEntries: [...sortCache.values()].reduce(
+          (n, cache) => n + cache.size,
+          0,
+        ),
+        duplicates: duplicatesTotal,
         // The rows as estimated at install, plus the folded names where a search has built them.
         bytes:
           sum(current, 'bytes') +

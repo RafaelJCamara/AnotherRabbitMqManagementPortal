@@ -111,16 +111,25 @@ describe('explorer search', () => {
     for (let seed = 1; seed <= 60; seed++) {
       const rand = random(seed);
       const count = 1 + Math.floor(rand() * 220);
-      const items: Item[] = Array.from({ length: count }, () => ({
+      const generated: Item[] = Array.from({ length: count }, () => ({
         kind: rand() < 0.75 ? 'queues' : 'exchanges',
         vhost: pick(rand, VHOSTS),
         name: randomName(rand),
       }));
       // The same vhost and name in both kinds: equal keys, the kind decides.
-      items.push(
+      generated.push(
         { kind: 'queues', vhost: '/', name: 'Tie' },
         { kind: 'exchanges', vhost: '/', name: 'Tie' },
       );
+      // One key, one row within a kind: the index keeps the first row of a key (a broker never
+      // lists a name twice in a vhost), so the generator's repeats are left out here too.
+      const taken = new Set<string>();
+      const items = generated.filter((item) => {
+        const id = `${item.kind}|${encodeObjectKey(item.vhost, item.name)}`;
+        if (taken.has(id)) return false;
+        taken.add(id);
+        return true;
+      });
 
       const index = createInventoryIndex({
         maxRowsPerConnection: 10_000,

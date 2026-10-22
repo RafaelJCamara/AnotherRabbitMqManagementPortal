@@ -134,6 +134,121 @@ describe('explorer sweeper', () => {
     await auto.stop();
   });
 
+  it('M0-48 explorer a warm index takes the queues of a sweep only when every kind was read (one new version per sweep)', async () => {
+    const broker = createScriptedBroker({
+      queueCount: 3_000,
+      vhostCount: 2,
+      exchangesPerVhost: 1,
+      connectionCount: 4,
+    });
+    const hidden = new Set<string>();
+    const mgmt: MgmtReadPort = {
+      async get<T>(request: MgmtGetRequest<T>, signal: AbortSignal) {
+        const out = await broker.read.get(request, signal);
+        const page = out as { items?: { name: string }[] };
+        if (request.path.startsWith('/api/queues/') && page.items) {
+          page.items = page.items.filter((item) => !hidden.has(item.name));
+        }
+        return out;
+      },
+      stream: (request, signal) => broker.read.stream(request, signal),
+    };
+    const sweeper = createSweeper({ mgmt });
+    const run = () => sweeper.sweepNow(cid, new AbortController().signal);
+    expect((await run()).ended).toBe('complete');
+    const index = sweeper.index(cid);
+    const good = index?.window(first).version.version;
+
+    // The next sweep reads its queues fine (two of them gone) and then a later kind fails.
+    hidden.add('queue-000000').add('queue-000001');
+    for (const failing of ['/api/exchanges', '/api/connections']) {
+      broker.intercept = (r) =>
+        r.path.startsWith(failing) ? brokerFailure() : undefined;
+      expect((await run()).ended).toBe('failed');
+      // Nothing of the sweep is visible: the old version, with all 3,000 queues, marked stale.
+      expect(index?.window(first), failing).toMatchObject({
+        total: 3_000,
+        version: { version: good, complete: true, stale: true },
+      });
+    }
+
+    broker.intercept = undefined;
+    expect((await run()).ended).toBe('complete');
+    expect(index?.window(first)).toMatchObject({
+      total: 2_998,
+      version: { version: (good ?? 0) + 1, stale: false },
+    });
+  });
+
+  it('M0-48 explorer vhosts past maxVhostsPerSweep are counted and not swept, and the sweep is partial', async () => {
+    const broker = createScriptedBroker({
+      queueCount: 40,
+      vhostCount: 4,
+      exchangesPerVhost: 1,
+      connectionCount: 5,
+    });
+    const sweeper = createSweeper({
+      mgmt: broker.read,
+      limits: { maxVhostsPerSweep: 2 },
+    });
+
+    const outcome = await sweeper.sweepNow(cid, new AbortController().signal);
+
+    expect(outcome).toMatchObject({ ended: 'partial', skippedVhosts: 2 });
+    expect(outcome.problem).toBeUndefined();
+    // Nothing is asked of the two vhosts left out; the connection list spans every vhost.
+    expect(broker.requests.map((r) => r.path)).toEqual([
+      '/api/vhosts',
+      ...broker.vhosts
+        .slice(0, 2)
+        .map((v) => `/api/queues/${encodeURIComponent(v)}`),
+      ...broker.vhosts
+        .slice(0, 2)
+        .map((v) => `/api/exchanges/${encodeURIComponent(v)}`),
+      '/api/connections',
+    ]);
+    const index = sweeper.index(cid);
+    expect(index?.window(first)).toMatchObject({
+      total: 20,
+      version: { complete: false },
+    });
+    // The queues are never called whole, and no broker count is offered for a part read.
+    expect(index?.queueTotals()).toMatchObject({ queues: 20, complete: false });
+    expect(sweeper.status(cid).expected.has('queues')).toBe(false);
+    expect(sweeper.status(cid).expected.get('connections')).toBe(5);
+  });
+
+  it('M0-48 explorer a key that arrives on two pages of a first read is kept once and the sweep is partial', async () => {
+    const broker = createScriptedBroker({ queueCount: 1_200 });
+    let last: unknown;
+    const mgmt: MgmtReadPort = {
+      async get<T>(request: MgmtGetRequest<T>, signal: AbortSignal) {
+        const out = await broker.read.get(request, signal);
+        const page = out as { items?: unknown[] };
+        if (request.path.startsWith('/api/queues/') && page.items) {
+          const before = last;
+          last = page.items.at(-1);
+          // A queue was created while the sweep paged: this page starts with the row that ended the last.
+          if (before !== undefined) page.items = [before, ...page.items.slice(0, -1)];
+        }
+        return out;
+      },
+      stream: (request, signal) => broker.read.stream(request, signal),
+    };
+    const sweeper = createSweeper({ mgmt });
+
+    const outcome = await sweeper.sweepNow(cid, new AbortController().signal);
+
+    // Pages 2 and 3 are shifted by one: queue-000499 arrives twice, and the last queue of the broker
+    // (queue-001199) falls off the end of the read.
+    expect(outcome).toMatchObject({ ended: 'partial', duplicates: 1 });
+    expect(sweeper.index(cid)?.window(first)).toMatchObject({
+      total: 1_199,
+      version: { complete: false, duplicates: 1 },
+    });
+    expect(sweeper.status(cid).expected.get('queues')).toBe(1_200);
+  });
+
   it('AC-5 explorer sweeps follow demand, the cost-based cadence and the drain', async () => {
     const broker = createScriptedBroker({ queueCount: 3 });
     const clock = createManualClock();

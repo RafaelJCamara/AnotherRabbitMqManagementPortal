@@ -1,5 +1,18 @@
 // Public API of this library. Export only what other projects need.
 export {
+  ARMING_CLOCK,
+  ArmingStore,
+  PROD_LOCK_SOURCE,
+  lockGate,
+  type ArmOutcome,
+  type ArmingClock,
+  type DisarmOutcome,
+} from './arming-store';
+export {
+  ConnectionDirectory,
+  type DirectoryStatus,
+} from './connection-directory';
+export {
   EngineApi,
   type EnginePlan,
   type ExecuteRequest,

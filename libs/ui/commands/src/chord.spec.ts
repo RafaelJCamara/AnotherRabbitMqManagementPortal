@@ -29,7 +29,7 @@ const chord = (text: string) => {
 };
 
 describe('chords', () => {
-  it('AC-2 chords parse, format and match per platform', () => {
+  it('M1-41 AC-2 chords parse, format and match per platform', () => {
     // Parse and format: any case, any order of modifiers, one canonical text.
     expect(canonicalChord('Mod+K')).toBe('Mod+K');
     expect(canonicalChord('shift+mod+k')).toBe('Mod+Shift+K');

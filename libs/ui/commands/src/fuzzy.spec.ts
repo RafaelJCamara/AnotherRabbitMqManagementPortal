@@ -13,7 +13,7 @@ const COMMANDS = [
 ];
 
 describe('rankCommands', () => {
-  it('AC-1 abau ranks account.balance.update first with highlights', () => {
+  it('M1-41 AC-1 abau ranks account.balance.update first with highlights', () => {
     const ranked = rankCommands('abau', COMMANDS);
 
     expect(ranked[0]?.item.id).toBe('account.balance.update');

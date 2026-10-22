@@ -39,7 +39,7 @@ function setup(keybindings: FakeKeybindings) {
 }
 
 describe('KeymapStore', () => {
-  it('AC-7 the keymap loads and saves through keybindings.get and keybindings.put', async () => {
+  it('M1-41 AC-7 the keymap loads and saves through keybindings.get and keybindings.put', async () => {
     const keybindings = new FakeKeybindings({ 'palette.open': 'Alt+9' });
     const { store, keymap, announcer, timer } = setup(keybindings);
 

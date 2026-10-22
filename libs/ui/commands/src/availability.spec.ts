@@ -29,7 +29,7 @@ const READY: CapabilitySnapshot = {
 };
 
 describe('availability', () => {
-  it("AC-5 closed commands carry the engine's reason and never run", async () => {
+  it("M1-41 AC-5 closed commands carry the engine's reason and never run", async () => {
     // A gate the engine closed: its reason and source as sent.
     expect(availabilityOf({ gate: 'streams.browse' }, READY)).toEqual({
       enabled: false,

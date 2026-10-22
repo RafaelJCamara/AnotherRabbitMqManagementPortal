@@ -16,6 +16,10 @@ export type ContextGetter = (key: string) => ContextValue | undefined;
 @Injectable({ providedIn: 'root' })
 export class CommandContext {
   readonly #values = signal<ReadonlyMap<string, ContextValue>>(new Map());
+  readonly #stacks = new Map<
+    string,
+    { readonly token: symbol; readonly value: ContextValue }[]
+  >();
 
   /** Reads a key; reactive when read inside a `computed` or an `effect`. */
   readonly get: ContextGetter = (key) => this.#values().get(key);
@@ -33,13 +37,31 @@ export class CommandContext {
   }
 
   /**
-   * Sets a key for as long as the caller wants it and returns the function that ends it. The key is
-   * removed only if it still holds this value, so a page that opened later is not cleared by one that closed.
+   * Sets a key for as long as the caller wants it and returns the function that ends it. Providers of one
+   * key stack: the latest one is in force, and when it ends the one below comes back, so two pages that
+   * share a key (a split editor with two grids) do not clear each other's.
    */
   provide(key: string, value: ContextValue): () => void {
+    const token = Symbol(key);
+    const stack = this.#stacks.get(key) ?? [];
+    stack.push({ token, value });
+    this.#stacks.set(key, stack);
     this.set(key, value);
     return () => {
-      if (this.get(key) === value) this.delete(key);
+      const list = this.#stacks.get(key);
+      if (list === undefined) return;
+      const at = list.findIndex((entry) => entry.token === token);
+      if (at < 0) return;
+      const wasTop = at === list.length - 1;
+      list.splice(at, 1);
+      if (!wasTop) return;
+      const below = list[list.length - 1];
+      if (below === undefined) {
+        this.#stacks.delete(key);
+        this.delete(key);
+      } else {
+        this.set(key, below.value);
+      }
     };
   }
 

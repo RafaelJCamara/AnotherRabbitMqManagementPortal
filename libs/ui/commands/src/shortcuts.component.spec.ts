@@ -77,7 +77,7 @@ function capture(
 }
 
 describe('ShortcutsDialog', () => {
-  it('AC-11 the cheat sheet lists, changes and reports', async () => {
+  it('M1-41 AC-11 the cheat sheet lists, changes and reports', async () => {
     const keybindings = new FakeKeybindings({ 'test.beta': 'Mod+Shift+B' });
     const bed = await mountSheet(keybindings);
 

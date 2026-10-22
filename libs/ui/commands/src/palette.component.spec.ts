@@ -64,7 +64,7 @@ const key = (name: string): void => {
 };
 
 describe('CommandPalette', () => {
-  it('AC-9 the palette is an accessible combobox over a listbox', async () => {
+  it('M1-41 AC-9 the palette is an accessible combobox over a listbox', async () => {
     const bed = await mountHost();
     const registry = TestBed.inject(CommandRegistry);
     registry.register(command('account.balance.update', 'Change the balance'));
@@ -160,7 +160,7 @@ describe('CommandPalette', () => {
     await until(bed.fixture, () => dialog() === null, 'the palette to close');
   });
 
-  it('AC-10 focus returns before a command runs and failures are announced', async () => {
+  it('M1-41 AC-10 focus returns before a command runs and failures are announced', async () => {
     const bed = await mountHost();
     const registry = TestBed.inject(CommandRegistry);
     const opener = document.createElement('button');

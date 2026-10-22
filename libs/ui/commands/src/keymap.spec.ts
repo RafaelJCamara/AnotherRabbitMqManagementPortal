@@ -17,7 +17,7 @@ import { CommandRegistry, Keymap } from './registry';
 const owner = (id: string, ...chords: string[]) => ({ id, chords });
 
 describe('keymap', () => {
-  it('AC-6 the keymap merges overrides and reports every conflict', () => {
+  it('M1-41 AC-6 the keymap merges overrides and reports every conflict', () => {
     // Defaults are canonical text; one that is not a chord is dropped.
     expect(defaultChords(['ctrl+k', 'nonsense+', 'F1'])).toEqual([
       'Ctrl+K',

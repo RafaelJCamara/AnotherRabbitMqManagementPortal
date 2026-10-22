@@ -22,7 +22,7 @@ const live = (el: HTMLElement): string =>
   el.querySelector('[role="status"]')?.textContent.trim() ?? '';
 
 describe('CommandHost', () => {
-  it('AC-8 the dispatcher matches, ignores and announces', async () => {
+  it('M1-41 AC-8 the dispatcher matches, ignores and announces', async () => {
     const bed = await mountHost();
     const registry = TestBed.inject(CommandRegistry);
     const control = TestBed.inject(PaletteControl);

@@ -38,7 +38,7 @@ const titleOf = (id: string): string | undefined =>
     .find((command) => command.id === id)?.title;
 
 describe('the commands of the app and the shell', () => {
-  it('AC-14 the shell commands act through the existing services', async () => {
+  it('M1-41 AC-14 the shell commands act through the existing services', async () => {
     const bed = await mountShell(undefined, backendWith(), undefined, [
       providePaletteScope(),
       provideCommandCapabilities(),
@@ -157,7 +157,7 @@ describe('the commands of the app and the shell', () => {
     expect(theme.resolved()).toBe(before === 'dark' ? 'dark' : 'light');
   });
 
-  it('AC-3 no default binding collides with the reserved-chord list', async () => {
+  it('M1-41 AC-3 no default binding collides with the reserved-chord list', async () => {
     const bed = await mountShell(undefined, backendWith(), undefined, [
       providePaletteScope(),
       provideCommandCapabilities(),

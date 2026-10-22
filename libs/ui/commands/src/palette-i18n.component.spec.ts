@@ -30,7 +30,7 @@ const command = (
 });
 
 describe('palette i18n', () => {
-  it('AC-13 every string of the palette and cheat sheet is a key', async () => {
+  it('M1-41 AC-13 every string of the palette and cheat sheet is a key', async () => {
     const known = new Set(paletteKeys());
     const seen = new Set<string>();
     const unknown: string[] = [];

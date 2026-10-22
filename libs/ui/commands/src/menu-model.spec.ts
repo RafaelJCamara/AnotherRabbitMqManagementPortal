@@ -24,7 +24,7 @@ const describeReason = (reason: DisabledReason): string =>
   `reason:${reason.kind}`;
 
 describe('menu model', () => {
-  it('AC-12 native menus are generated from the registry', () => {
+  it('M1-41 AC-12 native menus are generated from the registry', () => {
     const commands = [
       listed('no.menu', { chords: ['Mod+J'] }),
       listed('go.queues', {

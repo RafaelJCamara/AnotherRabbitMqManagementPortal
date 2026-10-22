@@ -24,7 +24,7 @@ const command = (
 });
 
 describe('CommandRegistry', () => {
-  it('AC-4 registrations stack, dispose and follow their context', () => {
+  it('M1-41 AC-4 registrations stack, dispose and follow their context', () => {
     const registry = TestBed.inject(CommandRegistry);
     const context = TestBed.inject(CommandContext);
     const ids = () => registry.commands().map((c) => c.id);
@@ -72,6 +72,13 @@ describe('CommandRegistry', () => {
     expect(ids()).not.toContain('only.on.queues');
     end(); // the first page closing does not clear the later page's value
     expect(context.get('explorer.page')).toBe('exchanges');
+    // Providers of one key stack: the one below comes back when the top one ends, and the last one ending clears it.
+    const first = context.provide('page.demo', 'a');
+    const second = context.provide('page.demo', 'b');
+    second();
+    expect(context.get('page.demo')).toBe('a');
+    first();
+    expect(context.get('page.demo')).toBeUndefined();
 
     // Titles that read a signal follow it.
     const language = signal('Open');

@@ -57,7 +57,7 @@ function backendWith(): StatusBackend {
 }
 
 describe('the capabilities of the commands', () => {
-  it("AC-15 action commands follow the engine's allowedActions", async () => {
+  it("M1-41 AC-15 action commands follow the engine's allowedActions", async () => {
     const backend = backendWith();
     const bed = await mountShell(undefined, backend, undefined, [
       providePaletteScope(),

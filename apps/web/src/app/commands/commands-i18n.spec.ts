@@ -41,7 +41,7 @@ function leaves(tree: Translation, path: string): string[] {
 const MARKER = /\[\[(commands\.[A-Za-z0-9.-]+)\]\]/g;
 
 describe('the strings of the app commands', () => {
-  it('AC-13 every title, category and notice of the app commands is a key of its scope', async () => {
+  it('M1-41 AC-13b every title, category and notice of the app commands is a key of its scope', async () => {
     const backend = new StatusBackend();
     for (const [cid, name] of [
       ['c1', 'One'],

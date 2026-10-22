@@ -53,7 +53,7 @@ describe('the explorer commands', () => {
   afterAll(restoreGridSpecEnvironment);
 
   it(
-    'AC-16 the inventory page registers its commands while it lives',
+    'M1-41 AC-16 the inventory page registers its commands while it lives',
     async () => {
       const fake = createFakeExplorerData({
         rows: { queues: 30 },
@@ -168,7 +168,7 @@ describe('the explorer commands', () => {
   );
 
   it(
-    'AC-17 the overview refresh command respects the floor',
+    'M1-41 AC-17 the overview refresh command respects the floor',
     async () => {
       const timer = new ManualTimer();
       const workspace = new FakeWorkspace();

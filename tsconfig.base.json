@@ -55,6 +55,10 @@
       "@app/kernel": ["./libs/engine/kernel/src/index.ts"],
       "@app/live": ["./libs/engine/live/src/index.ts"],
       "@app/live-protocol": ["./libs/shared/live-protocol/src/index.ts"],
+      "@app/metrics-model": ["./libs/shared/metrics-model/src/index.ts"],
+      "@app/metrics-model/testing": [
+        "./libs/shared/metrics-model/src/testing.ts"
+      ],
       "@app/net-dialer": ["./libs/engine/net-dialer/src/index.ts"],
       "@app/net-truststore": ["./libs/engine/net-truststore/src/index.ts"],
       "@app/net-truststore/testing": [

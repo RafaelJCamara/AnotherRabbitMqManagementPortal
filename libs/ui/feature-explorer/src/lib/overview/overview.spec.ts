@@ -343,6 +343,58 @@ describe('<app-overview>', () => {
     PAGE_TEST_TIMEOUT_MS,
   );
 
+  it(
+    'AC-29 a first read that fails says so with the engine problem and a sentence of help for an unreachable broker and a refused login, and shows no numbers',
+    async () => {
+      const cases = [
+        {
+          problem: problemOf(502, 'BROKER_UNREACHABLE', {
+            title: 'Broker unreachable',
+            detail: 'The management API did not answer.',
+          }),
+          help: 'The engine could not reach the broker.',
+        },
+        {
+          problem: problemOf(401, 'UNAUTHENTICATED', {
+            title: 'Login refused',
+            detail: 'The broker answered 401.',
+          }),
+          help: 'the broker refused the login stored for this connection',
+        },
+        {
+          problem: problemOf(500, 'INTERNAL', { title: 'Something broke' }),
+          help: null,
+        },
+      ];
+      for (const { problem, help } of cases) {
+        const workspace = new FakeWorkspace();
+        workspace.overview = () => overview();
+        workspace.failure.overview = problem;
+        const bed = await mountPage(OverviewPage, {
+          workspace,
+          providers: [{ provide: EXPLORER_TIMER, useValue: new ManualTimer() }],
+        });
+        await eventually(() => {
+          bed.fixture.detectChanges();
+          expect(bed.el.querySelector('[role="alert"].failure')).not.toBeNull();
+        });
+        const failure = text(bed.el, '[role="alert"].failure');
+        expect(failure).toContain('The overview could not be read.');
+        expect(failure).toContain(problem.title);
+        if (problem.detail) expect(failure).toContain(problem.detail);
+        if (help === null) {
+          expect(bed.el.querySelector('.hint')).toBeNull();
+        } else {
+          expect(text(bed.el, '.hint')).toContain(help);
+        }
+        // Nothing is shown as if it were read.
+        expect(bed.el.querySelector('section.region')).toBeNull();
+        expect(bed.el.querySelector('.identity')).toBeNull();
+      }
+    },
+    PAGE_TEST_TIMEOUT_MS,
+  );
+
   it('shows no content and makes no call without a connection', async () => {
     const workspace = new FakeWorkspace();
     const bed = await mountPage(OverviewPage, { workspace, cid: null });

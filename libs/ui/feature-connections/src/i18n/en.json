@@ -129,6 +129,7 @@
     "create": "Add the connection",
     "save": "Save changes",
     "saving": "Saving",
+    "probing": "Saved. Checking what the broker offers, so the explorer can list it; this takes a few seconds.",
     "cancel": "Cancel",
     "error": {
       "required": "This field is needed.",

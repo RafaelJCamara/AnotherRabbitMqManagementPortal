@@ -11,6 +11,7 @@ import {
 } from '@app/ui-platform/testing';
 
 const PROFILE_URL = /^\/api\/v1\/connections\/([^/]+)\/profile$/;
+const PROBE_URL = /^\/api\/v1\/connections\/([^/]+)\/probe$/;
 const OVERVIEW_URL = /^\/api\/v1\/connections\/([^/]+)\/overview$/;
 const VIEWS_URL = /^\/api\/v1\/views(?:\/([^/?]+))?(?:\?.*)?$/;
 
@@ -116,7 +117,16 @@ export class FakeWorkspace {
     delete?: Problem;
     profile?: Problem;
     overview?: Problem;
+    probe?: Problem;
   } = {};
+  /**
+   * What `probe.run` stores: the profile `profile.get` answers from then on (a probe on an unprobed connection
+   * makes it probed). A failure in `failure.probe` is answered instead and stores nothing.
+   */
+  probed: (cid: string) => unknown = (cid) =>
+    brokerProfileBody(cid, {
+      allowedActions: ['views.create', 'views.delete'],
+    });
   /** The `overview.get` answer of a connection; a missing one answers NOT_FOUND. */
   overview: ((cid: string) => unknown) | null = null;
   /** While set, overview.get answers only when it settles (the loading state). */
@@ -152,6 +162,17 @@ export class FakeWorkspace {
         : jsonResponse(200, {
             profile: this.profile(decodeURIComponent(profile)),
           });
+    }
+    const probe = PROBE_URL.exec(request.url)?.[1];
+    if (probe !== undefined && request.method === 'POST') {
+      if (this.failure.probe) return problemResponse(this.failure.probe);
+      const cid = decodeURIComponent(probe);
+      this.profile = this.probed;
+      return jsonResponse(200, {
+        profile: this.probed(cid),
+        changed: true,
+        steps: [{ id: 'identity', status: 'ok' }],
+      });
     }
     const overview = OVERVIEW_URL.exec(request.url)?.[1];
     if (overview !== undefined && request.method === 'GET') {

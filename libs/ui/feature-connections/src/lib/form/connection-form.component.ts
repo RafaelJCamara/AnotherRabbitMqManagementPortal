@@ -372,6 +372,11 @@ const DOM_ID = (id: FieldId): string => `f-${id.replace('.', '-')}`;
                     : t('connections.form.create')
                 }}
               </button>
+              <p class="status" role="status" aria-live="polite">
+                @if (probing()) {
+                  {{ t('connections.form.probing') }}
+                }
+              </p>
             } @else {
               <app-gated
                 [gate]="
@@ -543,6 +548,8 @@ export class ConnectionForm {
   protected readonly values = signal<FormValues>(emptyValues());
   protected readonly submitted = signal(false);
   protected readonly saving = signal(false);
+  /** The new connection was saved and its first capability check is running (create only). */
+  protected readonly probing = signal(false);
   protected readonly saveError = signal<ProblemView | null>(null);
 
   protected readonly loadFailure = computed(() => {
@@ -745,6 +752,18 @@ export class ConnectionForm {
     try {
       if (mode.kind === 'create') {
         const created = await this.#service.create(toCreateInput(values));
+        // A connection nobody has probed has no cached profile, and the explorer cannot list its broker
+        // without one: probe right after the save, so the first thing the person does with it works. A probe
+        // that fails (the broker is down, the login is wrong) does not undo the save; the connection's page
+        // shows the capability card with its own Check capabilities button and the Problem when pressed.
+        this.probing.set(true);
+        try {
+          await this.#service.probe(created.id);
+        } catch {
+          // Nothing to add here: the save succeeded, and the page the person lands on offers the check again.
+        } finally {
+          this.probing.set(false);
+        }
         await this.#router.navigate(['/connections', created.id]);
       } else {
         const updated = await this.#service.update(

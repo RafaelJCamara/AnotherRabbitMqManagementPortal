@@ -11,13 +11,14 @@ import {
 } from '@angular/core';
 import { TranslocoDirective } from '@jsverse/transloco';
 
+import { ProbePrompt } from '../profile/probe-prompt.component';
 import { ProfileStore } from '../profile/profile-store';
 import { capabilityRows } from './capability-model';
 
 @Component({
   selector: 'app-capability-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoDirective],
+  imports: [ProbePrompt, TranslocoDirective],
   template: `
     <ng-container *transloco="let t">
       @if (loading()) {
@@ -80,6 +81,9 @@ import { capabilityRows } from './capability-model';
         </table>
       } @else {
         <p class="unknown">{{ t('explorer.capabilities.unknown') }}</p>
+        @if (needsProbe(); as need) {
+          <app-probe-prompt [need]="need" />
+        }
       }
     </ng-container>
   `,
@@ -120,6 +124,8 @@ export class CapabilityCard {
   protected readonly loading = computed(
     () => this.#profile.state().status === 'loading',
   );
+  /** The connection was never probed (or its stored profile is out of date): the card offers the probe. */
+  protected readonly needsProbe = this.#profile.needsProbe;
 
   /** `null` (unknown) when the call failed or the profile has no readable gates: never "available". */
   protected readonly rows = computed(() => {

@@ -69,6 +69,9 @@ const DEFAULT_TIME = new Intl.DateTimeFormat(undefined, {
                   <span class="problem">{{ problem.detail }}</span>
                 }
               }
+              @if (line.hint; as hint) {
+                <span class="problem">{{ t(hint) }}</span>
+              }
             </li>
           }
         </ul>

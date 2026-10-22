@@ -112,6 +112,101 @@ describe('the create form', () => {
   );
 
   it(
+    'AC-15 right after a create the new connection is probed once, so the explorer works on its first use, and the page lands on it only afterwards',
+    async () => {
+      const fake = new FakeConnections();
+      // Hold the probe to see the state between the save and the landing.
+      let release: () => void = () => undefined;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const inner = fake.handler;
+      let probeAsked = false;
+      fake.handler = async (request) => {
+        if (request.url.endsWith('/probe')) {
+          probeAsked = true;
+          await held;
+        }
+        return inner(request);
+      };
+      const bed = await mountRouted('/connections/new', { fake });
+      await opened(bed);
+      fillLab(bed);
+      bed.harness.detectChanges();
+      submitButton(bed).click();
+      await eventually(
+        bed,
+        () =>
+          probeAsked &&
+          exists(bed.el, '.status', 'Checking what the broker offers'),
+        'the probe running and said in words',
+      );
+      // Saved, not yet landed: the page waits for the check.
+      expect(bed.router.url).toBe('/connections/new');
+      release();
+      await eventually(
+        bed,
+        () => bed.router.url === '/connections/c1',
+        'the new connection',
+      );
+      expect(fake.requestLines.filter((l) => l.endsWith('/probe'))).toEqual([
+        'POST /connections/c1/probe',
+      ]);
+      // The create came first, then the probe, and the probe carries no body (and so no secret).
+      const order = fake.requestLines.filter(
+        (l) => l === 'POST /connections' || l.endsWith('/probe'),
+      );
+      expect(order).toEqual([
+        'POST /connections',
+        'POST /connections/c1/probe',
+      ]);
+      expect(fake.bodies.filter((b) => b.line.endsWith('/probe'))).toEqual([]);
+    },
+    PAGE_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'AC-15 a probe that fails does not undo the save: the page lands on the connection, and a refused create is not probed',
+    async () => {
+      const failing = new FakeConnections();
+      failing.failure.probe = problemOf(502, 'BROKER_UNREACHABLE', {
+        title: 'Broker unreachable',
+      });
+      const bed = await mountRouted('/connections/new', { fake: failing });
+      await opened(bed);
+      fillLab(bed);
+      bed.harness.detectChanges();
+      submitButton(bed).click();
+      await eventually(
+        bed,
+        () => bed.router.url === '/connections/c1',
+        'the new connection although the probe failed',
+      );
+      expect(failing.requestLines).toContain('POST /connections/c1/probe');
+      expect(failing.profiles.map((p) => p.id)).toEqual(['c1']);
+
+      // A create the engine refuses has nothing to probe.
+      const refused = new FakeConnections();
+      refused.failure.create = problemOf(422, 'VALIDATION_FAILED', {
+        title: 'The profile is not valid',
+      });
+      const other = await mountRouted('/connections/new', { fake: refused });
+      await opened(other);
+      fillLab(other);
+      submitButton(other).click();
+      await eventually(
+        other,
+        () => exists(other.el, '[role="alert"]', 'The profile is not valid'),
+        'the problem',
+      );
+      expect(refused.requestLines.some((l) => l.endsWith('/probe'))).toBe(
+        false,
+      );
+    },
+    PAGE_TEST_TIMEOUT_MS,
+  );
+
+  it(
     'AC-3 a production connection can be created with nothing unlocked, because the engine lets a local command through',
     async () => {
       const bed = await mountRouted('/connections/new', {

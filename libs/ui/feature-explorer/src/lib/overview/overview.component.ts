@@ -14,7 +14,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
 
 import { EXPLORER_CONNECTION } from '../connection';
 import { FreshnessBanner } from '../grid/freshness-banner.component';
-import { problemView } from '../problem';
+import { hintKey, problemView } from '../problem';
 import { ProfileStore } from '../profile/profile-store';
 import { OverviewAlarmsView } from './alarms.component';
 import { CapabilityCard } from './capability-card.component';
@@ -84,6 +84,9 @@ let nextPage = 0;
                   <span class="problem">{{ failure.detail }}</span>
                 }
               </p>
+              @if (hint(); as key) {
+                <p class="hint">{{ t(key) }}</p>
+              }
             </div>
           }
           @if (store.answer(); as answer) {
@@ -316,6 +319,7 @@ let nextPage = 0;
     }
     .why,
     .notice,
+    .hint,
     .source {
       color: var(--ds-color-text-muted);
     }
@@ -369,6 +373,10 @@ export class OverviewPage {
     const error = this.store.error();
     return error === null ? null : problemView(error);
   });
+  /** A sentence of help for the failures a first session meets (wrong login, broker not reachable). */
+  protected readonly hint = computed(() =>
+    hintKey(this.problem()?.code ?? null),
+  );
 
   protected count(value: number | undefined): string | null {
     return countText(value);

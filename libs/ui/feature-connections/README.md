@@ -13,6 +13,8 @@ Tags: `type:ui-feature`, `runtime:browser`. Not `trust:critical` (it renders the
 | Connection | `/connections/:id` | The strip with the name, the lock line with **Unlock...** / **Lock again**, Open the explorer, Edit, **Delete...** (behind the lock gate), the addresses and logins (a secret only as "set" or "not set" with its date), the capability card with **Check capabilities**, the saved-connection tests. |
 | Edit | `/connections/:id/edit` | The same form with what is stored; every secret empty ("set - leave empty to keep"); **Save changes** is behind the lock gate; a moved address asks for the secret again before sending (OQ-444). |
 
+**First probe (AC-15, OQ-821).** A saved connection has no cached BrokerProfile until `probe.run` has stored one, and the explorer cannot list a broker without it. So right after the engine accepts a create, the form probes the new connection once (best effort, with a status line saying so) and only then opens its page. A probe that fails (the broker is down, the login is wrong) never undoes the save: the page opens, and its capability card says the connection has not been probed and offers **Check capabilities**, which shows the engine's Problem when pressed. The explorer has the same button for a connection that still has no profile.
+
 ## Public API
 
 - `connectionsRoutes`: the child routes the web shell mounts at `/connections` (outside `c/:cid`). The app never imports this lazy library statically: `loadChildren: () => import('@app/feature-connections').then((m) => m.connectionsRoutes)`. The parent route provides the `connections` Transloco scope (`provideConnectionsScope`, a bundled-JSON `import()` loader; keys read `connections.<path>`).

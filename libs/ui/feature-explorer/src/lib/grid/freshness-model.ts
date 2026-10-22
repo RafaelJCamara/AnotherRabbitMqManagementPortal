@@ -9,7 +9,7 @@ import type {
   WindowSourceState,
 } from '@app/explorer-model';
 
-import { problemView, type ProblemView } from '../problem';
+import { hintKey, problemView, type ProblemView } from '../problem';
 import { isKnownHazard } from './hazards';
 
 export interface FreshnessLine {
@@ -70,6 +70,13 @@ export function freshnessLines(
         id: 'state',
         tone: 'warn',
         key: 'explorer.freshness.unavailable',
+      });
+      // The engine says what it could not do, not why. The first thing to check on a first run is the broker
+      // itself, and the overview reads it directly and shows its own answer.
+      lines.push({
+        id: 'unavailable-hint',
+        tone: 'info',
+        key: 'explorer.freshness.unavailableHint',
       });
       break;
     case 'live':
@@ -148,8 +155,10 @@ export interface LiveLine {
   /** What a screen reader hears when this line appears (no counts: a count is not announced again). */
   readonly announce: string;
   readonly params?: Record<string, string | number>;
-  /** The Problem that ended the topic, as sent. */
+  /** The Problem that ended the topic or failed the window, as sent. */
   readonly problem?: ProblemView;
+  /** A sentence of help for that Problem's code (a key), when there is one. */
+  readonly hint?: string;
 }
 
 const STATUS_KEYS = ['paused', 'degraded', 'stale'] as const;
@@ -160,18 +169,20 @@ export function liveLines(
 ): LiveLine[] {
   const lines = followLines(kind, state);
   // A window the engine refused or could not serve: its Problem as sent, until a window succeeds.
-  return state !== null && state.windowError !== null
-    ? [
-        {
-          id: 'read',
-          tone: 'warn',
-          key: 'explorer.freshness.readFailed',
-          announce: 'explorer.announce.readFailed',
-          problem: problemView(state.windowError),
-        },
-        ...lines,
-      ]
-    : lines;
+  if (state === null || state.windowError === null) return lines;
+  const problem = problemView(state.windowError);
+  const hint = hintKey(problem.code);
+  return [
+    {
+      id: 'read',
+      tone: 'warn',
+      key: 'explorer.freshness.readFailed',
+      announce: 'explorer.announce.readFailed',
+      problem,
+      ...(hint === null ? {} : { hint }),
+    },
+    ...lines,
+  ];
 }
 
 function followLines(

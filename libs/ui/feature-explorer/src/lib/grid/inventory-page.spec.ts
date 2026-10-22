@@ -229,6 +229,45 @@ describe('<app-inventory-page>', () => {
   );
 
   it(
+    'AC-29 a broker with no queues says so in words, and a list that is still loading never says it',
+    async () => {
+      // The whole list was read and it is empty: a sentence, not a blank grid.
+      const empty = createFakeExplorerData({
+        rows: { queues: 0 },
+        autoSnapshot: true,
+      });
+      const done = await mountPage(InventoryPage, {
+        fake: empty,
+        inputs: { kind: 'queues' },
+      });
+      await eventually(() => {
+        done.fixture.detectChanges();
+        expect(done.el.querySelector('.empty')?.textContent.trim()).toBe(
+          'This broker has no queues.',
+        );
+      }, 8000);
+      expect(counts(done.el)).toBe('0 of 0 rows');
+
+      // The first sweep has not delivered yet: the engine says "loading" and the page does not claim emptiness.
+      const starting = createFakeExplorerData({
+        rows: { queues: 0 },
+        autoSnapshot: true,
+      });
+      starting.setFreshness({ state: 'loading', complete: false });
+      const loading = await mountPage(InventoryPage, {
+        fake: starting,
+        inputs: { kind: 'queues' },
+      });
+      await eventually(() => {
+        loading.fixture.detectChanges();
+        expect(loading.el.textContent).toContain('Loading the inventory');
+      }, 8000);
+      expect(loading.el.querySelector('.empty')).toBeNull();
+    },
+    PAGE_TEST_TIMEOUT_MS,
+  );
+
+  it(
     'shows a name with markup as text, and names every column of the kind',
     async () => {
       const fake = createFakeExplorerData({ autoSnapshot: true });

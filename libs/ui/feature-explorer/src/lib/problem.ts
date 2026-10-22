@@ -21,3 +21,23 @@ export function problemView(error: unknown): ProblemView {
   }
   return { title: '', detail: null, code: null };
 }
+
+/**
+ * A sentence of help for the failures a first session meets, by the Problem's code: the key of the sentence in the
+ * `explorer.hint` group, or `null` when the Problem is shown as sent and nothing more is said. The Problem itself is
+ * always shown too; a hint never replaces it.
+ */
+export function hintKey(code: string | null): string | null {
+  switch (code) {
+    case 'UNAUTHENTICATED':
+      return 'explorer.hint.unauthenticated';
+    case 'FORBIDDEN_BROKER':
+      return 'explorer.hint.forbiddenBroker';
+    case 'BROKER_UNREACHABLE':
+      return 'explorer.hint.brokerUnreachable';
+    case 'TLS_UNTRUSTED':
+      return 'explorer.hint.tlsUntrusted';
+    default:
+      return null;
+  }
+}

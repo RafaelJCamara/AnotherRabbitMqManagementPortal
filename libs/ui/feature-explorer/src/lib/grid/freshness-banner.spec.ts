@@ -215,6 +215,80 @@ describe('<app-freshness-banner>', () => {
     expect(all(degraded.el)).toContain('Live updates are degraded.');
   });
 
+  it('AC-29 the edge states of a first session each say what happened: sweep not started, inventory not read, broker unreachable, login refused', async () => {
+    // The sweep has not delivered anything yet: loading with nothing loaded, never "no rows".
+    const starting = await banner('queues', {
+      state: 'loading',
+      complete: false,
+      loaded: 0,
+      reason: 'The first read of the inventory is still running.',
+    });
+    expect(all(starting.el)).toContain(
+      'Loading the inventory: 0 loaded. Rows and counts are incomplete.',
+    );
+    expect(all(starting.el)).not.toMatch(/\bno (rows|queues)\b/i);
+    expect(announcement(starting.el)).toBe(
+      'Loading the inventory. The list is incomplete.',
+    );
+
+    // The inventory is not being read (the first sweep failed): the engine's words and where to look next.
+    const gone = await banner('queues', {
+      state: 'unavailable',
+      complete: false,
+      loaded: 0,
+      reason: 'The inventory is not being read.',
+    });
+    expect(all(gone.el)).toContain(
+      'The broker may be unreachable or may have refused the stored login. The overview asks the broker directly and shows its answer.',
+    );
+    expect(announcement(gone.el)).toBe(
+      'The inventory is not being read. The list is incomplete.',
+    );
+
+    // A window that failed because the broker could not be reached or refused the login: the Problem as sent
+    // plus a sentence of help for its code; any other code gets the Problem alone.
+    const problem = (
+      code: 'BROKER_UNREACHABLE' | 'UNAUTHENTICATED' | 'INTERNAL',
+    ) =>
+      new EngineProblemError({
+        type: 'about:blank',
+        title: `Title of ${code}`,
+        status: code === 'UNAUTHENTICATED' ? 401 : 502,
+        code,
+        detail: `Detail of ${code}`,
+        correlationId: 'c',
+        retryable: false,
+      });
+    const unreachable = await banner(
+      'queues',
+      {},
+      { windowError: problem('BROKER_UNREACHABLE') },
+    );
+    expect(all(unreachable.el)).toContain('The inventory could not be read.');
+    expect(all(unreachable.el)).toContain('Title of BROKER_UNREACHABLE');
+    expect(all(unreachable.el)).toContain('Detail of BROKER_UNREACHABLE');
+    expect(all(unreachable.el)).toContain(
+      'The engine could not reach the broker.',
+    );
+    const refused = await banner(
+      'queues',
+      {},
+      { windowError: problem('UNAUTHENTICATED') },
+    );
+    expect(all(refused.el)).toContain('Title of UNAUTHENTICATED');
+    expect(all(refused.el)).toContain(
+      'the broker refused the login stored for this connection',
+    );
+    const other = await banner(
+      'queues',
+      {},
+      { windowError: problem('INTERNAL') },
+    );
+    expect(all(other.el)).toContain('Title of INTERNAL');
+    expect(all(other.el)).not.toContain('The engine could not reach');
+    expect(all(other.el)).not.toContain('refused the login');
+  });
+
   it('AC-13 a state is announced once: the announcement carries no count', async () => {
     const loading = await banner('queues', {
       state: 'loading',

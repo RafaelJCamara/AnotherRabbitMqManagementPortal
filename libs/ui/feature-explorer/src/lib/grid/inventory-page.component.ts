@@ -37,6 +37,7 @@ import { FilterBar } from './filter-bar.component';
 import { activeFilter, filterChips } from './filter-model';
 import { FreshnessBanner } from './freshness-banner.component';
 import { gridLabels } from './grid-labels';
+import { ProbePrompt } from '../profile/probe-prompt.component';
 import { ProfileStore } from '../profile/profile-store';
 import {
   ViewsControl,
@@ -58,6 +59,7 @@ interface Bundle {
     DataGrid,
     FilterBar,
     FreshnessBanner,
+    ProbePrompt,
     TranslocoDirective,
     ViewsControl,
   ],
@@ -80,44 +82,64 @@ interface Bundle {
               (applied)="onViewApplied($event)"
             />
           </header>
-          <app-filter-bar
-            [kind]="kind()"
-            [filter]="userFilter()"
-            [vhost]="vhost()"
-            (filterChange)="userFilter.set($event)"
-            (vhostChange)="vhostChange.emit($event)"
-          />
-          <app-freshness-banner
-            [kind]="kind()"
-            [freshness]="state()?.freshness ?? null"
-            [state]="state()"
-          />
-          @if (noMatch()) {
-            <p class="notice no-match" role="status">
-              {{ noMatchText(t) }}
-            </p>
-          }
-          @if (sortTrimmed()) {
-            <p class="notice" role="status">{{ t('explorer.sort.trimmed') }}</p>
-          }
-          @if (source(); as source) {
-            <div class="grid">
-              <app-data-grid
-                [columns]="bundle(t).columns"
-                [source]="source"
-                [labels]="bundle(t).labels"
-                selectionMode="multiple"
-                sortMode="single"
-                [(columnState)]="columnState"
-                (sortTrimmed)="sortTrimmed.set(true)"
-              />
-            </div>
-          } @else if (viewPending()) {
-            <p class="notice" role="status">
-              {{ t('explorer.views.loading') }}
-            </p>
+          @if (needsProbe(); as need) {
+            <!-- A first run: nobody has probed this connection, so the engine has no profile and cannot answer
+                 a read of the inventory. Say so and offer the one button that fixes it. -->
+            <section class="not-probed" aria-labelledby="not-probed-title">
+              <h2 id="not-probed-title">{{ t('explorer.probe.title') }}</h2>
+              <app-probe-prompt [need]="need" />
+            </section>
           } @else {
-            <p class="notice">{{ t('explorer.bindings.needVhost') }}</p>
+            <app-filter-bar
+              [kind]="kind()"
+              [filter]="userFilter()"
+              [vhost]="vhost()"
+              (filterChange)="userFilter.set($event)"
+              (vhostChange)="vhostChange.emit($event)"
+            />
+            <app-freshness-banner
+              [kind]="kind()"
+              [freshness]="state()?.freshness ?? null"
+              [state]="state()"
+            />
+            @if (emptyBroker()) {
+              <p class="notice empty" role="status">
+                {{ emptyText(t) }}
+              </p>
+            }
+            @if (noMatch()) {
+              <p class="notice no-match" role="status">
+                {{ noMatchText(t) }}
+              </p>
+            }
+            @if (sortTrimmed()) {
+              <p class="notice" role="status">
+                {{ t('explorer.sort.trimmed') }}
+              </p>
+            }
+            @if (source(); as source) {
+              <div class="grid">
+                <app-data-grid
+                  [columns]="bundle(t).columns"
+                  [source]="source"
+                  [labels]="bundle(t).labels"
+                  selectionMode="multiple"
+                  sortMode="single"
+                  [(columnState)]="columnState"
+                  (sortTrimmed)="sortTrimmed.set(true)"
+                />
+              </div>
+            } @else if (profileLoading()) {
+              <p class="notice" role="status">
+                {{ t('explorer.capabilities.loading') }}
+              </p>
+            } @else if (viewPending()) {
+              <p class="notice" role="status">
+                {{ t('explorer.views.loading') }}
+              </p>
+            } @else if (needsVhost()) {
+              <p class="notice">{{ t('explorer.bindings.needVhost') }}</p>
+            }
           }
         </section>
       }
@@ -158,6 +180,13 @@ interface Bundle {
       flex: 1 1 auto;
       min-height: 0;
     }
+    .not-probed {
+      padding: var(--ds-space-2) var(--ds-space-3);
+    }
+    .not-probed h2 {
+      margin: 0 0 var(--ds-space-2);
+      font-size: var(--ds-font-size-lg, 1.25em);
+    }
   `,
 })
 export class InventoryPage {
@@ -196,13 +225,28 @@ export class InventoryPage {
       : chosen;
   });
 
-  /** One source is one query: a new kind, connection or filter is a new source. */
+  readonly #profile = inject(ProfileStore);
+  /** The engine has no usable profile of the connection: nothing is read until the probe has run. */
+  protected readonly needsProbe = this.#profile.needsProbe;
+  protected readonly profileLoading = computed(
+    () => this.#profile.state().status === 'loading',
+  );
+  /** A bindings page is waiting for the one vhost it needs. */
+  protected readonly needsVhost = computed(
+    () => this.kind() === 'bindings' && this.filter().vhosts?.length !== 1,
+  );
+
+  /**
+   * One source is one query: a new kind, connection or filter is a new source. None is made while the profile
+   * is being read (a read before the first probe can only fail) or while the connection needs the probe.
+   */
   protected readonly source =
     computed<InventoryWindowSource<ExplorerKind> | null>(() => {
       const cid = this.connection();
       const kind = this.kind();
       const filter = this.filter();
       if (cid === null || this.viewPending()) return null;
+      if (this.profileLoading() || this.needsProbe() !== null) return null;
       if (kind === 'bindings' && filter.vhosts?.length !== 1) return null;
       return createInventoryWindowSource<ExplorerKind>(this.#data, {
         cid,
@@ -242,6 +286,24 @@ export class InventoryPage {
       state?.matched === 0 &&
       state.freshness?.state !== 'loading' &&
       activeFilter(this.kind(), this.userFilter())
+    );
+  });
+
+  /**
+   * The engine read the whole list and the broker has none of this kind (no filter is active): said in words,
+   * never left as a blank grid. Only an answer that is live and complete says it; a list still loading or one
+   * that failed says that instead.
+   */
+  protected readonly emptyBroker = computed(() => {
+    const state = this.state();
+    const freshness = state?.freshness ?? null;
+    if (state === null || freshness === null) return false;
+    return (
+      freshness.state === 'live' &&
+      freshness.complete &&
+      freshness.loaded === 0 &&
+      state.matched === 0 &&
+      !activeFilter(this.kind(), this.userFilter())
     );
   });
 
@@ -287,6 +349,11 @@ export class InventoryPage {
     }
     this.viewPending.set(false);
     this.viewChange.emit(event.id);
+  }
+
+  /** "This broker has no queues", per kind. */
+  protected emptyText(t: Translate): string {
+    return t(`explorer.empty.${this.kind()}`);
   }
 
   /** "No rows match", with the chips that could be the cause. */

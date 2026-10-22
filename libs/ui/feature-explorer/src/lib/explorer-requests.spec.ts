@@ -1,5 +1,6 @@
 // M0-54 AC-28: the explorer reads the inventory, the overview and the profile, keeps the person's own saved views,
-// and follows `explorer.window`; it makes no other call. The pages run through the real engine-backed data port
+// follows `explorer.window` and, when the person presses the button on a never-probed connection, runs `probe.run`;
+// it makes no other call. The pages run through the real engine-backed data port
 // (`createEngineExplorerData`) and the real `EngineApi` and live client over the fake engine, which records every
 // request and every client frame, and the spec checks the whole record against an allow-list. Nothing here reaches
 // a real engine: the answers come from the model's fake and the fake workspace.
@@ -35,6 +36,9 @@ const ALLOWED: readonly RegExp[] = [
   /^POST \/api\/v1\/views$/, // views.create
   /^DELETE \/api\/v1\/views\/[^/]+$/, // views.delete
   /^POST \/api\/v1\/live\/tickets$/, // the live socket's single-use ticket
+  // probe.run, made only when the person presses "Check capabilities and load" on a never-probed connection
+  // (`profile/first-run.component.spec.ts` proves that press); this run has a probed connection and never makes it.
+  /^POST \/api\/v1\/connections\/[^/]+\/probe$/,
 ];
 
 const line = (request: { method: string; url: string }): string =>

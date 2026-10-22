@@ -99,6 +99,28 @@
       }
     }
   },
+  "probe": {
+    "title": "This connection has not been checked yet",
+    "never": "The engine has not looked at this broker yet, so it cannot list its queues, exchanges, connections or bindings.",
+    "outdated": "The capabilities the engine stored for this connection were written by another version and cannot be read, so it cannot list the broker's contents.",
+    "what": "Checking capabilities asks the broker's management API who the stored login is and what the broker has installed. It changes nothing on the broker. This page loads as soon as it is done.",
+    "run": "Check capabilities and load",
+    "running": "Checking...",
+    "runningStatus": "Checking the capabilities of this broker.",
+    "failed": "The check did not finish."
+  },
+  "hint": {
+    "unauthenticated": "Either the broker refused the login stored for this connection, or the launch link of this page is no longer valid. If the overview or the connection page still opens, check the login on the connection page; if nothing does, open the link the engine printed when it started.",
+    "forbiddenBroker": "The broker knows the login but does not allow it to read this. Use a login with the monitoring or administrator tag.",
+    "brokerUnreachable": "The engine could not reach the broker. Check the host and the management port on the connection page, and that the broker is running.",
+    "tlsUntrusted": "The broker's certificate is not trusted by the engine. This version trusts only the system's certificate authorities."
+  },
+  "empty": {
+    "queues": "This broker has no queues.",
+    "exchanges": "This broker has no exchanges.",
+    "connections": "No client is connected to this broker.",
+    "bindings": "This virtual host has no bindings."
+  },
   "counts": "{{matched}} of {{total}} rows",
   "sort": {
     "trimmed": "Only one sort column is used. The second one was dropped."
@@ -151,6 +173,7 @@
     "stale": "Showing the last good read from {{time}}.",
     "staleNoTime": "Showing the last good read.",
     "unavailable": "The inventory is not being read.",
+    "unavailableHint": "The broker may be unreachable or may have refused the stored login. The overview asks the broker directly and shows its answer.",
     "updated": "Updated {{time}}",
     "dropped": "{{dropped}} rows were left out of the index because of its limit.",
     "droppedAtLeast": "At least {{dropped}} rows were left out of the index because of its limit.",

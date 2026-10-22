@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { encodeObjectKey } from '@app/contracts';
+import {
+  createFakeExplorerData,
+  type FakeExplorerData,
+} from '@app/explorer-model/testing';
 import { ConnectionDirectory } from '@app/ui-data';
 import { describe, expect, it } from 'vitest';
 
@@ -142,6 +147,127 @@ describe('the connection switcher', () => {
     expect(TestBed.inject(Router).url).toBe('/c/c2/explorer/queues/orders.q');
     expect(routed(bed).querySelector('.switcher .notice')).toBeNull();
   });
+
+  it('AC-16 switching carries an entity to the other connection when it exists there and says when it does not', async () => {
+    const feature = await import('@app/feature-explorer');
+    const key = encodeObjectKey('/', 'orders.q');
+    const row = { key, vhost: '/', name: 'orders.q', type: 'quorum' };
+    const fakeWith = (
+      rows: unknown[],
+      autoSnapshot: boolean,
+    ): FakeExplorerData => {
+      const fake = createFakeExplorerData({
+        rows: { queues: 0, exchanges: 0, connections: 0, bindings: 0 },
+        vhosts: ['/'],
+        autoSnapshot,
+      });
+      fake.bump((all) => {
+        all.queues = rows as never;
+      });
+      return fake;
+    };
+    // c2 has the queue; c3 has a complete inventory without it; c4 is still loading its inventory; c5 was
+    // never probed, so its topic fails; c1 (where the person is) must not be asked anything.
+    const fakes: Record<string, FakeExplorerData> = {
+      c1: fakeWith([row], true),
+      c2: fakeWith([row], true),
+      c3: fakeWith([], true),
+      c4: fakeWith([], false),
+      c5: fakeWith([], false),
+    };
+    const deadlines: (() => void)[] = [];
+    const exists: AddressExists = (cid, address) => {
+      const fake = fakes[cid];
+      if (fake === undefined) return Promise.resolve(false);
+      return feature.addressExists(fake, cid, address, {
+        after: (callback) => {
+          deadlines.push(callback);
+          return () => undefined;
+        },
+      });
+    };
+    const backend = backendWith();
+    for (const [cid, name] of [
+      ['c4', 'Loading'],
+      ['c5', 'Never probed'],
+    ] as const) {
+      backend.connections.set(cid, connectionBody(cid, name, 'test'));
+      backend.profiles.set(cid, brokerProfileBody(cid));
+    }
+    const bed = await mountShell(undefined, backend, undefined, [
+      { provide: ADDRESS_EXISTS, useValue: exists },
+    ]);
+    const address = `/queues/${key}/routing`;
+    await visit(bed, `/c/c1${address}`);
+    await until(
+      bed,
+      () =>
+        routed(bed).querySelectorAll('#connection-switcher option').length >= 5,
+      'the connections',
+    );
+    const router = TestBed.inject(Router);
+    const notice = (): Element | null =>
+      routed(bed).querySelector('.switcher .notice');
+    const pick = (cid: string): void => {
+      const el = select(routed(bed));
+      el.value = cid;
+      el.dispatchEvent(new Event('change'));
+    };
+    const back = async (): Promise<void> => {
+      await router.navigateByUrl(`/c/c1${address}`);
+      await settleShell(bed);
+    };
+
+    // It exists on c2: the same entity and the same tab, no notice.
+    pick('c2');
+    await until(bed, () => router.url === `/c/c2${address}`, 'c2');
+    expect(notice()).toBeNull();
+    expect(fakes.c2?.followers[0]?.params).toEqual({
+      cid: 'c2',
+      kind: 'queues',
+      keys: [key],
+    });
+    await back();
+
+    // It is certainly not on c3: the explorer of c3 and a notice that names the queue.
+    pick('c3');
+    await until(bed, () => router.url === '/c/c3/explorer', 'c3');
+    expect(notice()?.textContent).toContain('[[shell.switcher.missing]]');
+    await back();
+    await settleShell(bed);
+
+    // c4 has not finished reading its inventory: the question cannot be answered, so the address is carried over
+    // (the deadline passes) and the page there says what it knows.
+    pick('c4');
+    await until(bed, () => deadlines.length > 0, 'the deadline to be armed');
+    expect(router.url).toBe(`/c/c1${address}`); // still waiting
+    for (const fire of deadlines) fire();
+    await until(bed, () => router.url === `/c/c4${address}`, 'c4');
+    expect(notice()).toBeNull();
+    await back();
+
+    // c5's topic fails (never probed): unknown too, so it is carried over.
+    pick('c5');
+    await until(bed, () => fakes.c5?.followers.length === 1, 'c5 asked');
+    fakes.c5?.emit({ kind: 'error', error: new Error('not found') });
+    await until(bed, () => router.url === `/c/c5${address}`, 'c5');
+    expect(notice()).toBeNull();
+
+    // Only the other connection was asked, and only with reads of one key; the one the person is on was not.
+    expect(fakes.c1?.followers).toEqual([]);
+    expect(fakes.c1?.queries).toEqual([]);
+    for (const [cid, fake] of Object.entries(fakes)) {
+      for (const query of fake.queries) {
+        expect(query.cid).toBe(cid);
+        expect(query.window.limit).toBe(1);
+      }
+      for (const follower of fake.followers) {
+        expect(follower.params.cid).toBe(cid);
+        expect(follower.params.keys).toEqual([key]);
+        expect(follower.active).toBe(false); // each question released its subscription
+      }
+    }
+  }, 20_000);
 
   it('AC-9 a created or deleted connection shows after the directory is refreshed, and the active one that is not listed stands in', async () => {
     const backend = backendWith();

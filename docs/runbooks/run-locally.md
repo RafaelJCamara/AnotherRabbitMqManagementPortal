@@ -140,7 +140,7 @@ Then:
 2. **Add a connection**, type the values terminal 2 printed. Use the two **Test** buttons under the form first (management API and AMQP): each answers on its own, and the management test also reports the broker's AMQP ports, which the form can fill in. Choose **Add the connection**.
 3. The form saves the connection and then probes it once ("Saved. Checking what the broker offers..."), so that the explorer can list it; the page then opens on the connection. If the probe fails, the connection is still saved and its page offers **Check capabilities**.
 4. On the connection page: the addresses, "set" for the passwords (never the password itself), the capability card (a row per feature, with the engine's reason for any it cannot offer) and **Open the explorer**.
-5. In the explorer: the overview, then the queues, exchanges, connections and bindings from the tree on the left.
+5. In the explorer: the overview, then the queues, exchanges, connections and bindings from the tree on the left. Entity details (M1-42): press Enter, double-click or right-click a grid row to open that queue, exchange, connection or binding as a tab (Overview, Routing, Config and Consumers show what the inventory carries; the other tabs are listed disabled with their reason); the address (/c/<id>/queues/<key>/routing) survives a reload, and switching connection carries it over when the object exists there.
 
 If a page of the explorer says "This connection has not been checked yet" instead of a list, the connection has no stored capabilities (it was never probed); press **Check capabilities and load** and it loads (OQ-821).
 

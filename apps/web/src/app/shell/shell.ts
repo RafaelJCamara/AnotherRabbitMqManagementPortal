@@ -28,6 +28,7 @@ import { Splitter } from './splitter/splitter';
 import { StatusBar } from './status-bar/status-bar';
 import { VerificationNotice } from './status-bar/verification-notice';
 import { EditorGroups } from './tabs/editor-groups';
+import { keepEntityTab } from './tabs/entity-tab-keeper';
 import { NoConnection } from './views/no-connection';
 
 /**
@@ -92,6 +93,7 @@ export class Shell {
 
   constructor() {
     registerShellCommands();
+    keepEntityTab(); // a deep link to an entity gets its workspace tab
     effect(() => {
       const cid = this.cid();
       this.#connection.select(cid);

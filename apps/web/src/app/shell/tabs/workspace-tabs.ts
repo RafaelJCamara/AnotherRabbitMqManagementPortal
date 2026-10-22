@@ -38,6 +38,16 @@ export class WorkspaceTabs {
     return refusal;
   }
 
+  /**
+   * Adds a tab for an address that is already shown (a deep link, a reload) and activates it, without navigating:
+   * the person is where the tab points. Returns why it was refused, or null.
+   */
+  keep(tab: NewTab): LayoutRefusal | null {
+    const cid = this.#connection.cid();
+    if (cid === null) return 'unsafe-url';
+    return this.#store.apply((layout) => openTab(layout, cid, tab));
+  }
+
   /** Makes a tab the active one of its group and shows its address. */
   activate(groupIndex: number, tabId: string): void {
     const tab = this.#store

@@ -10,6 +10,8 @@ import { providePlatform, type PlatformSetup } from '@app/ui-platform';
 import { appRoutes } from './app.routes';
 import { provideCommands } from './commands/provide-commands';
 import { provideI18n } from './i18n/i18n.config';
+import { provideAddressExists } from './shell/connection-switcher/entity-address-exists';
+import { provideDeepLinks } from './shell/deep-link';
 import { provideExplorerKindsSource } from './shell/explorer-tree/explorer-kinds-source';
 import { provideChunkReload } from './shell/skew/chunk-reload';
 import { provideLockState } from './shell/status-bar/lock-state';
@@ -26,6 +28,8 @@ export function appConfig(setup: PlatformSetup): ApplicationConfig {
       provideRouter(appRoutes),
       provideCommands(),
       provideExplorerKindsSource(),
+      provideAddressExists(),
+      provideDeepLinks(),
       provideLockState(),
       provideChunkReload(),
     ],

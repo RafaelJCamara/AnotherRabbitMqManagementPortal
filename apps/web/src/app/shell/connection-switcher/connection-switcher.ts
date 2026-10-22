@@ -6,6 +6,7 @@ import {
   signal,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { entityLabel, parseEntityPath } from '@app/explorer-model/entity';
 import { ConnectionDirectory, isEngineProblem } from '@app/ui-data';
 import { TranslocoPipe } from '@jsverse/transloco';
 
@@ -13,6 +14,12 @@ import { ActiveConnection, parseConnectionParam } from '../active-connection';
 import { ADDRESS_EXISTS, resolveSwitchTarget } from './switch-target';
 
 const ENV_ORDER = ['prod', 'staging', 'test', 'dev', 'local'] as const;
+
+/** What the notice calls the address that was left behind: an entity by its name, any other address as it is. */
+function leftBehind(path: string): string {
+  const entity = parseEntityPath(path);
+  return entity === null ? path : entityLabel(entity);
+}
 
 /**
  * The connection switcher (M0-52, R9): a native `<select>` of the connections the person has, with the active one
@@ -163,7 +170,7 @@ export class ConnectionSwitcher {
       target.missing === null
         ? null
         : {
-            address: target.missing,
+            address: leftBehind(target.missing),
             name: this.#directory.find(to)?.name ?? to,
           },
     );

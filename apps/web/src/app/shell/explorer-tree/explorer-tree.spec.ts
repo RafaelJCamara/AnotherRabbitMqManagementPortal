@@ -13,39 +13,50 @@ import {
   type ExplorerNode,
 } from './explorer-tree-source';
 
-describe('explorer tree', () => {
-  it('shows the overview and the four kinds by default and opens a node as a tab', async () => {
-    const bed = await mountShell();
-    await visit(bed, '/c/c1/explorer');
-    const items = routed(bed).querySelectorAll('[role="treeitem"]');
-    expect([...items].map((item) => item.textContent.trim())).toEqual([
-      '[[shell.tree.kind.overview]]',
-      '[[shell.tree.kind.queues]]',
-      '[[shell.tree.kind.exchanges]]',
-      '[[shell.tree.kind.connections]]',
-      '[[shell.tree.kind.bindings]]',
-    ]);
-    expect(items[1]?.hasAttribute('aria-expanded')).toBe(false);
+/**
+ * The timeout of the spec that opens the queues tab: the click routes to the real inventory page, so it loads the
+ * lazy grid chunk and mounts AG Grid in jsdom. That is about 1 s alone and over 5 s on a loaded shared runner, where
+ * the default (5 s) ended it. Nothing sleeps; the waits inside keep their own shorter bounds.
+ */
+const TAB_OPEN_TEST_TIMEOUT_MS = 20_000;
 
-    (items[1] as HTMLElement).click();
-    await settleShell(bed);
-    const tabs =
-      TestBed.inject(ShellLayoutStore).layout().editor.groups[0]?.tabs;
-    expect(tabs).toEqual([
-      {
-        id: 't1',
-        url: '/c/c1/explorer/queues',
-        label: '[[shell.tree.kind.queues]]',
-      },
-    ]);
-    expect(TestBed.inject(Router).url).toBe('/c/c1/explorer/queues');
-    // The same node again activates the tab it has; it does not open another.
-    (items[1] as HTMLElement).click();
-    await settleShell(bed);
-    expect(
-      TestBed.inject(ShellLayoutStore).layout().editor.groups[0]?.tabs,
-    ).toHaveLength(1);
-  });
+describe('explorer tree', () => {
+  it(
+    'shows the overview and the four kinds by default and opens a node as a tab',
+    async () => {
+      const bed = await mountShell();
+      await visit(bed, '/c/c1/explorer');
+      const items = routed(bed).querySelectorAll('[role="treeitem"]');
+      expect([...items].map((item) => item.textContent.trim())).toEqual([
+        '[[shell.tree.kind.overview]]',
+        '[[shell.tree.kind.queues]]',
+        '[[shell.tree.kind.exchanges]]',
+        '[[shell.tree.kind.connections]]',
+        '[[shell.tree.kind.bindings]]',
+      ]);
+      expect(items[1]?.hasAttribute('aria-expanded')).toBe(false);
+
+      (items[1] as HTMLElement).click();
+      await settleShell(bed);
+      const tabs =
+        TestBed.inject(ShellLayoutStore).layout().editor.groups[0]?.tabs;
+      expect(tabs).toEqual([
+        {
+          id: 't1',
+          url: '/c/c1/explorer/queues',
+          label: '[[shell.tree.kind.queues]]',
+        },
+      ]);
+      expect(TestBed.inject(Router).url).toBe('/c/c1/explorer/queues');
+      // The same node again activates the tab it has; it does not open another.
+      (items[1] as HTMLElement).click();
+      await settleShell(bed);
+      expect(
+        TestBed.inject(ShellLayoutStore).layout().editor.groups[0]?.tabs,
+      ).toHaveLength(1);
+    },
+    TAB_OPEN_TEST_TIMEOUT_MS,
+  );
 
   it('follows the connection: the default source answers per connection', () => {
     const source = connectionRootSource();

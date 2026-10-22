@@ -64,6 +64,7 @@ export const PARTIAL_REASONS = [
   'nodes-without-endpoint',
   'per-object-unavailable',
   'queue-demand-truncated',
+  'targets-unreachable',
   'fallback',
 ] as const;
 

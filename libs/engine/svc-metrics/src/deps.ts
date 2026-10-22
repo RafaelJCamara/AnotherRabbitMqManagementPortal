@@ -1,4 +1,5 @@
 import type { Clock, Timers } from '@app/kernel';
+import type { Collector } from './internal/collector';
 import type {
   BrokerProfileStore,
   ConnectionStore,
@@ -86,3 +87,8 @@ export interface MetricsModuleDeps {
   readonly timers?: Timers;
   readonly limits?: Partial<MetricsLimits>;
 }
+
+/** What the actions and the live source share: the module's ports and the one collector. */
+export type MetricsActionDeps = MetricsModuleDeps & {
+  readonly collector: Collector;
+};

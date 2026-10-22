@@ -1,0 +1,26 @@
+{
+  "title": "Connections",
+  "env": {
+    "prod": "Production",
+    "staging": "Staging",
+    "test": "Test",
+    "dev": "Development",
+    "local": "Local"
+  },
+  "problem": {
+    "unknown": "The request failed.",
+    "why": "Why:",
+    "source": "Source:",
+    "code": "Code:"
+  },
+  "form": {
+    "error": {
+      "required": "This field is needed.",
+      "invalid": "This value is not valid here.",
+      "port": "A port is a whole number from 1 to 65535.",
+      "pathPrefix": "Start with a slash and leave out the one at the end, for example /rabbitmq.",
+      "tooLong": "This value is too long.",
+      "secretAgain": "The address changed, so the stored secret cannot follow it. Enter the secret again."
+    }
+  }
+}

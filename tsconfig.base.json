@@ -32,6 +32,12 @@
       "@app/explorer-model/testing": [
         "./libs/shared/explorer-model/src/testing.ts"
       ],
+      "@app/feature-connections": [
+        "./libs/ui/feature-connections/src/index.ts"
+      ],
+      "@app/feature-connections/testing": [
+        "./libs/ui/feature-connections/src/testing.ts"
+      ],
       "@app/feature-explorer": ["./libs/ui/feature-explorer/src/index.ts"],
       "@app/feature-explorer/testing": [
         "./libs/ui/feature-explorer/src/testing.ts"

@@ -1,0 +1,44 @@
+{
+  "name": "feature-connections",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/feature-connections/src",
+  "projectType": "library",
+  "tags": ["type:ui-feature", "runtime:browser"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "ngc -p libs/ui/feature-connections/tsconfig.lib.json --noEmit",
+          "ngc -p libs/ui/feature-connections/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "dependsOn": ["test-components"],
+      "options": {
+        "command": "vitest run --config libs/ui/feature-connections/vitest.config.mts"
+      }
+    },
+    "test-components": {
+      "executor": "@angular/build:unit-test",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "buildTarget": "web:build:development",
+        "tsConfig": "libs/ui/feature-connections/tsconfig.spec.json",
+        "runner": "vitest",
+        "runnerConfig": "libs/ui/feature-connections/vitest.components.config.mts",
+        "watch": false,
+        "include": ["**/*.component.spec.ts"]
+      }
+    }
+  }
+}

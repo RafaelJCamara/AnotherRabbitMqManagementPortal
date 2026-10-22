@@ -429,6 +429,27 @@
     "yes": "Yes",
     "no": "No",
     "empty": "(empty)",
+    "routing": {
+      "loading": "Reading the bindings of virtual host {{vhost}}.",
+      "defaultExchange": "The default exchange binds every queue by its name. The broker does not list those bindings.",
+      "failed": "Some bindings could not be read.",
+      "truncated": "Only the first {{scanned}} of {{matched}} bindings that mention this name were read, so some bindings may be missing.",
+      "in": "Bindings in ({{count}})",
+      "out": "Bindings out ({{count}})",
+      "noneIn": "No binding feeds this {{noun}} in what was read.",
+      "noneOut": "This exchange is not the source of any binding in what was read.",
+      "more": "{{count}} more bindings are not shown.",
+      "binding": "Binding",
+      "open": "Open",
+      "openNamed": "Open binding {{name}}",
+      "reload": "Read the bindings again"
+    },
+    "links": {
+      "label": "Ends of this binding",
+      "source": "Source exchange:",
+      "destinationQueue": "Destination queue:",
+      "destinationExchange": "Destination exchange:"
+    },
     "notes": {
       "config": "Arguments (such as message TTL or length limits) and the policy definition are not reported by the inventory yet.",
       "consumers": "The list of consumers is not reported by the inventory yet; only their count is."

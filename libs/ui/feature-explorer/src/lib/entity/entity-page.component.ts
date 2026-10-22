@@ -49,7 +49,13 @@ import {
 import { injectEntityRead } from './entity-store';
 import { tabUnavailable, unavailableText } from './entity-tab-state';
 import { EntityTabs, type StripTab } from './entity-tabs.component';
+import { EntityLink } from './entity-link.component';
 import { entityText } from './entity-text';
+import {
+  bindingTargets,
+  exchangeName,
+  RoutingPanel,
+} from './routing-panel.component';
 
 type Notice = 'copied' | 'copyFailed' | 'linkCopied' | 'linkCopyFailed';
 
@@ -72,7 +78,14 @@ const OVERVIEW_TAB: EntityTabSpec = { id: 'overview', built: true, gate: null };
 @Component({
   selector: 'app-entity-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EntityTabs, FreshnessBanner, ProbePrompt, TranslocoDirective],
+  imports: [
+    EntityLink,
+    EntityTabs,
+    FreshnessBanner,
+    ProbePrompt,
+    RoutingPanel,
+    TranslocoDirective,
+  ],
   providers: [ProfileStore],
   template: `
     <ng-container *transloco="let t">
@@ -252,6 +265,14 @@ const OVERVIEW_TAB: EntityTabSpec = { id: 'overview', built: true, gate: null };
                 >
                   @if (unavailable(); as why) {
                     <p class="why">{{ unavailableText(why, t) }}</p>
+                  } @else if (current().id === 'routing') {
+                    @if (routingKind(); as routing) {
+                      <app-routing-panel
+                        [kind]="routing"
+                        [vhost]="a.vhost"
+                        [name]="a.name"
+                      />
+                    }
                   } @else {
                     <dl class="fields">
                       @for (
@@ -262,6 +283,38 @@ const OVERVIEW_TAB: EntityTabSpec = { id: 'overview', built: true, gate: null };
                         <dd>{{ field.text }}</dd>
                       }
                     </dl>
+                    @if (
+                      current().id === 'overview' && bindingLinks();
+                      as links
+                    ) {
+                      <ul
+                        class="links"
+                        [attr.aria-label]="t('explorer.entity.links.label')"
+                      >
+                        <li>
+                          {{ t('explorer.entity.links.source') }}
+                          <app-entity-link
+                            [cid]="cid"
+                            [target]="links.targets.source"
+                            [text]="links.sourceName"
+                          />
+                        </li>
+                        <li>
+                          {{
+                            t(
+                              links.toExchange
+                                ? 'explorer.entity.links.destinationExchange'
+                                : 'explorer.entity.links.destinationQueue'
+                            )
+                          }}
+                          <app-entity-link
+                            [cid]="cid"
+                            [target]="links.targets.destination"
+                            [text]="links.destinationName"
+                          />
+                        </li>
+                      </ul>
+                    }
                     @if (current().id === 'config') {
                       <p class="note">
                         {{ t('explorer.entity.notes.config') }}
@@ -451,6 +504,25 @@ export class EntityPage {
       unavailable: tabUnavailable(spec, this.#profile.state().raw),
     })),
   );
+
+  /** The kinds that have a Routing tab: the bindings that feed a queue or an exchange, and leave an exchange. */
+  protected readonly routingKind = computed<'queues' | 'exchanges' | null>(
+    () => {
+      const kind = this.kind();
+      return kind === 'queues' || kind === 'exchanges' ? kind : null;
+    },
+  );
+  /** A binding's two ends as links, made once per row. */
+  protected readonly bindingLinks = computed(() => {
+    const row = this.row();
+    if (row === null || !('source' in row)) return null;
+    return {
+      targets: bindingTargets(row),
+      sourceName: exchangeName(row.source),
+      destinationName: row.destination,
+      toExchange: row.destinationType === 'exchange',
+    };
+  });
 
   protected readonly unavailableText = unavailableText;
   protected readonly problem = problemView;

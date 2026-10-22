@@ -267,6 +267,7 @@ describe('the requests of the explorer', () => {
           { rows: [queue, stream], key: queue.key },
           { rows: [queue, stream], key: queue.key, tab: 'config' },
           { rows: [queue, stream], key: queue.key, tab: 'messages' },
+          { rows: [queue, stream], key: queue.key, tab: 'routing' },
           { rows: [queue, stream], key: stream.key, tab: 'browse' },
           { rows: [queue, stream], key: gone.key },
         ]) {
@@ -290,7 +291,7 @@ describe('the requests of the explorer', () => {
         }
         const requests = beds.flatMap((bed) => bed.engine.requests);
         const lines = requests.map(line);
-        // Only the profile and the freshness window: no plan, no execute, nothing that touches a message.
+        // Only the profile, the freshness window and the bindings of a vhost: no plan, no execute, nothing that\n        // touches a message.
         expect(lines.filter((l) => !ALLOWED.some((p) => p.test(l)))).toEqual(
           [],
         );
@@ -307,9 +308,17 @@ describe('the requests of the explorer', () => {
             const body = JSON.parse(
               typeof request.body === 'string' ? request.body : '{}',
             ) as {
+              kind: string;
+              filter?: { vhosts?: string[] };
               window: { offset: number; limit: number };
             };
-            expect(body.window).toEqual({ offset: 0, limit: 1 });
+            if (body.kind === 'bindings') {
+              // The Routing tab: one vhost, windows of at most 200 rows.
+              expect(body.filter?.vhosts).toHaveLength(1);
+              expect(body.window.limit).toBeLessThanOrEqual(200);
+            } else {
+              expect(body.window).toEqual({ offset: 0, limit: 1 });
+            }
           }
         }
         // One subscription per page, on explorer.window, for exactly one key.

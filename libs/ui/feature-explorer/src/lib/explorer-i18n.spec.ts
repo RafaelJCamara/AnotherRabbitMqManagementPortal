@@ -241,6 +241,25 @@ describe('the explorer strings', () => {
         keysOf(shown);
         for (const key of shown.keys) seen.add(key);
       }
+      // The Routing tab of a queue and of an exchange (no bindings in this inventory: the empty sentences).
+      for (const kind of ['queues', 'exchanges'] as const) {
+        const routing = await mountEntity({
+          kind,
+          rows: [kind === 'queues' ? row : queueRow('queue-00009')],
+          tab: 'routing',
+          providers: [scopeLoader],
+        });
+        await eventually(() => {
+          routing.fixture.detectChanges();
+          expect(
+            routing.el.querySelector('app-routing-panel h2'),
+          ).not.toBeNull();
+        }, 8000);
+        const shown = classify(routing.el);
+        expect(shown.strangers).toEqual([]);
+        keysOf(shown);
+        for (const key of shown.keys) seen.add(key);
+      }
       // A stream on its gated tab, a removed object, a missing one, a failed read and an invalid address.
       const gated = await mountEntity({
         rows: [stream],

@@ -50,6 +50,11 @@ export interface ExplorerLimits {
    * not sort every window again.
    */
   sortCacheEntriesPerKind: number;
+  /**
+   * Items converted, or written by a sort, between two turns of the event loop when a long list is
+   * handled in the engine (the bindings of a vhost, I-5). Counted per item, not timed.
+   */
+  yieldEveryItems: number;
 }
 
 export const DEFAULT_EXPLORER_LIMITS: ExplorerLimits = {
@@ -69,6 +74,7 @@ export const DEFAULT_EXPLORER_LIMITS: ExplorerLimits = {
   bindingsReadDeadlineMs: 90_000,
   maxBindingReadsPerConnection: 2,
   sortCacheEntriesPerKind: 8,
+  yieldEveryItems: 2_000,
 };
 
 export interface ExplorerModuleDeps {

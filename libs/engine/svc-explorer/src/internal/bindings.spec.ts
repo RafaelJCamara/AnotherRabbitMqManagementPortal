@@ -241,6 +241,55 @@ describe('explorer bindings', () => {
     });
   });
 
+  it('M0-48 explorer bindings of a large vhost are converted and sorted in chunks that give the loop a turn, with the same rows', async () => {
+    const broker = createScriptedBroker({
+      bindingsPerVhost: 12_000,
+      bindingsAnswer: 'bare',
+    });
+    const turns = { convert: 0, sort: 0 };
+    // Nothing is resident until the read has converted every item; a turn after that is a sort's.
+    const store: ReturnType<typeof createBindingsStore> = createBindingsStore({
+      mgmt: broker.read,
+      limits: { yieldEveryItems: 1_000, maxBindingsResident: 50_000 },
+      yieldNow: () => {
+        turns[store.stats(cid).rows === 0 ? 'convert' : 'sort']++;
+        return Promise.resolve();
+      },
+    });
+    const signal = new AbortController().signal;
+    const ask = (
+      sort: { column: string; dir: 'asc' | 'desc' },
+      offset = 0,
+      limit = 3,
+    ) => store.window(cid, '/', { offset, limit, sort }, signal);
+
+    const byDestination = await ask({ column: 'destination', dir: 'desc' });
+
+    expect(byDestination).toMatchObject({ total: 12_000, matched: 12_000 });
+    expect(byDestination.rows.map((r) => r.destination)).toEqual([
+      'queue-011999',
+      'queue-011998',
+      'queue-011997',
+    ]);
+    // 12,000 items in chunks of 1,000: a turn after each chunk but the last.
+    expect(turns.convert).toBe(11);
+    // 12 runs sorted, then merged in 4 levels: a turn per run and per 1,000 items written.
+    expect(turns.sort).toBeGreaterThanOrEqual(12 + 3 * 12);
+    const sortedTurns = turns.sort;
+
+    // The same order again is a cache hit: no sort, no turn. Another order sorts again, same rows.
+    await ask({ column: 'destination', dir: 'desc' }, 11_990, 20);
+    expect(turns.sort).toBe(sortedTurns);
+    const bySource = await ask({ column: 'source', dir: 'asc' }, 0, 500);
+    expect(turns.sort).toBeGreaterThan(sortedTurns);
+    expect(bySource.rows.map((r) => r.source).slice(0, 2)).toEqual([
+      'exchange-0',
+      'exchange-0',
+    ]);
+    expect(new Set(bySource.rows.map((r) => r.key)).size).toBe(500);
+    expect(broker.requests).toHaveLength(1);
+  });
+
   it('AC-26b explorer bindings handle a bare-array answer without paging', async () => {
     // RabbitMQ ignores `page` on /api/bindings/{vhost} (OQ-433): the whole vhost is one answer.
     const { deps, ask, bindings } = harness({

@@ -19,6 +19,12 @@ import type { z } from 'zod';
 
 import { DEFAULT_EXPLORER_LIMITS, type ExplorerModuleDeps } from '../deps';
 
+import {
+  forEachCooperative,
+  nextLoopTurn,
+  sortCooperative,
+  type YieldNow,
+} from './cooperative';
 import { comparator, type IndexVersion } from './index';
 import {
   LIST_READ_TEXT,
@@ -96,7 +102,10 @@ export interface BindingsStore {
 export type BindingsDeps = Pick<
   ExplorerModuleDeps,
   'mgmt' | 'clock' | 'timers' | 'limits'
->;
+> & {
+  /** Lets the event loop run between chunks of a long list; a spec counts the turns. */
+  readonly yieldNow?: YieldNow;
+};
 
 interface Entry {
   readonly rows: readonly BindingRow[];
@@ -112,7 +121,7 @@ interface Entry {
   readonly version: number;
   /** The last read failed; these rows are from an earlier one. */
   readonly stale: boolean;
-  readonly sorted: Map<string, readonly BindingRow[]>;
+  readonly sorted: Map<string, Promise<readonly BindingRow[]>>;
 }
 
 interface PlaceWaiter {
@@ -173,6 +182,7 @@ function matcher(
 export function createBindingsStore(deps: BindingsDeps): BindingsStore {
   const clock: Clock = deps.clock ?? systemClock;
   const timers = deps.timers ?? systemTimers;
+  const yieldNow = deps.yieldNow ?? nextLoopTurn;
   const limits = { ...DEFAULT_EXPLORER_LIMITS, ...deps.limits };
   const pageSize = Math.min(limits.pageSize, PAGE_SIZE_CEILING);
   const cap = limits.maxBindingsResident;
@@ -237,11 +247,17 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
       if (answer.shape === 'array') {
         if (n > 1) throw incomplete();
         unpaged = true;
-        for (const raw of answer.items) {
-          const item = BindingItemSchema.safeParse(raw);
-          if (!item.success) throw incomplete();
-          rows.push(bindingRow(item.data));
-        }
+        // Up to 500,000 items arrive at once: converted in chunks, so other requests are served between.
+        await forEachCooperative(
+          answer.items,
+          (raw) => {
+            const item = BindingItemSchema.safeParse(raw);
+            if (!item.success) throw incomplete();
+            rows.push(bindingRow(item.data));
+          },
+          limits.yieldEveryItems,
+          yieldNow,
+        );
         if (answer.end.kind === 'complete') expected = rows.length;
         else {
           dropped = 1;
@@ -349,16 +365,30 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
     return inflight;
   }
 
+  /**
+   * The rows in the order asked for. A sort of 200,000 bindings takes hundreds of milliseconds, so it
+   * is done in pieces with a turn of the event loop between them (I-5). The promise is what is kept,
+   * so a second window for the same order waits for the first sort instead of starting its own.
+   */
   function sortedRows(entry: Entry, sort: InventorySort) {
     const id = `${sort.column}|${sort.dir}`;
     let hit = entry.sorted.get(id);
     if (hit === undefined) {
-      hit = [...entry.rows].sort(comparator<BindingRow>(sort));
+      hit = sortCooperative(
+        entry.rows,
+        comparator<BindingRow>(sort),
+        limits.yieldEveryItems,
+        yieldNow,
+      );
       if (entry.sorted.size >= SORT_CACHE_ENTRIES) {
         const oldest = entry.sorted.keys().next();
         if (!oldest.done) entry.sorted.delete(oldest.value);
       }
       entry.sorted.set(id, hit);
+      const failed = hit;
+      hit.catch(() => {
+        if (entry.sorted.get(id) === failed) entry.sorted.delete(id);
+      });
     }
     return hit;
   }
@@ -384,7 +414,8 @@ export function createBindingsStore(deps: BindingsDeps): BindingsStore {
       }
       signal.throwIfAborted();
       install(state, vhost, entry);
-      const all = sortedRows(entry, query.sort ?? DEFAULT_SORT);
+      const all = await sortedRows(entry, query.sort ?? DEFAULT_SORT);
+      signal.throwIfAborted();
       const keep = matcher(query.filter);
       const found = keep ? all.filter(keep) : all;
       const current = entry.version;

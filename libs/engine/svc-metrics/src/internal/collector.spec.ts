@@ -96,7 +96,8 @@ describe('collector rounds', () => {
         queue: 'audit',
       }),
     ).toBeUndefined();
-    expect(t.collector.status(CID).dropped.samples).toBeGreaterThan(0);
+    // Not wanted is not lost: the parser never delivered it, and nothing was dropped.
+    expect(t.collector.status(CID).dropped.samples).toBe(0);
   });
 
   it('AC-15 no demand, no request; idle demand ends the loop with no timer left', async () => {

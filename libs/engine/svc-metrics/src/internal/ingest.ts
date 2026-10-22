@@ -34,6 +34,12 @@ export interface RoundSummary {
 }
 
 export interface Round {
+  /**
+   * Whether a sample is worth reading at all: a queue sample only for a queue somebody asked for.
+   * The parser asks it before it counts the sample, so a page of 100,000 queues does not use up the
+   * sample cap on queues nobody wants. Other samples are always accepted.
+   */
+  accepts(sample: PromSample): boolean;
   add(node: string, sample: PromSample): void;
   commit(
     store: HotStore,
@@ -68,14 +74,31 @@ export function beginRound(
   let candidates = 0;
   let droppedSamples = 0;
 
+  const wantsQueue = (sample: PromSample): boolean => {
+    const { vhost, queue } = sample.labels;
+    return (
+      vhost !== undefined &&
+      queue !== undefined &&
+      wantedQueues.has(queueKeyOf(vhost, queue))
+    );
+  };
+
   return {
+    accepts(sample) {
+      return isQueueInfo(sample.name) ||
+        metricOf(sample.name)?.scope === 'queue'
+        ? wantsQueue(sample)
+        : true;
+    },
+
     add(node, sample) {
       if (isQueueInfo(sample.name)) {
         const { vhost, queue, membership } = sample.labels;
         if (
           vhost !== undefined &&
           queue !== undefined &&
-          membership === 'leader'
+          membership === 'leader' &&
+          wantsQueue(sample)
         ) {
           leaders.set(queueKeyOf(vhost, queue), node);
         }

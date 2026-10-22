@@ -25,7 +25,7 @@ Tags: `type:service`, `runtime:node`.
 
 - Never imports another service or an adapter; cross-service needs are ports wired in the composition root (blueprint 2.2). The scrape is read to samples by `createPromReader` in `adapter-prometheus`, which the composition root builds.
 - All broker I/O is through the scheduled ports in the `background` lane (I-8); no socket here (I-9). No broker version or provider is compared (I-3): the profile and the registry say what is allowed.
-- Every buffer is bounded by items and bytes with counted drops (I-6); the parser gives the loop a turn every 256 KiB and 5,000 lines (I-5).
+- Every buffer is bounded by items and bytes with counted drops (I-6); the parser gives the loop a turn every 64 KiB and 2,000 lines (I-5).
 - No secret reaches an output (I-10): errors are fixed texts and Problems carry a code only.
 - No mutation: both actions are queries, no `WritePort` is reachable (I-2).
 

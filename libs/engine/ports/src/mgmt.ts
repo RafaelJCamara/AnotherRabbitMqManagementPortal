@@ -89,6 +89,11 @@ export interface PromSample {
 export interface PromReadOptions {
   /** Keeps a family; asked with the metric name before its labels are read. Default: all. */
   readonly wanted?: (name: string) => boolean;
+  /**
+   * Keeps a parsed sample, asked after its labels are read. A refused sample is counted as skipped
+   * and does not count toward maxSamples.
+   */
+  readonly accept?: (sample: PromSample) => boolean;
   /** The most samples delivered; at the limit the read stops and the summary says so. */
   readonly maxSamples?: number;
   /** The most bytes taken from the body; a bigger one fails the read. */

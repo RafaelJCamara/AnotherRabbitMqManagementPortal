@@ -65,6 +65,21 @@ describe('parseExposition grammar', () => {
     expect(summary).toMatchObject({ samples: 1, skipped: 6, malformed: 0 });
   });
 
+  it('AC-6 a sample the caller refuses after its labels is skipped and does not use up maxSamples', async () => {
+    const page = Array.from(
+      { length: 100 },
+      (_, i) => `q{queue="queue-${String(i)}"} ${String(i)}`,
+    ).join('\n');
+    const { samples, summary } = await parseAll(chunked(page, [50]), {
+      accept: (sample) => sample.labels.queue === 'queue-97',
+      maxSamples: 1,
+    });
+    // Without `accept` the first sample would have ended the read at the cap.
+    expect(samples.map((sample) => sample.value)).toEqual([97]);
+    expect(summary).toMatchObject({ samples: 1, skipped: 97, malformed: 0 });
+    expect(summary.truncated).toBe('samples');
+  });
+
   it('AC-5 the same samples come out of any chunking, also inside a character', async () => {
     const whole = await parseAll(chunked(SAMPLE_PAGE, [1_000_000]));
     // Every two-way split of the bytes, including the ones inside a multibyte character.
@@ -252,14 +267,14 @@ describe('parseExposition yields', () => {
     expect(summary.bytes).toBeGreaterThanOrEqual(target);
     expect(summary.samples).toBeGreaterThanOrEqual(count);
     expect(turns).toBe(summary.yields);
-    // At most 256 KiB of text and 5,000 lines between two turns (plus the line that crossed it).
+    // At most 64 KiB of text and 2,000 lines between two turns (plus the line that crossed it).
     expect(summary.maxCharsBetweenYields).toBeLessThanOrEqual(
-      256 * 1024 + line.length,
+      64 * 1024 + line.length,
     );
-    expect(summary.maxLinesBetweenYields).toBeLessThanOrEqual(5_000);
-    // And the turns are really taken: one per 256 KiB at least.
+    expect(summary.maxLinesBetweenYields).toBeLessThanOrEqual(2_000);
+    // And the turns are really taken: one per 64 KiB at least.
     expect(turns).toBeGreaterThanOrEqual(
-      Math.floor(summary.bytes / (256 * 1024)) - 1,
+      Math.floor(summary.bytes / (64 * 1024)) - 1,
     );
   });
 
@@ -273,7 +288,7 @@ describe('parseExposition yields', () => {
       },
     });
     expect(summary.samples).toBe(60_000);
-    expect(summary.maxLinesBetweenYields).toBeLessThanOrEqual(5_000);
-    expect(turns).toBeGreaterThanOrEqual(11);
+    expect(summary.maxLinesBetweenYields).toBeLessThanOrEqual(2_000);
+    expect(turns).toBeGreaterThanOrEqual(29);
   });
 });

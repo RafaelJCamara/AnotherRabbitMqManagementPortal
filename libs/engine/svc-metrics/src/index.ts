@@ -13,3 +13,7 @@ export type {
   ScrapePlan,
   ScrapeTarget,
 } from './internal/scrape-planner';
+// The store and the round, for the perf harness (perf:metrics-100k), which feeds them 400,000 series.
+export { createHotStore } from './internal/store-hot';
+export type { HotStore } from './internal/store-hot';
+export { beginRound } from './internal/ingest';

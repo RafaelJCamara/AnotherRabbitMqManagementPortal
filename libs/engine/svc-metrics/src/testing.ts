@@ -149,7 +149,7 @@ export function createScriptedProm(): ScriptedProm {
         const wanted = options.wanted ?? (() => true);
         let delivered = 0;
         const deliver = (item: PromSample): void => {
-          if (wanted(item.name)) {
+          if (wanted(item.name) && (options.accept?.(item) ?? true)) {
             sink(item);
             delivered++;
           }

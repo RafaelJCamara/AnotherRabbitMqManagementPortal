@@ -42,6 +42,13 @@
         "cwd": "{workspaceRoot}"
       }
     },
+    "metrics-100k": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config apps/perf/vitest.perf.config.mts src/metrics-100k",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "explorer-20k": {
       "executor": "nx:run-commands",
       "options": {

@@ -18,7 +18,7 @@ Tags: `type:adapter`, `runtime:node`.
 - Every socket comes from the Dialer (I-9): the agent's `createConnection` calls `Dialer.dial` with the `prom-scrape` purpose, so the egress policy and the TrustStore apply, redirects are refused and an `https` origin is verified before the first byte. `node:net` and `node:tls` are not imported at run time.
 - The adapter does not schedule, cache or retry. The BrokerScheduler's `schedulePromScrape` is the only caller (I-8). One request per socket: no pool to invalidate.
 - Bounded (I-6): the parser holds the current chunk and one unfinished line (at most `maxLineBytes`); an over-long line is skipped and counted, a body past `maxBodyBytes` fails, a sample count past `maxSamples` ends the read and says so. Nothing keeps the list of samples; the sink does.
-- Cooperative (I-5): the parser awaits `yieldNow` (`setImmediate`) every 256 KiB of text and every 5,000 lines, also inside one very large chunk, and reports the most it read between two turns. There is no worker thread (OQ-863).
+- Cooperative (I-5): the parser awaits `yieldNow` (`setImmediate`) every 64 KiB of text and every 2,000 lines, also inside one very large chunk, and reports the most it read between two turns. There is no worker thread (OQ-863).
 - No input in an error (I-10): the endpoint's body is never put in an error, credentials exist for one request as the `Authorization` header only, and no URL or header reaches `detail`. Credentials go only to endpoints the resolver decides to log in to (OQ-864).
 - Versions and providers are never compared here (I-3): the planner in `svc-metrics` reads the BrokerProfile.
 

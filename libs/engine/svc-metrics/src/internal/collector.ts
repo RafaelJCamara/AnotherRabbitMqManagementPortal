@@ -195,6 +195,7 @@ export function createCollector(deps: CollectorDeps): Collector {
             },
             {
               wanted: wantedFamily,
+              accept: (sample) => round.accepts(sample),
               maxSamples: limits.maxSamplesPerScrape,
               maxBodyBytes: limits.maxBodyBytes,
             },

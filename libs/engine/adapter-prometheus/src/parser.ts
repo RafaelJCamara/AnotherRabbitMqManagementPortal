@@ -17,6 +17,12 @@ import { PromScrapeError } from './errors.ts';
 export interface ParseOptions {
   /** Keeps a family: asked with the metric name before its labels are read. Default: all. */
   readonly wanted?: (name: string) => boolean;
+  /**
+   * Keeps a parsed sample: asked after the labels are read, for the families `wanted` kept. A sample
+   * it refuses is counted as skipped and does not count toward `maxSamples`, so a page of 100,000
+   * queues does not use the cap up on the ones nobody asked for. Default: all.
+   */
+  readonly accept?: (sample: PromSample) => boolean;
   /** Called for `# TYPE name type`, for every family (wanted or not is the callee's business). */
   readonly onType?: (name: string, type: string) => void;
   /** The longest line kept, in characters. A longer line is skipped and counted. Default 64 KiB. */
@@ -57,8 +63,10 @@ export const DEFAULT_PARSE_LIMITS = {
   maxBodyBytes: 256 * 1024 * 1024,
   maxSamples: 1_000_000,
   maxLabels: 64,
-  yieldEveryBytes: 256 * 1024,
-  yieldEveryLines: 5_000,
+  // A turn at least every 64 KiB of text or 2,000 lines: about 3 ms of parsing on a developer laptop,
+  // so a scrape page cannot take a fifth of the 20 ms loop budget (I-5) in one go (OQ-863).
+  yieldEveryBytes: 64 * 1024,
+  yieldEveryLines: 2_000,
 } as const;
 
 const NAME_START = /[A-Za-z_:]/;
@@ -271,6 +279,10 @@ export async function parseExposition(
         malformed++;
         return false;
       case 'sample':
+        if (options.accept?.(parsed.sample) === false) {
+          skipped++;
+          return false;
+        }
         sink(parsed.sample);
         samples++;
         if (samples >= limits.maxSamples) {

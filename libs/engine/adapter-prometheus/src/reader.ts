@@ -13,6 +13,7 @@ export function createPromReader(scrape: PromScrapePort): PromReadPort {
       const summary = await parseExposition(body, sink, {
         signal,
         ...(options.wanted === undefined ? {} : { wanted: options.wanted }),
+        ...(options.accept === undefined ? {} : { accept: options.accept }),
         ...(options.maxSamples === undefined
           ? {}
           : { maxSamples: options.maxSamples }),

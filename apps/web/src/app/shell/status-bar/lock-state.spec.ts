@@ -2,7 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import { ARMING_CLOCK, ArmingStore, type ArmingClock } from '@app/ui-data';
 import { describe, expect, it } from 'vitest';
 
-import { mountShell, routed, settleShell, visit } from '../test-fixtures';
+import {
+  mountShell,
+  routed,
+  settleShell,
+  until,
+  visit,
+} from '../test-fixtures';
 import {
   StatusBackend,
   brokerProfileBody,
@@ -53,6 +59,7 @@ describe('the lock segment of the status bar', () => {
       { provide: ARMING_CLOCK, useValue: clock },
     ]);
     await visit(bed, '/c/c1/explorer');
+    await until(bed, () => lock(routed(bed)) !== undefined, 'the status bar');
     expect(lock(routed(bed))).toBe('[[status.lock.locked]]');
 
     // The unlock is the engine's ops.arm; the bar follows what it answered.

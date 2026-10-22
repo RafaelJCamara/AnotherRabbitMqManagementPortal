@@ -8,7 +8,13 @@ import {
   brokerProfileBody,
   connectionBody,
 } from '../status-bar/status-fixtures';
-import { mountShell, routed, settleShell, visit } from '../test-fixtures';
+import {
+  mountShell,
+  routed,
+  settleShell,
+  until,
+  visit,
+} from '../test-fixtures';
 import { ADDRESS_EXISTS, type AddressExists } from './switch-target';
 
 function backendWith(): StatusBackend {
@@ -45,6 +51,12 @@ describe('the connection switcher', () => {
     const backend = backendWith();
     const bed = await mountShell(undefined, backend);
     await visit(bed, '/c/c1/explorer');
+    await until(
+      bed,
+      () =>
+        routed(bed).querySelectorAll('#connection-switcher option').length >= 3,
+      'the connections',
+    );
     const host = routed(bed);
     const groups = [...host.querySelectorAll('#connection-switcher optgroup')];
     expect(groups.map((g) => g.getAttribute('label'))).toEqual([
@@ -71,6 +83,12 @@ describe('the connection switcher', () => {
   it('AC-2 switching from staging to prod opens the same explorer page on prod, and the tree follows', async () => {
     const bed = await mountShell(undefined, backendWith());
     await visit(bed, '/c/c1/explorer/bindings?vhost=%2F');
+    await until(
+      bed,
+      () =>
+        routed(bed).querySelectorAll('#connection-switcher option').length >= 3,
+      'the connections',
+    );
     await choose(bed, 'c2');
     expect(TestBed.inject(Router).url).toBe(
       '/c/c2/explorer/bindings?vhost=%2F',
@@ -92,6 +110,12 @@ describe('the connection switcher', () => {
       { provide: ADDRESS_EXISTS, useValue: exists },
     ]);
     await visit(bed, '/c/c1/explorer/queues/orders.q');
+    await until(
+      bed,
+      () =>
+        routed(bed).querySelectorAll('#connection-switcher option').length >= 3,
+      'the connections',
+    );
     await choose(bed, 'c2');
     expect(TestBed.inject(Router).url).toBe('/c/c2/explorer');
     expect(asked).toEqual([['c2', '/explorer/queues/orders.q']]);
@@ -108,6 +132,12 @@ describe('the connection switcher', () => {
       { provide: ADDRESS_EXISTS, useValue: () => Promise.resolve(true) },
     ]);
     await visit(bed, '/c/c1/explorer/queues/orders.q');
+    await until(
+      bed,
+      () =>
+        routed(bed).querySelectorAll('#connection-switcher option').length >= 3,
+      'the connections',
+    );
     await choose(bed, 'c2');
     expect(TestBed.inject(Router).url).toBe('/c/c2/explorer/queues/orders.q');
     expect(routed(bed).querySelector('.switcher .notice')).toBeNull();
@@ -117,6 +147,12 @@ describe('the connection switcher', () => {
     const backend = backendWith();
     const bed = await mountShell(undefined, backend);
     await visit(bed, '/c/c1/explorer');
+    await until(
+      bed,
+      () =>
+        routed(bed).querySelectorAll('#connection-switcher option').length >= 3,
+      'the connections',
+    );
     backend.connections.set('c4', connectionBody('c4', 'New broker', 'test'));
     backend.connections.delete('c3');
     await TestBed.inject(ConnectionDirectory).refresh();

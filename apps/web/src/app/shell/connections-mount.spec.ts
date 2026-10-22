@@ -7,7 +7,8 @@ import {
   brokerProfileBody,
   connectionBody,
 } from './status-bar/status-fixtures';
-import { mountShell, routed, settleShell, visit } from './test-fixtures';
+
+import { mountShell, routed, settleShell, visit, until } from './test-fixtures';
 
 function backendWith(): StatusBackend {
   const backend = new StatusBackend();
@@ -36,6 +37,11 @@ describe('the connections pages under the app', () => {
     const bed = await mountWithConnections(backendWith());
     await visit(bed, '/connections');
     const host = routed(bed);
+    await until(
+      bed,
+      () => host.querySelectorAll('tbody tr').length === 2,
+      'the two rows',
+    );
     // The connections frame, not the shell: no sidebar, no status bar.
     expect(host.tagName.toLowerCase()).toBe('app-connections-layout');
     expect(host.querySelector('app-shell, app-status-bar')).toBeNull();
@@ -55,14 +61,32 @@ describe('the connections pages under the app', () => {
   it("AC-3 the pages of one connection and the create form are reachable by address, and an unknown address is the app's own", async () => {
     const bed = await mountWithConnections(backendWith());
     await visit(bed, '/connections/new');
+    await until(
+      bed,
+      () => routed(bed).querySelector('app-connection-form h1') !== null,
+      'the create form',
+    );
     expect(
       routed(bed).querySelector('app-connection-form h1')?.textContent,
     ).toContain('[[connections.form.createTitle]]');
     await visit(bed, '/connections/c2');
+    await until(
+      bed,
+      () => routed(bed).querySelector('app-connection-page h1') !== null,
+      'the connection page',
+    );
     expect(
       routed(bed).querySelector('app-connection-page h1')?.textContent,
     ).toBe('Orders prod');
     await visit(bed, '/connections/c2/edit');
+    await until(
+      bed,
+      () =>
+        routed(bed)
+          .querySelector('app-connection-form h1')
+          ?.textContent.includes('editTitle') === true,
+      'the edit form',
+    );
     expect(
       routed(bed).querySelector('app-connection-form h1')?.textContent,
     ).toContain('[[connections.form.editTitle]]');

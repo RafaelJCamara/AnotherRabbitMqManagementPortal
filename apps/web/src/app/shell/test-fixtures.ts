@@ -91,3 +91,15 @@ export function routed(bed: ShellTestbed): HTMLElement {
   if (host === null) throw new Error('nothing is routed');
   return host;
 }
+
+/** Waits until `check` holds: the lazy chunks, the scope's words and the engine's answers arrive after the router settles. */
+export async function until(
+  bed: ShellTestbed,
+  check: () => boolean,
+  what: string,
+): Promise<void> {
+  await waitFor(() => {
+    bed.harness.detectChanges();
+    return check();
+  }, what);
+}

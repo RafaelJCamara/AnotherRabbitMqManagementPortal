@@ -69,10 +69,19 @@ export function createBrowserOpener(
   const deps: OpenerDeps = { ...defaults, ...overrides };
   return async (url) => {
     const dir = await mkdtemp(join(deps.tempRoot, 'app-open-'));
-    const remove = (): void => {
-      rm(dir, { recursive: true, force: true }).catch(() => undefined);
-    };
-    deps.later(remove, deps.cleanupMs);
+    // On Windows a just-written file can be held for a moment by a scanner or the indexer, so a
+    // first delete answers EBUSY or EPERM; `maxRetries` retries exactly those codes. A failure to
+    // delete is not reported: the temporary directory is the operating system's to sweep.
+    const remove = (): Promise<void> =>
+      rm(dir, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 50,
+      }).catch(() => undefined);
+    deps.later(() => {
+      void remove();
+    }, deps.cleanupMs);
     try {
       const file = join(dir, 'open.html');
       await writeFile(file, redirectPage(url), { mode: 0o600 });
@@ -91,7 +100,8 @@ export function createBrowserOpener(
         });
       });
     } catch (error) {
-      remove();
+      // Settled before the rejection, so a caller that sees the failure also sees the file gone.
+      await remove();
       throw error;
     }
   };

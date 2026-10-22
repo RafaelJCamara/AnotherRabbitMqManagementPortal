@@ -10,7 +10,7 @@ This page is generated from the Dialer's purpose registry (`libs/engine/net-dial
 
 ## Current state
 
-2 purposes are in the product today and 6 are registered ahead of the code that will use them. Every destination is one the person configured, and the product contacts none of them until they do. With no broker profile added and updates off, the product makes **no outbound calls**: the deny-all egress test (`pnpm nx run engine:egress`) starts the engine behind a guard that records and refuses every connection attempt, name lookup and datagram, exercises it, and fails on a single one. The guard covers the engine's JavaScript; a run of the container with no network at all is still to come.
+3 purposes are in the product today and 5 are registered ahead of the code that will use them. Every destination is one the person configured, and the product contacts none of them until they do. With no broker profile added and updates off, the product makes **no outbound calls**: the deny-all egress test (`pnpm nx run engine:egress`) starts the engine behind a guard that records and refuses every connection attempt, name lookup and datagram, exercises it, and fails on a single one. The guard covers the engine's JavaScript; a run of the container with no network at all is still to come.
 
 ## Rules
 
@@ -25,7 +25,7 @@ This page is generated from the Dialer's purpose registry (`libs/engine/net-dial
 | --- | --- | --- | --- | --- | --- |
 | `amqp` | Messaging (AMQP 0-9-1) | The broker host and port of a connection profile the person added | A peek, publish, tap or source lease on that connection | Never until a broker profile exists | Built |
 | `mgmt-http` | Management HTTP API | The management endpoint of a connection profile the person added | Browsing and managing that broker, and the capability probe | Never until a broker profile exists | Built |
-| `prom-scrape` | Metrics (Prometheus endpoint) | The Prometheus endpoint of a connection profile the person added | The background metrics sweep of that broker | Never until a broker profile exists | Registered, not built |
+| `prom-scrape` | Metrics (Prometheus endpoint) | The Prometheus endpoint of a connection profile the person added | The background metrics sweep of that broker | Never until a broker profile exists | Built |
 | `oidc` | Single sign-on and broker OAuth | The identity provider (discovery, key set and token endpoints) an administrator configured | A sign-in, a key refresh or a token refresh | Never until an identity provider is configured | Registered, not built |
 | `alert-webhook` | Alert notifications | The webhook or mail endpoint the person configured for a rule | An alert rule fires | Never until a notification channel is configured | Registered, not built |
 | `otlp-export` | OpenTelemetry export | The OTLP endpoint the person configured | Spans and metrics of this tool, while the endpoint is set | Off; the exporter is not even loaded until an endpoint is set | Registered, not built |

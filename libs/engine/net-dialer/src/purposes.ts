@@ -53,7 +53,7 @@ export const PURPOSES: readonly PurposeSpec[] = [
       'The Prometheus endpoint of a connection profile the person added',
     trigger: 'The background metrics sweep of that broker',
     default: 'Never until a broker profile exists',
-    status: 'planned',
+    status: 'active',
   },
   {
     id: 'oidc',

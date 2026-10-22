@@ -49,12 +49,23 @@ export interface MgmtWritePort {
   send<T>(request: MgmtSendRequest<T>, signal: AbortSignal): Promise<T>;
 }
 
+/** A query where a key may repeat: a list is sent as one pair per item (`family=a&family=b`). */
+export type PromQuery = Readonly<
+  Record<string, string | number | boolean | readonly string[]>
+>;
+
 export interface PromScrapeRequest {
   connectionId: ConnectionId;
   /** The broker node whose listener is scraped; nodes are scraped directly, never through a balancer. */
   node: string;
+  /**
+   * The listener, as a URL of the BrokerProfile's `prometheus.endpoints`, when a node name alone is
+   * not enough (Amazon MQ lists three listeners under one name). The resolver refuses a URL the
+   * profile does not list, so a request cannot name an address the engine never probed.
+   */
+  endpoint?: string;
   path: `/${string}`;
-  query?: MgmtQuery;
+  query?: PromQuery;
   lane: Lane;
 }
 

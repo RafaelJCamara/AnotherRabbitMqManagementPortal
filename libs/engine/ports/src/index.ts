@@ -69,6 +69,7 @@ export type {
   MgmtSendRequest,
   MgmtStreamRequest,
   MgmtWritePort,
+  PromQuery,
   PromScrapePort,
   PromScrapeRequest,
 } from './mgmt.ts';

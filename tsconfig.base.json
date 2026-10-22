@@ -23,6 +23,9 @@
       "@app/adapter-mgmt-http": [
         "./libs/engine/adapter-mgmt-http/src/index.ts"
       ],
+      "@app/adapter-prometheus": [
+        "./libs/engine/adapter-prometheus/src/index.ts"
+      ],
       "@app/arch-tests": ["./tools/arch-tests/src/index.ts"],
       "@app/broker-lab": ["./testing/broker-lab/src/index.ts"],
       "@app/conformance-ci": ["./tools/conformance-ci/src/index.ts"],

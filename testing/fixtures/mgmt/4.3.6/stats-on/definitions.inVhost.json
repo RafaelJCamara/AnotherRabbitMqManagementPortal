@@ -125,13 +125,11 @@
   ],
   "bindings": [
     {
-      "arguments": {
-        "x-golden": "direct"
-      },
-      "destination": "golden.classic",
+      "arguments": {},
+      "destination": "golden.quorum",
       "destination_type": "queue",
-      "routing_key": "classic",
-      "source": "golden.direct"
+      "routing_key": "10",
+      "source": "golden.hash"
     },
     {
       "arguments": {},
@@ -142,17 +140,19 @@
     },
     {
       "arguments": {},
-      "destination": "golden.quorum",
-      "destination_type": "queue",
-      "routing_key": "10",
-      "source": "golden.hash"
-    },
-    {
-      "arguments": {},
       "destination": "golden.classic",
       "destination_type": "queue",
       "routing_key": "orders.#",
       "source": "golden.topic"
+    },
+    {
+      "arguments": {
+        "x-golden": "direct"
+      },
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "classic",
+      "source": "golden.direct"
     }
   ]
 }

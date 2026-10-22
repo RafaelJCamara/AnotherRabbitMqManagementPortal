@@ -233,14 +233,6 @@
     },
     {
       "arguments": {},
-      "destination": "golden.classic",
-      "destination_type": "queue",
-      "routing_key": "orders.#",
-      "source": "golden.topic",
-      "vhost": "golden"
-    },
-    {
-      "arguments": {},
       "destination": "golden.quorum",
       "destination_type": "queue",
       "routing_key": "10",
@@ -255,6 +247,14 @@
       "destination_type": "queue",
       "routing_key": "classic",
       "source": "golden.direct",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {},
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "orders.#",
+      "source": "golden.topic",
       "vhost": "golden"
     }
   ]

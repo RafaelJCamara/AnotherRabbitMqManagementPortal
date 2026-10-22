@@ -3,18 +3,18 @@
     {
       "arguments": {},
       "channel_details": {
-        "connection_name": "192.0.2.1:53864 -> 192.0.2.2:5672",
-        "name": "192.0.2.1:53864 -> 192.0.2.2:5672 (1)",
+        "connection_name": "192.0.2.1:57936 -> 192.0.2.2:5672",
+        "name": "192.0.2.1:57936 -> 192.0.2.2:5672 (1)",
         "node": "rabbit@lab-node",
         "number": 1,
         "peer_host": "192.0.2.1",
-        "peer_port": 53864,
+        "peer_port": 57936,
         "user": "guest"
       },
       "ack_required": true,
       "active": true,
       "activity_status": "up",
-      "consumer_tag": "amq.ctag-T-wUSxZ0EsSxFVR3uhQC_Q",
+      "consumer_tag": "amq.ctag-MxEBrr8SpqVhIpHsaH1fIg",
       "consumer_timeout": 1800000,
       "exclusive": false,
       "prefetch_count": 2,
@@ -30,8 +30,8 @@
     "x-queue-type": "classic"
   },
   "auto_delete": false,
-  "consumer_capacity": 0.00027860839032776264,
-  "consumer_utilisation": 0.0002786080965140615,
+  "consumer_capacity": 0.0001343319968041784,
+  "consumer_utilisation": 0.00013433192239923253,
   "consumers": 1,
   "deliveries": [],
   "durable": true,
@@ -46,12 +46,12 @@
     "max_heap_size": 0,
     "min_bin_vheap_size": 46422,
     "min_heap_size": 233,
-    "minor_gcs": 9
+    "minor_gcs": 8
   },
   "head_message_timestamp": null,
-  "idle_since": "2026-10-19T14:11:36.288+00:00",
+  "idle_since": "2026-10-22T08:03:09.642+00:00",
   "incoming": [],
-  "memory": 10504,
+  "memory": 10536,
   "message_bytes": 70,
   "message_bytes_paged_out": 0,
   "message_bytes_persistent": 70,
@@ -69,7 +69,7 @@
     },
     "deliver_get": 4,
     "deliver_get_details": {
-      "rate": 0
+      "rate": 0.4
     },
     "deliver_no_ack": 0,
     "deliver_no_ack_details": {
@@ -77,7 +77,7 @@
     },
     "get": 2,
     "get_details": {
-      "rate": 0
+      "rate": 0.4
     },
     "get_empty": 0,
     "get_empty_details": {
@@ -117,9 +117,9 @@
   "node": "rabbit@lab-node",
   "operator_policy": "golden-op",
   "policy": "golden-ttl",
-  "reductions": 17962,
+  "reductions": 17967,
   "reductions_details": {
-    "rate": 0
+    "rate": 501.4
   },
   "single_active_consumer_tag": null,
   "state": "running",

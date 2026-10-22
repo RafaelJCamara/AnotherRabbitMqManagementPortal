@@ -133,13 +133,6 @@
     },
     {
       "arguments": {},
-      "destination": "golden.classic",
-      "destination_type": "queue",
-      "routing_key": "orders.#",
-      "source": "golden.topic"
-    },
-    {
-      "arguments": {},
       "destination": "golden.quorum",
       "destination_type": "queue",
       "routing_key": "10",
@@ -153,6 +146,13 @@
       "destination_type": "queue",
       "routing_key": "classic",
       "source": "golden.direct"
+    },
+    {
+      "arguments": {},
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "orders.#",
+      "source": "golden.topic"
     }
   ]
 }

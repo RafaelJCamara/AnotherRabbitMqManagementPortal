@@ -3,18 +3,18 @@
     {
       "arguments": {},
       "channel_details": {
-        "connection_name": "192.0.2.1:59242 -> 192.0.2.2:5672",
-        "name": "192.0.2.1:59242 -> 192.0.2.2:5672 (1)",
+        "connection_name": "192.0.2.1:50634 -> 192.0.2.2:5672",
+        "name": "192.0.2.1:50634 -> 192.0.2.2:5672 (1)",
         "node": "rabbit@lab-node",
         "number": 1,
         "peer_host": "192.0.2.1",
-        "peer_port": 59242,
+        "peer_port": 50634,
         "user": "guest"
       },
       "ack_required": true,
       "active": true,
       "activity_status": "blocked",
-      "consumer_tag": "amq.ctag-nWDujzaEDrl4yWsWXnNwjw",
+      "consumer_tag": "amq.ctag-3OHS-kAciAz0LELQ55bvfA",
       "consumer_timeout": 1800000,
       "exclusive": false,
       "prefetch_count": 2,
@@ -30,8 +30,8 @@
     "x-queue-type": "classic"
   },
   "auto_delete": false,
-  "consumer_capacity": 0.0003186583490782974,
-  "consumer_utilisation": 0.0003186583490782974,
+  "consumer_capacity": 0.00022873683338529814,
+  "consumer_utilisation": 0.00022873669342203805,
   "consumers": 1,
   "deliveries": [],
   "durable": true,
@@ -46,14 +46,14 @@
     "max_heap_size": 0,
     "min_bin_vheap_size": 46422,
     "min_heap_size": 233,
-    "minor_gcs": 9
+    "minor_gcs": 8
   },
   "head_message_timestamp": null,
-  "idle_since": "2026-10-19T14:14:09.661+00:00",
+  "idle_since": "2026-10-22T08:04:53.124+00:00",
   "incoming": [],
   "internal": false,
   "internal_owner": false,
-  "memory": 10432,
+  "memory": 10400,
   "message_bytes": 70,
   "message_bytes_paged_out": 0,
   "message_bytes_persistent": 70,
@@ -119,9 +119,9 @@
   "node": "rabbit@lab-node",
   "operator_policy": "golden-op",
   "policy": "golden-ttl",
-  "reductions": 17956,
+  "reductions": 17902,
   "reductions_details": {
-    "rate": 491.8
+    "rate": 492.8
   },
   "single_active_consumer_tag": null,
   "state": "running",

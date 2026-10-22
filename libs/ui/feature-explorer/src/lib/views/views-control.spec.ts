@@ -329,6 +329,12 @@ describe('<app-views-control>', () => {
         workspace,
         inputs: { kind: 'queues' },
       });
+      // The filter is typed once the page has made its first read. `queries.at(-1)` is also undefined when no
+      // query has been made yet, so a runner that was slow to render the page read as "the filter was not
+      // applied" (macOS CI); the first read is awaited on its own, with the bound the other page specs use.
+      await eventually(() => {
+        expect(fake.queries.length).toBeGreaterThan(0);
+      }, 8000);
       await barReady(page.fixture, page.el);
       type(textInput(page.el), 'orders');
       enter(textInput(page.el));

@@ -35,6 +35,7 @@
         "buildTarget": "web:build:development",
         "tsConfig": "libs/ui/feature-explorer/tsconfig.spec.json",
         "runner": "vitest",
+        "runnerConfig": "libs/ui/feature-explorer/vitest.components.config.mts",
         "watch": false,
         "include": [
           "**/*.component.spec.ts",

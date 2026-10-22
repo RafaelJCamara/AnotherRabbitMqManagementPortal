@@ -42,6 +42,41 @@ export {
   type WindowSourceState,
 } from './window-source';
 export {
+  DEFAULT_EXCHANGE_LABEL,
+  bindingParts,
+  entityLabel,
+  entityPath,
+  entityUrl,
+  parseEntityPath,
+  type EntityRef,
+  type ParsedEntityAddress,
+} from './entity-address';
+export {
+  ENTITY_TAB_IDS,
+  resolveTab,
+  tabSetFor,
+  type EntityTabId,
+  type EntityTabSpec,
+} from './entity-tabs';
+export {
+  createEntityWatch,
+  isCertain,
+  lookupEntity,
+  type EntityPhase,
+  type EntityQuery,
+  type EntityState,
+  type EntityWatch,
+} from './entity-watch';
+export {
+  RELATED_SCAN_MAX,
+  RELATED_SHOWN_MAX,
+  loadRelatedBindings,
+  type BindingRow,
+  type BindingScan,
+  type BindingScanQuery,
+  type RelatedBindings,
+} from './related-bindings';
+export {
   parseViewDefinition,
   serializeView,
   type ColumnEntryJson,

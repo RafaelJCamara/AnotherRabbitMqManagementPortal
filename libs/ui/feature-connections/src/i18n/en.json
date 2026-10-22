@@ -141,7 +141,7 @@
   },
   "test": {
     "title": "Tests",
-    "hintSaved": "These tests use the saved connection and its stored login. Save your changes first to test them.",
+    "hintSaved": "These tests use the saved connection and its stored login. Changes you have not saved are not tested.",
     "hintDraft": "These tests use what you typed, without saving it.",
     "needAddress": "Enter an address and a login first.",
     "headingHttp": "Management API",

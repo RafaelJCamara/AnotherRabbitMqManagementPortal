@@ -94,8 +94,13 @@ export class EngineApi {
     } catch (error) {
       return throwError(() => error);
     }
+    // The engine refuses a command, peek or job without an idempotency key (`VALIDATION_FAILED`). The key is made
+    // here, once per call, so a retry of the same Observable repeats the same key and is not run twice.
+    const headers =
+      action.kind === 'query' ? {} : { 'Idempotency-Key': randomId() };
     return this.#http
       .request<unknown>(request.method, request.url, {
+        headers,
         ...(request.params === undefined
           ? {}
           : { params: request.params as Params as HttpParams | Params }),

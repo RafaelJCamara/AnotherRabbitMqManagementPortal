@@ -1,6 +1,6 @@
 // The connections the person has (M0-52): one row per profile with its environment chrome, the management URL and
 // the AMQP address, a link to the connection and a link that opens its explorer. The list is the shared directory
-// (`connections.list` in windows of 100, at most 200 kept); a failed read says so and keeps what was read.
+// (the list action, in windows of 100, at most 200 kept); a failed read says so and keeps what was read.
 import {
   ChangeDetectionStrategy,
   Component,

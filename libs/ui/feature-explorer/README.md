@@ -42,4 +42,4 @@ pnpm nx run perf:explorer-ui-20k-browser                      # AC-27: the page 
 
 - The two view commands, `views.create` and `views.delete`, declare `scope: 'local'` (they change only the engine's own state), so a running engine runs them with nothing armed (OQ-783; OQ-380 is answered). The control still shows an engine Problem as sent and loses nothing (AC-19, against the fake engine); a view saved against the real router is proved in the testkit (AC-28).
 - A new filter keeps the grid's scroll position (clamped to the new length) instead of returning to the first row; a sort returns to the top. The browser run (AC-27) found it and starts every filter step from the top for that reason (OQ-789).
-- A running engine cannot create a connection yet (see `docs/runbooks/run-locally.md`), so the explorer pages show their empty and error states there until a connection exists.
+- A connection is added in the page (`/connections`, M0-52); until one exists the explorer pages show their empty and error states. A connection that was never probed has no cached profile, so its overview and grids answer the engine's 404 until **Check capabilities** (or any probe) has run.

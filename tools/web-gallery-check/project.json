@@ -11,7 +11,7 @@
       "cache": true,
       "inputs": ["{projectRoot}/**/*"],
       "options": {
-        "command": "node --test tools/web-gallery-check/check-no-gallery.test.mjs tools/web-gallery-check/explorer-i18n-source.test.mjs"
+        "command": "node --test tools/web-gallery-check/check-no-gallery.test.mjs tools/web-gallery-check/explorer-i18n-source.test.mjs tools/web-gallery-check/connections-i18n-source.test.mjs"
       }
     },
     "gallery-absent": {

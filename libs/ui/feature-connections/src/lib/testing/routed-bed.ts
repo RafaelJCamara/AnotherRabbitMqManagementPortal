@@ -65,7 +65,8 @@ export async function mountRouted(
 export async function eventually(
   bed: Pick<RoutedBed, 'harness'>,
   check: () => boolean,
-  message = 'the page to show it',
+  message = (new Error('where').stack ?? '').split('\n')[2]?.trim() ??
+    'the page to show it',
 ): Promise<void> {
   await vi.waitFor(
     () => {

@@ -61,6 +61,24 @@ describe('EngineApi', () => {
       expect(engine.requests[0]).not.toHaveProperty('body');
     });
 
+    it('sends an idempotency key with a command, the same one when the call is repeated, and none with a query (M0-52)', async () => {
+      const { engine } = configureTestbed();
+      const api = TestBed.inject(EngineApi);
+      const cancel = api.call(jobsCancel, { jobId: 'j1' });
+      await firstValueFrom(cancel);
+      await firstValueFrom(cancel);
+      await firstValueFrom(api.call(jobsCancel, { jobId: 'j1' }));
+      const keys = engine.requests.map((r) => r.headers['idempotency-key']);
+      // The engine takes 8 to 128 characters of a URL-safe alphabet.
+      for (const key of keys) expect(key).toMatch(/^[A-Za-z0-9._:~-]{8,128}$/);
+      expect(keys[0]).toBe(keys[1]);
+      expect(keys[2]).not.toBe(keys[0]);
+      await firstValueFrom(
+        api.call(queuesGet, { cid: 'c1', qkey: 'q1', verbose: false }),
+      );
+      expect(engine.requests[3]?.headers).not.toHaveProperty('idempotency-key');
+    });
+
     it('surfaces a Problem as an EngineProblemError', async () => {
       configureTestbed();
       const error = await firstValueFrom(

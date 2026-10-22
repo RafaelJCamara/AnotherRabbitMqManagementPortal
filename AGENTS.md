@@ -138,6 +138,7 @@ Run everything from the repository root.
 | Explorer: golden replay with the real adapter / lab run (20k queues; `IT_QUEUES=100000` for S-13; needs a Docker daemon) / synthetic perf (window p95, loop delay, search p95) | `pnpm nx test testkit --testNamePattern=AC-22` / `pnpm nx run svc-explorer:it '--versions=4.2.9,4.3.6'` / `pnpm nx run perf:explorer-20k` |
 | Explorer UI interactions: engine plus adapter in Node (AC-26) / the queue page in a real Chromium at 1280x720 under the real CSP with a fake data port (AC-27; needs Chrome or Edge, skips loudly without one, `PERF_REQUIRE_BROWSER` makes that a failure) | `pnpm nx run perf:explorer-ui-20k` / `pnpm nx run perf:explorer-ui-20k-browser` |
 | Explorer UI: interaction p95 in the adapter and engine (Node, no rendering) / the calls of the UI through the real router / pages and requests (component specs) | `pnpm nx run perf:explorer-ui-20k` / `pnpm nx test testkit --testNamePattern=AC-28` / `pnpm nx test feature-explorer` |
+| Connections UI (M0-52): pages, form, tests, capability card, unlock (component specs) / the same calls through the real router / the source half of the i18n check | `pnpm nx test feature-connections` / `pnpm nx test testkit --testNamePattern=connections` / `pnpm nx test web-gallery-check` |
 | Planned | `pnpm nx e2e e2e-web`, `pnpm nx run perf:smoke` |
 
 ## 8. Engine rules (`libs/engine`, `apps/engine`; details in `.claude/rules/engine.md`)

@@ -78,6 +78,13 @@ jobs:
       - run: pnpm nx run web-csp-check:csp-check
         env:
           CSP_CHECK_REQUIRE_BROWSER: '1'
+      # M0-54 AC-27 (#280): the explorer's queue page in Chrome at 1280x720 with a fake data port of 20,000 rows;
+      # scroll, filter, facet and sort are timed from input to painted rows (p95 under 300 ms, no long task above
+      # 50 ms, zero CSP or Trusted Types reports). A missing browser fails; a timing miss is repeated up to three
+      # times, any other failure is final (apps/perf/README.md). Headless, one hosted runner: not a user budget.
+      - run: pnpm nx run perf:explorer-ui-20k-browser
+        env:
+          PERF_REQUIRE_BROWSER: '1'
       # Drift gate: regenerate the specs from the contract registry and fail on any difference.
       - run: pnpm nx run contracts:api-docs-check
 

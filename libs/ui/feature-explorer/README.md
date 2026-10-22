@@ -6,7 +6,7 @@ Tags: `type:ui-feature`, `runtime:browser`. Not `trust:critical`.
 
 ## Status
 
-Slices A to J of M0-54: the project, its `explorer` Transloco scope, the connection token, the lazy route table, the engine-backed data port, the inventory grid page (columns, the freshness banner, live feed line), the filter bar, the saved views, the cluster overview, the capability card, the web shell mounting with its tree source and the one chunk-budget exception (AC-24, AC-25), and the proof slice: the request allow-list spec (AC-28, `explorer-requests.spec.ts`), the same calls through the real router (`libs/testkit/src/explorer-ui/explorer-calls.spec.ts`) and the Node perf harness (`pnpm nx run perf:explorer-ui-20k`, AC-26). The pages run in specs against the model's fake data port or the fake engine, and the calls are checked against the real router with the services' in-memory fakes. No browser time is claimed: AC-27 (interaction time in a browser) is planned until the browser driver and issue #277 are available.
+Slices A to J of M0-54: the project, its `explorer` Transloco scope, the connection token, the lazy route table, the engine-backed data port, the inventory grid page (columns, the freshness banner, live feed line), the filter bar, the saved views, the cluster overview, the capability card, the web shell mounting with its tree source and the one chunk-budget exception (AC-24, AC-25), and the proof slice: the request allow-list spec (AC-28, `explorer-requests.spec.ts`), the same calls through the real router (`libs/testkit/src/explorer-ui/explorer-calls.spec.ts`) and the Node perf harness (`pnpm nx run perf:explorer-ui-20k`, AC-26). The pages run in specs against the model's fake data port or the fake engine, and the calls are checked against the real router with the services' in-memory fakes. Slice K (#280) adds AC-27: the page in a real Chromium at 1280x720 under the real Content-Security-Policy, with a fake data port of 20,000 rows, scroll, filter, facet and sort interactions each timed from input to the frame that holds the new rows (`pnpm nx run perf:explorer-ui-20k-browser`, `apps/perf`). It is a headless, single-machine measurement that stands the fake in for the engine's explorer module (not registered yet, OQ-441) and a stand-in for the live topic; the run prints the machine, the browser and what it did not exercise, and it is skipped, loudly, where no browser exists. The Playwright and axe spec (`@explorer`, M0-60) is still owed.
 
 ## Public API
 
@@ -35,9 +35,11 @@ pnpm nx run-many -t lint typecheck test -p feature-explorer   # test runs test-c
 pnpm nx test testkit --testNamePattern=AC-28                  # the calls of the UI through the real router
 pnpm nx test web-gallery-check                                # AC-25, the source half: every key literal exists and is used
 pnpm nx run perf:explorer-ui-20k                              # AC-26: interactions, engine plus adapter in Node (no rendering)
+pnpm nx run perf:explorer-ui-20k-browser                      # AC-27: the page in a real Chromium (needs Chrome or Edge; skips loudly without one)
 ```
 
 ## Known limits
 
 - The two view commands, `views.create` and `views.delete`, declare `scope: 'local'` (they change only the engine's own state), so a running engine runs them with nothing armed (OQ-783; OQ-380 is answered). The control still shows an engine Problem as sent and loses nothing (AC-19, against the fake engine); a view saved against the real router is proved in the testkit (AC-28).
+- A new filter keeps the grid's scroll position (clamped to the new length) instead of returning to the first row; a sort returns to the top. The browser run (AC-27) found it and starts every filter step from the top for that reason (OQ-789).
 - A running engine cannot create a connection yet (see `docs/runbooks/run-locally.md`), so the explorer pages show their empty and error states there until a connection exists.

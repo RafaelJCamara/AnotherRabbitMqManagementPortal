@@ -22,6 +22,7 @@ import {
   type,
   PAGE_TEST_TIMEOUT_MS,
 } from './testing/dom';
+import { mountEntity, queueRow } from './testing/entity-bed';
 import { FakeWorkspace } from './testing/fake-workspace';
 import { ManualTimer } from './testing/manual-timer';
 import { mountPage, type PageBed } from './testing/page-testbed';
@@ -246,6 +247,86 @@ describe('the requests of the explorer', () => {
       expect(page.engine.requests).toEqual([]);
       expect(page.engine.clientFrames).toEqual([]);
       expect(page.fake.queries).toEqual([]);
+    },
+    PAGE_TEST_TIMEOUT_MS,
+  );
+  it(
+    'AC-18 the entity pages call only read actions',
+    async () => {
+      const direct = vi.fn<typeof fetch>(() =>
+        Promise.reject(new Error('the explorer must not call fetch')),
+      );
+      vi.stubGlobal('fetch', direct);
+      try {
+        const queue = queueRow('orders.q', { type: 'quorum', consumers: 1 });
+        const stream = queueRow('events', { type: 'stream' });
+        const gone = queueRow('gone');
+        const beds = [];
+        // A queue (every tab it can show), a stream on its gated tab, and an object that is not there.
+        for (const options of [
+          { rows: [queue, stream], key: queue.key },
+          { rows: [queue, stream], key: queue.key, tab: 'config' },
+          { rows: [queue, stream], key: queue.key, tab: 'messages' },
+          { rows: [queue, stream], key: stream.key, tab: 'browse' },
+          { rows: [queue, stream], key: gone.key },
+        ]) {
+          const bed = await mountEntity({ ...options, engineBacked: true });
+          beds.push(bed);
+          await eventually(() => {
+            bed.fixture.detectChanges();
+            expect(bed.el.querySelector('h1')).not.toBeNull();
+            expect(
+              bed.engine.clientFrames.some((frame) => frame.t === 'sub'),
+            ).toBe(true);
+          }, 8000);
+          await eventually(() => {
+            bed.fixture.detectChanges();
+            expect(
+              bed.engine.requests.some((r) =>
+                r.url.endsWith('/inventory/queries'),
+              ),
+            ).toBe(true);
+          });
+        }
+        const requests = beds.flatMap((bed) => bed.engine.requests);
+        const lines = requests.map(line);
+        // Only the profile and the freshness window: no plan, no execute, nothing that touches a message.
+        expect(lines.filter((l) => !ALLOWED.some((p) => p.test(l)))).toEqual(
+          [],
+        );
+        expect(
+          lines.every((l) =>
+            /\/(profile|inventory\/queries)$/.test(l.split(' ')[1] ?? ''),
+          ),
+        ).toBe(true);
+        expect(lines.some((l) => /\/(plan|execute|peek|get)\b/.test(l))).toBe(
+          false,
+        );
+        for (const request of requests) {
+          if (request.url.endsWith('/inventory/queries')) {
+            const body = JSON.parse(
+              typeof request.body === 'string' ? request.body : '{}',
+            ) as {
+              window: { offset: number; limit: number };
+            };
+            expect(body.window).toEqual({ offset: 0, limit: 1 });
+          }
+        }
+        // One subscription per page, on explorer.window, for exactly one key.
+        for (const bed of beds) {
+          const subs = bed.engine.clientFrames.filter((f) => f.t === 'sub');
+          expect(subs).toHaveLength(1);
+          const [frame] = subs;
+          expect(frame?.topic).toBe('explorer.window');
+          expect((frame?.params as { keys: string[] }).keys).toHaveLength(1);
+        }
+        expect(JSON.stringify(requests)).not.toMatch(
+          /password|secret|credential|authorization|bearer/i,
+        );
+        expect(direct).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllGlobals();
+      }
     },
     PAGE_TEST_TIMEOUT_MS,
   );

@@ -20,6 +20,7 @@ import { OverviewPage } from './overview/overview.component';
 import { PAGE_TEST_TIMEOUT_MS } from './testing/dom';
 import { FakeWorkspace, problemOf } from './testing/fake-workspace';
 import { mountPage } from './testing/page-testbed';
+import { followerAt, mountEntity, queueRow } from './testing/entity-bed';
 
 interface Tree {
   readonly [key: string]: string | Tree;
@@ -203,6 +204,138 @@ describe('the explorer strings', () => {
       );
       expect(page.strangers.filter((text) => !cellText.has(text))).toEqual([]);
       expect(page.keys.size).toBeGreaterThan(10);
+    },
+    PAGE_TEST_TIMEOUT_MS,
+  );
+  it(
+    'AC-19 the entity strings are keys and make no forbidden claim',
+    async () => {
+      const row = queueRow('queue-00001', {
+        type: 'quorum',
+        state: 'running',
+        node: 'rabbit@a',
+        durable: true,
+        messages: 5,
+        consumers: 1,
+      });
+      const stream = queueRow('queue-00002', { type: 'stream', state: 'idle' });
+      const gone = queueRow('queue-00003');
+      const keysOf = (shown: { keys: Set<string> }): void => {
+        for (const key of shown.keys) expect(KEY_SET.has(key), key).toBe(true);
+      };
+
+      // Found: the header, the actions, the strip with its reasons, the fields and the notes, in every tab.
+      const seen = new Set<string>();
+      for (const tab of [null, 'config', 'consumers', 'messages', 'nope']) {
+        const bed = await mountEntity({
+          rows: [row],
+          tab,
+          providers: [scopeLoader],
+        });
+        await eventually(() => {
+          bed.fixture.detectChanges();
+          expect(bed.el.querySelector('[role="tabpanel"]')).not.toBeNull();
+        }, 8000);
+        const shown = classify(bed.el);
+        expect(shown.strangers).toEqual([]);
+        keysOf(shown);
+        for (const key of shown.keys) seen.add(key);
+      }
+      // A stream on its gated tab, a removed object, a missing one, a failed read and an invalid address.
+      const gated = await mountEntity({
+        rows: [stream],
+        tab: 'browse',
+        providers: [scopeLoader],
+      });
+      await eventually(() => {
+        gated.fixture.detectChanges();
+        expect(
+          gated.el.querySelector('[role="tabpanel"]'),
+          gated.el.innerHTML,
+        ).not.toBeNull();
+      }, 8000);
+      keysOf(classify(gated.el));
+      expect(classify(gated.el).strangers).toEqual([]);
+
+      const vanished = await mountEntity({
+        rows: [row],
+        providers: [scopeLoader],
+      });
+      await eventually(() => {
+        expect(vanished.el.querySelector('dl.fields')).not.toBeNull();
+        vanished.fixture.detectChanges();
+      }, 8000);
+      vanished.fake.emit({ kind: 'delta', upserts: [], removes: [row.key] });
+      vanished.fake.emit({ kind: 'error', error: new Error('closed') });
+      await eventually(() => {
+        vanished.fixture.detectChanges();
+        expect(
+          vanished.el.querySelector('.warn'),
+          vanished.el.innerHTML,
+        ).not.toBeNull();
+      });
+      for (const key of classify(vanished.el).keys) seen.add(key);
+
+      const missing = await mountEntity({
+        rows: [row],
+        key: gone.key,
+        providers: [scopeLoader],
+      });
+      await eventually(() => {
+        missing.fixture.detectChanges();
+        expect(
+          missing.el.querySelector('.state p'),
+          missing.el.innerHTML,
+        ).not.toBeNull();
+      }, 8000);
+      const absent = classify(missing.el);
+      keysOf(absent);
+      expect(absent.strangers).toEqual([]);
+      for (const key of absent.keys) seen.add(key);
+
+      const failed = await mountEntity({
+        rows: [row],
+        autoSnapshot: false,
+        providers: [scopeLoader],
+      });
+      await eventually(() => {
+        expect(failed.fake.followers).toHaveLength(1);
+      });
+      failed.fake.emit({
+        kind: 'error',
+        error: new Error('The broker said no'),
+      });
+      await eventually(() => {
+        failed.fixture.detectChanges();
+        expect(failed.el.querySelector('[role="alert"]')).not.toBeNull();
+      });
+      const broken = classify(failed.el);
+      keysOf(broken);
+      expect(
+        broken.strangers.filter((text) => text !== 'The broker said no'),
+      ).toEqual([]);
+      expect(followerAt(failed.fake).active).toBe(true);
+
+      const invalid = await mountEntity({
+        rows: [row],
+        key: 'not*a*key',
+        providers: [scopeLoader],
+      });
+      await eventually(() => {
+        invalid.fixture.detectChanges();
+        expect(
+          invalid.el.querySelector('.state'),
+          invalid.el.innerHTML,
+        ).not.toBeNull();
+      });
+      keysOf(classify(invalid.el));
+      expect(classify(invalid.el).strangers).toEqual([]);
+      for (const key of classify(invalid.el).keys) seen.add(key);
+
+      // Between them the states used a good part of the entity keys.
+      expect(
+        [...seen].filter((key) => key.startsWith('explorer.entity.')).length,
+      ).toBeGreaterThan(20);
     },
     PAGE_TEST_TIMEOUT_MS,
   );

@@ -6,3 +6,5 @@ export {
   type EntityTarget,
   type ExplorerNavigation,
 } from './lib/navigation';
+export { entityRoutesFor } from './lib/entity/entity.routes';
+export { EXPLORER_DATA } from './lib/data/explorer-data';

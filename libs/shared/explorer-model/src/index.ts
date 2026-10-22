@@ -53,6 +53,7 @@ export {
 } from './entity-address';
 export {
   ENTITY_TAB_IDS,
+  isStreamRow,
   resolveTab,
   tabSetFor,
   type EntityTabId,

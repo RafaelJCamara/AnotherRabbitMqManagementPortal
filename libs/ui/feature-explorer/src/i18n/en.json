@@ -362,12 +362,76 @@
       "lastColumn": "At least one column stays visible"
     }
   },
+  "breadcrumb": {
+    "label": "You are here",
+    "explorer": "Explorer",
+    "vhost": "Virtual host {{vhost}}"
+  },
   "entity": {
     "menu": {
       "open": "Open details",
       "copyLink": "Copy link"
     },
+    "kind": {
+      "queues": "Queue",
+      "stream": "Stream",
+      "exchanges": "Exchange",
+      "connections": "Connection",
+      "bindings": "Binding"
+    },
+    "noun": {
+      "queues": "queue",
+      "stream": "stream",
+      "exchanges": "exchange",
+      "connections": "connection",
+      "bindings": "binding"
+    },
+    "tabsLabel": "Sections",
+    "tabs": {
+      "overview": "Overview",
+      "messages": "Messages",
+      "browse": "Browse",
+      "publish": "Publish",
+      "tap": "Tap",
+      "consumers": "Consumers",
+      "routing": "Routing",
+      "config": "Config",
+      "charts": "Charts",
+      "forecast": "Forecast",
+      "lint": "Lint"
+    },
+    "tabReason": {
+      "later": "This tab arrives in a later version.",
+      "gate": "Not available: {{reason}}",
+      "gateNoReason": "Not available. The engine gave no reason.",
+      "unknownGate": "Not available: the capabilities of this connection are not known.",
+      "source": "Source: {{source}}"
+    },
+    "unknownTab": "This {{noun}} has no tab called {{tab}}. The overview is shown.",
+    "loading": "Reading {{noun}} {{name}}.",
+    "missing": {
+      "certain": "No {{noun}} {{name}} in virtual host {{vhost}} is on this connection.",
+      "uncertain": "{{name}} was not found in what has been read so far. The inventory is not complete, so the {{noun}} may still exist."
+    },
+    "vanished": "This {{noun}} was removed from the broker after it was last read. The values below are the last ones read.",
+    "liveEnded": "Live updates for this {{noun}} ended.",
+    "failed": "This {{noun}} could not be read.",
+    "invalid": "This address does not name a {{noun}}.",
+    "retry": "Try again",
+    "refresh": "Read again",
+    "copyText": "Copy as text",
+    "copyLink": "Copy link",
+    "copied": "Copied as text.",
+    "copyFailed": "The clipboard did not accept the text.",
     "linkCopied": "Link copied.",
-    "linkCopyFailed": "The clipboard did not accept the link."
+    "linkCopyFailed": "The clipboard did not accept the link.",
+    "address": "Address",
+    "yes": "Yes",
+    "no": "No",
+    "empty": "(empty)",
+    "notes": {
+      "config": "Arguments (such as message TTL or length limits) and the policy definition are not reported by the inventory yet.",
+      "consumers": "The list of consumers is not reported by the inventory yet; only their count is."
+    }
   }
 }

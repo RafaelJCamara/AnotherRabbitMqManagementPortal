@@ -77,17 +77,22 @@ const EXCHANGE: readonly EntityTabSpec[] = [
 
 const OVERVIEW_ONLY: readonly EntityTabSpec[] = [built('overview')];
 
+/** A queue row whose `type` is `stream`. */
+export function isStreamRow(row: object | null): boolean {
+  return row !== null && 'type' in row && row.type === 'stream';
+}
+
 /**
  * The tabs of an entity. A queue is a stream when its `type` says so; until the row is known
  * (`row` is null) a queue has the queue set, and the page shows no tab strip before it has the row.
  */
 export function tabSetFor(
   kind: ExplorerKind,
-  row: { readonly type?: string | undefined } | null,
+  row: object | null,
 ): readonly EntityTabSpec[] {
   switch (kind) {
     case 'queues':
-      return row?.type === 'stream' ? STREAM : QUEUE;
+      return isStreamRow(row) ? STREAM : QUEUE;
     case 'exchanges':
       return EXCHANGE;
     case 'connections':

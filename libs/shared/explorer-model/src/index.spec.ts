@@ -29,6 +29,7 @@ describe('explorer-model public API', () => {
       'isCertain',
       'isFilterEmpty',
       'isSortable',
+      'isStreamRow',
       'loadRelatedBindings',
       'lookupEntity',
       'parseEntityPath',

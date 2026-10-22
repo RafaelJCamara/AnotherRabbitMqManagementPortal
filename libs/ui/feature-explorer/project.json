@@ -39,7 +39,7 @@
         "watch": false,
         "include": [
           "**/*.component.spec.ts",
-          "**/{inventory-page,filter-bar,freshness-banner,views-control,overview,capability-card,explorer-requests,explorer-i18n}.spec.ts"
+          "**/{inventory-page,filter-bar,freshness-banner,views-control,overview,capability-card,explorer-requests,explorer-i18n,entity-page,entity-tabs,entity-routing}.spec.ts"
         ]
       }
     }

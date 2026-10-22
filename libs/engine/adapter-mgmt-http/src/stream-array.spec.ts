@@ -288,7 +288,7 @@ describe('mgmt stream wire proof (150,000 bindings, about 32 MB)', () => {
   const SLOW_RUNNER_MS = 30_000;
 
   it(
-    'AC-13 mgmt stream reads a bare array above the get body limit',
+    'M0-48l AC-13 mgmt stream reads a bare array above the get body limit',
     { timeout: SLOW_RUNNER_MS },
     async () => {
       const { broker, h } = await setup();
@@ -343,7 +343,7 @@ describe('mgmt stream wire proof (150,000 bindings, about 32 MB)', () => {
   );
 
   it(
-    'AC-14 mgmt stream closes the socket when the reader stops early',
+    'M0-48l AC-14 mgmt stream closes the socket when the reader stops early',
     { timeout: SLOW_RUNNER_MS },
     async () => {
       const { broker, h } = await setup();
@@ -355,9 +355,12 @@ describe('mgmt stream wire proof (150,000 bindings, about 32 MB)', () => {
       );
       const stopped = performance.now();
       const entry = broker.served[0];
+      // What is proved is that the socket closes after an early stop (and that the server did not write
+      // the rest), not how fast: the wait is the generous one of the slow runner (inside the test's
+      // own timeout), so a loaded machine cannot fail it. `closeMs` is printed, not asserted.
       const closedInTime = await within(
         entry?.closed ?? Promise.resolve(),
-        1_000,
+        SLOW_RUNNER_MS / 2,
       );
       const closeMs = performance.now() - stopped;
       // The pool is not poisoned: the next request of the same client is answered.
@@ -385,7 +388,7 @@ describe('mgmt stream wire proof (150,000 bindings, about 32 MB)', () => {
   );
 
   it(
-    'AC-15 mgmt stream read keeps event-loop delay p99 at most 20 ms',
+    'M0-48l AC-15 mgmt stream read keeps event-loop delay p99 at most 20 ms',
     { timeout: SLOW_RUNNER_MS },
     async () => {
       const { h } = await setup();

@@ -4,7 +4,9 @@
 // (`createEngineExplorerData`) and the real `EngineApi` and live client over the fake engine, which records every
 // request and every client frame, and the spec checks the whole record against an allow-list. Nothing here reaches
 // a real engine: the answers come from the model's fake and the fake workspace.
+import { metricsLiveTopic } from '@app/contracts';
 import { createFakeExplorerData } from '@app/explorer-model/testing';
+import { createFakeMetricsData, liveItem } from '@app/metrics-model/testing';
 import {
   eventually,
   restoreGridSpecEnvironment,
@@ -23,6 +25,14 @@ import {
   PAGE_TEST_TIMEOUT_MS,
 } from './testing/dom';
 import { mountEntity, queueRow } from './testing/entity-bed';
+import {
+  metricsRoutes,
+  ORDERS,
+  queueHistory,
+  ref,
+  T0,
+  MINUTE,
+} from './testing/metrics-bed';
 import { FakeWorkspace } from './testing/fake-workspace';
 import { ManualTimer } from './testing/manual-timer';
 import { mountPage, type PageBed } from './testing/page-testbed';
@@ -338,5 +348,133 @@ describe('the requests of the explorer', () => {
       }
     },
     PAGE_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'M1-54 AC-21 the charts call only the three read contracts',
+    async () => {
+      const direct = vi.fn<typeof fetch>(() =>
+        Promise.reject(new Error('the charts must not call fetch')),
+      );
+      vi.stubGlobal('fetch', direct);
+      try {
+        const metrics = createFakeMetricsData();
+        metrics.answer = queueHistory();
+        const beds = [];
+        // The Charts and the Forecast tab of a queue, through the real data layer (EngineApi and the live
+        // client) over the fake engine, which records every request and every client frame.
+        for (const tab of ['charts', 'forecast'] as const) {
+          const bed = await mountEntity({
+            rows: [ORDERS],
+            tab,
+            // The entity itself comes from the model's fake; the metrics go through the real data layer.
+            routes: metricsRoutes(metrics),
+            topics: [metricsLiveTopic],
+          });
+          beds.push(bed);
+          await eventually(() => {
+            bed.fixture.detectChanges();
+            expect(
+              bed.engine.clientFrames.some(
+                (frame) => frame.t === 'sub' && frame.topic === 'metrics.live',
+              ),
+            ).toBe(true);
+            expect(
+              bed.engine.requests.some((r) =>
+                r.url.endsWith('/metrics/queries'),
+              ),
+            ).toBe(true);
+            expect(
+              bed.engine.requests.some((r) =>
+                r.url.endsWith('/metrics/forecasts'),
+              ),
+            ).toBe(true);
+            expect(bed.el.querySelector('app-chart-card')).not.toBeNull();
+          }, 8000);
+          if (tab === 'charts') {
+            // A live item through the real protocol reaches the chart: the page has no other way to get it.
+            bed.engine.publish(
+              'metrics.live',
+              liveItem(ref('queue_messages_ready'), T0 + 20 * MINUTE, 555),
+            );
+            await eventually(() => {
+              bed.engine.advance(2000);
+              bed.engine.pumpAll();
+              bed.fixture.detectChanges();
+              const plot = bed.el.querySelector<HTMLElement>(
+                'app-chart-card .plot',
+              );
+              plot?.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'End', bubbles: true }),
+              );
+              bed.fixture.detectChanges();
+              expect(plot?.getAttribute('aria-valuetext')).toContain(
+                'Ready: 555',
+              );
+            }, 8000);
+          }
+        }
+
+        // The record: only the two POST contracts of the metrics group, besides the profile and the inventory.
+        const lines = beds.flatMap((bed) => bed.engine.requests).map(line);
+        const metricsLines = lines.filter((l) => l.includes('/metrics/'));
+        expect(metricsLines.length).toBeGreaterThanOrEqual(2);
+        for (const l of metricsLines) {
+          expect(l).toMatch(
+            /^POST \/api\/v1\/connections\/[^/]+\/metrics\/(queries|forecasts)$/,
+          );
+        }
+        expect(
+          lines.filter(
+            (l) => !ALLOWED.some((p) => p.test(l)) && !l.includes('/metrics/'),
+          ),
+        ).toEqual([]);
+        expect(lines.some((l) => /\/(plan|execute|peek)\b/.test(l))).toBe(
+          false,
+        );
+        // Each query names at most 50 series, raw counters, at most 720 points; the forecast names the queue.
+        for (const request of beds.flatMap((bed) => bed.engine.requests)) {
+          const body = JSON.parse(
+            typeof request.body === 'string' ? request.body : '{}',
+          ) as {
+            series?: unknown[];
+            maxPoints?: number;
+            rate?: boolean;
+            target?: { scope: string; vhost?: string; name?: string };
+          };
+          if (request.url.endsWith('/metrics/queries')) {
+            expect(body.series?.length ?? 0).toBeLessThanOrEqual(50);
+            expect(body.maxPoints).toBeLessThanOrEqual(720);
+            expect(body.rate).toBe(false);
+          }
+          if (request.url.endsWith('/metrics/forecasts')) {
+            expect(body.target).toEqual({
+              scope: 'queue',
+              vhost: '/',
+              name: 'orders',
+            });
+          }
+        }
+        // Every subscription to the metrics topic names one queue; the others are the inventory's.
+        const subs = beds
+          .flatMap((bed) => bed.engine.clientFrames)
+          .flatMap((frame) =>
+            frame.t === 'sub' && frame.topic === 'metrics.live' ? [frame] : [],
+          );
+        expect(subs.length).toBeGreaterThanOrEqual(2);
+        for (const frame of subs) {
+          expect((frame.params as { queues: unknown[] }).queues).toHaveLength(
+            1,
+          );
+        }
+        expect(
+          JSON.stringify(beds.flatMap((bed) => bed.engine.requests)),
+        ).not.toMatch(/password|secret|credential|authorization|bearer/i);
+        expect(direct).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+    PAGE_TEST_TIMEOUT_MS * 2,
   );
 });

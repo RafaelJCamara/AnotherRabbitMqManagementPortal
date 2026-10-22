@@ -50,6 +50,7 @@ import { injectEntityRead } from './entity-store';
 import { tabUnavailable, unavailableText } from './entity-tab-state';
 import { EntityTabs, type StripTab } from './entity-tabs.component';
 import { EntityLink } from './entity-link.component';
+import { MetricsCharts } from '../metrics/metrics-charts.component';
 import { entityText } from './entity-text';
 import {
   bindingTargets,
@@ -82,6 +83,7 @@ const OVERVIEW_TAB: EntityTabSpec = { id: 'overview', built: true, gate: null };
     EntityLink,
     EntityTabs,
     FreshnessBanner,
+    MetricsCharts,
     ProbePrompt,
     RoutingPanel,
     TranslocoDirective,
@@ -272,6 +274,23 @@ const OVERVIEW_TAB: EntityTabSpec = { id: 'overview', built: true, gate: null };
                         [vhost]="a.vhost"
                         [name]="a.name"
                       />
+                    }
+                  } @else if (
+                    current().id === 'charts' || current().id === 'forecast'
+                  ) {
+                    <!-- The charts are their own lazy chunk: the page chunk does not carry them. -->
+                    @defer (on immediate) {
+                      <app-metrics-charts
+                        [mode]="
+                          current().id === 'charts' ? 'queue' : 'forecast'
+                        "
+                        [vhost]="a.vhost"
+                        [name]="a.name"
+                      />
+                    } @placeholder {
+                      <p class="state" role="status">
+                        {{ t('explorer.metrics.status.loading') }}
+                      </p>
                     }
                   } @else {
                     <dl class="fields">

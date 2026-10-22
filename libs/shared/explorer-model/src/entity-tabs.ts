@@ -54,8 +54,9 @@ const QUEUE: readonly EntityTabSpec[] = [
   built('consumers'),
   built('routing'),
   built('config'),
-  later('charts'),
-  later('forecast'),
+  // M1-54: the queue's charts and its drain forecast (metrics.query, metrics.forecast, metrics.live).
+  built('charts'),
+  built('forecast'),
   later('lint'),
 ];
 

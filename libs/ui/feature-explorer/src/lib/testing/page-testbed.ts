@@ -15,7 +15,7 @@ import {
   createFakeExplorerData,
   type FakeExplorerData,
 } from '@app/explorer-model/testing';
-import { explorerWindowTopic } from '@app/contracts';
+import { explorerWindowTopic, type TopicDef } from '@app/contracts';
 import {
   EngineApi,
   ENGINE_PARSE,
@@ -23,7 +23,11 @@ import {
   provideEngineData,
 } from '@app/ui-data';
 import { ENGINE_TRANSPORT } from '@app/ui-platform';
-import { FakeEngine, MemoryTransport } from '@app/ui-platform/testing';
+import {
+  FakeEngine,
+  MemoryTransport,
+  type FakeHandler,
+} from '@app/ui-platform/testing';
 import { provideGridRenderAll } from '@app/ui-grid/testing';
 import { provideTransloco } from '@jsverse/transloco';
 
@@ -31,8 +35,17 @@ import { EXPLORER_CONNECTION } from '../connection';
 import { createEngineExplorerData } from '../data/engine-explorer-data';
 import { EXPLORER_DATA } from '../data/explorer-data';
 import { provideExplorerScope } from '../explorer-scope';
+import { METRICS_FRAME } from '../metrics/frame';
 import { answerInventory } from './explorer-testbed';
 import { FakeWorkspace } from './fake-workspace';
+
+/** Answers a REST request of a spec before the testbed does (undefined: not mine). */
+export type PageRoutes = (
+  request: Parameters<FakeHandler>[0],
+) =>
+  | Awaited<ReturnType<FakeHandler>>
+  | undefined
+  | Promise<Awaited<ReturnType<FakeHandler>> | undefined>;
 
 export interface PageBed<T> {
   readonly fixture: ComponentFixture<T>;
@@ -61,6 +74,16 @@ export function pageProviders(
     { provide: ENGINE_PARSE, useValue: true },
     { provide: EXPLORER_CONNECTION, useValue: connection },
     { provide: EXPLORER_DATA, useValue: fake },
+    // The metrics views redraw at once in a spec; one that checks the coalescing provides its own scheduler.
+    {
+      provide: METRICS_FRAME,
+      useValue: {
+        request: (callback: () => void) => {
+          callback();
+          return () => undefined;
+        },
+      },
+    },
   ];
 }
 
@@ -77,18 +100,28 @@ export async function mountPage<T>(
      * fake engine (the inventory answered by `fake`), so every request the page makes is on `engine`.
      */
     readonly engineBacked?: boolean;
+    /** Answers a REST request before the rest of the testbed does (undefined: not mine). */
+    readonly routes?: PageRoutes;
+    /** More live topics the fake engine serves (the explorer's is added with `engineBacked`). */
+    readonly topics?: readonly TopicDef[];
   } = {},
 ): Promise<PageBed<T>> {
   const fake = options.fake ?? createFakeExplorerData({ autoSnapshot: true });
   const workspace = options.workspace ?? new FakeWorkspace();
   const engineBacked = options.engineBacked === true;
+  const base: FakeHandler = engineBacked
+    ? async (request) =>
+        (await answerInventory(fake, request)) ??
+        (await workspace.handler(request))
+    : workspace.handler;
+  const topics = [
+    ...(engineBacked ? [explorerWindowTopic] : []),
+    ...(options.topics ?? []),
+  ];
   const engine = new FakeEngine({
-    handler: engineBacked
-      ? async (request) =>
-          (await answerInventory(fake, request)) ??
-          (await workspace.handler(request))
-      : workspace.handler,
-    ...(engineBacked ? { topics: [explorerWindowTopic] } : {}),
+    handler: async (request) =>
+      (await options.routes?.(request)) ?? (await base(request)),
+    ...(topics.length > 0 ? { topics } : {}),
   });
   const connection = signal<string | null>(
     options.cid === undefined ? 'c1' : options.cid,

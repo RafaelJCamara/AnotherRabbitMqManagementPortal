@@ -162,7 +162,8 @@ describe('the tabs of an entity page', () => {
       expect(reasonOf(queue.el, 'publish')).toBe(
         en.entity.tabReason.gateNoReason,
       );
-      expect(reasonOf(queue.el, 'charts')).toBe(en.entity.tabReason.later);
+      // Charts and Forecast are built since M1-54; Lint is the one that still arrives later.
+      expect(reasonOf(queue.el, 'lint')).toBe(en.entity.tabReason.later);
 
       // An engine that sent no usable gates closes every gated tab, and says the capabilities are unknown.
       const unknown = await mountEntity({ rows: [QUEUE] });
@@ -170,7 +171,7 @@ describe('the tabs of an entity page', () => {
       expect(reasonOf(unknown.el, 'messages')).toBe(
         en.entity.tabReason.unknownGate,
       );
-      expect(reasonOf(unknown.el, 'charts')).toBe(en.entity.tabReason.later);
+      expect(reasonOf(unknown.el, 'lint')).toBe(en.entity.tabReason.later);
 
       // A deep link to a gated tab shows the reason in the panel.
       const deep = await mountEntity({

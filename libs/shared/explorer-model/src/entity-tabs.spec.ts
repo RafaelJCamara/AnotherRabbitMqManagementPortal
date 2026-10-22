@@ -50,9 +50,12 @@ describe('entity tab sets (R2)', () => {
     const built = new Set(
       everything.filter((tab) => tab.built).map((tab) => tab.id),
     );
+    // M1-54 built the queue's Charts and Forecast; every other unbuilt tab is still listed with its reason.
     expect([...built].sort()).toEqual([
+      'charts',
       'config',
       'consumers',
+      'forecast',
       'overview',
       'routing',
     ]);

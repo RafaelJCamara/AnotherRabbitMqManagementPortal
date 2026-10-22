@@ -466,5 +466,159 @@
       "config": "Arguments (such as message TTL or length limits) and the policy definition are not reported by the inventory yet.",
       "consumers": "The list of consumers is not reported by the inventory yet; only their count is."
     }
+  },
+  "metrics": {
+    "title": {
+      "cluster": "Trends",
+      "queue": "Queue charts",
+      "forecast": "Drain forecast"
+    },
+    "controls": {
+      "range": "Time range",
+      "scale": "Vertical scale",
+      "pause": "Pause",
+      "resume": "Resume",
+      "refresh": "Read the history again",
+      "group": "Chart controls"
+    },
+    "range": {
+      "5m": "Last 5 minutes",
+      "15m": "Last 15 minutes",
+      "30m": "Last 30 minutes",
+      "1h": "Last hour",
+      "later": "Longer ranges arrive with the persisted store"
+    },
+    "scale": {
+      "zero": "From zero",
+      "fit": "Fit to the data",
+      "log": "Logarithmic"
+    },
+    "chart": {
+      "backlog": "Message backlog",
+      "rates": "Message rates",
+      "consumers": "Consumers, channels and connections",
+      "memory": "Memory by node",
+      "disk": "Free disk by node",
+      "queue-depth": "Queue depth",
+      "queue-consumers": "Queue consumers"
+    },
+    "series": {
+      "messages_ready": "Ready",
+      "messages_unacked": "Unacknowledged",
+      "messages": "Total",
+      "connections": "Connections",
+      "channels": "Channels",
+      "consumers": "Consumers",
+      "queues": "Queues",
+      "published_total": "Published",
+      "delivered_total": "Delivered",
+      "acked_total": "Acknowledged",
+      "redelivered_total": "Redelivered",
+      "memory_bytes": "Memory used",
+      "memory_limit_bytes": "Memory limit",
+      "disk_free_bytes": "Disk free",
+      "disk_free_limit_bytes": "Disk free limit",
+      "queue_messages_ready": "Ready",
+      "queue_messages_unacked": "Unacknowledged",
+      "queue_messages": "Total",
+      "queue_consumers": "Consumers"
+    },
+    "seriesNode": "{{name}} ({{node}})",
+    "chartLabels": {
+      "keyboardHint": "Use the left and right arrow keys to move along the chart one point at a time, Page Up and Page Down to move ten, Home and End to jump to the ends, and Escape to clear.",
+      "legend": "Series",
+      "noData": "There is nothing to draw.",
+      "notReported": "not reported",
+      "noPoint": "no point",
+      "approximate": "approximate",
+      "tableSummary": "Show the data as a table",
+      "tableCaption": "Values of {{chart}}, newest first",
+      "timeColumn": "Time",
+      "olderRows": "{{count}} older rows are not shown.",
+      "forecastBeyond": "The expected time is beyond the end of the chart.",
+      "forecastDrawn": "The dashed line is the forecast drain."
+    },
+    "status": {
+      "loading": "Reading the metrics.",
+      "connecting": "Waiting for live updates.",
+      "paused": "Paused: the charts are frozen. {{count}} new points are waiting.",
+      "liveEnded": "Live updates ended. The charts keep what they hold.",
+      "evicted": "{{count}} older points were dropped from this view to keep it small.",
+      "gaps": "{{count}} gaps in the live feed were filled by reading the history again.",
+      "failed": "The metrics could not be read.",
+      "retry": "Try again",
+      "source": "Source: {{source}}.",
+      "interval": "Collected every {{interval}}.",
+      "newest": "Newest point: {{time}}.",
+      "omitted": "{{count}} more nodes are not charted.",
+      "noNodes": "No node names are known yet, so memory and disk have nothing to chart."
+    },
+    "source": {
+      "prometheus": "Prometheus",
+      "management": "the management API (sampled)",
+      "none": "none"
+    },
+    "explain": {
+      "no-source": "The engine has neither a Prometheus endpoint nor management statistics to read for this connection, so no metric is collected.",
+      "loading": "The engine has not finished its first collection round yet.",
+      "stale": "The newest point is older than three collection intervals (newest at {{time}}).",
+      "staleUnknown": "The newest point is older than three collection intervals.",
+      "unavailable": "The engine reports its metrics source as unavailable.",
+      "unknown-state": "The engine reported a state this version does not know: treat the charts as uncertain.",
+      "fallback-no-endpoint": "No Prometheus endpoint was found, so the engine samples the management API instead.",
+      "fallback-failing": "Prometheus scrapes keep failing, so the engine samples the management API instead for now.",
+      "approximate": "Values from management sampling are approximate.",
+      "dropped-points": "{{count}} points were dropped by the engine store.",
+      "dropped-series": "{{count}} series were dropped by the engine store.",
+      "dropped-samples": "{{count}} samples were dropped by the engine.",
+      "absentChart": "The engine holds none of the series of this chart."
+    },
+    "partial": {
+      "load-balancer-fronted": "The broker is behind a load balancer, so some nodes may not be covered.",
+      "nodes-without-endpoint": "Some nodes have no Prometheus endpoint.",
+      "per-object-unavailable": "Per-queue series are not available from this source.",
+      "queue-demand-truncated": "More queues were asked for than the engine collects, so some are left out.",
+      "targets-unreachable": "Some Prometheus targets could not be reached.",
+      "fallback": "Part of the data comes from the fallback source.",
+      "unknown": "The engine reported a partial result for a reason this version does not know: {{reason}}."
+    },
+    "reason": {
+      "no-source": "no metrics source",
+      "loading": "not collected yet",
+      "pending": "waiting for the first answer",
+      "absent": "the engine holds no such series"
+    },
+    "summary": {
+      "values": "{{title}}: {{values}}.",
+      "none": "{{title}}: nothing is reported.",
+      "paused": "Paused.",
+      "ended": "Live updates ended."
+    },
+    "forecast": {
+      "title": "Drain forecast",
+      "loading": "Reading the forecast.",
+      "failed": "The forecast could not be read.",
+      "earlier": "This is an earlier answer: the last read failed.",
+      "refresh": "Refresh the forecast",
+      "state": {
+        "ok": "At the current rate the backlog is expected to be empty in about {{eta}} (95 % band: {{low}} to {{high}}).",
+        "okOpen": "At the current rate the backlog is expected to be empty in about {{eta}} (95 % band: from {{low}}, with no upper bound).",
+        "reached": "The backlog is empty: there is nothing to drain.",
+        "moving-away": {
+          "flat": "The backlog is not shrinking: it is flat.",
+          "away": "The backlog is growing, so it is moving away from empty.",
+          "beyond-horizon": "The backlog is shrinking too slowly to be empty within the forecast horizon of 30 days."
+        },
+        "no-reliable-forecast": "No reliable forecast: a straight line explains {{r2}} % of the recent changes, below the 95 % the engine requires. No expected time is shown.",
+        "insufficient-data": "Not enough data yet: {{points}} points over {{span}}; the forecast needs {{needed}} points over {{neededSpan}}.",
+        "unavailable": "The forecast is unavailable."
+      },
+      "detail": {
+        "rate": "Rate",
+        "fit": "Fit (R2)",
+        "window": "Window",
+        "points": "Points"
+      }
+    }
   }
 }

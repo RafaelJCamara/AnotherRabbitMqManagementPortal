@@ -1,7 +1,7 @@
 // The entity pages' specs: a fake inventory with the rows a spec names, the page mounted on one of them, and
 // small readers for what the page shows. Never part of the library build.
 import type { Provider } from '@angular/core';
-import { encodeObjectKey } from '@app/contracts';
+import { encodeObjectKey, type TopicDef } from '@app/contracts';
 import type {
   ExplorerKind,
   Freshness,
@@ -15,7 +15,7 @@ import { GRID_CLIPBOARD } from '@app/ui-grid';
 
 import { EntityPage } from '../entity/entity-page.component';
 import { FakeWorkspace } from './fake-workspace';
-import { mountPage, type PageBed } from './page-testbed';
+import { mountPage, type PageBed, type PageRoutes } from './page-testbed';
 
 export { PAGE_TEST_TIMEOUT_MS } from './dom';
 
@@ -79,6 +79,9 @@ export interface EntityOptions {
   readonly freshness?: Partial<Freshness>;
   /** Read through the real engine-backed data port and live client over the fake engine (every request is recorded). */
   readonly engineBacked?: boolean;
+  /** More REST routes and live topics the fake engine answers and serves (the metrics views). */
+  readonly routes?: PageRoutes;
+  readonly topics?: readonly TopicDef[];
 }
 
 export async function mountEntity(
@@ -108,6 +111,8 @@ export async function mountEntity(
       : { workspace: options.workspace }),
     ...(options.cid === undefined ? {} : { cid: options.cid }),
     ...(options.engineBacked === true ? { engineBacked: true } : {}),
+    ...(options.routes === undefined ? {} : { routes: options.routes }),
+    ...(options.topics === undefined ? {} : { topics: options.topics }),
     inputs: { kind, entityKey: key, tab: options.tab ?? null },
     providers: [pad.provider, ...(options.providers ?? [])],
   });

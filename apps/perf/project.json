@@ -42,6 +42,15 @@
         "cwd": "{workspaceRoot}"
       }
     },
+    "grid-100k": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [{ "projects": ["perf-grid-page"], "target": "build" }],
+      "options": {
+        "command": "vitest run --config apps/perf/vitest.perf.config.mts src/grid-100k/grid-100k.perf.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "metrics-100k": {
       "executor": "nx:run-commands",
       "options": {

@@ -1,0 +1,39 @@
+{
+  "name": "perf-grid-page",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/perf-grid-page/src",
+  "tags": ["type:test", "runtime:browser"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "cache": true,
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/perf-grid-page",
+        "browser": "apps/perf-grid-page/src/main.ts",
+        "index": "apps/perf-grid-page/src/index.html",
+        "tsConfig": "apps/perf-grid-page/tsconfig.app.json",
+        "styles": ["apps/perf-grid-page/src/styles.css"],
+        "optimization": {
+          "scripts": true,
+          "styles": { "minify": true, "inlineCritical": false },
+          "fonts": false
+        },
+        "outputHashing": "none",
+        "sourceMap": false,
+        "extractLicenses": false
+      }
+    },
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "ngc -p apps/perf-grid-page/tsconfig.app.json --noEmit"
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@ Tags: `type:ui-lib`, `runtime:browser`. `ag-grid-community` may be imported only
 
 ## Status
 
-Slices A to E of M0-53: the window contract, the windowed datasource and the fake window source (A); columns, column state and selection logic (B); `<app-data-grid>` with the explicit Community module list, the theme bridge and the bundle check (C); the context menu and the key chords (D); the clipboard, the column chooser and the status bar (E). `apps/perf` and `perf:grid-100k` (AC-1, AC-4, AC-16) wait for the `perf` project; nothing here has been measured in a real browser yet (the partial S-14 record, `docs/architecture/s-14-ag-grid-infinite-100k.md`, says what was and was not verified).
+Slices A to E of M0-53: the window contract, the windowed datasource and the fake window source (A); columns, column state and selection logic (B); `<app-data-grid>` with the explicit Community module list, the theme bridge and the bundle check (C); the context menu and the key chords (D); the clipboard, the column chooser and the status bar (E). The three acceptance criteria that need a real viewport are proved by `pnpm nx run perf:grid-100k` (`apps/perf/src/grid-100k/`, a real Chromium at 1280x720 on a fake engine window of 100,000 rows, run in CI): AC-1 (55 fps and no task above 50 ms while wheel input scrolls more than 25 blocks), AC-4 (at most 25 blocks resident, and a heap that stays flat across 300 seeded jumps) and AC-16 (zero CSP and Trusted Types reports under the enforced S-04 policy). What is asserted, what is only printed and what is not proved are in `apps/perf/README.md` and `docs/architecture/s-14-ag-grid-infinite-100k.md`.
 
 ## Public API
 
@@ -38,4 +38,5 @@ Slices A to E of M0-53: the window contract, the windowed datasource and the fak
 pnpm nx run-many -t lint typecheck test -p ui-grid   # test runs test-components (the component specs) first
 pnpm nx run ui-grid:bundle-check                     # AC-3: no Enterprise module; the shipped-artefact gates on the bundle
 pnpm nx test grid-bundle-check                       # the same check as a test, and the scan on planted Enterprise paths
+pnpm nx run perf:grid-100k                           # AC-1, AC-4, AC-16 in a real browser (Chrome or Edge; skips loudly without one)
 ```

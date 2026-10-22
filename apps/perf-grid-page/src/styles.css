@@ -1,0 +1,15 @@
+/* The design tokens, then the page defaults that follow the active theme (the same two rules as apps/web). */
+@import '../../../libs/ui/design/src/tokens.css';
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text);
+  font-family: var(--ds-font-family-ui);
+  font-size: var(--ds-font-size);
+}

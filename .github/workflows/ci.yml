@@ -85,6 +85,14 @@ jobs:
       - run: pnpm nx run perf:explorer-ui-20k-browser
         env:
           PERF_REQUIRE_BROWSER: '1'
+      # M0-53 AC-1, AC-4, AC-16 (#49): the real <app-data-grid> in Chrome at 1280x720 on a fake engine window of
+      # 100,000 rows, under the engine's Content-Security-Policy. Wheel input over more than 25 blocks (55 fps, no task
+      # above 50 ms, both densities), 300 seeded jumps (at most 25 blocks resident, flat heap), mount / scroll / menu /
+      # theme with zero CSP or Trusted Types reports. A missing browser fails; a timing or memory miss is repeated up to
+      # three times, any other failure is final (apps/perf/README.md). Headless, one hosted runner: not a user budget.
+      - run: pnpm nx run perf:grid-100k
+        env:
+          PERF_REQUIRE_BROWSER: '1'
       # Drift gate: regenerate the specs from the contract registry and fail on any difference.
       - run: pnpm nx run contracts:api-docs-check
 

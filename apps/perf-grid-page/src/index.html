@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>grid-100k harness</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <!-- The harness server (apps/perf/src/grid-100k/server.ts) replaces the placeholder, here and on the root element, with the nonce of
+         that response's Content-Security-Policy, the way the engine does for the web UI (static-ui.ts). -->
+    <meta name="csp-nonce" content="__CSP_NONCE__" />
+  </head>
+  <body>
+    <app-root ngCspNonce="__CSP_NONCE__"></app-root>
+  </body>
+</html>

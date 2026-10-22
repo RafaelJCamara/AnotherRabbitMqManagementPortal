@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import tailwindPresetCss from './tailwind-preset.css?raw';
 import {
+  colourDistance,
   contrastRatio,
   parseCss,
   parseHex,
   px,
   tokensFor,
+  type ColourVision,
   type CssRule,
 } from './testing/css-tokens';
 import tokensCss from './tokens.css?raw';
@@ -191,6 +193,58 @@ describe('theme tokens', () => {
     ]) {
       expect(names).toContain(required);
     }
+  });
+});
+
+describe('chart tokens', () => {
+  const chart = (theme: ThemeName): string[] => {
+    const tokens = themeTokens(theme);
+    return [1, 2, 3, 4, 5, 6].map((n) => {
+      const value = tokens.get(`--ds-color-chart-${String(n)}`);
+      if (value === undefined)
+        throw new Error(` has no chart colour ${String(n)}`);
+      return value;
+    });
+  };
+
+  it('M1-54 AC-16 the chart palette is legible and distinguishable', () => {
+    for (const theme of Object.keys(THEMES) as ThemeName[]) {
+      const colours = chart(theme);
+      expect(new Set(colours).size, theme).toBe(6);
+      // A graphical object needs 3:1 (WCAG 1.4.11) on every surface, and 7:1 in high contrast like the text.
+      const minimum = theme === 'high-contrast' ? 7 : 3;
+      for (const colour of colours) {
+        for (const surface of surfaces(theme)) {
+          expect(
+            contrastRatio(colour, surface),
+            ` ${colour} on ${surface}`,
+          ).toBeGreaterThanOrEqual(minimum);
+        }
+      }
+      // No two series look alike, for the common kinds of colour-vision deficiency too.
+      for (const vision of [
+        'normal',
+        'protan',
+        'deutan',
+        'tritan',
+      ] as ColourVision[]) {
+        for (let i = 0; i < colours.length; i++) {
+          for (let j = i + 1; j < colours.length; j++) {
+            expect(
+              colourDistance(colours[i] ?? '', colours[j] ?? '', vision),
+              ` ${vision}: ${colours[i] ?? ''} against ${colours[j] ?? ''}`,
+            ).toBeGreaterThanOrEqual(20);
+          }
+        }
+      }
+    }
+    // The distance maths see what they should: identical colours are 0, black and white far apart.
+    expect(colourDistance('#336699', '#336699', 'deutan')).toBe(0);
+    expect(colourDistance('#000000', '#ffffff')).toBeGreaterThan(90);
+    // And red and green, which a deutan person confuses, are close for them and far for everyone else.
+    expect(colourDistance('#d00000', '#00a000', 'deutan')).toBeLessThan(
+      colourDistance('#d00000', '#00a000'),
+    );
   });
 });
 

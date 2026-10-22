@@ -54,6 +54,13 @@
   --ds-color-on-env-dev: #ffffff;
   --ds-color-env-local: #444b54;
   --ds-color-on-env-local: #ffffff;
+  /* Chart series (M1-54): six colours that keep 3:1 on every surface and stay apart under protan, deutan and tritan simulation; a series also has its own dash and marker, so colour is never the only signal. */
+  --ds-color-chart-1: #5020df;
+  --ds-color-chart-2: #1b6a56;
+  --ds-color-chart-3: #df20af;
+  --ds-color-chart-4: #9b7e27;
+  --ds-color-chart-5: #590d0d;
+  --ds-color-chart-6: #241452;
 }
 
 /* Dark. */
@@ -91,6 +98,12 @@
   --ds-color-on-env-dev: #06240f;
   --ds-color-env-local: #b0b7c1;
   --ds-color-on-env-local: #14171c;
+  --ds-color-chart-1: #a3bfdc;
+  --ds-color-chart-2: #5ae7a1;
+  --ds-color-chart-3: #e0e024;
+  --ds-color-chart-4: #c9731d;
+  --ds-color-chart-5: #e02482;
+  --ds-color-chart-6: #7d5ae7;
 }
 
 /* High contrast: black ground, 7:1 or better for all text. */
@@ -128,6 +141,12 @@
   --ds-color-on-env-dev: #000000;
   --ds-color-env-local: #e6e6e6;
   --ds-color-on-env-local: #000000;
+  --ds-color-chart-1: #60d77e;
+  --ds-color-chart-2: #e28c36;
+  --ds-color-chart-3: #ea6cea;
+  --ds-color-chart-4: #e6e651;
+  --ds-color-chart-5: #eaa9da;
+  --ds-color-chart-6: #d7f9d7;
   --ds-focus-ring-width: 3px;
 }
 

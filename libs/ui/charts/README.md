@@ -17,6 +17,13 @@ Pure functions (`src/lib/draw/`), all tested with fast-check:
 - `forecastOverlay`, `withOverlayRoom`, `OVERLAY_ROOM`: the drain line and the 95 % band on the zero line, clipped to the chart, from the numbers the engine sent; an unusable forecast gives no overlay.
 - `formatValue`, `formatClock`: compact counts, bytes in KiB, rates with `/s`, never `NaN`.
 
+Components (standalone, OnPush, signals; the host passes every text in ChartLabels and formats nothing for them):
+
+- `<app-line-chart>` (`LineChart`): inputs `title`, `series` (`ChartSeries[]`), `domain` (the visible time range), `labels`, `yScale` (`zero | fit | log`), `kind` (`line | area`), `forecast` and `forecastSeries` (the overlay), `summary` (the throttled live-region text), `width`, `height`, `locale`. A legend of `aria-pressed` toggles (each series has its own colour token, dash and marker), a series that is not reported listed with its reason and drawn as nothing, a time cursor that is a horizontal `slider` (Left, Right, PageUp, PageDown, Home, End, Escape; its value text is the readout), a pointer readout that is not announced, and the data table alternative.
+- `<app-sparkline>` (`Sparkline`): `points`, `name` (the accessible name, with its value), `seriesStyle`, `width`, `height`; nothing to operate.
+- `<app-chart-table>` (`ChartTable`): a `<details>` with a real table, newest first, at most 100 rows, a missing value said and never zero; the rows are built only while it is open.
+- `DASHES`, `MARKERS`, `styleOf`, `markerPath`: the six series styles; the colours are the `--ds-color-chart-1` to `-6` tokens of `ui-design`.
+
 ## Invariants
 
 - No new dependency; no `innerHTML`; no animation or transition outside `prefers-reduced-motion: no-preference` (checked by `tools/web-gallery-check`).
@@ -27,5 +34,6 @@ Pure functions (`src/lib/draw/`), all tested with fast-check:
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p ui-charts
-pnpm nx test ui-charts --testNamePattern='AC-(1|2|3|4|5|6)'
+pnpm nx test ui-charts --testNamePattern='AC-(1|2|3|4|5|6|12|13|14|15|16)'
+pnpm nx run-many -t test -p web-gallery-check # the source scan of this library (charts-source.test.mjs)
 ```

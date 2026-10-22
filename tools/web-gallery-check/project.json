@@ -9,9 +9,13 @@
     "test": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["{projectRoot}/**/*"],
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{workspaceRoot}/libs/ui/charts/src/**/*",
+        "{workspaceRoot}/libs/ui/feature-explorer/src/**/*"
+      ],
       "options": {
-        "command": "node --test tools/web-gallery-check/check-no-gallery.test.mjs tools/web-gallery-check/explorer-i18n-source.test.mjs tools/web-gallery-check/connections-i18n-source.test.mjs"
+        "command": "node --test tools/web-gallery-check/check-no-gallery.test.mjs tools/web-gallery-check/explorer-i18n-source.test.mjs tools/web-gallery-check/connections-i18n-source.test.mjs tools/web-gallery-check/charts-source.test.mjs"
       }
     },
     "gallery-absent": {

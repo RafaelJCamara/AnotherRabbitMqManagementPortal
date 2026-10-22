@@ -24,6 +24,19 @@
       "inputs": ["default", "^production"],
       "options": {
         "command": "vitest run --config libs/ui/charts/vitest.config.mts"
+      },
+      "dependsOn": ["test-components"]
+    },
+    "test-components": {
+      "executor": "@angular/build:unit-test",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "buildTarget": "web:build:development",
+        "tsConfig": "libs/ui/charts/tsconfig.spec.json",
+        "runner": "vitest",
+        "watch": false,
+        "include": ["**/*.component.spec.ts"]
       }
     }
   }

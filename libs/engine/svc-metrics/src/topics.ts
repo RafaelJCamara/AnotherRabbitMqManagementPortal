@@ -1,2 +1,4 @@
 // Live topics (defineTopic) owned by this service.
-export const topics: readonly unknown[] = [];
+import { metricsLiveTopic, type TopicDef } from '@app/contracts';
+
+export const topics: readonly TopicDef[] = [metricsLiveTopic];

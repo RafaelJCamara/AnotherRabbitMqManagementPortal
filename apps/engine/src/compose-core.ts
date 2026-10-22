@@ -21,6 +21,7 @@ import {
   type Registry,
 } from '@app/contracts';
 import type { EngineMode, Permission } from '@app/contracts';
+import { createPromReader } from '@app/adapter-prometheus';
 import { createJobRunner } from '@app/jobs';
 import {
   AppError,
@@ -34,6 +35,7 @@ import {
   createReceiptStore,
   executorGatePhase,
   scheduleMgmtRead,
+  schedulePromScrape,
   systemClock,
   systemTimers,
   type Authorizer,
@@ -67,6 +69,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { createBrokerPorts, type BrokerPortsFactory } from './broker/index.ts';
 import { mapMgmtErrors } from './broker/mgmt.ts';
+import { mapPromErrors } from './broker/prom.ts';
 import { acquireDataDirLock } from './data-dir-lock.ts';
 import type { ModuleFactory } from './modules/index.ts';
 import {
@@ -360,6 +363,10 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
         workspace: repos.workspace,
         sealer: vault.fields,
         mgmt: mapMgmtErrors(scheduleMgmtRead(broker.mgmt, scheduler)),
+        // Scrapes wait for the scheduler's background slot; the reader holds it until the body is parsed.
+        prom: mapPromErrors(
+          createPromReader(schedulePromScrape(broker.prom, scheduler)),
+        ),
         wire: broker.wire,
         prober: broker.prober,
         authorizer: profile.authorizer,

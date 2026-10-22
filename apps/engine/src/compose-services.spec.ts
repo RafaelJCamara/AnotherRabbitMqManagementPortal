@@ -49,6 +49,7 @@ function fakeServices(): ServicePorts {
     },
     sealer: { seal: unused, open: unused },
     mgmt: broker.read,
+    prom: { read: unused },
     wire: createFakeWire(),
     prober: createFakeProber(),
     authorizer: denyAllAuthorizer,
@@ -95,6 +96,20 @@ describe('the modules the engine registers', () => {
 
     expect(phases.map((phase) => phase.name)).toEqual(['taps-firehose']);
     expect(phases[0]?.reasons).toEqual(['quit', 'sigterm', 'emergency']);
+  });
+
+  it('AC-18 the metrics engine ends its collection and subscriptions on quit, SIGTERM and emergency, and leaves them alone on a suspend', () => {
+    const metrics = modules().find((module) => module.id === 'svc-metrics');
+    const phases = metrics?.drainPhases ?? [];
+
+    expect(phases.map((phase) => phase.name)).toEqual(['taps-firehose']);
+    expect(phases[0]?.reasons).toEqual(['quit', 'sigterm', 'emergency']);
+    expect((metrics?.topics ?? []).map((topic) => topic.def.id)).toEqual([
+      'metrics.live',
+    ]);
+    expect(
+      (metrics?.actions ?? []).map((action) => action.def.id as string).sort(),
+    ).toEqual(['metrics.forecast', 'metrics.query']);
   });
 });
 
@@ -233,6 +248,48 @@ describe('probe, profile, inventory and overview through the real router', () =>
     expect(views.status).toBe(200);
     expect(renamed.status).toBe(422);
     expect(renamed.body).toMatchObject({ code: 'GATE_BLOCKED' });
+  });
+});
+
+describe('the metrics engine on the composed engine', () => {
+  it('AC-18 metrics.query reads the management API when the profile lists no Prometheus endpoint, and a quit drain stops the collection', async () => {
+    const booted = await boot();
+    await booted.seed('c1');
+    await booted.call('POST', '/connections/c1/probe', {});
+    const ask = () =>
+      booted.call('POST', '/connections/c1/metrics/queries', {
+        series: [{ metric: 'queues' }],
+      });
+
+    // The first call starts the collection and answers `loading`; the rounds fill the series.
+    const first = await ask();
+    expect(first.status).toBe(200);
+    await vi.waitFor(async () => {
+      const answer = await ask();
+      expect(answer.body).toMatchObject({
+        series: [{ found: true }],
+        status: {
+          source: 'management',
+          fallbackReason: 'no-endpoint',
+          partial: ['fallback'],
+          approximate: true,
+        },
+      });
+    });
+    const answer = await ask();
+    expect(
+      (answer.body.series as { points: [number, number][] }[])[0]?.points.at(
+        -1,
+      )?.[1],
+    ).toBe(3);
+
+    const results = await booted.engine.drain('quit', 2000);
+    const mark = booted.broker.requests.length;
+    await ask();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(booted.broker.requests.length - mark).toBe(0);
+    expect(results.every((result) => result.ok)).toBe(true);
   });
 });
 

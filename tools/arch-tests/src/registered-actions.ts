@@ -35,6 +35,9 @@ import { createInventoryQueryAction } from '@app/svc-explorer';
 import { createExplorerFakeDeps } from '@app/svc-explorer';
 import { createOverviewGetAction } from '@app/svc-explorer';
 import { createSearchQueryAction } from '@app/svc-explorer';
+import { createMetricsQueryAction } from '@app/svc-metrics';
+import { createMetricsFakeDeps } from '@app/svc-metrics';
+import { createMetricsForecastAction } from '@app/svc-metrics';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -173,6 +176,16 @@ const manifest: RegisteredAction[] = [
     path: 'libs/engine/svc-explorer/src/actions/search-query.ts',
     impl: createSearchQueryAction(createExplorerFakeDeps()),
     input: { cid: 'c1', text: 'queue' },
+  },
+  {
+    path: 'libs/engine/svc-metrics/src/actions/metrics-query.ts',
+    impl: createMetricsQueryAction(createMetricsFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-metrics/src/actions/metrics-forecast.ts',
+    impl: createMetricsForecastAction(createMetricsFakeDeps()),
+    input: { cid: 'c1' },
   },
 ];
 

@@ -217,6 +217,233 @@
           "$ref": "#/components/messages/ServerFrame"
         }
       }
+    },
+    "metrics_live": {
+      "address": "metrics.live",
+      "description": "Topic metrics.live: subscribe with 'sub' and the params message; items arrive in data, snapshot or delta frames.",
+      "messages": {
+        "item": {
+          "name": "metrics_live.item",
+          "payload": {
+            "additionalProperties": false,
+            "properties": {
+              "approximate": {
+                "type": "boolean"
+              },
+              "key": {
+                "maxLength": 1024,
+                "minLength": 1,
+                "type": "string"
+              },
+              "ref": {
+                "additionalProperties": false,
+                "properties": {
+                  "metric": {
+                    "enum": [
+                      "messages_ready",
+                      "messages_unacked",
+                      "messages",
+                      "connections",
+                      "channels",
+                      "consumers",
+                      "queues",
+                      "published_total",
+                      "delivered_total",
+                      "acked_total",
+                      "redelivered_total",
+                      "memory_bytes",
+                      "memory_limit_bytes",
+                      "disk_free_bytes",
+                      "disk_free_limit_bytes",
+                      "queue_messages_ready",
+                      "queue_messages_unacked",
+                      "queue_messages",
+                      "queue_consumers"
+                    ],
+                    "type": "string"
+                  },
+                  "node": {
+                    "maxLength": 255,
+                    "type": "string"
+                  },
+                  "queue": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "vhost": {
+                        "maxLength": 255,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "vhost",
+                      "name"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "metric"
+                ],
+                "type": "object"
+              },
+              "status": {
+                "additionalProperties": false,
+                "properties": {
+                  "approximate": {
+                    "type": "boolean"
+                  },
+                  "asOf": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "dropped": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "points": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "samples": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "series": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "points",
+                      "series",
+                      "samples"
+                    ],
+                    "type": "object"
+                  },
+                  "fallbackReason": {
+                    "enum": [
+                      "no-endpoint",
+                      "failing"
+                    ],
+                    "type": "string"
+                  },
+                  "intervalMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "partial": {
+                    "items": {
+                      "enum": [
+                        "load-balancer-fronted",
+                        "nodes-without-endpoint",
+                        "per-object-unavailable",
+                        "queue-demand-truncated",
+                        "targets-unreachable",
+                        "fallback"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 6,
+                    "type": "array"
+                  },
+                  "source": {
+                    "enum": [
+                      "prometheus",
+                      "management",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "state": {
+                    "enum": [
+                      "live",
+                      "stale",
+                      "loading",
+                      "unavailable"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "state",
+                  "source",
+                  "partial",
+                  "approximate",
+                  "dropped"
+                ],
+                "type": "object"
+              },
+              "t": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "v": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "key"
+            ],
+            "type": "object"
+          }
+        },
+        "params": {
+          "name": "metrics_live.params",
+          "payload": {
+            "additionalProperties": false,
+            "properties": {
+              "cid": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "queues": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "maxLength": 255,
+                      "type": "string"
+                    },
+                    "vhost": {
+                      "maxLength": 255,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "vhost",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 50,
+                "type": "array"
+              }
+            },
+            "required": [
+              "cid",
+              "queues"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "x-flow": "snapshot-delta",
+      "x-max-hz": 1,
+      "x-permission": "broker.read",
+      "x-qos": "latest",
+      "x-ring": {
+        "bytes": 1048576,
+        "items": 1000
+      }
     }
   },
   "components": {
@@ -893,6 +1120,17 @@
       "messages": [
         {
           "$ref": "#/channels/explorer_window/messages/item"
+        }
+      ]
+    },
+    "publish_metrics_live": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/metrics_live"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/metrics_live/messages/item"
         }
       ]
     },

@@ -21,11 +21,13 @@ import type {
   ConnectionStore,
   FieldSealer,
   MgmtReadPort,
+  PromReadPort,
   WorkspaceRepository,
 } from '@app/ports';
 import { createCapabilitiesModule } from '@app/svc-capabilities';
 import { createConnectionsModule } from '@app/svc-connections';
 import { createExplorerModule } from '@app/svc-explorer';
+import { createMetricsModule } from '@app/svc-metrics';
 import { createOpsModule, type OpsModuleDeps } from '@app/svc-ops';
 import { createWorkspaceModule } from '@app/svc-workspace';
 
@@ -50,6 +52,8 @@ export interface ServicePorts {
   /** The data-key vault's field cipher: rejects while the vault is locked. */
   readonly sealer: FieldSealer;
   readonly mgmt: MgmtReadPort;
+  /** Prometheus scrapes read to samples, behind the BrokerScheduler's wrapper and with errors mapped. */
+  readonly prom: PromReadPort;
   readonly wire: BrokerWireProbe;
   readonly prober: ConnectionProber;
   /** The authorizer the executor uses, so `profile.get` can tell a caller what it may call. */
@@ -116,6 +120,14 @@ export const coreModules: ModuleFactory = ({
     clock: services.clock,
     timers: services.timers,
   });
+  const metrics = createMetricsModule({
+    prom: services.prom,
+    mgmt: services.mgmt,
+    profiles: services.profiles,
+    connections: services.connections,
+    clock: services.clock,
+    timers: services.timers,
+  });
   return [
     { id: 'meta', actions: [createMetaAction({ engineVersion, mode })] },
     { id: 'ops', actions: createArmActions(arming) },
@@ -137,6 +149,19 @@ export const coreModules: ModuleFactory = ({
           name: 'taps-firehose',
           reasons: STOPS_ON,
           run: () => explorer.stop(),
+        },
+      ],
+    },
+    {
+      id: metrics.id,
+      actions: metrics.actions,
+      topics: metrics.topicSources,
+      // The collection ends with the sweeps, before the sockets and the database do.
+      drainPhases: [
+        {
+          name: 'taps-firehose',
+          reasons: STOPS_ON,
+          run: () => metrics.stop(),
         },
       ],
     },

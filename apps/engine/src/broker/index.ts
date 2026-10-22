@@ -3,6 +3,7 @@
 // they open is made by the Dialer, with the TrustStore of the process. This file never asks which
 // mode runs: the mode is data, only the name a connection carries.
 import { createMgmtHttpClient } from '@app/adapter-mgmt-http';
+import { createPromScrapeClient } from '@app/adapter-prometheus';
 import type { Logger } from '@app/kernel';
 import { createDialer, isRegisteredPurpose } from '@app/net-dialer';
 import type { TrustStore } from '@app/net-truststore';
@@ -13,11 +14,13 @@ import type {
   ConnectionStore,
   FieldSealer,
   MgmtReadPort,
+  PromScrapePort,
 } from '@app/ports';
 
 import { createConnectionProber } from './connection-prober.ts';
 import { createConnectionEndpoints } from './endpoints.ts';
 import { createMgmtTargetResolver } from './mgmt.ts';
+import { createPromTargetResolver } from './prom.ts';
 import { createWireProbe } from './wire-probe.ts';
 
 export interface BrokerPortsInput {
@@ -37,6 +40,11 @@ export interface BrokerPorts {
    * BrokerScheduler (`scheduleMgmtRead`) before any service sees it (I-8).
    */
   readonly mgmt: MgmtReadPort;
+  /**
+   * Prometheus scrapes, **not scheduled**: the composition root wraps it with the BrokerScheduler
+   * (schedulePromScrape) and the parser before any service sees it (I-8).
+   */
+  readonly prom: PromScrapePort;
   readonly wire: BrokerWireProbe;
   readonly prober: ConnectionProber;
   /** Drops the sockets the ports hold. Called once, at shutdown. */
@@ -64,8 +72,17 @@ export const createBrokerPorts: BrokerPortsFactory = (input) => {
       trust: input.trust,
     }),
   });
+  const prom = createPromScrapeClient({
+    dialer,
+    targets: createPromTargetResolver({
+      endpoints,
+      profiles: input.profiles,
+      trust: input.trust,
+    }),
+  });
   return {
     mgmt: client.read,
+    prom: prom.scrape,
     wire: createWireProbe({
       endpoints,
       dialer,
@@ -79,6 +96,7 @@ export const createBrokerPorts: BrokerPortsFactory = (input) => {
     }),
     close: () => {
       client.close();
+      prom.close();
     },
   };
 };

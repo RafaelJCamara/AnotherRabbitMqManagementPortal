@@ -131,6 +131,12 @@ export async function boot(ports?: BrokerPortsFactory): Promise<Booted> {
   let input: Parameters<BrokerPortsFactory>[0] | undefined;
   const fakes: BrokerPortsFactory = () => ({
     mgmt: broker.read,
+    // No Prometheus listener in these fakes: the profile has none, so the metrics engine reads the
+    // management API (the fallback).
+    prom: {
+      scrape: () =>
+        Promise.reject(new Error('the fake broker has no Prometheus endpoint')),
+    },
     wire: createFakeWire(),
     prober: createFakeProber(),
     close: () => undefined,

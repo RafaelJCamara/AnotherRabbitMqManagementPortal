@@ -4042,6 +4042,858 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/metrics/forecasts": {
+      "post": {
+        "operationId": "metrics.forecast",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "target": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "scope": {
+                            "const": "cluster",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "scope"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "maxLength": 255,
+                            "type": "string"
+                          },
+                          "scope": {
+                            "const": "queue",
+                            "type": "string"
+                          },
+                          "vhost": {
+                            "maxLength": 255,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "scope",
+                          "vhost",
+                          "name"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "windowMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "target"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "asOf": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "forecast": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "band": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "highMs": {
+                                  "anyOf": [
+                                    {
+                                      "maximum": 9007199254740991,
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "lowMs": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "lowMs",
+                                "highMs"
+                              ],
+                              "type": "object"
+                            },
+                            "etaMs": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "points": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "r2": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "ratePerSec": {
+                              "type": "number"
+                            },
+                            "state": {
+                              "const": "ok",
+                              "type": "string"
+                            },
+                            "windowMs": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "etaMs",
+                            "band",
+                            "ratePerSec",
+                            "r2",
+                            "windowMs",
+                            "points"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "state": {
+                              "const": "reached",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "r2": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "ratePerSec": {
+                              "type": "number"
+                            },
+                            "reason": {
+                              "enum": [
+                                "flat",
+                                "away",
+                                "beyond-horizon"
+                              ],
+                              "type": "string"
+                            },
+                            "state": {
+                              "const": "moving-away",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "ratePerSec",
+                            "r2",
+                            "reason"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "points": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "r2": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "state": {
+                              "const": "no-reliable-forecast",
+                              "type": "string"
+                            },
+                            "windowMs": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "r2",
+                            "windowMs",
+                            "points"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "needed": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "points": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "spanMs": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "points",
+                                "spanMs"
+                              ],
+                              "type": "object"
+                            },
+                            "points": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "spanMs": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "state": {
+                              "const": "insufficient-data",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "points",
+                            "spanMs",
+                            "needed"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "metric": {
+                      "enum": [
+                        "messages_ready",
+                        "messages_unacked",
+                        "messages",
+                        "connections",
+                        "channels",
+                        "consumers",
+                        "queues",
+                        "published_total",
+                        "delivered_total",
+                        "acked_total",
+                        "redelivered_total",
+                        "memory_bytes",
+                        "memory_limit_bytes",
+                        "disk_free_bytes",
+                        "disk_free_limit_bytes",
+                        "queue_messages_ready",
+                        "queue_messages_unacked",
+                        "queue_messages",
+                        "queue_consumers"
+                      ],
+                      "type": "string"
+                    },
+                    "points": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "approximate": {
+                          "type": "boolean"
+                        },
+                        "asOf": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "dropped": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "points": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "samples": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "series": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "points",
+                            "series",
+                            "samples"
+                          ],
+                          "type": "object"
+                        },
+                        "fallbackReason": {
+                          "enum": [
+                            "no-endpoint",
+                            "failing"
+                          ],
+                          "type": "string"
+                        },
+                        "intervalMs": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "partial": {
+                          "items": {
+                            "enum": [
+                              "load-balancer-fronted",
+                              "nodes-without-endpoint",
+                              "per-object-unavailable",
+                              "queue-demand-truncated",
+                              "targets-unreachable",
+                              "fallback"
+                            ],
+                            "type": "string"
+                          },
+                          "maxItems": 6,
+                          "type": "array"
+                        },
+                        "source": {
+                          "enum": [
+                            "prometheus",
+                            "management",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "live",
+                            "stale",
+                            "loading",
+                            "unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "source",
+                        "partial",
+                        "approximate",
+                        "dropped"
+                      ],
+                      "type": "object"
+                    },
+                    "target": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "scope": {
+                              "const": "cluster",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "name": {
+                              "maxLength": 255,
+                              "type": "string"
+                            },
+                            "scope": {
+                              "const": "queue",
+                              "type": "string"
+                            },
+                            "vhost": {
+                              "maxLength": 255,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "scope",
+                            "vhost",
+                            "name"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "target",
+                    "metric",
+                    "forecast",
+                    "points",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Forecast when a queue or the cluster backlog drains",
+        "tags": [
+          "metrics"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/{cid}/metrics/queries": {
+      "post": {
+        "operationId": "metrics.query",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "from": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "maxPoints": {
+                    "default": 600,
+                    "maximum": 2000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "rate": {
+                    "type": "boolean"
+                  },
+                  "series": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "metric": {
+                          "enum": [
+                            "messages_ready",
+                            "messages_unacked",
+                            "messages",
+                            "connections",
+                            "channels",
+                            "consumers",
+                            "queues",
+                            "published_total",
+                            "delivered_total",
+                            "acked_total",
+                            "redelivered_total",
+                            "memory_bytes",
+                            "memory_limit_bytes",
+                            "disk_free_bytes",
+                            "disk_free_limit_bytes",
+                            "queue_messages_ready",
+                            "queue_messages_unacked",
+                            "queue_messages",
+                            "queue_consumers"
+                          ],
+                          "type": "string"
+                        },
+                        "node": {
+                          "maxLength": 255,
+                          "type": "string"
+                        },
+                        "queue": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "name": {
+                              "maxLength": 255,
+                              "type": "string"
+                            },
+                            "vhost": {
+                              "maxLength": 255,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "vhost",
+                            "name"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "metric"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 50,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "to": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "series"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "series": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "approximate": {
+                            "type": "boolean"
+                          },
+                          "dropped": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "found": {
+                            "type": "boolean"
+                          },
+                          "kind": {
+                            "enum": [
+                              "gauge",
+                              "counter"
+                            ],
+                            "type": "string"
+                          },
+                          "points": {
+                            "items": {
+                              "items": false,
+                              "maxItems": 2,
+                              "minItems": 2,
+                              "prefixItems": [
+                                {
+                                  "maximum": 9007199254740991,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ],
+                              "type": "array"
+                            },
+                            "maxItems": 2000,
+                            "type": "array"
+                          },
+                          "ref": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "metric": {
+                                "enum": [
+                                  "messages_ready",
+                                  "messages_unacked",
+                                  "messages",
+                                  "connections",
+                                  "channels",
+                                  "consumers",
+                                  "queues",
+                                  "published_total",
+                                  "delivered_total",
+                                  "acked_total",
+                                  "redelivered_total",
+                                  "memory_bytes",
+                                  "memory_limit_bytes",
+                                  "disk_free_bytes",
+                                  "disk_free_limit_bytes",
+                                  "queue_messages_ready",
+                                  "queue_messages_unacked",
+                                  "queue_messages",
+                                  "queue_consumers"
+                                ],
+                                "type": "string"
+                              },
+                              "node": {
+                                "maxLength": 255,
+                                "type": "string"
+                              },
+                              "queue": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "name": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "vhost": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "vhost",
+                                  "name"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "metric"
+                            ],
+                            "type": "object"
+                          },
+                          "source": {
+                            "enum": [
+                              "prometheus",
+                              "management"
+                            ],
+                            "type": "string"
+                          },
+                          "unit": {
+                            "enum": [
+                              "messages",
+                              "count",
+                              "bytes"
+                            ],
+                            "type": "string"
+                          },
+                          "view": {
+                            "enum": [
+                              "value",
+                              "rate"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "found",
+                          "view",
+                          "points",
+                          "dropped"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 50,
+                      "type": "array"
+                    },
+                    "status": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "approximate": {
+                          "type": "boolean"
+                        },
+                        "asOf": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "dropped": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "points": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "samples": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "series": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "points",
+                            "series",
+                            "samples"
+                          ],
+                          "type": "object"
+                        },
+                        "fallbackReason": {
+                          "enum": [
+                            "no-endpoint",
+                            "failing"
+                          ],
+                          "type": "string"
+                        },
+                        "intervalMs": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "partial": {
+                          "items": {
+                            "enum": [
+                              "load-balancer-fronted",
+                              "nodes-without-endpoint",
+                              "per-object-unavailable",
+                              "queue-demand-truncated",
+                              "targets-unreachable",
+                              "fallback"
+                            ],
+                            "type": "string"
+                          },
+                          "maxItems": 6,
+                          "type": "array"
+                        },
+                        "source": {
+                          "enum": [
+                            "prometheus",
+                            "management",
+                            "none"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "live",
+                            "stale",
+                            "loading",
+                            "unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "source",
+                        "partial",
+                        "approximate",
+                        "dropped"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "series",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Read windows of metric series of a connection",
+        "tags": [
+          "metrics"
+        ],
+        "x-audit": "none",
+        "x-kind": "query",
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{cid}/overview": {
       "get": {
         "operationId": "overview.get",
@@ -5741,6 +6593,9 @@
     },
     {
       "name": "meta"
+    },
+    {
+      "name": "metrics"
     },
     {
       "name": "ops"

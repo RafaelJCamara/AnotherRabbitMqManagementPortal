@@ -9,7 +9,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { ConnectionIdSchema } from '@app/contracts';
 import type { FakeExplorerData } from '@app/explorer-model/testing';
+import { createExplorerFakeDeps } from '@app/svc-explorer';
 
 import { sleep, type Browser, type CdpEvent } from './cdp';
 import { PAGE_SCRIPT } from './page-script';
@@ -184,6 +186,9 @@ export class ExplorerPage {
     await send('Fetch.enable', {
       patterns: [
         { urlPattern: '*/inventory/queries', requestStage: 'Request' },
+        // The page reads the connection's profile before it reads the inventory (a connection with no profile gets the
+        // check capabilities prompt, not a list), and no connection `perf` exists in the engine.
+        { urlPattern: '*/profile', requestStage: 'Request' },
       ],
     });
     const address = new URL(`/c/${CID}/explorer/queues`, launchUrl);
@@ -202,7 +207,10 @@ export class ExplorerPage {
     const { method } = event;
     const params = event.params;
     if (method === 'Fetch.requestPaused') {
-      void this.#answer(params);
+      const url = (params.request as { url: string }).url;
+      if (new URL(url).pathname.endsWith('/profile'))
+        void this.#answerProfile(params);
+      else void this.#answer(params);
     } else if (method === 'Log.entryAdded') {
       const entry = params.entry as { level: string; text: string };
       if (entry.level === 'error' || CSP_TEXT.test(entry.text))
@@ -249,6 +257,32 @@ export class ExplorerPage {
         );
       }
     }
+  }
+
+  /** Answers one paused `profile.get` with the profile of a probed connection (the explorer fakes' sample). */
+  async #answerProfile(
+    params: Readonly<Record<string, unknown>>,
+  ): Promise<void> {
+    const record = await createExplorerFakeDeps().profiles.get(
+      ConnectionIdSchema.parse('c1'),
+    );
+    const body = JSON.stringify({
+      profile: { ...(record?.profile as object), connectionId: CID },
+    });
+    await this.#browser.connection
+      .send(
+        'Fetch.fulfillRequest',
+        {
+          requestId: params.requestId as string,
+          responseCode: 200,
+          responseHeaders: [
+            { name: 'content-type', value: 'application/json' },
+          ],
+          body: Buffer.from(body).toString('base64'),
+        },
+        this.#sessionId,
+      )
+      .catch(() => undefined);
   }
 
   /** Answers one paused `inventory.query` from the fake data port. */

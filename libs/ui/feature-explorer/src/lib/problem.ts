@@ -24,7 +24,7 @@ export function problemView(error: unknown): ProblemView {
 
 /**
  * A sentence of help for the failures a first session meets, by the Problem's code: the key of the sentence in the
- * `explorer.hint` group, or `null` when the Problem is shown as sent and nothing more is said. The Problem itself is
+ * hint group of the explorer scope, or `null` when the Problem is shown as sent and nothing more is said. The Problem itself is
  * always shown too; a hint never replaces it.
  */
 export function hintKey(code: string | null): string | null {

@@ -76,3 +76,49 @@ export interface PromScrapePort {
     signal: AbortSignal,
   ): Promise<AsyncIterable<Uint8Array>>;
 }
+
+/** One sample of a Prometheus text exposition. */
+export interface PromSample {
+  readonly name: string;
+  readonly labels: Readonly<Record<string, string>>;
+  readonly value: number;
+  /** Milliseconds since the epoch, when the exposition gave one. */
+  readonly timestamp?: number;
+}
+
+export interface PromReadOptions {
+  /** Keeps a family; asked with the metric name before its labels are read. Default: all. */
+  readonly wanted?: (name: string) => boolean;
+  /** The most samples delivered; at the limit the read stops and the summary says so. */
+  readonly maxSamples?: number;
+  /** The most bytes taken from the body; a bigger one fails the read. */
+  readonly maxBodyBytes?: number;
+}
+
+export interface PromReadSummary {
+  readonly bytes: number;
+  /** Samples handed to the sink. */
+  readonly samples: number;
+  /** Sample lines of a family nobody wanted. */
+  readonly skipped: number;
+  /** Lines that are not valid exposition, dropped. */
+  readonly malformed: number;
+  /** Lines over the line limit, dropped. */
+  readonly oversizedLines: number;
+  readonly truncated?: 'samples';
+}
+
+/**
+ * A scrape read to samples (blueprint 1.4: the body is parsed as a stream, never held). It is
+ * built over a PromScrapePort, so the BrokerScheduler's wrapper sits underneath and a service
+ * never sees the adapter or a chunk; sink is called for each wanted sample in body order. The
+ * promise rejects with the error of the scrape or of the parse.
+ */
+export interface PromReadPort {
+  read(
+    request: PromScrapeRequest,
+    sink: (sample: PromSample) => void,
+    options: PromReadOptions,
+    signal: AbortSignal,
+  ): Promise<PromReadSummary>;
+}

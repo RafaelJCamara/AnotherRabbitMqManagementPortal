@@ -1,0 +1,30 @@
+{
+  "name": "svc-metrics",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/svc-metrics/src",
+  "projectType": "library",
+  "tags": ["type:service", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/svc-metrics/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/svc-metrics/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/svc-metrics/vitest.config.mts"
+      }
+    }
+  }
+}

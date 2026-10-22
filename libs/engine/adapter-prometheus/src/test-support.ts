@@ -8,6 +8,7 @@ import {
 import type { AddressInfo } from 'node:net';
 
 import type { ConnectionId } from '@app/contracts';
+import type { PromSample } from '@app/ports';
 import { createDialer, type DialerOptions } from '@app/net-dialer';
 
 import {
@@ -17,11 +18,7 @@ import {
   type PromTarget,
   type PromTargetRequest,
 } from './client.ts';
-import {
-  parseExposition,
-  type ParseOptions,
-  type PromSample,
-} from './parser.ts';
+import { parseExposition, type ParseOptions } from './parser.ts';
 
 export const CID = 'c1' as ConnectionId;
 

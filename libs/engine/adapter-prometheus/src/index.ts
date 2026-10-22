@@ -3,8 +3,8 @@ export {
   parseExposition,
   type ParseOptions,
   type ParseSummary,
-  type PromSample,
 } from './parser.ts';
+export { createPromReader } from './reader.ts';
 export {
   createPromScrapeClient,
   targetOf,

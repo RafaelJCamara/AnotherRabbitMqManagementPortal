@@ -10,15 +10,9 @@
 // It gives the event loop a turn every `yieldEveryBytes` of text and every `yieldEveryLines` lines
 // (I-5), also inside one very large chunk, so a 100 MB page cannot hold the loop. `yieldNow` is
 // injectable so the rule is testable without a clock.
-import { PromScrapeError } from './errors.ts';
+import type { PromSample } from '@app/ports';
 
-export interface PromSample {
-  readonly name: string;
-  readonly labels: Readonly<Record<string, string>>;
-  readonly value: number;
-  /** Milliseconds since the epoch, when the exposition gave one. */
-  readonly timestamp?: number;
-}
+import { PromScrapeError } from './errors.ts';
 
 export interface ParseOptions {
   /** Keeps a family: asked with the metric name before its labels are read. Default: all. */

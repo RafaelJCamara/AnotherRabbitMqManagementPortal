@@ -12,6 +12,7 @@ export {
   CHORD_MAX_CHARS,
   acceleratorOf,
   canonicalChord,
+  chordOfEvent,
   displayChord,
   formatChord,
   matchesChord,
@@ -21,6 +22,7 @@ export {
   type KeyEventLike,
   type Platform,
 } from './chord';
+export { CommandHost } from './command-host.component';
 export type {
   CommandDefinition,
   CommandMenu,
@@ -78,3 +80,19 @@ export {
   type ReservedKind,
   type ReservedReason,
 } from './reserved';
+export {
+  KEYMAP_SAVE_DELAY_MS,
+  KeymapStore,
+  type KeymapLoadStatus,
+  type KeymapSaveStatus,
+} from './keymap-store';
+export { PaletteControl } from './palette-control';
+export {
+  PALETTE_SCOPE,
+  PALETTE_SCOPE_LOADER,
+  paletteScope,
+  providePaletteScope,
+  scopedText,
+} from './palette-scope';
+export { describeReason, type Translate } from './reason-text';
+export { COMMAND_TIMER, type CommandTimer } from './timer';

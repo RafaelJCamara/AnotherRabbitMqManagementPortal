@@ -1,0 +1,70 @@
+{
+  "title": "Command palette",
+  "input": "Search commands",
+  "placeholder": "Type a command",
+  "results": "Commands",
+  "empty": "No command matches.",
+  "count": "{{count}} commands match.",
+  "countOne": "1 command matches.",
+  "countNone": "No command matches.",
+  "category": {
+    "general": "General",
+    "help": "Help"
+  },
+  "commands": {
+    "open": "Open the command palette",
+    "shortcuts": "Show keyboard shortcuts"
+  },
+  "reason": {
+    "gateNoReason": "The engine closed this and gave no reason.",
+    "withSource": "{{reason}} (source: {{source}})",
+    "notAllowed": "The engine does not allow {{action}} for you.",
+    "loading": "The capabilities of this connection are still loading.",
+    "unknown": "The capabilities of this connection are not known."
+  },
+  "announce": {
+    "closed": "{{title}} is not available: {{reason}}",
+    "failed": "{{title}} failed.",
+    "conflict": "{{chord}} is assigned to more than one command ({{titles}}), so it did nothing. Use the command palette or change one of them.",
+    "keymapLoadFailed": "Your keyboard shortcuts could not be loaded. The defaults are in use.",
+    "keymapSaveFailed": "Your keyboard shortcuts could not be saved. They apply until you leave this page."
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "table": "Commands and their shortcuts",
+    "command": "Command",
+    "category": "Category",
+    "shortcut": "Shortcut",
+    "actions": "Actions",
+    "press": "Press the new shortcut, or Escape to cancel.",
+    "none": "No shortcut",
+    "unbound": "Unbound",
+    "yours": "your choice",
+    "change": "Change",
+    "changeNamed": "Change the shortcut of {{name}}",
+    "unbind": "Unbind",
+    "unbindNamed": "Remove the shortcut of {{name}}",
+    "useDefault": "Use default",
+    "defaultNamed": "Use the default shortcut of {{name}}",
+    "resetAll": "Reset all shortcuts",
+    "close": "Close",
+    "retry": "Try again",
+    "saving": "Saving your shortcuts.",
+    "saved": "Your shortcuts are saved.",
+    "loadFailed": "Your keyboard shortcuts could not be loaded. The defaults are in use.",
+    "saveFailedDetail": "Your keyboard shortcuts could not be saved. They apply until you leave this page.",
+    "conflicts": "Shortcuts that do nothing",
+    "replace": "Replace it",
+    "conflict": {
+      "duplicate": "{{chord}} is assigned to {{titles}}. It does nothing until only one of them has it.",
+      "reserved": "{{chord}} is kept by the browser or by the page and is not bound.",
+      "invalid": "The saved shortcut {{chord}} for {{titles}} is not a valid shortcut and is not bound."
+    },
+    "refused": {
+      "invalid": "{{chord}} is not a valid shortcut.",
+      "reserved": "{{chord}} is kept by the browser or by the page and cannot be used.",
+      "conflict": "{{chord}} is already assigned to {{titles}}.",
+      "too-many": "No more shortcuts can be changed: the limit is reached."
+    }
+  }
+}

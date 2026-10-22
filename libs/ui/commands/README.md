@@ -14,6 +14,9 @@ Tags: `type:ui-lib`, `runtime:browser`. Import it as `@app/ui-commands`. A featu
 - `rankCommands(query, items, limit)`: the palette's fuzzy ranking with highlight ranges (`toRanges`, `PALETTE_LIMIT`).
 - `buildMenuModel(commands, describe)` and `syncNativeMenu(host, model)`: the typed menu model for the desktop shell; the browser never calls the sync.
 - `Announcer`: what the system says in the polite live region (a closed command, a failure, a conflict).
+- `CommandHost` (`<app-command-host />`, mounted once at the root of the app): the keyboard dispatcher, the live region, the keymap load, and the lazy palette and cheat sheet. `PaletteControl` opens and closes them and remembers where focus goes back to.
+- `KeymapStore`: loads the overrides with `keybindings.get`, saves the whole document with `keybindings.put` after `KEYMAP_SAVE_DELAY_MS`, keeps a failed load or save as received (`loadStatus`, `saveStatus`, `loadError`, `saveError`) and offers `assign`, `unbind`, `useDefault`, `resetAll`, `flush`, `retry`.
+- Translation: the scope `palette` (`PALETTE_SCOPE`, `providePaletteScope()`, `PALETTE_SCOPE_LOADER`) and `scopedText(scope, key)`, which turns a scope key into the text a command title holds; `describeReason(reason, t)` writes why a command is closed; `COMMAND_TIMER` is the clock a spec replaces.
 
 ## Invariants
 

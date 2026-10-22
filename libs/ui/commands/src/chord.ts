@@ -241,3 +241,43 @@ function sameKey(event: KeyEventLike, key: string): boolean {
     ? event.key.toUpperCase() === key
     : event.key === key;
 }
+
+const MODIFIER_KEYS = new Set([
+  'Control',
+  'Shift',
+  'Alt',
+  'Meta',
+  'AltGraph',
+  'OS',
+  'Dead',
+  'Unidentified',
+  'Process',
+]);
+
+/**
+ * The chord a keyboard event typed, for the cheat sheet to capture a new binding: null while only a modifier is
+ * down. `Mod` is written for the platform's own key, so the document the engine keeps means the same on both.
+ * A symbol key drops Shift (the layout decides whether it is needed).
+ */
+export function chordOfEvent(
+  event: KeyEventLike,
+  platform: Platform,
+): Chord | null {
+  if (MODIFIER_KEYS.has(event.key) || event.key === '') return null;
+  const place =
+    event.altKey && event.code !== undefined
+      ? (/^Key([A-Z])$/.exec(event.code) ??
+          /^Digit([0-9])$/.exec(event.code))?.[1]
+      : undefined;
+  const key =
+    place ?? (/^[a-z]$/i.test(event.key) ? event.key.toUpperCase() : event.key);
+  const mac = platform === 'mac';
+  return {
+    key,
+    mod: mac ? event.metaKey : event.ctrlKey,
+    ctrl: mac ? event.ctrlKey : false,
+    meta: mac ? false : event.metaKey,
+    alt: event.altKey,
+    shift: event.shiftKey && !isSymbol(key),
+  };
+}

@@ -75,6 +75,7 @@
       "@app/svc-workspace": ["./libs/engine/svc-workspace/src/index.ts"],
       "@app/testkit": ["./libs/testkit/src/index.ts"],
       "@app/transport": ["./libs/engine/transport/src/index.ts"],
+      "@app/ui-charts": ["./libs/ui/charts/src/index.ts"],
       "@app/ui-commands": ["./libs/ui/commands/src/index.ts"],
       "@app/ui-data": ["./libs/ui/data/src/index.ts"],
       "@app/ui-design": ["./libs/ui/design/src/index.ts"],

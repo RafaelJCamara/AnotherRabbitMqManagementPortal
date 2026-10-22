@@ -47,6 +47,7 @@ import {
 } from './hooks.ts';
 import { isImplementedAction, isMutatingAction } from './implement-action.ts';
 import { declaresLocalScope, namesATarget } from './local-scope.ts';
+import { createLocalWritesTrap } from './local-trap.ts';
 import {
   createIdempotencyGuard,
   type IdempotencyGuard,
@@ -608,17 +609,27 @@ export function createActionExecutor(
 
     let result: ExecuteOutcome | undefined;
     let failure: AppError | undefined;
+    // A `scope: 'local'` action is promised to reach no broker, and the arch test can only read one
+    // module's syntax. So at runtime it gets a bundle in which every access throws (OQ-783).
+    const localTrap = declaresLocalScope(def)
+      ? createLocalWritesTrap(def.id)
+      : undefined;
     const execCtx: ExecuteContext = {
       ...ctx,
       consents: call.consents,
-      writes,
+      writes: localTrap?.writes ?? writes,
       ...(call.plan === undefined ? {} : { plan: call.plan }),
     };
     try {
       const raw: unknown = await impl.execute(call.input, execCtx);
       const job =
         def.kind === 'job' ? JobResultSchema.safeParse(raw) : undefined;
-      if (job?.success === true) {
+      if (localTrap?.tripped() === true) {
+        // The action caught the trap's error and carried on: it still reached for a broker.
+        failure = new AppError('INTERNAL', {
+          detail: `The action ${def.id} declares scope 'local' and reached for a broker write port; it was stopped.`,
+        });
+      } else if (job?.success === true) {
         result = { kind: 'job', jobId: job.data.jobId as JobId };
       } else {
         const output = def.output.safeParse(raw);

@@ -38,7 +38,15 @@ function isFlat(schema: z.core.JSONSchema.BaseSchema): boolean {
   return true;
 }
 
-/** Input fields that address a connection, a vhost or a broker object: a local action has none. */
+/**
+ * Input fields that address a connection, a vhost or a broker object: a local action has none.
+ *
+ * This list is a tripwire, not a boundary. It catches the obvious mistake (a local action that
+ * names a connection by one of these field names) and nothing more: an input that addresses a
+ * broker under another name (`target`, `node`, `bindingKey`) passes it. What actually keeps a local
+ * action off a broker is the executor, which refuses a call whose target is named and hands the
+ * action a `writes` bundle that throws on every access (OQ-840, OQ-783).
+ */
 const BROKER_ADDRESS_FIELDS: ReadonlySet<string> = new Set([
   'cid',
   'connectionId',

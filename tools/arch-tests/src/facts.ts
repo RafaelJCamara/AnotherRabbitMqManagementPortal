@@ -7,7 +7,10 @@ export interface FileFacts {
   importedNames: Set<string>;
   /** Every identifier that is a type reference, a value or a member name. */
   identifiers: Set<string>;
-  /** Property names read from an object (ctx.writes) or destructured from one ({ writes }). */
+  /**
+   * Property names read from an object (ctx.writes, ctx['writes']) or destructured from one
+   * ({ writes }). A computed key is invisible here; the executor's runtime trap covers it.
+   */
   members: Set<string>;
   /** Names called as a function (`f()` and `x.f()` both give `f`). */
   calls: Map<string, number>;
@@ -77,6 +80,12 @@ export function readFacts(path: string, text: string): FileFacts {
       facts.identifiers.add(node.text);
     } else if (ts.isPropertyAccessExpression(node)) {
       facts.members.add(node.name.text);
+    } else if (
+      ts.isElementAccessExpression(node) &&
+      ts.isStringLiteralLike(node.argumentExpression)
+    ) {
+      // `ctx['writes']` reads the same member as `ctx.writes`.
+      facts.members.add(node.argumentExpression.text);
     } else if (
       ts.isBindingElement(node) &&
       ts.isObjectBindingPattern(node.parent)

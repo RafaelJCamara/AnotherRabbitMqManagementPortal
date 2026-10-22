@@ -110,6 +110,10 @@ export interface LocalScopeSample {
  * file that implements a local-scope action may name no write-capable broker symbol (the write
  * halves of the ports, the role leases, the connection manager, `ctx.writes`). The local stores
  * (`store`, `workspace`, `sealer`) are not in that list, so they pass.
+ *
+ * This is a syntactic tripwire for one module, not a boundary: a computed key, `Reflect.get`, an
+ * alias or a helper in another file escape it. The boundary is the executor, which hands a local
+ * action a `writes` bundle whose every access throws (kernel `local-trap.ts`).
  */
 export function checkLocalScopeModules(
   samples: readonly LocalScopeSample[],

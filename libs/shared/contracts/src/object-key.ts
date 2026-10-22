@@ -4,7 +4,9 @@ import { ObjectKeySchema, type ObjectKey } from './brands.ts';
 
 const SEPARATOR = 0;
 const encoder = new TextEncoder();
-const decoder = new TextDecoder('utf-8', { fatal: true });
+// ignoreBOM keeps a leading U+FEFF in the text: by default the decoder drops it, and a name that
+// starts with one would not round-trip.
+const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 function assertWellFormed(value: string, what: string): void {
   // TextEncoder would silently replace a lone surrogate, and the round trip would change the text.

@@ -40,6 +40,22 @@ describe('ObjectKey', () => {
     }
   });
 
+  it('AC-2 keeps a leading byte order mark in the vhost or the name', () => {
+    // The fast-check counterexample from CI: a name that is just U+FEFF lost it when the decoder
+    // stripped the BOM, so the key did not round-trip.
+    for (const [v, n] of [
+      ['', '﻿'],
+      ['﻿', ''],
+      ['﻿v', '﻿n'],
+      ['/', '﻿﻿'],
+    ] as const) {
+      expect(decodeObjectKey(encodeObjectKey(v, n))).toEqual({
+        vhost: v,
+        name: n,
+      });
+    }
+  });
+
   it('AC-2 a key is one path segment: only URL-safe characters, no padding', () => {
     fc.assert(
       fc.property(vhost, text, (v, n) => {

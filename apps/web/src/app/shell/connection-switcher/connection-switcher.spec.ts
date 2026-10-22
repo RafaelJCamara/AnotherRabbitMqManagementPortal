@@ -103,7 +103,7 @@ describe('the connection switcher', () => {
     expect(host.querySelector('.switcher .notice')).toBeNull();
     // The tree is drawn for the connection now shown: the overview and the four kinds.
     expect(host.querySelectorAll('[role="treeitem"]')).toHaveLength(5);
-  });
+  }, 20_000); // mounts the bindings grid (AG Grid in jsdom) twice: over the 5 s default on a shared CI runner
 
   it('AC-2 an address that does not exist on prod opens the explorer root there with a notice naming it, which can be dismissed', async () => {
     const asked: [string, string][] = [];

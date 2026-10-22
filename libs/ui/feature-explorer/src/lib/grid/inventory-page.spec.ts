@@ -2,8 +2,10 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { entityUrl } from '@app/explorer-model';
 import { createFakeExplorerData } from '@app/explorer-model/testing';
 import { EngineProblemError } from '@app/ui-data';
+import { GRID_CLIPBOARD } from '@app/ui-grid';
 import { FakeEngine } from '@app/ui-platform/testing';
 import {
   eventually,
@@ -26,6 +28,7 @@ import {
 import { FakeWorkspace } from '../testing/fake-workspace';
 import { ManualTimer } from '../testing/manual-timer';
 import { mountPage, pageProviders } from '../testing/page-testbed';
+import { EXPLORER_NAVIGATION, type EntityTarget } from '../navigation';
 import { EXPLORER_TIMER } from '../timer';
 import { InventoryPage } from './inventory-page.component';
 import { InventoryRoute } from './inventory-route.component';
@@ -228,6 +231,166 @@ describe('<app-inventory-page>', () => {
     PAGE_TEST_TIMEOUT_MS,
   );
 
+  it(
+    'AC-8 a grid row opens its entity and the menu offers open and copy link',
+    async () => {
+      const fake = createFakeExplorerData({
+        rows: { queues: 20, bindings: 5 },
+        autoSnapshot: true,
+      });
+      const opened: { cid: string; target: EntityTarget; label: string }[] = [];
+      const written: string[] = [];
+      const providers = [
+        {
+          provide: EXPLORER_NAVIGATION,
+          useValue: {
+            href: (cid: string, target: EntityTarget) =>
+              entityUrl(cid, target, target.tab),
+            open: (cid: string, target: EntityTarget, label: string) =>
+              void opened.push({ cid, target, label }),
+          },
+        },
+        {
+          provide: GRID_CLIPBOARD,
+          useValue: {
+            writeText: (text: string) => {
+              written.push(text);
+              return Promise.resolve();
+            },
+          },
+        },
+      ];
+      const { el, fixture, engine } = await mountPage(InventoryPage, {
+        fake,
+        inputs: { kind: 'queues' },
+        providers,
+      });
+      await firstBlock(el);
+      await eventually(() => {
+        expect(el.querySelector('.loaded')?.textContent.trim()).toMatch(
+          /^[1-9]/,
+        );
+      });
+      const first = fake.rows().queues[0];
+      const second = fake.rows().queues[1];
+      if (first === undefined || second === undefined) throw new Error('rows');
+      const cells = (): HTMLElement[] => [
+        ...el.querySelectorAll<HTMLElement>(NAME_CELLS),
+      ];
+
+      // Enter on a row opens its entity, with the queue's name as the label of the tab.
+      cells()[0]?.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Enter',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await eventually(() => {
+        expect(opened).toEqual([
+          {
+            cid: 'c1',
+            target: { kind: 'queues', key: first.key },
+            label: first.name,
+          },
+        ]);
+      });
+      // A double click opens the row it is on.
+      cells()[1]?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      await eventually(() => {
+        expect(opened.map((o) => o.target.key)).toEqual([
+          first.key,
+          second.key,
+        ]);
+      });
+
+      // The menu has exactly two entries.
+      cells()[0]?.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 10,
+          clientY: 10,
+        }),
+      );
+      await eventually(() => {
+        fixture.detectChanges();
+        expect(
+          [...el.querySelectorAll('[role="menuitem"]')].map((i) =>
+            i.textContent.trim(),
+          ),
+        ).toEqual(['Open details', 'Copy link']);
+      });
+      const items = (): HTMLElement[] => [
+        ...el.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+      ];
+      items()[1]?.click();
+      await eventually(() => {
+        fixture.detectChanges();
+        expect(written).toEqual([
+          `${window.location.origin}/c/c1/queues/${first.key}`,
+        ]);
+        expect(el.textContent).toContain('Link copied.');
+      });
+      // Open details from the menu opens the same entity again.
+      cells()[0]?.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, cancelable: true }),
+      );
+      await eventually(() => {
+        fixture.detectChanges();
+        expect(items()).toHaveLength(2);
+      });
+      items()[0]?.click();
+      await eventually(() => {
+        expect(opened).toHaveLength(3);
+        expect(opened[2]?.target.key).toBe(first.key);
+      });
+
+      // Only reads were made: the inventory and the topic through the fake, the profile and the views list.
+      expect(fake.queries.every((q) => q.kind === 'queues')).toBe(true);
+      for (const request of engine.requests) {
+        expect(new URL(request.url, 'http://engine.test').pathname).toMatch(
+          /\/(profile|views)$/,
+        );
+        expect(request.method).toBe('GET');
+      }
+
+      // The bindings grid opens a binding, named by its two ends.
+      opened.length = 0;
+      const bindings = await mountPage(InventoryPage, {
+        fake,
+        inputs: { kind: 'bindings', vhost: '/' },
+        providers,
+      });
+      await eventually(() => {
+        expect(
+          bindings.el.querySelectorAll('.ag-row [col-id="source"]').length,
+        ).toBeGreaterThan(1);
+      }, 8000);
+      await eventually(() => {
+        expect(
+          bindings.el.querySelector('.loaded')?.textContent.trim(),
+        ).toMatch(/^[1-9]/);
+      });
+      const row = fake.rows().bindings.find((b) => b.vhost === '/');
+      bindings.el
+        .querySelector<HTMLElement>('.ag-row [col-id="source"]')
+        ?.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Enter',
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      await eventually(() => {
+        expect(opened).toHaveLength(1);
+      });
+      expect(opened[0]?.target.kind).toBe('bindings');
+      expect(opened[0]?.label).toMatch(/^\S+ -> \S+$/);
+      expect(row).toBeDefined();
+    },
+    PAGE_TEST_TIMEOUT_MS,
+  );
   it(
     'AC-29 a broker with no queues says so in words, and a list that is still loading never says it',
     async () => {

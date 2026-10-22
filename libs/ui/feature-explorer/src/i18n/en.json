@@ -361,5 +361,13 @@
       "reset": "Reset columns",
       "lastColumn": "At least one column stays visible"
     }
+  },
+  "entity": {
+    "menu": {
+      "open": "Open details",
+      "copyLink": "Copy link"
+    },
+    "linkCopied": "Link copied.",
+    "linkCopyFailed": "The clipboard did not accept the link."
   }
 }

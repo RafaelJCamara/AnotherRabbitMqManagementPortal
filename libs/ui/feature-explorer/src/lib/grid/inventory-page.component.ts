@@ -1,6 +1,7 @@
 // The page of one inventory kind (M0-54): a banner that says what the list is (freshness, live
 // updates) above the grid, over a window source that reads `inventory.query` in blocks and follows
 // the rows on screen. It reads the inventory only: no message, and no action that changes the broker.
+import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -23,9 +24,12 @@ import {
 } from '@app/explorer-model';
 import {
   DataGrid,
+  GRID_CLIPBOARD,
+  type GridCellTarget,
   type GridColumn,
   type GridColumnState,
   type GridLabels,
+  type GridMenuProvider,
 } from '@app/ui-grid';
 import { TranslocoDirective } from '@jsverse/transloco';
 
@@ -37,6 +41,7 @@ import { FilterBar } from './filter-bar.component';
 import { activeFilter, filterChips } from './filter-model';
 import { FreshnessBanner } from './freshness-banner.component';
 import { gridLabels } from './grid-labels';
+import { absoluteAddress, EXPLORER_NAVIGATION, rowLabel } from '../navigation';
 import { ProbePrompt } from '../profile/probe-prompt.component';
 import { ProfileStore } from '../profile/profile-store';
 import {
@@ -50,6 +55,7 @@ interface Bundle {
   readonly kind: ExplorerKind;
   readonly columns: GridColumn<InventoryRow>[];
   readonly labels: GridLabels;
+  readonly menu: GridMenuProvider<InventoryRow>;
 }
 
 @Component({
@@ -112,6 +118,17 @@ interface Bundle {
                 {{ noMatchText(t) }}
               </p>
             }
+            @if (linkNotice(); as notice) {
+              <p class="notice" role="status">
+                {{
+                  t(
+                    notice === 'copied'
+                      ? 'explorer.entity.linkCopied'
+                      : 'explorer.entity.linkCopyFailed'
+                  )
+                }}
+              </p>
+            }
             @if (sortTrimmed()) {
               <p class="notice" role="status">
                 {{ t('explorer.sort.trimmed') }}
@@ -125,8 +142,11 @@ interface Bundle {
                   [labels]="bundle(t).labels"
                   selectionMode="multiple"
                   sortMode="single"
+                  [contextMenu]="bundle(t).menu"
                   [(columnState)]="columnState"
                   (sortTrimmed)="sortTrimmed.set(true)"
+                  (rowActivated)="onActivated($event.row)"
+                  (menuAction)="onMenu($event)"
                 />
               </div>
             } @else if (profileLoading()) {
@@ -196,6 +216,11 @@ export class InventoryPage {
 
   protected readonly connection = inject(EXPLORER_CONNECTION);
   readonly #data = inject(EXPLORER_DATA);
+  readonly #navigation = inject(EXPLORER_NAVIGATION);
+  readonly #clipboard = inject(GRID_CLIPBOARD);
+  readonly #document = inject(DOCUMENT);
+  /** What the last Copy link did, until the next row is opened or copied. */
+  protected readonly linkNotice = signal<'copied' | 'failed' | null>(null);
 
   /** Chosen on the page: the name text and the facets (a bindings page chooses its vhost apart). */
   protected readonly userFilter = linkedSignal<ExplorerKind, ExplorerFilter>({
@@ -351,6 +376,44 @@ export class InventoryPage {
     this.viewChange.emit(event.id);
   }
 
+  /** A row was activated (Enter or a double click) or "Open details" was chosen: open its entity. */
+  protected onActivated(row: InventoryRow): void {
+    const cid = this.connection();
+    if (cid === null) return;
+    this.linkNotice.set(null);
+    this.#navigation.open(
+      cid,
+      { kind: this.kind(), key: row.key },
+      rowLabel(row),
+    );
+  }
+
+  /** A choice of the row menu: open the entity, or copy its address. */
+  protected onMenu(event: {
+    readonly itemId: string;
+    readonly target: GridCellTarget<InventoryRow>;
+  }): void {
+    const row = event.target.row;
+    if (row === undefined) return;
+    if (event.itemId === 'open') this.onActivated(row);
+    else if (event.itemId === 'copyLink') void this.#copyLink(row);
+  }
+
+  async #copyLink(row: InventoryRow): Promise<void> {
+    const cid = this.connection();
+    if (cid === null) return;
+    const path = this.#navigation.href(cid, {
+      kind: this.kind(),
+      key: row.key,
+    });
+    try {
+      await this.#clipboard.writeText(absoluteAddress(this.#document, path));
+      this.linkNotice.set('copied');
+    } catch {
+      this.linkNotice.set('failed');
+    }
+  }
+
   /** "This broker has no queues", per kind. */
   protected emptyText(t: Translate): string {
     return t(`explorer.empty.${this.kind()}`);
@@ -373,6 +436,21 @@ export class InventoryPage {
         kind,
         columns: inventoryColumns(kind, t),
         labels: gridLabels(kind, t),
+        menu: (target) =>
+          target.row === undefined
+            ? []
+            : [
+                {
+                  kind: 'plain',
+                  id: 'open',
+                  label: t('explorer.entity.menu.open'),
+                },
+                {
+                  kind: 'plain',
+                  id: 'copyLink',
+                  label: t('explorer.entity.menu.copyLink'),
+                },
+              ],
       };
     }
     return this.#bundle;

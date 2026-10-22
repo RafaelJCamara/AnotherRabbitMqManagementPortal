@@ -162,6 +162,14 @@ export class DataGrid<Row> {
   readonly keybindings = input<readonly GridKeybinding<Row>[] | undefined>(
     undefined,
   );
+  /**
+   * The user activated a loaded row: Enter on one of its cells (no modifier) or a double click. The row id and
+   * the row are given; nothing is selected or opened by the grid itself (M1-42).
+   */
+  readonly rowActivated = output<{
+    readonly rowId: string;
+    readonly row: Row;
+  }>();
   /** An open item of the menu was chosen. */
   readonly menuAction = output<{
     readonly itemId: string;
@@ -373,7 +381,22 @@ export class DataGrid<Row> {
         if (original.key === ' ' && event.data !== undefined) {
           original.preventDefault(); // Space selects; it does not scroll the page
           this.#select(id, true);
+        } else if (
+          original.key === 'Enter' &&
+          event.data !== undefined &&
+          !original.ctrlKey &&
+          !original.metaKey &&
+          !original.shiftKey &&
+          !original.altKey
+        ) {
+          original.preventDefault();
+          this.rowActivated.emit({ rowId: id, row: event.data });
         }
+      },
+      onRowDoubleClicked: (event) => {
+        const id = event.node.id;
+        if (event.data === undefined || id === undefined) return;
+        this.rowActivated.emit({ rowId: id, row: event.data });
       },
       onCellContextMenu: (event) => {
         const original = event.event;

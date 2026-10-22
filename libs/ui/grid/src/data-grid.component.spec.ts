@@ -54,6 +54,7 @@ function fakeClipboard(refuse = false): GridClipboard & { written: string[] } {
         [selectionMode]="mode()"
         [sortMode]="sortMode()"
         (sortTrimmed)="trimmed.set(trimmed() + 1)"
+        (rowActivated)="activated.push($event)"
         [(selection)]="selection"
         [(columnState)]="columnState"
       />
@@ -69,6 +70,7 @@ class Host {
   readonly columnState = signal<GridColumnState | null>(null);
   readonly sortMode = signal<'multi' | 'single'>('multi');
   readonly trimmed = signal(0);
+  readonly activated: { rowId: string; row: Row }[] = [];
 }
 
 async function mount(
@@ -200,6 +202,37 @@ describe('<app-data-grid>', () => {
     });
   });
 
+  it('AC-7 Enter or a double click on a loaded row activates it once', async () => {
+    const { el, host, fixture } = await mount();
+    await rendered(el, 3);
+
+    // Space selects, a modified Enter belongs to the browser or a chord: neither activates.
+    key(cellAt(el, 'name', 1), ' ');
+    key(cellAt(el, 'name', 1), 'Enter', { ctrlKey: true });
+    key(cellAt(el, 'name', 1), 'Enter', { shiftKey: true });
+    await settled(fixture, () => {
+      expect([...host.selection()]).toEqual(['b']);
+    });
+    expect(host.activated).toEqual([]);
+
+    // Enter on a loaded row: once, with the row, and it changes neither the selection nor opens a menu.
+    const enter = key(cellAt(el, 'name', 0), 'Enter');
+    await settled(fixture, () => {
+      expect(host.activated).toEqual([{ rowId: 'a', row: ROWS[0] }]);
+    });
+    expect(enter.defaultPrevented).toBe(true);
+    expect([...host.selection()]).toEqual(['b']);
+    expect(el.querySelector('[role="menu"]')).toBeNull();
+
+    // A double click activates the row it is on.
+    cellAt(el, 'name', 2).dispatchEvent(
+      new MouseEvent('dblclick', { bubbles: true }),
+    );
+    await settled(fixture, () => {
+      expect(host.activated.map((a) => a.rowId)).toEqual(['a', 'c']);
+    });
+    expect(host.activated[1]?.row).toBe(ROWS[2]);
+  });
   it('shows the total, what is loaded and what is selected in its status bar', async () => {
     const { el, host, fixture } = await mount();
     await rendered(el, 3);

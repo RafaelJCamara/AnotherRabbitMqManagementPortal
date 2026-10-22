@@ -42,6 +42,7 @@
       "@app/feature-explorer/testing": [
         "./libs/ui/feature-explorer/src/testing.ts"
       ],
+      "@app/forecast": ["./libs/shared/forecast/src/index.ts"],
       "@app/generators": ["./tools/generators/src/index.ts"],
       "@app/jobs": ["./libs/engine/jobs/src/index.ts"],
       "@app/json-stream": ["./libs/shared/json-stream/src/index.ts"],

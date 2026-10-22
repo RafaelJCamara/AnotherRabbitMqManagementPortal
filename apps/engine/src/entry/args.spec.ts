@@ -33,6 +33,32 @@ describe('command line', () => {
     });
   });
 
+  it('M0-59 reads the web flags: host, public origin, token file and the two switches', () => {
+    expect(
+      parseArgs([
+        '--mode=local',
+        '--host=::1',
+        '--public-origin=http://127.0.0.1:9000',
+        '--token-file=/run/secrets/t',
+        '--open',
+      ]),
+    ).toEqual({
+      mode: 'local',
+      host: '::1',
+      publicOrigin: 'http://127.0.0.1:9000',
+      tokenFile: '/run/secrets/t',
+      open: true,
+    });
+    expect(parseArgs(['--mode=local', '--no-open']).open).toBe(false);
+    expect(parseArgs(['--mode=local']).open).toBeUndefined();
+    expect(message(['--mode=local', '--open', '--no-open'])).toContain(
+      '--open',
+    );
+    expect(message(['--mode=local', '--open', '--open'])).toContain('--open');
+    expect(message(['--mode=local', '--open=true'])).toContain('Unknown');
+    expect(message(['--mode=local', '--host='])).toContain('--host');
+  });
+
   it('needs a mode, and only a known one', () => {
     expect(message([])).toContain('--mode');
     expect(message(['--mode=cloud'])).toContain('--mode');

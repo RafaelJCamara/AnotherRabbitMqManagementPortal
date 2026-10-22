@@ -103,7 +103,16 @@ export interface ModeProfile {
     permission: Permission,
   ) => boolean;
   /** Absent: no TCP listener (desktop; requests arrive over the MessagePort tunnel, M0-34). */
-  readonly listener?: { readonly host: string; readonly port: number };
+  readonly listener?: {
+    readonly host: string;
+    readonly port: number;
+    /**
+     * ADR-016, the one exception to "no bind outside loopback" (DC-36): the address is a container's
+     * own network namespace, so exposure is decided by the publisher's `-p`, and every route that
+     * needs a principal needs a token. Without this, a non-loopback host is refused.
+     */
+    readonly containerNamespace?: true;
+  };
   readonly publicOrigins?: readonly string[];
   /** Asset directories of the web UI, newest first; absent when the mode serves none. */
   readonly uiRoots?: readonly string[];
@@ -206,10 +215,15 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
 
   try {
     // A bind outside loopback needs authentication and TLS (DC-36), which this build cannot
-    // configure: refuse before anything is opened.
+    // configure: refuse before anything is opened. The container namespace (ADR-016) is the one
+    // exception, and only with an authenticator, so no route that needs a principal is open.
     if (
       profile.listener !== undefined &&
-      !LOOPBACK.has(profile.listener.host)
+      !LOOPBACK.has(profile.listener.host) &&
+      !(
+        profile.listener.containerNamespace === true &&
+        profile.authenticators.length > 0
+      )
     ) {
       throw new AppError('GATE_BLOCKED', {
         detail:

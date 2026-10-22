@@ -7,14 +7,15 @@
 //                vault falls to the passphrase; nothing can type one yet, so without a KEK file the
 //                vault stays locked and plans and jobs fail closed (OQ-351).
 //   auth         the launch token; the one UI principal may do everything, others nothing (A-11)
-//   listener     127.0.0.1 and the --port flag (0: the system picks)
+//   listener     127.0.0.1 and the --port flag (0: the system picks); a bind anywhere else is refused.
+//                `APP_RUNTIME=container` is the one exception (ADR-016): 0.0.0.0:8765 inside the
+//                container, token mandatory, banner with the loopback `docker run -p`. The rules
+//                are in `web-binding.ts`.
 //   jobs         the lock makes this the only engine on the database: running jobs are interrupted
 //                at start, and none resumes by itself
-import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { LAUNCH_TOKEN_PARAM } from '@app/contracts';
 import { openSqlite } from '@app/persistence';
 import { allowUiPrincipals, isUiPrincipal } from '@app/kernel';
 import {
@@ -27,8 +28,13 @@ import {
 import { createLocalTokenAuth } from '@app/transport';
 
 import { createDataDirBundleSink } from '../data-dir-bundles.ts';
-import { UsageError } from '../entry/args.ts';
 import type { ModeFactory } from './types.ts';
+import {
+  containerNotice,
+  launchUrl,
+  resolveWebBinding,
+  type WebBinding,
+} from './web-binding.ts';
 
 /** No native keyring binding is bundled: report the OS store as absent so the wrap is skipped. */
 const noKeyring: KeyringBackend = {
@@ -38,24 +44,39 @@ const noKeyring: KeyringBackend = {
 };
 
 export const createLocalMode: ModeFactory = (host) => {
-  const { args } = host;
-  if (args.dataDir === undefined) {
-    return Promise.reject(new UsageError('Local mode needs --data-dir.'));
+  let binding: WebBinding;
+  try {
+    binding = resolveWebBinding(host.args, host.env);
+  } catch (error) {
+    return Promise.reject(
+      error instanceof Error ? error : new Error('refused'),
+    );
   }
-  const dataDir = args.dataDir;
-  const token = randomBytes(32).toString('base64url');
+  const { dataDir, token } = binding;
+  const container = binding.runtime === 'container';
 
   const wraps: KeyWrap[] = [
-    ...(args.kekFile === undefined
+    ...(binding.kekFile === undefined
       ? []
-      : [createFileKekWrap({ path: args.kekFile })]),
+      : [createFileKekWrap({ path: binding.kekFile })]),
     createKeyringWrap({ backend: noKeyring }),
     createPassphraseWrap(),
   ];
   const webBuild = join(host.bundleDir, '..', 'web', 'browser');
   const uiRoot =
-    args.uiDir ??
+    binding.uiDir ??
     (existsSync(join(webBuild, 'index.html')) ? webBuild : undefined);
+  // Which source made the token, never the token (I-10).
+  host.logger.info(
+    {
+      event: 'engine.web.binding',
+      runtime: binding.runtime,
+      bind: binding.host,
+      authSource: token.source,
+      publicOrigins: binding.publicOrigins.length,
+    },
+    'web binding',
+  );
 
   return Promise.resolve({
     profile: {
@@ -66,19 +87,30 @@ export const createLocalMode: ModeFactory = (host) => {
         lockDir: dataDir,
       },
       vault: { wraps },
-      authenticators: [createLocalTokenAuth(token)],
+      authenticators: [createLocalTokenAuth(token.value)],
       authorizer: allowUiPrincipals(),
       canSubscribe: (principal) => isUiPrincipal(principal),
-      listener: { host: '127.0.0.1', port: args.port ?? 0 },
+      listener: {
+        host: binding.host,
+        port: binding.port,
+        // ADR-016: a wildcard bind is the container's namespace, never a LAN exposure.
+        ...(container ? { containerNamespace: true as const } : {}),
+      },
+      ...(binding.publicOrigins.length === 0
+        ? {}
+        : { publicOrigins: binding.publicOrigins }),
       ...(uiRoot === undefined ? {} : { uiRoots: [uiRoot] }),
       jobs: { recovery: 'interrupt-all-running', autoResume: 'never' },
       // Bundles go to <data dir>/diagnostics; the launch token is removed from them.
       diagnostics: {
         files: createDataDirBundleSink(dataDir),
-        secretValues: () => [token],
+        secretValues: () => [token.value],
       },
     },
-    launchUrl: (address) =>
-      `http://${address.host}:${String(address.port)}/#${LAUNCH_TOKEN_PARAM}=${token}`,
+    launchUrl: (address) => launchUrl(binding, address),
+    ...(container
+      ? { notice: (address) => containerNotice(binding, address) }
+      : {}),
+    openOnReady: binding.open,
   });
 };

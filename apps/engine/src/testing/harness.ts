@@ -1,6 +1,7 @@
 // Test support for the composition root: a temporary data directory, a logger that keeps its
 // lines, and an in-process engine started through the same `startEngine` the bundle uses.
 import { randomBytes } from 'node:crypto';
+import { request as httpRequest } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,7 +9,11 @@ import { join } from 'node:path';
 import type { CtlFrame } from '@app/contracts';
 
 import { createCtlPort, type CtlPort } from '../entry/ctl.ts';
-import { startEngine, type StartedEngine } from '../entry/start.ts';
+import {
+  startEngine,
+  type EntryIo,
+  type StartedEngine,
+} from '../entry/start.ts';
 
 export interface TempDir {
   readonly dir: string;
@@ -64,10 +69,12 @@ export interface RunningEngine extends StartedEngine {
 export async function startForTest(
   argv: readonly string[],
   ctl?: CtlPort,
+  extra: Pick<EntryIo, 'env' | 'openBrowser'> = {},
 ): Promise<RunningEngine> {
   const lines: string[] = [];
   const consoleText: string[] = [];
   const started = await startEngine(argv, {
+    ...extra,
     console: {
       write: (text: string) => {
         consoleText.push(text);
@@ -94,6 +101,39 @@ export async function startForTest(
         : `http://${address.host}:${String(address.port)}`,
     token,
   };
+}
+
+/**
+ * One request on a real socket with exactly the headers given, `Host` included: Node's `fetch`
+ * will not send a Host of our choosing and a rebinding page would.
+ */
+export function rawRequest(
+  port: number,
+  path: string,
+  headers: Readonly<Record<string, string>> = {},
+): Promise<{
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+  readonly body: string;
+}> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(
+      { host: '127.0.0.1', port, path, headers: { ...headers } },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => chunks.push(chunk));
+        response.on('end', () => {
+          resolve({
+            status: response.statusCode ?? 0,
+            headers: response.headers,
+            body: Buffer.concat(chunks).toString('utf8'),
+          });
+        });
+      },
+    );
+    request.on('error', reject);
+    request.end();
+  });
 }
 
 export const localArgs = (

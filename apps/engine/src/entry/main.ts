@@ -12,6 +12,7 @@ import { DataDirLockedError } from '../data-dir-lock.ts';
 import { ModeRefusedError } from '../modes/types.ts';
 import { UsageError } from './args.ts';
 import { createCtlPort, detectCtlTransport, type CtlPort } from './ctl.ts';
+import { createBrowserOpener } from './open-browser.ts';
 import { startEngine } from './start.ts';
 
 /** Exit codes follow sysexits.h where one fits. */
@@ -120,6 +121,8 @@ export async function main(argv: readonly string[]): Promise<void> {
       ctl,
       bundleDir: dirname(fileURLToPath(import.meta.url)),
       sinceStart: () => performance.now(),
+      env: process.env,
+      openBrowser: createBrowserOpener(),
     });
     let stopping = false;
     const stop = (reason: DrainReason, totalMs: number): void => {

@@ -114,7 +114,10 @@ describe('mode logic stays in the mode files (ADR-001)', () => {
       .filter((path) => path.endsWith('.ts') && !path.endsWith('.spec.ts'))
       .filter((path) => !exempt.some((prefix) => path.startsWith(prefix)))
       .filter((path) =>
-        /['"`](?:desktop|local|team)['"`]/.test(readFileSync(path, 'utf8')),
+        // M0-59 AC-13: the container runtime is a mode-file concern too.
+        /['"`](?:desktop|local|team|container|native)['"`]/.test(
+          readFileSync(path, 'utf8'),
+        ),
       )
       .map((path) => relative(src, path));
 

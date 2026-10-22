@@ -21,6 +21,7 @@ import { EnvChrome, Gated } from '@app/ui-design';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { map } from 'rxjs';
 
+import { CapabilitySection } from '../capability/capability-section.component';
 import { ConnectionsService } from '../connections.service';
 import { ConfirmDialog } from '../dialog/confirm-dialog.component';
 import { connectionIdOf } from '../ids';
@@ -40,6 +41,7 @@ type Load =
   selector: 'app-connection-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    CapabilitySection,
     ConfirmDialog,
     ConnectionLock,
     DatePipe,
@@ -148,6 +150,7 @@ type Load =
                 <dd>{{ profile.updatedAt | date: 'medium' }}</dd>
               </dl>
             </section>
+            <app-capability-section [cid]="profile.id" />
             <app-test-panel [target]="{ cid: profile.id }" source="saved" />
             @if (deleteOpen()) {
               <app-confirm-dialog

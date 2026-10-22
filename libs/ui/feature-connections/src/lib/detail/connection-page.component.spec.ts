@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { byText, exists, press, squash } from '../testing/dom';
+import { byText, definitions, exists, press, squash } from '../testing/dom';
 import { FakeConnections, problemOf } from '../testing/fake-connections';
 import { profileFixture } from '../testing/fixtures';
 import {
@@ -46,15 +46,6 @@ async function ready(bed: RoutedBed, name: string): Promise<void> {
     () => bed.el.querySelector('h1')?.textContent.includes(name) === true,
     `the page of ${name}`,
   );
-}
-
-/** The dt and dd pairs of a description list, by term. */
-function definitions(root: ParentNode): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const dt of root.querySelectorAll('dt')) {
-    out[squash(dt.textContent)] = squash(dt.nextElementSibling?.textContent);
-  }
-  return out;
 }
 
 describe('a connection page', () => {

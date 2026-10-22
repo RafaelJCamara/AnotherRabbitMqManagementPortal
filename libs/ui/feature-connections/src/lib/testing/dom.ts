@@ -40,3 +40,12 @@ export function press(target: Element, key: string): boolean {
   target.dispatchEvent(event);
   return event.defaultPrevented;
 }
+
+/** The `dt` and `dd` pairs of a description list, by term. */
+export function definitions(root: ParentNode): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const dt of root.querySelectorAll('dt')) {
+    out[squash(dt.textContent)] = squash(dt.nextElementSibling?.textContent);
+  }
+  return out;
+}

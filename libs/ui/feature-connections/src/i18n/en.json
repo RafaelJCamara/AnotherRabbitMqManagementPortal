@@ -226,5 +226,72 @@
         "hint": "The engine's own words are below."
       }
     }
+  },
+  "capabilities": {
+    "title": "Capabilities",
+    "hint": "The probe reads the management API of the broker with the stored login and keeps the answer in the engine. It asks questions; it changes nothing in the broker.",
+    "check": "Check capabilities",
+    "checking": "Checking",
+    "loading": "Reading the capabilities.",
+    "notProbed": "This connection has not been probed yet. Check the capabilities to read the broker.",
+    "unknown": "The capabilities are not known.",
+    "unreadable": "The profile of this broker could not be read by this version of the app, so only the features the engine listed are shown.",
+    "noGates": "The engine listed no features, so what the broker allows is not known.",
+    "product": "Product",
+    "version": "Version",
+    "era": "Era",
+    "assumed": "assumed",
+    "stats": "Statistics",
+    "statsOn": "Full",
+    "statsTotals": "Queue totals only",
+    "statsOff": "Off",
+    "notReported": "not reported",
+    "caption": "What the broker lets the app do",
+    "featureColumn": "Feature",
+    "state": "State",
+    "why": "Why",
+    "stepsCaption": "What the probe did",
+    "step": "Step",
+    "detail": "Detail",
+    "states": {
+      "open": "Available",
+      "degraded": "Available with limits",
+      "closed": "Not available"
+    },
+    "stepStates": {
+      "ok": "Answered",
+      "unavailable": "Not available",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    },
+    "steps": {
+      "tls": "TLS",
+      "host-fingerprint": "Host fingerprint",
+      "oauth-discovery": "OAuth discovery",
+      "identity": "Identity",
+      "overview": "Overview",
+      "extensions": "Extensions",
+      "nodes": "Nodes",
+      "feature-flags": "Feature flags",
+      "vendor-fingerprints": "Vendor fingerprints",
+      "exchanges": "Exchanges",
+      "prometheus": "Prometheus",
+      "amqp-handshake": "AMQP handshake"
+    },
+    "feature": {
+      "streams.browse": "Stream browsing",
+      "tap.firehose": "Firehose tap",
+      "audit.event-exchange": "Audit event exchange",
+      "policies.operator-edit": "Operator policy editing",
+      "amqp.peek": "Side-effect-aware peek",
+      "amqp.tap": "Live tap",
+      "amqp.publish": "Publish",
+      "amqp.replay": "Replay"
+    },
+    "verification": {
+      "unverifiedPatch": "This broker patch version has not been through a conformance run; the verified version of the same minor release is the reference.",
+      "unverifiedMinor": "No version of this broker's minor release has been through a conformance run. What the app shows is unconfirmed.",
+      "unknownBuild": "This broker build could not be identified, so none of the app's broker behaviour has been verified for it."
+    }
   }
 }

@@ -18,6 +18,7 @@ Matchers (one per exchange type, each citing the broker source it reads):
 - `topicMatches(pattern, key)`, `topicWordsMatch(words, words)`, `splitTopicKey(key)` (the empty key has zero words), `countHashWords(bindingKey)`.
 - `parseXMatch(args)` (`all` | `any` | `all-with-x` | `any-with-x`, and whether the value is one the broker accepts), `headerValuesEqual(a, b)`.
 - `routeDefault(keys, queueNames)` and `DEFAULT_EXCHANGE` (`""`); `alternateExchangeOf(exchange)` and `alternateExchangeFor(ownDestinations, exchange)`.
+- `validateBinding(exchangeType, binding, rules?)`: what the broker refuses when a binding is created (headers `x-match`; topic keys with more `#` words than `rules.topicMaxHashWildcards`, the limit coming from the registry capability `topicBindingHashWildcardLimit`).
 - `DEFAULT_LIMITS`, `X_MATCH_MODES`, and the input and output types (`RoutingTopology`, `PublishInput`, `RoutingResult`, `RoutePath`, `RouteHop`, `MatchRule`, ...).
 
 ## Invariants

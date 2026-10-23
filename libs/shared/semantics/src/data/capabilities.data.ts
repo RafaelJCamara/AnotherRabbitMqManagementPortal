@@ -126,4 +126,21 @@ export const capabilityRules: readonly CapabilityRule[] = [
       },
     ],
   },
+  {
+    id: 'topicBindingHashWildcardLimit',
+    summary:
+      'The broker refuses a topic binding whose key has more than two # words. Up to 4.3.4 it accepts any number. Matching is unchanged; this is the binding validator only (M1-02).',
+    versions: '>=4.3.5',
+    appliesWhen: 'always',
+    citations: [
+      {
+        kind: 'S',
+        ref: 'RS@v4.3.6:deps/rabbit/src/rabbit_exchange_type_topic.erl MAX_HASH_WILDCARDS 2 and validate_binding/2 (also present at v4.3.5)',
+      },
+      {
+        kind: 'S',
+        ref: 'RS@v4.3.4:deps/rabbit/src/rabbit_exchange_type_topic.erl has no MAX_HASH_WILDCARDS; the same at v3.13.7, v4.0.9, v4.1.8, v4.2.9, v4.3.0, v4.3.1 and v4.3.3 (validate_binding/2 returns ok)',
+      },
+    ],
+  },
 ];

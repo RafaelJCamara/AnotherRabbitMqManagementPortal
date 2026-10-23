@@ -26,6 +26,7 @@ describe('routing public API', () => {
       'topicMatches',
       'topicRule',
       'topicWordsMatch',
+      'validateBinding',
     ]);
   });
 });

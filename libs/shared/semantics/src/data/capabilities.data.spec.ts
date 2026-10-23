@@ -54,6 +54,7 @@ const EXPECTED: Record<string, Expected> = {
   delayedRetryPolicyKeys: ALWAYS(from('4.3.1')),
   apiAuthEndpoint: ALWAYS(GRID.slice(0, GRID.indexOf('4.2.0'))),
   clientDeathHeaderInterpreted: ALWAYS(GRID.slice(0, GRID.indexOf('4.0.9'))),
+  topicBindingHashWildcardLimit: ALWAYS(from('4.3.5')),
 };
 
 describe('capability predicates (DC-32)', () => {
@@ -96,6 +97,33 @@ describe('capability predicates (DC-32)', () => {
     expect(holds(['3.13.7', '4.0.9'])).toBe(false);
     expect(holds(['3.13.7', null])).toBe(false);
     expect(holds(['3.13.7'], 'lavinmq')).toBe(false);
+  });
+
+  it('M1-02 AC-14 topicBindingHashWildcardLimit holds from 4.3.5 on, on every node, with two citations', () => {
+    const holds = (nodes: string[]): boolean =>
+      semanticsRegistry.capability(
+        'topicBindingHashWildcardLimit',
+        profile(nodes),
+      );
+    for (const version of ['3.13.7', '4.0.9', '4.1.8', '4.2.9', '4.3.0']) {
+      expect(holds([version]), version).toBe(false);
+    }
+    expect(holds(['4.3.4'])).toBe(false);
+    for (const version of ['4.3.5', '4.3.6', '4.4.0']) {
+      expect(holds([version]), version).toBe(true);
+    }
+    // one node below the line is enough to lose it; an unreadable node never earns it
+    expect(holds(['4.3.6', '4.3.4'])).toBe(false);
+    expect(
+      semanticsRegistry.capability(
+        'topicBindingHashWildcardLimit',
+        profile(['4.3.6', null]),
+      ),
+    ).toBe(false);
+    const rule = capabilityRules.find(
+      (candidate) => candidate.id === 'topicBindingHashWildcardLimit',
+    );
+    expect(rule?.citations).toHaveLength(2);
   });
 
   it('a mixed cluster holds a capability only when its oldest node does', () => {

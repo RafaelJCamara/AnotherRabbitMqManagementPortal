@@ -19,6 +19,8 @@ export {
   topicWordsMatch,
 } from './topic.ts';
 export type { TopicOutcome } from './topic.ts';
+export { validateBinding } from './validate-binding.ts';
+export type { BindingProblem, BindingRules } from './validate-binding.ts';
 export { DEFAULT_LIMITS, X_MATCH_MODES } from './types.ts';
 export type {
   BindingRef,

@@ -208,6 +208,69 @@ export interface BrokerProfilesTable {
   profile: string;
 }
 
+/** captures (M1-09): one saved capture and its counters; see 0009_captures. */
+export interface CapturesTable {
+  id: string;
+  owner_id: string;
+  kind: string;
+  label: string;
+  /** JSON text. */
+  target: string;
+  env_class: string;
+  /** 0 or 1. */
+  index_bodies: number;
+  created_at: number;
+  expires_at: number;
+  message_count: number;
+  stored_bytes: number;
+  dropped_queue: number;
+  dropped_quota: number;
+  dropped_limit: number;
+  omitted_bodies: number;
+  /** 0 or 1: the rows are being removed in batches. */
+  deleting: number;
+}
+
+/** captured_messages (M1-09): routing facts in the clear, body and headers sealed, masked text. */
+export interface CapturedMessagesTable {
+  id: string;
+  capture_id: string;
+  received_at: number;
+  exchange: string;
+  routing_key: string;
+  source: string;
+  content_type: string | null;
+  /** 0 or 1. */
+  redelivered: number;
+  size: number;
+  body_sha256: string;
+  body_state: 'inline' | 'blob' | 'omitted';
+  /** Ciphertext made by @app/secrets; null unless `body_state` is `inline`. */
+  body_sealed: Uint8Array | null;
+  blob_ref: string | null;
+  /** Ciphertext: properties and headers. */
+  meta_sealed: Uint8Array;
+  meta_text: string;
+  body_text: string | null;
+}
+
+/** capture_blobs (M1-09): a content-addressed body with a reference count. */
+export interface CaptureBlobsTable {
+  ref: string;
+  size: number;
+  chunk_bytes: number;
+  chunk_count: number;
+  refcount: number;
+  created_at: number;
+}
+
+/** capture_blob_chunks (M1-09): the sealed chunks of a blob. */
+export interface CaptureBlobChunksTable {
+  ref: string;
+  ix: number;
+  sealed: Uint8Array;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -224,6 +287,10 @@ export interface Database {
   views: ViewsTable;
   credentials: CredentialsTable;
   broker_profiles: BrokerProfilesTable;
+  captures: CapturesTable;
+  captured_messages: CapturedMessagesTable;
+  capture_blobs: CaptureBlobsTable;
+  capture_blob_chunks: CaptureBlobChunksTable;
 }
 
 /** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */

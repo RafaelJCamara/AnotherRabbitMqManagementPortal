@@ -3,6 +3,7 @@
 // keyset and bounded (I-7); nothing here lists "all".
 import type {
   AuditRepository,
+  CaptureRepository,
   ConnectionStore,
   DataKeyRepository,
   IdempotencyRepository,
@@ -105,4 +106,6 @@ export interface Repositories {
   readonly workspace: WorkspaceRepository;
   /** The cache of probed BrokerProfiles (M0-45). The port is @app/ports'. */
   readonly brokerProfiles: BrokerProfileStore;
+  /** Saved captures: sealed messages, blobs and the full-text index (M1-09). The port is @app/ports'. */
+  readonly captures: CaptureRepository;
 }

@@ -19,6 +19,7 @@ import {
   startPostgres,
   type PostgresContainer,
 } from '../testing/postgres-container';
+import { captureContract } from '../testing/capture-contract';
 import { repositoryContract } from '../testing/repository-contract';
 import { tempDirectory } from '../testing/sqlite-fixtures';
 import { sql } from 'kysely';
@@ -81,15 +82,21 @@ interface Outcome {
 }
 const outcomes = new Map<string, Outcome>();
 
-/** Table and column names with nullability: the shape both dialects must share. */
+/** Table and column names with nullability: the shape both dialects must share. The full-text index is the one place they differ on purpose (the FTS5 table and its shadow tables on SQLite, the search tsvector column on Postgres; OQ-988). */
 async function schemaOf(handle: PersistenceHandle): Promise<string[]> {
   const tables = await handle.db.introspection.getTables();
   return tables
+    .filter((table) => !table.name.startsWith('captured_fts'))
     .flatMap((table) =>
-      table.columns.map(
-        (column) =>
-          `${table.name}.${column.name}${column.isNullable ? '?' : ''}`,
-      ),
+      table.columns
+        .filter(
+          (column) =>
+            !(table.name === 'captured_messages' && column.name === 'search'),
+        )
+        .map(
+          (column) =>
+            `${table.name}.${column.name}${column.isNullable ? '?' : ''}`,
+        ),
     )
     .sort();
 }
@@ -129,6 +136,15 @@ describe.each(targets)('$name', (target) => {
       version: await runner.currentVersion(),
       schema: await schemaOf(handle),
     });
+  });
+
+  captureContract({
+    name: target.name,
+    open: async () => {
+      const handle = await fresh();
+      await createMigrationRunner({ handle }).migrate();
+      return handle;
+    },
   });
 
   repositoryContract({

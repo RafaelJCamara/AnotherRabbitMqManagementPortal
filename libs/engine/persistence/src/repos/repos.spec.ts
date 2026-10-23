@@ -3,12 +3,18 @@ import { afterAll } from 'vitest';
 
 import type { PersistenceHandle } from '../database';
 import { openMigratedSqlite } from '../testing/sqlite-fixtures';
+import { captureContract } from '../testing/capture-contract';
 import { repositoryContract } from '../testing/repository-contract';
 import { createRepositories } from '.';
 
 // The same contracts run on Postgres in src/it/persistence.it.ts.
 repositoryContract({
   name: 'AC-1 sqlite (in memory)',
+  open: () => openMigratedSqlite(),
+});
+
+captureContract({
+  name: 'sqlite (in memory)',
   open: () => openMigratedSqlite(),
 });
 

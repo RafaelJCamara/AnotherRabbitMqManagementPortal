@@ -6,6 +6,9 @@ describe('ports public API', () => {
   // Update this list, and the README, together with every export you add.
   it('exports exactly the documented names', () => {
     expect(Object.keys(api).sort()).toEqual([
+      'CAPTURE_MAX_BATCH',
+      'CAPTURE_MAX_WINDOW',
+      'CaptureSearchUnavailableError',
       'ForgedProofError',
       'LANES',
       'assertAcceptProof',

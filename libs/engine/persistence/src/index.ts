@@ -3,6 +3,10 @@
 export type {
   AuditEventsTable,
   BlobsTable,
+  CaptureBlobChunksTable,
+  CaptureBlobsTable,
+  CapturedMessagesTable,
+  CapturesTable,
   ConnectionProfilesTable,
   CredentialsTable,
   DataKeysTable,

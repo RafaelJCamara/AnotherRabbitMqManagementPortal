@@ -1,5 +1,31 @@
 // @app/ports: Read/Write-split ports, role-typed leases and nominal settlement proofs (M0-23,
 // ADR-009). Types, plus the proof minting and checking that make the proofs nominal at run time.
+export {
+  CAPTURE_MAX_BATCH,
+  CAPTURE_MAX_WINDOW,
+  CaptureSearchUnavailableError,
+} from './captures.ts';
+export type {
+  AppendBatch,
+  AppendLimits,
+  AppendRejectReason,
+  AppendResult,
+  BlobChunk,
+  BlobSlice,
+  CaptureBodyState,
+  CaptureCounters,
+  CaptureLoss,
+  CaptureRecord,
+  CaptureRepository,
+  CaptureUsage,
+  DeleteResult,
+  MessageQuery,
+  MessageSummary,
+  NewCapture,
+  NewMessage,
+  NewMessageBlob,
+  StoredMessage,
+} from './captures.ts';
 export type {
   Amqp10Delivery,
   Amqp10Message,

@@ -1,8 +1,11 @@
 // The codec registry: the first-party (tier 1) codecs, looked up by id, mime or content-encoding
 // token. Order matters only for ties in a sniff.
 import { base64Codec } from './base64.ts';
+import { cborCodec } from './cbor.ts';
+import { brotliCodec, deflateCodec, gzipCodec, zstdCodec } from './compress.ts';
 import { hexCodec } from './hex.ts';
 import { jsonCodec } from './json.ts';
+import { msgpackCodec } from './msgpack.ts';
 import { textCodec } from './text.ts';
 import type {
   FormatCodec,
@@ -11,9 +14,18 @@ import type {
   TransformCodecId,
 } from './types.ts';
 
-export const FORMAT_CODECS: readonly FormatCodec[] = [jsonCodec, textCodec];
+export const FORMAT_CODECS: readonly FormatCodec[] = [
+  jsonCodec,
+  msgpackCodec,
+  cborCodec,
+  textCodec,
+];
 
 export const TRANSFORM_CODECS: readonly TransformCodec[] = [
+  gzipCodec,
+  deflateCodec,
+  brotliCodec,
+  zstdCodec,
   base64Codec,
   hexCodec,
 ];

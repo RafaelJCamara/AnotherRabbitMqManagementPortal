@@ -66,7 +66,11 @@ const same = (a: Uint8Array, b: Uint8Array): boolean =>
 const pattern = (length: number): Uint8Array =>
   Uint8Array.from({ length }, (_, i) => (i * 7 + 3) % 251);
 
-describe('capture store', () => {
+// Several tests here seal and hash megabytes (a 3 MiB body, a 16 MiB body over the cap) and read them back
+// in chunks, giving the loop a turn between chunks. That takes about a second on a developer machine and
+// several on a loaded CI runner (6.9 s on one), so the 5 s default failed on load, not on behaviour. The
+// limit only stops a hung test; no assertion depends on the time.
+describe('capture store', { timeout: 60_000 }, () => {
   it('M1-09 AC-7 keeps small bodies inline, chunks bigger ones, and stores equal large bodies once', async () => {
     const { repo, store } = setup();
     const capture = await store.create(OWNER, input());
@@ -138,9 +142,12 @@ describe('capture store', () => {
     ];
     for (const [offset, length] of ranges) {
       const got = await store.blob(OWNER, ref, offset, length);
-      expect(got).toEqual(
-        body.subarray(offset, Math.min(offset + length, body.byteLength)),
-      );
+      expect(
+        same(
+          got,
+          body.subarray(offset, Math.min(offset + length, body.byteLength)),
+        ),
+      ).toBe(true);
     }
     expect(await store.blob(OWNER, ref, body.byteLength, 10)).toEqual(
       new Uint8Array(0),

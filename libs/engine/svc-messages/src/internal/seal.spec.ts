@@ -106,12 +106,12 @@ describe('capture sealing', () => {
 
   it('M1-09 AC-6 chunks of a large body open to the same bytes, in order, with a short last chunk', async () => {
     const sealer = createCaptureSealer(createFakeSealer());
-    const body = bytes(CHUNK_BYTES * 3 + 123, 3);
+    const body = bytes(CHUNK_BYTES * 2 + 123, 3);
     const ref = await sha256Hex(body);
 
     const chunks = await sealer.sealChunks(ref, body);
 
-    expect(chunks).toHaveLength(4);
+    expect(chunks).toHaveLength(3);
     const plain: Uint8Array[] = [];
     for (const [index, chunk] of chunks.entries()) {
       plain.push(await sealer.openChunk(ref, index, chunk));
@@ -119,10 +119,10 @@ describe('capture sealing', () => {
     expect(plain.map((p) => p.byteLength)).toEqual([
       CHUNK_BYTES,
       CHUNK_BYTES,
-      CHUNK_BYTES,
       123,
     ]);
-    expect(Buffer.concat(plain)).toEqual(Buffer.from(body));
+    // `toEqual` on a 500 KB buffer walks it byte by byte with a diff; `equals` is one comparison.
+    expect(Buffer.concat(plain).equals(Buffer.from(body))).toBe(true);
     expect(await sealer.sealChunks(ref, new Uint8Array(0))).toEqual([]);
   });
 

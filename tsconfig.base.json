@@ -34,6 +34,7 @@
       "@app/deaths": ["./libs/shared/deaths/src/index.ts"],
       "@app/decoders": ["./libs/engine/decoders/src/index.ts"],
       "@app/domain-model": ["./libs/shared/domain-model/src/index.ts"],
+      "@app/effective-config": ["./libs/shared/effective-config/src/index.ts"],
       "@app/explorer-model": ["./libs/shared/explorer-model/src/index.ts"],
       "@app/explorer-model/entity": [
         "./libs/shared/explorer-model/src/entity.ts"

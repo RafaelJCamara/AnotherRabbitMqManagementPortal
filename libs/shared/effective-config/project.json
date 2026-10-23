@@ -1,0 +1,30 @@
+{
+  "name": "effective-config",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/effective-config/src",
+  "projectType": "library",
+  "tags": ["type:pure", "runtime:isomorphic", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/shared/effective-config/tsconfig.lib.json --noEmit",
+          "tsc -p libs/shared/effective-config/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/shared/effective-config/vitest.config.mts"
+      }
+    }
+  }
+}

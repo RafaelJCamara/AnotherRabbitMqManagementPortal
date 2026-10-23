@@ -7,8 +7,10 @@ describe('testkit public API', () => {
   it('exports exactly the documented names', () => {
     expect(Object.keys(api).sort()).toEqual([
       'API',
+      'createCaptureStack',
       'createFakeMgmtRead',
       'createFakeMgmtWrite',
+      'createRotatingKeyRing',
       'createTestEngine',
       'findBroker',
       'loadBrokerVersions',

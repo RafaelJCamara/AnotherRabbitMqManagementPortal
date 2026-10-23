@@ -26,3 +26,10 @@ export type { Check } from './lab/probes.ts';
 export { verifyBroker } from './lab/verify.ts';
 export { findBroker, loadBrokerVersions } from './lab/versions.ts';
 export type { BrokerImage } from './lab/versions.ts';
+export {
+  createCaptureStack,
+  createRotatingKeyRing,
+  type CaptureStack,
+  type CaptureStackOptions,
+  type RotatingKeyRing,
+} from './captures/capture-stack.ts';

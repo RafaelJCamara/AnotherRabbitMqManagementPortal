@@ -77,6 +77,14 @@ const MAX_BATCH_BYTES = 4 * 1024 * 1024;
 const MAX_FLUSH_ROUNDS = 8;
 const INITIAL_BATCH = 16;
 const GROW_STEP = 4;
+/**
+ * The batch halves when a transaction takes more than this share of the budget, and grows when it
+ * takes less than the other. Halving at 50 % rather than at 100 % keeps the spread of times around
+ * the budget under it, not on it (the time of a transaction varies by a factor of three or more with
+ * the disk and the machine's load), so the 95th percentile stays within.
+ */
+const SHRINK_ABOVE = 0.5;
+const GROW_BELOW = 0.25;
 
 function countCode(error: unknown): string {
   return typeof error === 'object' &&
@@ -140,9 +148,9 @@ export function createIngest(options: IngestOptions): Ingest {
       else if (reason === 'duplicate') totals.duplicate += 1;
       else totals.captureMissing += 1;
     }
-    if (result.txnMs > options.budgetMs) {
+    if (result.txnMs > options.budgetMs * SHRINK_ABOVE) {
       batchSize = Math.max(1, Math.floor(batchSize / 2));
-    } else if (result.txnMs < options.budgetMs * 0.6) {
+    } else if (result.txnMs < options.budgetMs * GROW_BELOW) {
       batchSize = Math.min(options.maxBatch, batchSize + GROW_STEP);
     }
   }

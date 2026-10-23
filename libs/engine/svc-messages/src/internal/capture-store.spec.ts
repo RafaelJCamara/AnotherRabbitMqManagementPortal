@@ -376,6 +376,35 @@ describe('capture store', () => {
     expect(metadata.items).toHaveLength(1);
   });
 
+  it('M1-09 AC-12 turns a busy, lost or failing capture worker into a Problem, and says nothing of why', async () => {
+    const { repo, store } = setup();
+    const fail = (code: string) => () =>
+      Promise.reject(
+        Object.assign(new Error('CANARY-SQL-text-from-the-database'), { code }),
+      );
+
+    repo.getCapture = fail('CAPTURE_WORKER_BUSY');
+    const busy = await store.capture(OWNER, 'c').catch((e: unknown) => e);
+    repo.getCapture = fail('CAPTURE_WORKER_GONE');
+    const gone = await store.capture(OWNER, 'c').catch((e: unknown) => e);
+    repo.getCapture = fail('CAPTURE_STORE_ERROR');
+    const failed = await store.capture(OWNER, 'c').catch((e: unknown) => e);
+    repo.getCapture = fail('SOMETHING_ELSE');
+    const other = await store.capture(OWNER, 'c').catch((e: unknown) => e);
+
+    expect(busy).toBeInstanceOf(AppError);
+    expect((busy as AppError).code).toBe('RATE_LIMITED');
+    expect((busy as AppError).retryable).toBe(true);
+    expect((gone as AppError).code).toBe('INTERNAL');
+    expect((failed as AppError).code).toBe('INTERNAL');
+    for (const mapped of [busy, gone, failed]) {
+      expect((mapped as AppError).message).not.toContain('CANARY');
+      expect((mapped as AppError).detail).not.toContain('CANARY');
+    }
+    // An error that is none of the worker's is not disguised.
+    expect(other).not.toBeInstanceOf(AppError);
+  });
+
   it('M1-09 AC-10 shows a capture only to its owner', async () => {
     const { store } = setup();
     const mine = await store.create(OWNER, input());

@@ -17,6 +17,11 @@ export interface CaptureContractOptions {
   name: string;
   /** Opens a database that already has the migrations applied. */
   open: () => Promise<PersistenceHandle>;
+  /**
+   * The repository under test over that database. Defaults to the repository itself; the RPC spec
+   * passes a client whose server runs over the same handle.
+   */
+  repository?: (handle: PersistenceHandle) => CaptureRepository;
 }
 
 const OWNER = 'user-1';
@@ -103,7 +108,9 @@ export function captureContract(options: CaptureContractOptions): void {
 
     beforeAll(async () => {
       handle = await options.open();
-      repo = createRepositories(handle, { now: () => clock }).captures;
+      repo =
+        options.repository?.(handle) ??
+        createRepositories(handle, { now: () => clock }).captures;
     });
 
     afterAll(async () => {

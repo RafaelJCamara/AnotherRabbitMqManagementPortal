@@ -65,6 +65,15 @@
         "cwd": "{workspaceRoot}"
       }
     },
+    "capture-ingest": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [{ "projects": ["engine"], "target": "build" }],
+      "options": {
+        "command": "vitest run --config apps/perf/vitest.perf.config.mts src/capture-ingest",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "explorer-20k": {
       "executor": "nx:run-commands",
       "options": {

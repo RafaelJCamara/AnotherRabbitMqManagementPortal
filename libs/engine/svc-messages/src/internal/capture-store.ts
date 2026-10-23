@@ -182,6 +182,57 @@ const emptyRefusals = (): {
   locked: number;
 } => ({ queueFull: 0, tooLarge: 0, invalid: 0, locked: 0 });
 
+/**
+ * A failure of the repository as a Problem: a worker that is busy asks the caller to try again, one
+ * that is gone or does not answer is an internal error. Nothing of the database's own text passes.
+ */
+function mapRepoError(error: unknown): never {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? error.code
+      : undefined;
+  if (code === 'CAPTURE_WORKER_BUSY') {
+    throw new AppError('RATE_LIMITED', {
+      detail: 'The capture store is busy; try again in a moment.',
+      retryable: true,
+      cause: error,
+    });
+  }
+  if (
+    code === 'CAPTURE_WORKER_TIMEOUT' ||
+    code === 'CAPTURE_WORKER_GONE' ||
+    code === 'CAPTURE_STORE_ERROR'
+  ) {
+    throw new AppError('INTERNAL', {
+      detail: 'The capture store could not answer.',
+      cause: error,
+    });
+  }
+  throw error;
+}
+
+/** The repository with its failures mapped by `mapRepoError`. */
+function guarded(repo: CaptureRepository): CaptureRepository {
+  const wrap =
+    <A extends unknown[], R>(call: (...args: A) => Promise<R>) =>
+    (...args: A): Promise<R> =>
+      call(...args).catch(mapRepoError);
+  return {
+    createCapture: wrap((c) => repo.createCapture(c)),
+    getCapture: wrap((o, i) => repo.getCapture(o, i)),
+    listCaptures: wrap((o, q) => repo.listCaptures(o, q)),
+    appendMessages: wrap((b, l) => repo.appendMessages(b, l)),
+    queryMessages: wrap((o, q) => repo.queryMessages(o, q)),
+    getMessage: wrap((o, c, i) => repo.getMessage(o, c, i)),
+    getBlobChunks: wrap((o, r, f, t) => repo.getBlobChunks(o, r, f, t)),
+    noteLoss: wrap((c, l) => repo.noteLoss(c, l)),
+    deleteCapture: wrap((o, i) => repo.deleteCapture(o, i)),
+    purgeExpired: wrap((n, l) => repo.purgeExpired(n, l)),
+    usage: wrap((o) => repo.usage(o)),
+    searchAvailable: wrap(() => repo.searchAvailable()),
+  };
+}
+
 function toView(record: CaptureRecord): CaptureView {
   return { ...record, persist: 'saved', evicted: 0 };
 }
@@ -192,14 +243,16 @@ export function createCaptureStore(deps: CaptureStoreDeps): CaptureStore {
     ...deps.options,
   };
   const now = deps.now ?? Date.now;
-  const { repo } = deps;
+  // The ingest loop gets the repository as it is (it counts what fails by code); everything a caller
+  // of the store sees goes through `guarded`, which turns a worker failure into a Problem.
+  const repo = guarded(deps.repo);
   const sealer: CaptureSealer = createCaptureSealer(deps.sealer);
   const limits: AppendLimits = {
     ownerQuotaBytes: options.ownerQuotaBytes,
     captureMaxMessages: options.captureMaxMessages,
   };
   const ingest: Ingest = createIngest({
-    repo,
+    repo: deps.repo,
     limits: () => limits,
     maxItems: options.queueMaxItems,
     maxBytes: options.queueMaxBytes,

@@ -43,6 +43,16 @@ export {
 export type { Migration, SqlExecutor } from './migrate/types';
 export { migrations } from './migrations';
 export { createRepositories, type RepositoryOptions } from './repos';
+export {
+  CaptureWorkerError,
+  createCaptureRepositoryClient,
+  serveCaptureRepository,
+  type CaptureRepositoryClient,
+  type CaptureRepositoryClientOptions,
+  type CaptureRpcServer,
+  type CaptureRpcStats,
+  type RpcEndpoint,
+} from './repos/capture-rpc';
 export type {
   BlobRepository,
   ConnectionProfileInput,

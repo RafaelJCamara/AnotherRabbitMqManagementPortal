@@ -490,10 +490,14 @@ export function createCaptureRepository(
       if (batch.messages.length === 0) {
         return { stored: 0, storedBytes: 0, rejected: [], txnMs: 0 };
       }
-      const started = performance.now();
-      const result = await db
-        .transaction()
-        .execute((trx) => appendInTransaction(trx, batch, limits));
+      // The time of the transaction itself: from the first statement after BEGIN to the end of the
+      // COMMIT. Waiting for the connection (another request, a checkpoint) is not the writer's hold on
+      // it, so it is not counted.
+      let started = 0;
+      const result = await db.transaction().execute((trx) => {
+        started = performance.now();
+        return appendInTransaction(trx, batch, limits);
+      });
       return { ...result, txnMs: performance.now() - started };
     },
 

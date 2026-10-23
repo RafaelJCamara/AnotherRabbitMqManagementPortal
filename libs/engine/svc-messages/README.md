@@ -46,4 +46,4 @@ pnpm nx run persistence:it --dialects=sqlite,pg           # the repository contr
 pnpm nx run perf:capture-ingest
 ```
 
-Open questions: OQ-980 to OQ-992 in [docs/open-questions.md](../../../docs/open-questions.md).
+Open questions: OQ-980 to OQ-994 in [docs/open-questions.md](../../../docs/open-questions.md).

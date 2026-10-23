@@ -23,6 +23,7 @@ node dist/apps/engine/main.mjs --mode=desktop                                   
 | `scripts/healthcheck.mjs` | The container HEALTHCHECK client: `/healthz` on `127.0.0.1`, exit 0 only on ok (M0-59). |
 | `src/entry/env.ts`, `src/entry/open-browser.ts` | The `APP_*` environment layer and the `--open` browser opener (M0-59). |
 | `src/modes/web-binding.ts` | Host, port, token, public origins and banner of the local web mode, native and container (M0-59). |
+| `src/workers/capture.ts`, `src/workers/capture-host.ts` | The capture-ingest/search worker thread (M1-09, a second entry of the bundle: `dist/apps/engine/workers/capture.mjs`) and the host that starts it and returns the `CaptureRepository` client. The worker opens its own connection to the migrated SQLite file and serves the repository over its port; it holds no key (the main thread seals). Nothing in the start-up calls the host yet (OQ-980). |
 | `src/data-dir-lock.ts`   | The one-engine-per-data-directory lock.                                                                                                                               |
 | `src/reconcile.ts`       | Reconciliation at start: jobs for real, the other records of blueprint 1.5 as named `pending` steps.                                                                  |
 | `src/unwired-writes.ts`  | The write ports of this build: every one refuses until the adapters land.                                                                                             |
@@ -83,8 +84,8 @@ Container mode is the one exception to "no bind outside loopback" (DC-36): the b
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p engine
-pnpm nx build engine          # dist/apps/engine/main.mjs and meta.json
-pnpm nx run engine:smoke      # the bundle as a process: local and desktop start, lock refusal, team refusal, metafile, egress guard
+pnpm nx build engine          # dist/apps/engine/main.mjs, workers/capture.mjs and meta.json
+pnpm nx run engine:smoke      # the bundle as a process: local and desktop start, lock refusal, team refusal, metafile, egress guard; the capture worker thread (capture-worker.smoke.spec.ts)
 pnpm nx run engine:egress     # the same egress soak for 10 minutes (EGRESS_SOAK_SECONDS=600)
 pnpm nx run engine:it         # the bundle as a process against a lab broker; needs a Docker daemon (libs/testkit/src/it/engine.it.ts)
 pnpm nx run engine:serve      # build the engine and the web app, start local mode, print the launch URL

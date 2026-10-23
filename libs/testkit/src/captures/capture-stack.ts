@@ -70,6 +70,15 @@ export interface CaptureStack {
 }
 
 export interface CaptureStackOptions {
+  /**
+   * The repository the store writes through. Defaults to the repository over the stack's own
+   * connection; the engine's smoke spec passes a client of the real capture worker thread, which
+   * opens a second connection to the same file.
+   */
+  readonly repository?: (info: {
+    handle: PersistenceHandle;
+    path: string;
+  }) => Promise<CaptureRepository> | CaptureRepository;
   readonly options?: Partial<CaptureStoreOptions>;
   readonly now?: () => number;
   readonly logger?: Parameters<typeof createCaptureStore>[0]['logger'];
@@ -82,7 +91,9 @@ export async function createCaptureStack(
   const path = join(dir, 'data.db');
   const handle = await openSqlite({ path });
   await createMigrationRunner({ handle }).migrate();
-  const repo = createRepositories(handle).captures;
+  const repo =
+    (await stack.repository?.({ handle, path })) ??
+    createRepositories(handle).captures;
   const keys = createRotatingKeyRing();
   const ids = createIdGenerator();
   const store = createCaptureStore({

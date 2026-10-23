@@ -4,6 +4,8 @@ import { defineConfig } from 'vitest/config';
 // target depends on). One file per bundle, not per module, so the specs run one after another.
 export default defineConfig({
   root: import.meta.dirname,
+  // The capture worker smoke spec wires real libraries (the testkit's capture stack) to the built worker.
+  resolve: { tsconfigPaths: true },
   test: {
     name: 'engine-smoke',
     environment: 'node',

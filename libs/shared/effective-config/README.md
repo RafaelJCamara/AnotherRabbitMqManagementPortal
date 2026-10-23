@@ -15,9 +15,12 @@ The rules are registry data, not code (I-3): `@app/semantics`, `registry.effecti
 | `mergeDetails(user, operator, lookup)` | Step 1 with the leaves that decided each key (used by the resolver). |
 | `combine(kind, a, b)` | The numeric merge rules `min`, `max` and `negative-rule` (a negative value means "no limit": the larger wins, otherwise the minimum). |
 | `parseResolveInput(data)`, `ResolveInputSchema` | The strict shape check for data that crosses a boundary; `effective_policy_definition` is a problem, not an input. |
+| `resolveHypothetical(input, lookup?)` | "What applies if I declare X": picks the user and operator policy for a queue name (`matchPolicy`), then `resolveEffective`. A tie, or a pattern that cannot be evaluated like the broker, resolves every candidate and keeps only the keys on which all agree (`W-EC-TIE`, `W-EC-PATTERN`). Adds `userMatch` and `operatorMatch`. |
+| `matchPolicy(policies, target)` | The policy the broker would pick in one layer: the highest priority among the matching ones (`apply-to`, unanchored pattern). `none`, `one` or `ambiguous` with every candidate. `MAX_CANDIDATES` (16) bounds the candidates resolved one by one; beyond it every key they set is unknown. |
+| `testPattern(pattern, name)`, `patternProblem(pattern)` | Patterns are evaluated only inside a conservative subset where `RegExp` and the broker's PCRE agree and nothing can backtrack badly; anything else is uncertain and never run (OQ-966). |
 | `describeValue(value)` | How a value is shown in a warning text (short, never an object dump). |
 
-Types: `ResolveInput`, `PolicyInput`, `EffectiveConfig`, `EffectiveEntry`, `EntryStatus`, `ProvenanceEntry`, `Layer`, `Role`, `EffectiveWarning`, `MergedPolicy`, `MergedEntry`, `PolicyValue`, `MergeDetail`, `PolicyLayer`, `ParsedResolveInput`.
+Types: `HypotheticalInput`, `HypotheticalResult`, `PolicyDefinition`, `PolicyTarget`, `PolicyMatch`, `MatchView`, `UncertainPolicy`, `PatternResult`, `ResolveInput`, `PolicyInput`, `EffectiveConfig`, `EffectiveEntry`, `EntryStatus`, `ProvenanceEntry`, `Layer`, `Role`, `EffectiveWarning`, `MergedPolicy`, `MergedEntry`, `PolicyValue`, `MergeDetail`, `PolicyLayer`, `ParsedResolveInput`.
 
 ## What an answer says
 
@@ -37,6 +40,7 @@ The resolver never invents a value. It answers `unknown` (with `W-EC-NO-ROW`, `W
 
 - Pure: no I/O, no clock, no randomness; inputs are never mutated; the answer does not depend on the order of keys.
 - No broker-version comparison and no broker behaviour in this package (I-3); both are registry data.
+- Policy patterns come from the broker, so from whoever can write a policy. `pattern.ts` runs a pattern only after scanning it (ASCII, at most 512 characters, at most 3 unbounded quantifiers, no quantified group that already holds a quantifier or an alternation, no inline flags, backreferences or POSIX classes); names are limited to 255 ASCII characters. A security reviewer should read that file first.
 - Hostile keys (`__proto__`, `constructor`, inherited properties) are data: lookups use own properties only and results are built with `Object.fromEntries`.
 - Lab evidence is not claimed: every row is `code-derived` (read from the fact sheet and the broker source) and names planned lab cells `CF-EFFCFG-01..07` (OQ-968).
 - Dependencies follow the type:pure row of blueprint 2.2; `pnpm nx lint effective-config` enforces them.

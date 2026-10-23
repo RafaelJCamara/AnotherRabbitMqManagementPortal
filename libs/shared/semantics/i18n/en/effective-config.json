@@ -15,7 +15,7 @@
     "v1": "{{key}} has a value that cannot be used with the rule {{rule}} ({{reason}}), so no effective value is shown."
   },
   "W-EC-TIE": {
-    "v1": "More than one policy could apply to this name with the same priority. Only the keys on which every candidate agrees are shown; the others are unknown. Candidates: {{candidates}}."
+    "v1": "More than one policy could apply to this name, because two have the same priority or a pattern cannot be evaluated here. Only the keys on which every candidate agrees are shown; the others are unknown. Candidates: {{candidates}}."
   },
   "W-EC-PATTERN": {
     "v1": "The pattern of policy {{policyName}} cannot be evaluated here the way the broker does ({{reason}}), so the policy is treated as a possible match."

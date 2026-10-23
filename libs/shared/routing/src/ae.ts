@@ -14,10 +14,13 @@ export function alternateExchangeOf(
   return typeof name === 'string' && name !== '' ? name : null;
 }
 
-/** Whether the AE is added: the exchange's own destination list is empty and an AE is set. */
-export function alternateExchangeApplies(
+/**
+ * The AE to add to the walk, or null: the exchange's own destination list is empty and an AE is
+ * set.
+ */
+export function alternateExchangeFor(
   ownDestinations: number,
   exchange: Pick<TopologyExchange, 'alternateExchange'>,
-): boolean {
-  return ownDestinations === 0 && alternateExchangeOf(exchange) !== null;
+): string | null {
+  return ownDestinations === 0 ? alternateExchangeOf(exchange) : null;
 }

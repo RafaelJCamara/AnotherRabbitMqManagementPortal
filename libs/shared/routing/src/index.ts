@@ -1,11 +1,14 @@
 // Public API of this library. Export only what other projects need.
-export { alternateExchangeApplies, alternateExchangeOf } from './ae.ts';
+export { alternateExchangeFor, alternateExchangeOf } from './ae.ts';
 export { routingKeysOf } from './cc-bcc.ts';
 export type { KeyedKey, RoutingKeysOutcome } from './cc-bcc.ts';
 export { DEFAULT_EXCHANGE, routeDefault } from './default-exchange.ts';
 export type { DefaultRoute } from './default-exchange.ts';
 export { directRule } from './direct.ts';
+export { findLoops, indexTopology } from './e2e.ts';
+export type { Edge, TopologyIndex } from './e2e.ts';
 export { fanoutRule } from './fanout.ts';
+export { simulate } from './simulate.ts';
 export { headersRule, headerValuesEqual, parseXMatch } from './headers.ts';
 export type { ParsedXMatch } from './headers.ts';
 export {

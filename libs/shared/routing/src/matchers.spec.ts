@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { alternateExchangeApplies, alternateExchangeOf } from './ae.ts';
+import { alternateExchangeFor, alternateExchangeOf } from './ae.ts';
 import { routingKeysOf } from './cc-bcc.ts';
 import { DEFAULT_EXCHANGE, routeDefault } from './default-exchange.ts';
 import { directRule } from './direct.ts';
@@ -112,10 +112,8 @@ describe('direct, fanout, default exchange, alternate exchange', () => {
     expect(alternateExchangeOf({ alternateExchange: null })).toBeNull();
     expect(alternateExchangeOf({})).toBeNull();
     expect(alternateExchangeOf({ alternateExchange: '' })).toBeNull();
-    expect(alternateExchangeApplies(0, { alternateExchange: 'ae' })).toBe(true);
-    expect(alternateExchangeApplies(1, { alternateExchange: 'ae' })).toBe(
-      false,
-    );
-    expect(alternateExchangeApplies(0, {})).toBe(false);
+    expect(alternateExchangeFor(0, { alternateExchange: 'ae' })).toBe('ae');
+    expect(alternateExchangeFor(1, { alternateExchange: 'ae' })).toBeNull();
+    expect(alternateExchangeFor(0, {})).toBeNull();
   });
 });

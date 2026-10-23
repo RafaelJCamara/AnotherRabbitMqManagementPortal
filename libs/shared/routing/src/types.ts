@@ -179,6 +179,8 @@ export interface SimulationLimits {
   readonly maxLoops: number;
   /** Words of a topic key or pattern. */
   readonly maxTopicWords: number;
+  /** Notes listed. */
+  readonly maxNotes: number;
 }
 
 export const DEFAULT_LIMITS: SimulationLimits = {
@@ -189,24 +191,27 @@ export const DEFAULT_LIMITS: SimulationLimits = {
   maxPathsPerQueue: 8,
   maxLoops: 16,
   maxTopicWords: 256,
+  maxNotes: 100,
 };
 
 /** What each limit cut, counted (I-13). All zero means nothing was cut. */
 export interface Truncation {
-  /** Exchange destinations not expanded because of `maxDepth`. */
+  /** Distinct exchanges not expanded because of `maxDepth`. */
   readonly depth: number;
-  /** Exchange destinations not expanded because of `maxExchanges`. */
+  /** Distinct exchanges not expanded because of `maxExchanges`. */
   readonly exchanges: number;
   /** Bindings of expanded exchanges that were not evaluated because of `maxBindingsScanned`. */
   readonly bindings: number;
-  /** Queues not listed because of `maxQueues`. */
+  /** Bindings whose queue was not listed because of `maxQueues`. */
   readonly queues: number;
-  /** Paths not kept because of `maxPathsPerQueue`. */
+  /** Paths not kept because of `maxPathsPerQueue` (the queue itself is listed). */
   readonly paths: number;
   /** Loops not listed because of `maxLoops`. */
   readonly loops: number;
   /** Topic keys or patterns longer than `maxTopicWords` (treated as not matching, counted). */
   readonly topicWords: number;
+  /** Notes not listed because of `maxNotes`. */
+  readonly notes: number;
 }
 
 export interface RoutingKeys {

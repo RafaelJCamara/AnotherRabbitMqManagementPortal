@@ -72,12 +72,13 @@ function rawView(
   limits: CodecLimits,
   truncations: Truncation[],
 ): PayloadView {
+  // Whole rows only, so that the text never passes the view cap: a hex row is 78 characters for
+  // 16 bytes, a base64 row 76 for 57, plus a line break.
   const room =
-    kind === 'hex' ? limits.maxViewBytes / 5 : limits.maxViewBytes / 2;
-  const shown = Math.max(
-    0,
-    Math.min(bytes.length, limits.previewBytes, Math.floor(room)),
-  );
+    kind === 'hex'
+      ? Math.floor((limits.maxViewBytes + 1) / 79) * 16
+      : Math.floor((limits.maxViewBytes + 1) / 77) * 57;
+  const shown = Math.max(0, Math.min(bytes.length, limits.previewBytes, room));
   if (shown < bytes.length) {
     truncations.push({
       what: 'preview',

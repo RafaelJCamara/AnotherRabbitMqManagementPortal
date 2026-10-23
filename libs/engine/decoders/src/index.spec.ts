@@ -11,6 +11,8 @@ describe('decoders public API', () => {
       'FORMAT_CODECS',
       'TRANSFORM_CODECS',
       'builtinDecoders',
+      'codecPoolOptions',
+      'codecWorkerUrl',
       'decodePayload',
       'encodePayload',
       'matchRule',

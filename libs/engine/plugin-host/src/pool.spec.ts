@@ -37,6 +37,20 @@ afterEach(async () => {
 });
 
 describe('worker pool', () => {
+  it('M1-10 AC-2 defaults to two workers, a queue of 64 and the blueprint budget', () => {
+    const pool = createWorkerPool<Input, unknown>({ workerUrl });
+    open.push(pool);
+    expect(pool.stats()).toMatchObject({ size: 2, maxQueue: 64, queued: 0 });
+    // Out-of-range options are clamped, not trusted.
+    const clamped = createWorkerPool<Input, unknown>({
+      workerUrl,
+      size: 1000,
+      maxQueue: -5,
+    });
+    open.push(clamped);
+    expect(clamped.stats()).toMatchObject({ size: 8, maxQueue: 0 });
+  });
+
   it('M1-10 AC-2 runs a job off the main thread and reuses the worker', async () => {
     const pool = makePool();
     expect(await pool.run({ op: 'echo', value: { a: [1, 2] } })).toEqual({

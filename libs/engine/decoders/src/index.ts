@@ -31,3 +31,8 @@ export type {
   PayloadLayer,
 } from './payload/result.ts';
 export { matchRule, queueMatches, type PayloadRule } from './payload/rules.ts';
+export {
+  codecPoolOptions,
+  codecWorkerUrl,
+  type CodecPoolOptions,
+} from './worker-url.ts';

@@ -41,6 +41,7 @@ const empty: Omit<RegistryData, 'cells'> = {
   peekCaps: [],
   tapRules: [],
   providerPresets: [],
+  effectiveConfig: { merges: [], resolutions: [], warnings: [] },
 };
 
 export const registryData: RegistryData = {

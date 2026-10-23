@@ -1,0 +1,41 @@
+{
+  "W-EC-NO-ROW": {
+    "v1": "The registry has no rule for {{key}} on a {{queueType}} queue on RabbitMQ {{version}}, so its effective value is unknown. Check the queue on the broker."
+  },
+  "W-EC-VERSION-UNKNOWN": {
+    "v1": "The broker version could not be read, so no effective value is worked out for {{key}}. Nothing was assumed."
+  },
+  "W-EC-NO-MERGE": {
+    "v1": "An operator policy ({{operatorValue}}) and a user policy ({{userValue}}) both set {{key}}, and no rule says how the broker merges them, so the effective value is unknown."
+  },
+  "W-EC-UNDETERMINED": {
+    "v1": "The sources disagree on how {{key}} is resolved against the queue argument {{argument}} on a {{queueType}} queue on RabbitMQ {{version}}, so the effective value is unknown until a lab run settles it."
+  },
+  "W-EC-BAD-VALUE": {
+    "v1": "{{key}} has a value that cannot be used with the rule {{rule}} ({{reason}}), so no effective value is shown."
+  },
+  "W-EC-TIE": {
+    "v1": "More than one policy could apply to this name with the same priority. Only the keys on which every candidate agrees are shown; the others are unknown. Candidates: {{candidates}}."
+  },
+  "W-EC-PATTERN": {
+    "v1": "The pattern of policy {{policyName}} cannot be evaluated here the way the broker does ({{reason}}), so the policy is treated as a possible match."
+  },
+  "W-EC-POLICY-IGNORED": {
+    "v1": "The policy value for {{key}} ({{policyValue}}) has no effect on a {{queueType}} queue on RabbitMQ {{version}}; the queue argument {{argument}} ({{argumentValue}}) decides."
+  },
+  "W-EC-UNSUPPORTED": {
+    "v1": "{{key}} is not supported on a {{queueType}} queue on RabbitMQ {{version}}: neither the argument {{argument}} nor a policy has an effect."
+  },
+  "W-EC-ARG-BEATS-OPERATOR": {
+    "v1": "For {{key}} on this {{queueType}} queue the queue argument {{argument}} ({{argumentValue}}) wins over the operator policy ({{operatorValue}}). The policies guide says operator policies override arguments; the broker code does not. This was read from the source and has not been recorded in the lab."
+  },
+  "W-EC-POLICY-WINS": {
+    "v1": "For {{key}} on a {{queueType}} queue the policy ({{policyValue}}) wins over the queue argument {{argument}} ({{argumentValue}}); the argument is ignored."
+  },
+  "W-EC-POLICY-WINS-313": {
+    "v1": "On RabbitMQ 3.13 the {{key}} policy ({{policyValue}}) wins over the queue argument {{argument}} ({{argumentValue}}) on a quorum queue. From RabbitMQ 4.0 the smaller of the two is used."
+  },
+  "W-EC-DEFAULT": {
+    "v1": "Nothing sets {{key}} on this queue, so the broker default applies: {{value}}. The queue's own statistic is authoritative; if it differs, trust the statistic."
+  }
+}

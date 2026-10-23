@@ -59,6 +59,7 @@ function data(overrides: Partial<RegistryData> = {}): RegistryData {
     peekCaps: [],
     tapRules: [],
     providerPresets: [],
+    effectiveConfig: { merges: [], resolutions: [], warnings: [] },
     ...overrides,
   };
 }

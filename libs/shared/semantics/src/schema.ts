@@ -126,7 +126,8 @@ export interface TableKey {
     | 'gate'
     | 'peek-caps'
     | 'capability'
-    | 'provider-preset';
+    | 'provider-preset'
+    | 'effective-config';
   readonly id: string;
 }
 export type GapKey = CellKey | TableKey;

@@ -26,4 +26,5 @@ export const registryData: RegistryData = {
   peekCaps: [],
   tapRules: [],
   providerPresets: [],
+  effectiveConfig: { merges: [], resolutions: [], warnings: [] },
 };

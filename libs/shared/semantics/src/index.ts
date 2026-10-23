@@ -29,6 +29,24 @@ export {
   type DeliveryCounters,
   type DeliveryLimit,
 } from './doomed.ts';
+export {
+  EffectiveConfigDataSchema,
+  MergeKindSchema,
+  OperatorMergeRuleSchema,
+  ResolutionRuleSchema,
+  ResolveKindSchema,
+  WarningConditionSchema,
+  type EffectiveConfigData,
+  type EffectiveConfigLookup,
+  type MergeKind,
+  type MergeOutcome,
+  type OperatorMergeRule,
+  type ResolutionOutcome,
+  type ResolutionRule,
+  type ResolveKind,
+  type RowWarning,
+  type WarningCondition,
+} from './effective-config.ts';
 export { resolveEra, type EraInputs, type EraResolution } from './era.ts';
 export { GateRuleSchema, type GateProfile, type GateRule } from './gates.ts';
 export {

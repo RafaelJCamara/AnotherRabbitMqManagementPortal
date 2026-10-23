@@ -28,6 +28,11 @@ import {
   type DeliveryCounters,
   type DeliveryLimit,
 } from './doomed.ts';
+import {
+  buildEffectiveConfig,
+  EffectiveConfigDataSchema,
+  type EffectiveConfigLookup,
+} from './effective-config.ts';
 import { resolveEra, type EraInputs, type EraResolution } from './era.ts';
 import { buildGates, GateRuleSchema, type GateProfile } from './gates.ts';
 import {
@@ -67,6 +72,7 @@ export const RegistryDataSchema = z.strictObject({
   peekCaps: z.array(PeekCapRowSchema),
   tapRules: z.array(TapRuleSchema),
   providerPresets: z.array(ProviderPresetSchema),
+  effectiveConfig: EffectiveConfigDataSchema,
 });
 export type RegistryData = z.infer<typeof RegistryDataSchema>;
 
@@ -102,6 +108,11 @@ export interface BrokerSemanticsRegistry {
    * no preset; a probe result outranks a preset.
    */
   providerPreset(target: PresetTarget, version: SemVer | null): ResolvedPreset;
+  /**
+   * The k.3 tables (DC-30): how policies and queue arguments combine, per key, queue type and
+   * version. Its lookups throw SemanticsGapError where the table has no row.
+   */
+  readonly effectiveConfig: EffectiveConfigLookup;
 }
 
 /**
@@ -128,6 +139,7 @@ export function validateRegistryData(input: unknown): string[] {
     () => buildPeekCaps(data.peekCaps),
     () => buildTapRules(data.tapRules),
     () => buildProviderPresets(data.providerPresets),
+    () => buildEffectiveConfig(data.effectiveConfig),
   ];
   for (const build of builders) {
     try {
@@ -167,6 +179,7 @@ export function createRegistry(input: RegistryData): BrokerSemanticsRegistry {
   const peekCaps = buildPeekCaps(data.peekCaps);
   const tapRule = buildTapRules(data.tapRules);
   const providerPreset = buildProviderPresets(data.providerPresets);
+  const effectiveConfig = buildEffectiveConfig(data.effectiveConfig);
 
   return {
     version: data.version,
@@ -191,5 +204,6 @@ export function createRegistry(input: RegistryData): BrokerSemanticsRegistry {
     peekCaps,
     tapRule,
     providerPreset,
+    effectiveConfig,
   };
 }

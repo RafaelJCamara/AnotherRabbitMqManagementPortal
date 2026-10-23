@@ -16,6 +16,7 @@ This package is the mechanism plus the data. M0-12 ships the 137 cells (see "The
 | Era          | `resolveEra(EraInputs)` returning `{ era, reasons, conservative, verification }`                                                                | `src/era.ts`        |
 | Doom guard   | `isDoomed(era, counters, limit)`, `DeliveryLimit`                                                                                               | `src/doomed.ts`     |
 | Tables       | `WarningDefSchema`, `GateRuleSchema`, `PeekCapRowSchema`, `TapRuleSchema`, `HazardRuleSchema`, `CapabilityRuleSchema`, `ProviderPresetSchema`, `presetIdFor` and their types | `src/{warnings,gates,caps,tap-rules,hazards,capabilities,provider-presets}.ts` |
+| Effective config | `EffectiveConfigDataSchema`, `EffectiveConfigLookup`, `MergeKind`, `ResolveKind` and their types; `registry.effectiveConfig` is the lookup the resolver library asks | `src/effective-config.ts` |
 | Audit        | `auditCells(cells, { require, evidenceExists })`                                                                                                | `src/audit.ts`      |
 | Data         | `registryData`, `SEMANTICS_VERSION`, `settleMatrix` (the other cell tables are inside `registryData`)                                          | `src/data/`         |
 
@@ -28,6 +29,7 @@ This package is the mechanism plus the data. M0-12 ships the 137 cells (see "The
 | `gate(feature, profile)`    | The feature has no gate rule.                                                                                             |
 | `peekCaps(era, q, role, v)` | No row for the key (streams have none), or, for a build that is not `verified`, no row in the conservative 4.0-4.2 era.   |
 | `capability(id, profile)`   | Unknown capability id. A known capability the evidence does not prove answers `false`, not a gap.                          |
+| `effectiveConfig.resolution(q, key, v)` | No row for the queue type and key, an unreadable version, a version no row covers (4.4), or two rows that both cover it. `merge(key, bothBoolean)`: no rule names the key. |
 | `providerPreset(target, v)` | The table has no preset for the provider or product (the shipped table has one for each).                                  |
 
 Not a gap, by design: `tapRule` refuses an exchange type nobody described (`diverts`, no e2e, refuse by default; blueprint 5.8), and `isDoomed` treats an unknown limit or an unreadable counter as doomed (ADR-028). Callers never catch the error to supply a default: the planner uses the 4.0-4.2 rules, asks for extra consent and rejects unattended plans.
@@ -43,6 +45,7 @@ Files in `src/data/`; every claim in them is read from the fact sheet (`docs/res
 | `warning(id)`          | `warnings.data.ts`        | The 16 `W-*` ids with a severity and a versioned text key. The words are in `i18n/en/warnings.json` under `<id>.v<textVersion>`; a changed text gets a new version and keeps the old one. |
 | `peekCaps(...)`        | `peek-caps.data.ts`       | Default, maximum and byte cap per era, queue type and role. An unverified build is capped at the 4.0-4.2 default.                               |
 | `tapRule(type, v)`     | `tap-rules.data.ts`       | Whether a tap on the exchange type diverts, allows e2e and is refused by default. An unlisted type is refused.                                  |
+| `effectiveConfig.merge(key, bothBoolean)`, `.resolution(queueType, key, version)` | `effective-config.data.ts` | The k.3 tables (DC-30): step 1, how an operator policy and a user policy merge per key; step 2, how the merged value meets the queue argument per queue type, key and version, with the basis (`source-read` or `extrapolated`), the broker default and the warnings of the row. Rows exist for 3.13 to 4.3 only; 4.4 and any key nobody described are gaps. The resolver is `@app/effective-config`. The `W-EC-*` texts are `i18n/en/effective-config.json`. |
 | `providerPreset(t, v)` | `provider-presets.data.ts`| Documented limits, owned objects and the support level of ten areas for a provider or non-RabbitMQ product (fact sheet j.1). A probe result outranks it. |
 
 The texts use `{{name}}` placeholders (Transloco syntax); the planner fills them. They never say a classic or quorum read is non-destructive or read-only (DC-15); the `@app/honest-wording` rule lints the JSON file and a spec repeats the banned terms.

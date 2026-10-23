@@ -31,6 +31,7 @@
       "@app/chart-math": ["./libs/shared/chart-math/src/index.ts"],
       "@app/conformance-ci": ["./tools/conformance-ci/src/index.ts"],
       "@app/contracts": ["./libs/shared/contracts/src/index.ts"],
+      "@app/deaths": ["./libs/shared/deaths/src/index.ts"],
       "@app/domain-model": ["./libs/shared/domain-model/src/index.ts"],
       "@app/explorer-model": ["./libs/shared/explorer-model/src/index.ts"],
       "@app/explorer-model/entity": [

@@ -1,0 +1,30 @@
+{
+  "name": "deaths",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/deaths/src",
+  "projectType": "library",
+  "tags": ["type:pure", "runtime:isomorphic"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/shared/deaths/tsconfig.lib.json --noEmit",
+          "tsc -p libs/shared/deaths/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/shared/deaths/vitest.config.mts"
+      }
+    }
+  }
+}

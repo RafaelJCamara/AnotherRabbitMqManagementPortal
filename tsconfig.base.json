@@ -32,6 +32,7 @@
       "@app/conformance-ci": ["./tools/conformance-ci/src/index.ts"],
       "@app/contracts": ["./libs/shared/contracts/src/index.ts"],
       "@app/deaths": ["./libs/shared/deaths/src/index.ts"],
+      "@app/decoders": ["./libs/engine/decoders/src/index.ts"],
       "@app/domain-model": ["./libs/shared/domain-model/src/index.ts"],
       "@app/explorer-model": ["./libs/shared/explorer-model/src/index.ts"],
       "@app/explorer-model/entity": [
@@ -68,6 +69,7 @@
       ],
       "@app/perf": ["./apps/perf/src/index.ts"],
       "@app/persistence": ["./libs/engine/persistence/src/index.ts"],
+      "@app/plugin-host": ["./libs/engine/plugin-host/src/index.ts"],
       "@app/ports": ["./libs/engine/ports/src/index.ts"],
       "@app/ports/testing": ["./libs/engine/ports/src/testing/index.ts"],
       "@app/routing": ["./libs/shared/routing/src/index.ts"],

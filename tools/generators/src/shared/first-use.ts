@@ -7,9 +7,13 @@
 // alias exists, and the tests use made-up port names (`DemoPort`) that the real package does not
 // export. Dropping it keeps them on the stand-in port file (OQ-61).
 //
+// `@app/decoders` is the payload codecs (M1-10): the decoder generator tests create a `decoders`
+// library of their own.
+//
 // `@app/feature-explorer` is the explorer UI (M0-54): the action and topic generator tests generate a
 // UI feature named `explorer` of their own.
 const ADOPTED_ALIASES = [
+  '@app/decoders',
   '@app/feature-explorer',
   '@app/persistence',
   '@app/ports',

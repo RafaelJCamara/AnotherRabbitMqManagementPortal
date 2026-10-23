@@ -70,6 +70,7 @@
       "@app/persistence": ["./libs/engine/persistence/src/index.ts"],
       "@app/ports": ["./libs/engine/ports/src/index.ts"],
       "@app/ports/testing": ["./libs/engine/ports/src/testing/index.ts"],
+      "@app/routing": ["./libs/shared/routing/src/index.ts"],
       "@app/secrets": ["./libs/engine/secrets/src/index.ts"],
       "@app/semantics": ["./libs/shared/semantics/src/index.ts"],
       "@app/semantics-evidence": ["./tools/semantics-evidence/src/index.ts"],

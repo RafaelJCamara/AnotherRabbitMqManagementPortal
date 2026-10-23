@@ -218,6 +218,27 @@ describe('readDeathEntries: bounds', () => {
     expect(result.flags).toEqual(['truncated']);
   });
 
+  it('M1-04 AC-6 counts exactly one entry and one routing key over the limit, and none at the limit', () => {
+    const at = (n: number): Death[] =>
+      Array.from({ length: n }, (_, i) => death({ queue: `q${String(i)}` }));
+    const atLimit = readDeathEntries(m091(x091(at(LIMITS.maxEntries))));
+    expect(atLimit.truncation.entriesDropped).toBe(0);
+    expect(atLimit.flags).toEqual([]);
+    const over = readDeathEntries(m091(x091(at(LIMITS.maxEntries + 1))));
+    expect(over.truncation.entriesDropped).toBe(1);
+
+    const keys = (n: number): string[] =>
+      Array.from({ length: n }, (_, i) => `k${String(i)}`);
+    const keysAt = readDeathEntries(
+      m091(x091([death({ routingKeys: keys(LIMITS.maxRoutingKeys) })])),
+    );
+    expect(keysAt.truncation.routingKeysDropped).toBe(0);
+    const keysOver = readDeathEntries(
+      m091(x091([death({ routingKeys: keys(LIMITS.maxRoutingKeys + 1) })])),
+    );
+    expect(keysOver.truncation.routingKeysDropped).toBe(1);
+  });
+
   it('M1-04 AC-6 keeps the first routing keys of a record and counts the rest', () => {
     const keys = Array.from(
       { length: LIMITS.maxRoutingKeys + 68 },

@@ -105,4 +105,25 @@ export const capabilityRules: readonly CapabilityRule[] = [
       },
     ],
   },
+  {
+    id: 'clientDeathHeaderInterpreted',
+    summary:
+      'The broker interprets an x-death header that a client publishes: it merges it into its own death record. From 4.0 it keeps the header opaque, delivers it verbatim and replaces it at the next dead-lettering.',
+    versions: '<4.0.0',
+    appliesWhen: 'always',
+    citations: [
+      {
+        kind: 'RN',
+        ref: 'rabbitmq-server 4.0.1 release notes L70-80 ("will not interpret this x-death header anymore")',
+      },
+      {
+        kind: 'S',
+        ref: 'mc_amqpl.erl@v3.13.7 L691-754 (headers_to_deaths, recover_deaths); no such code at v4.0.0',
+      },
+      {
+        kind: 'S',
+        ref: 'mc.erl@v4.3.6 L389-452 (record_death); mc_amqpl.erl@v4.3.6 L582-598 (deaths_to_headers replaces the header)',
+      },
+    ],
+  },
 ];

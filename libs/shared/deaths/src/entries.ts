@@ -27,6 +27,10 @@ export interface MessageParts {
   readonly protocol: DeathProtocol;
   /** The header table (0-9-1) or the message annotations (1.0): the death arrays live here. */
   readonly deaths: unknown;
+  /** Where the other named headers (counters, republish markers) can be: the first hit wins. */
+  readonly named: readonly unknown[];
+  /** The 1.0 header section (delivery-count); undefined for 0-9-1. */
+  readonly amqpHeader: unknown;
   readonly clientPublished: boolean;
 }
 
@@ -41,15 +45,27 @@ export function messageParts(
     const protocol: string = message.protocol;
     if (protocol === 'amqp091') {
       const { headers } = message as { headers?: unknown };
-      return { protocol: 'amqp091', deaths: headers, clientPublished };
+      return {
+        protocol: 'amqp091',
+        deaths: headers,
+        named: [headers],
+        amqpHeader: undefined,
+        clientPublished,
+      };
     }
     if (protocol === 'amqp10') {
-      const { messageAnnotations } = message as {
+      const { messageAnnotations, applicationProperties, header } = message as {
         messageAnnotations?: unknown;
+        applicationProperties?: unknown;
+        header?: unknown;
       };
       return {
         protocol: 'amqp10',
         deaths: messageAnnotations,
+        // A header with an array or table value is not converted to an application property,
+        // but the scalar ones (replay stamps, counters) are.
+        named: [applicationProperties, messageAnnotations],
+        amqpHeader: header,
         clientPublished,
       };
     }

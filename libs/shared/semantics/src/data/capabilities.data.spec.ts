@@ -53,6 +53,7 @@ const EXPECTED: Record<string, Expected> = {
   delayedRetryArguments: ALWAYS(from('4.3.0')),
   delayedRetryPolicyKeys: ALWAYS(from('4.3.1')),
   apiAuthEndpoint: ALWAYS(GRID.slice(0, GRID.indexOf('4.2.0'))),
+  clientDeathHeaderInterpreted: ALWAYS(GRID.slice(0, GRID.indexOf('4.0.9'))),
 };
 
 describe('capability predicates (DC-32)', () => {
@@ -82,6 +83,20 @@ describe('capability predicates (DC-32)', () => {
       }
     });
   }
+
+  it('M1-04 AC-11 clientDeathHeaderInterpreted holds below 4.0.0 only, never for a 4.x node, an unreadable node or another product', () => {
+    const holds = (nodes: (string | null)[], product?: 'lavinmq'): boolean =>
+      semanticsRegistry.capability(
+        'clientDeathHeaderInterpreted',
+        profile(nodes, product === undefined ? {} : { product }),
+      );
+    expect(holds(['3.13.0'])).toBe(true);
+    expect(holds(['3.13.7', '3.13.7'])).toBe(true);
+    expect(holds(['4.0.9'])).toBe(false);
+    expect(holds(['3.13.7', '4.0.9'])).toBe(false);
+    expect(holds(['3.13.7', null])).toBe(false);
+    expect(holds(['3.13.7'], 'lavinmq')).toBe(false);
+  });
 
   it('a mixed cluster holds a capability only when its oldest node does', () => {
     const holds = (nodes: string[]): boolean =>

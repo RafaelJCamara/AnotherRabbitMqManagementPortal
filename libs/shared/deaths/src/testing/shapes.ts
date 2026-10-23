@@ -68,3 +68,18 @@ export function typed(value: unknown): unknown {
   }
   return { t: 'void', v: null };
 }
+
+/** The six first/last headers the broker writes next to `x-death`; `deaths` is newest first. */
+export function firstLast(deaths: readonly Death[]): Record<string, string> {
+  const newest = deaths[0];
+  const oldest = deaths[deaths.length - 1];
+  if (newest === undefined || oldest === undefined) return {};
+  return {
+    'x-first-death-queue': oldest.queue,
+    'x-first-death-reason': oldest.reason,
+    'x-first-death-exchange': oldest.exchange,
+    'x-last-death-queue': newest.queue,
+    'x-last-death-reason': newest.reason,
+    'x-last-death-exchange': newest.exchange,
+  };
+}

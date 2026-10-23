@@ -7,7 +7,12 @@ describe('deaths public API', () => {
   it('exports exactly the documented names', () => {
     expect(Object.keys(api).sort()).toEqual([
       'DEATH_REASONS',
+      'INTERPRETED_CAPABILITY',
       'LIMITS',
+      'REPLAY_STAMPS',
+      'REPUBLISH_MARKERS',
+      'deathContext',
+      'normalizeDeaths',
       'readDeathEntries',
     ]);
   });

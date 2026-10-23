@@ -108,7 +108,70 @@ export type HistoryState = 'none' | 'present' | 'unreadable';
 /** `last-time`: sorted by the 1.0 last-time. `broker-order`: the order the broker sent. */
 export type OrderBasis = 'last-time' | 'broker-order';
 
-/** The result of reading the records alone (slice B of the work package). */
+/** What the broker knows about client-published death headers on the connected cluster. */
+export interface DeathContext {
+  /**
+   * Whether the broker interprets a client-published `x-death` (merges it into its own record, as
+   * up to 3.13 does) or keeps it as an opaque header (4.0 and later). It is registry data,
+   * `clientDeathHeaderInterpreted` (I-3); null when unknown, which fails closed.
+   */
+  readonly clientDeathInterpreted: boolean | null;
+}
+
+/** The queue, reason and exchange of the first or the last death, as the broker's headers say. */
+export interface DeathSummary {
+  readonly queue: string | null;
+  /** As sent; a reason this library does not know stays text. */
+  readonly reason: string | null;
+  readonly exchange: string | null;
+}
+
+/** A delivery counter and the header it was read from. */
+export interface Counter {
+  readonly value: number;
+  readonly source: string;
+}
+
+export interface DeathCounters {
+  /** `x-delivery-count` (quorum queues), or the 1.0 header's `delivery-count`. */
+  readonly deliveryCount: Counter | null;
+  /** `x-acquired-count`. */
+  readonly acquiredCount: Counter | null;
+}
+
+/**
+ * `interpreted`: the broker merges a client-published `x-death`, so the record is its own.
+ * `broker-shaped`: kept as an opaque header on 4.0+, but self-consistent and with no sign of a
+ * client copy; nothing proves it was not copied (OQ-1043). `client-supplied`: there is evidence a
+ * client published it, so the broker did not interpret it. `inconsistent`: first/last disagree
+ * with the records. `unknown-broker`: the context could not say. `no-history`: nothing to judge.
+ */
+export type TrustState =
+  | 'interpreted'
+  | 'broker-shaped'
+  | 'client-supplied'
+  | 'inconsistent'
+  | 'unknown-broker'
+  | 'no-history';
+
+export type TrustReason =
+  | 'broker-interprets-client-value'
+  | 'broker-behaviour-unknown'
+  | 'client-published-hint'
+  | 'replay-stamp'
+  | 'republish-marker'
+  | 'first-death-header-missing'
+  | 'first-last-mismatch'
+  | 'provenance-unproven';
+
+export interface DeathTrust {
+  /** True for `interpreted` and `broker-shaped` only. */
+  readonly trusted: boolean;
+  readonly state: TrustState;
+  readonly reasons: readonly TrustReason[];
+}
+
+/** The result of reading the records alone. */
 export interface EntriesResult {
   readonly protocol: DeathProtocol;
   readonly state: HistoryState;
@@ -121,4 +184,18 @@ export interface EntriesResult {
   readonly truncation: Truncation;
   /** The names of the headers and annotations that were read, in reading order. */
   readonly provenance: readonly string[];
+}
+
+/** The normalised death history of one message. */
+export interface DeathHistory extends EntriesResult {
+  /** `x-first-death-*`; null when the message carries none. */
+  readonly first: DeathSummary | null;
+  /** `x-last-death-*`; null when the message carries none. */
+  readonly last: DeathSummary | null;
+  /** The sum of the counts, or null when any count is unknown or entries were cut. */
+  readonly totalDeaths: number | null;
+  readonly counters: DeathCounters;
+  readonly trust: DeathTrust;
+  /** `trust.trusted`, the flag the issue's interface names. */
+  readonly trusted: boolean;
 }

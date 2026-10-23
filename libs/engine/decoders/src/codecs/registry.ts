@@ -2,11 +2,15 @@
 // token. Order matters only for ties in a sniff.
 import { base64Codec } from './base64.ts';
 import { cborCodec } from './cbor.ts';
+import { cloudeventsCodec } from './cloudevents.ts';
 import { brotliCodec, deflateCodec, gzipCodec, zstdCodec } from './compress.ts';
 import { hexCodec } from './hex.ts';
 import { jsonCodec } from './json.ts';
 import { msgpackCodec } from './msgpack.ts';
+import { phpCodec } from './php.ts';
+import { pickleCodec } from './pickle.ts';
 import { textCodec } from './text.ts';
+import { xmlCodec } from './xml.ts';
 import type {
   FormatCodec,
   FormatCodecId,
@@ -15,9 +19,13 @@ import type {
 } from './types.ts';
 
 export const FORMAT_CODECS: readonly FormatCodec[] = [
+  cloudeventsCodec,
   jsonCodec,
+  xmlCodec,
   msgpackCodec,
   cborCodec,
+  pickleCodec,
+  phpCodec,
   textCodec,
 ];
 

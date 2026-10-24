@@ -40,6 +40,14 @@ Dates are UTC. `Published` comes from the npm registry `time` field.
 | `trustPolicyExclude`      | `semver@5.7.2`                           | 2023-07-10       | Legacy 5.x line pulled by `release-please` (via `conventional-changelog-writer` and `normalize-package-data`, M0-06). Same reason as `semver@6.3.1`. | maintainer  |
 | `trustPolicyExclude`      | `semver@6.3.1`                            | 2023-07-10       | Legacy 6.x line pulled by `@babel/core` (via `@nx/js`). The release pre-dates npm provenance, so pnpm reports a trust downgrade against newer majors; it is three years old, so a takeover is not plausible. | maintainer  |
 
+## Overrides
+
+A pnpm `overrides` entry in [pnpm-workspace.yaml](../../pnpm-workspace.yaml) is a supply-chain key (human-only). It needs no row for the release-age gate unless the patched version is younger than 3 days (then it also needs an exact `minimumReleaseAgeExclude` entry and a row above); it is logged here so it is pruned when the cause is gone. `nx run supply-chain:gates` requires every override to be an exact version (`pin.non-exact-version`).
+
+| Setting     | Entry                                    | Published        | Reason                                                                                                                                                                                                                       | Remove when                                                         | Approved by |
+| ----------- | ---------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------- |
+| `overrides` | `vite@8.3.0` -> `8.3.4` | 2026-10-08 12:07 | `@angular/build` 22.2.3 pins vite 8.3.0, which bundles launch-editor with GHSA-587h-7wmj-h5pm (CVSS 7.5), GHSA-698v-4r3x-3vcv and GHSA-r825-w8mm-5pxw (6.3), fixed in vite 8.3.3. 8.3.4 is the version `vitest` and `astro` already resolve, so the lockfile has one vite. Dev-server only (`ng serve`); no source imports vite and no bundle contains it. | `@angular/build` resolves vite >= 8.3.3 itself (next Angular CLI patch) | maintainer  |
+
 ## Not excluded
 
 The 9 transitive packages that were also younger than 3 days when M0-02 landed (`@astrojs/mdx`, `baseline-browser-mapping`, `electron-to-chromium`, `es-module-lexer`, `i18next`, `node-releases`, `qs`, `sync-child-process`, `undici`) were not excluded. The lockfile was moved to the newest mature versions with `pnpm update <names> --depth Infinity`. This is the preferred fix: exclusions are for pins we must have, not for transitive drift.

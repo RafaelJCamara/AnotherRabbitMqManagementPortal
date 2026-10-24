@@ -39,6 +39,12 @@ trustPolicyExclude:
 blockExoticSubdeps: true
 strictDepBuilds: true
 
+# Security lane (docs/runbooks/security-lane.md): @angular/build pins vite 8.3.0, which bundles launch-editor with
+# GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv and GHSA-r825-w8mm-5pxw (fixed in vite 8.3.3). Exact versions only; logged in
+# docs/adr/ADR-027-log.md. Remove this entry once @angular/build resolves vite >= 8.3.3 on its own.
+overrides:
+  'vite@8.3.0': 8.3.4
+
 catalog:
   '@angular-devkit/core': 22.2.3
   '@angular-devkit/schematics': 22.2.3

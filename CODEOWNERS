@@ -33,15 +33,24 @@
 /libs/engine/svc-dlq/                                   @RafaelJCamara
 /libs/engine/svc-explorer/                              @RafaelJCamara
 /libs/engine/kernel/src/actions/                        @RafaelJCamara
+/libs/engine/kernel/src/scheduler/                      @RafaelJCamara
+/libs/engine/ports/                                     @RafaelJCamara
 /tools/semantics-evidence/                              @RafaelJCamara
+/tools/semantics-audit/                                 @RafaelJCamara
+/libs/shared/domain-model/                              @RafaelJCamara
+/tools/arch-tests/                                      @RafaelJCamara
+/tools/conformance-ci/                                  @RafaelJCamara
 
 # Lab evidence: recorded by CI, approved by a human (invariant I-14, amendment A-20).
 # Bot PRs carry the `lab-evidence` label.
 /testing/lab-evidence/**                                @RafaelJCamara
 /apps/conformance/                                      @RafaelJCamara
+/testing/broker-lab/                                    @RafaelJCamara
+/libs/testkit/                                          @RafaelJCamara
 
 # Release, packaging and supply chain
 /.github/workflows/                                     @RafaelJCamara
+/.github/actions/                                       @RafaelJCamara
 /packaging/                                             @RafaelJCamara
 /pnpm-workspace.yaml                                    @RafaelJCamara
 /tools/supply-chain/                                    @RafaelJCamara

@@ -68,6 +68,7 @@
       "@app/net-truststore/testing": [
         "./libs/engine/net-truststore/src/testing/index.ts"
       ],
+      "@app/peek-planner": ["./libs/shared/peek-planner/src/index.ts"],
       "@app/perf": ["./apps/perf/src/index.ts"],
       "@app/persistence": ["./libs/engine/persistence/src/index.ts"],
       "@app/plugin-host": ["./libs/engine/plugin-host/src/index.ts"],

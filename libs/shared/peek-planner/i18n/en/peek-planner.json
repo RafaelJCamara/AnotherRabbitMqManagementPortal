@@ -1,0 +1,167 @@
+{
+  "honestLabel": {
+    "v1": "Side-effect-aware peek: RabbitMQ counts every return of a message, and this plan shows what each step does to it."
+  },
+  "warnings": {
+    "W-BROKER-UNVERIFIED": {
+      "v1": "This broker build is not one the registry has verified ({{verification}}). Caps are the conservative defaults, and the effects shown are derived from the code and documentation, not confirmed by a lab run."
+    },
+    "W-DLX-UNVERIFIED": {
+      "v1": "The tool could not establish every queue that dead-letters into this one ({{reasons}}). A message that died for exceeding another queue's delivery limit may arrive here with a count above this queue's limit, and RabbitMQ would then drop or dead-letter it on any return, including a peek. The limit is treated as unknown: the guard uses the estimate {{estimate}}."
+    },
+    "W-LIMIT-UNKNOWN": {
+      "v1": "The delivery limit of this queue could not be read. The guard uses the estimate {{estimate}}, the lowest limit seen, so more messages count as at risk. Raising the limit is not offered."
+    },
+    "W-SEMANTICS-GAP": {
+      "v1": "The registry has no entry for {{cells}}. This plan uses the effects of the nearest conservative entry instead."
+    }
+  },
+  "rejections": {
+    "INVALID_REQUEST": {
+      "v1": "The request or the preflight is not valid."
+    },
+    "GATE": {
+      "v1": "Peeking is switched off for this broker."
+    },
+    "STREAM_QUEUE": {
+      "v1": "This is a stream. Streams are read by offset, never with basic.get; use the stream browser."
+    },
+    "EXCLUSIVE": {
+      "v1": "This exclusive queue belongs to another connection; RabbitMQ does not allow reading it."
+    },
+    "UNVERIFIED_BROKER": {
+      "v1": "This broker build is not verified, so only a person may plan a peek."
+    },
+    "NO_QUORUM": {
+      "v1": "The quorum queue has no quorum or its health could not be checked, so it is not peeked."
+    },
+    "SAC_ACTIVE": {
+      "v1": "A single active consumer is connected. RabbitMQ refuses basic.get on this quorum queue, and a peek would have to take over from it."
+    },
+    "SEMANTICS_GAP": {
+      "v1": "The registry has no entry for this broker and queue, and only a person may plan a peek on a conservative substitute."
+    },
+    "LIMIT_MINUS1_313": {
+      "v1": "On RabbitMQ 3.13 a delivery limit of -1 drops a message on its first return, so this queue cannot be peeked."
+    },
+    "OVERLIMIT_DLQ": {
+      "v1": "This queue receives dead-lettered messages whose count may be above its own delivery limit; RabbitMQ would drop or dead-letter them on any return, including a peek. Set delivery-limit to -1 on this queue first."
+    },
+    "BUDGET_TOO_SMALL": {
+      "v1": "The hold time or the byte cap leaves no room for one message."
+    },
+    "METHOD_UNAVAILABLE": {
+      "v1": "The requested way of reading is not available for this queue."
+    },
+    "NO_SAFE_DISPOSITION": {
+      "v1": "No safe way to handle a message that a return would drop is available for this run."
+    },
+    "RESCUE_PREFLIGHT_FAILED": {
+      "v1": "The quarantine queue cannot be used right now."
+    }
+  },
+  "reasons": {
+    "count-invalid": { "v1": "The count must be a positive whole number." },
+    "max-bytes-invalid": {
+      "v1": "The byte limit must be a positive whole number."
+    },
+    "preflight-number-invalid": {
+      "v1": "A number from the preflight is not usable."
+    },
+    "raise-limit-value-invalid": {
+      "v1": "The new limit is not allowed for this queue."
+    },
+    "typed-consent-mismatch": {
+      "v1": "The typed confirmation does not match the queue name."
+    },
+    "gate-disabled": { "v1": "The broker profile switches this feature off." },
+    "queue-is-stream": { "v1": "The queue is a stream." },
+    "exclusive-owned-by-other": {
+      "v1": "The queue is exclusive to another connection."
+    },
+    "unverified-broker": { "v1": "The broker build is not verified." },
+    "quorum-unhealthy": {
+      "v1": "The quorum queue is not known to be healthy."
+    },
+    "sac-active-consumer": { "v1": "A single active consumer is connected." },
+    "semantics-gap": { "v1": "The registry has no entry for this case." },
+    "limit-minus1-destructive": {
+      "v1": "A limit of -1 drops a message on its first return on this version."
+    },
+    "dlx-sources-over-limit": {
+      "v1": "A dead-letter source can send messages above this queue's limit."
+    },
+    "dlx-source-unbounded": {
+      "v1": "A dead-letter source has no limit, so its messages can arrive with any count."
+    },
+    "rtt-invalid": { "v1": "The measured round trip is not usable." },
+    "rtt-exceeds-target": {
+      "v1": "One round trip takes longer than the hold target."
+    },
+    "hold-hard-abort-too-small": {
+      "v1": "The time limits leave no hold time."
+    },
+    "avg-message-exceeds-bytes": {
+      "v1": "An average message is larger than the byte cap."
+    },
+    "amqp10-not-available": {
+      "v1": "The AMQP 1.0 path is not available here."
+    },
+    "sac-consumer-path-unavailable": {
+      "v1": "The consumer path for a single active consumer queue is not available here."
+    },
+    "http-limit-finite": {
+      "v1": "The HTTP fallback is not offered for a queue with a delivery limit."
+    },
+    "http-limit-unknown": {
+      "v1": "The HTTP fallback is not offered when the delivery limit is unknown."
+    },
+    "http-era-not-strict": {
+      "v1": "The HTTP fallback is not offered on this version."
+    },
+    "http-not-provably-non-dlx": {
+      "v1": "The HTTP fallback needs proof that no queue dead-letters into this one."
+    },
+    "http-held-death-unchecked": {
+      "v1": "The HTTP fallback needs the death history of held messages to be checked."
+    },
+    "limit-unknown": { "v1": "The delivery limit is unknown." },
+    "dlx-evidence-unverified": {
+      "v1": "The dead-letter evidence is incomplete."
+    },
+    "no-safe-disposition": {
+      "v1": "Neither a quarantine nor a limit raise is possible."
+    },
+    "let-broker-handle-non-human": {
+      "v1": "Only a person may let the broker handle a message."
+    },
+    "raise-limit-not-admin": {
+      "v1": "Only an administrator may raise the limit."
+    },
+    "raise-limit-capped": {
+      "v1": "An argument or an operator policy fixes the limit."
+    },
+    "raise-limit-protected-name": {
+      "v1": "The policy name belongs to another tool or provider."
+    },
+    "raise-limit-unknown-limit": {
+      "v1": "The limit cannot be raised while it is unknown."
+    },
+    "raise-limit-stale": {
+      "v1": "The preflight is too old for an unattended run."
+    },
+    "no-rescue": { "v1": "The quarantine queue was not checked." },
+    "rescue-queue-not-ready": { "v1": "The quarantine queue is not ready." },
+    "rescue-overflow-unsafe": {
+      "v1": "The quarantine queue could drop messages when it is full."
+    },
+    "rescue-permission": {
+      "v1": "The user may not write to the quarantine queue."
+    },
+    "rescue-alarm": { "v1": "The broker has an alarm." },
+    "rescue-publish-blocked": { "v1": "Publishing is blocked on the broker." },
+    "rescue-stale": {
+      "v1": "The quarantine check is too old for an unattended run."
+    }
+  }
+}

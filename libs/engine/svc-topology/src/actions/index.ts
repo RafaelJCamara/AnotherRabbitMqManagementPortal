@@ -4,9 +4,13 @@ import type { ActionImpl } from '@app/kernel';
 
 import type { ActionDeps } from '../internal/load';
 import { createQueuesEffectiveConfigAction } from './queues-effective-config';
+import { createTopologyGraphAction } from './topology-graph';
+import { createTopologySubgraphAction } from './topology-subgraph';
 
 export const actionFactories: readonly ((deps: ActionDeps) => ActionImpl)[] = [
   createQueuesEffectiveConfigAction,
+  createTopologyGraphAction,
+  createTopologySubgraphAction,
 ];
 
 export function createActions(deps: ActionDeps): readonly ActionImpl[] {

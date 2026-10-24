@@ -32,6 +32,8 @@ import { metricsQuery } from './metrics-query.ts';
 import { metricsForecast } from './metrics-forecast.ts';
 import { metricsLiveTopic } from './metrics-live-topic.ts';
 import { queuesEffectiveConfig } from './queues-effective-config.ts';
+import { topologyGraph } from './topology-graph.ts';
+import { topologySubgraph } from './topology-subgraph.ts';
 
 export const registry: Registry = {
   actions: [
@@ -65,6 +67,8 @@ export const registry: Registry = {
     metricsQuery,
     metricsForecast,
     queuesEffectiveConfig,
+    topologyGraph,
+    topologySubgraph,
   ],
   topics: [explorerWindowTopic, metricsLiveTopic],
 };

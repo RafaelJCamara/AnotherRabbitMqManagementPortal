@@ -142,3 +142,110 @@ export const EffectiveConfigSchema = z.strictObject({
   unrecognisedArguments: z.array(z.string().max(TOPOLOGY_NAME_MAX)).max(256),
   warnings: z.array(EffectiveWarningSchema).max(32),
 });
+
+// --- The graph of a vhost (topology.graph, topology.subgraph) ------------------------------------
+
+/** Nodes plus edges one answer carries, at most (I-7). */
+export const GRAPH_ELEMENTS_MAX = 2_000;
+/** The smallest cap that still leaves room for a focus and its aggregates. */
+export const GRAPH_ELEMENTS_MIN = 10;
+/** A subgraph reaches this many hops from its focus, at most. */
+export const SUBGRAPH_DEPTH_MAX = 2;
+/** Names an aggregate node lists of what it folded. */
+export const AGGREGATE_SAMPLE_MAX = 5;
+
+export const GRAPH_OBJECT_KINDS = ['exchange', 'queue'] as const;
+export const GraphFocusSchema = z.strictObject({
+  kind: z.enum(GRAPH_OBJECT_KINDS),
+  name: z.string().max(TOPOLOGY_NAME_MAX),
+});
+
+export const GraphNodeSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    id: z.string().max(TOPOLOGY_NAME_MAX + 2),
+    kind: z.literal('exchange'),
+    name: z.string().max(TOPOLOGY_NAME_MAX),
+    type: z.string().max(64),
+    internal: z.boolean(),
+    /** The exchange has neighbours that this answer does not show one by one. */
+    hasMore: z.boolean(),
+  }),
+  z.strictObject({
+    id: z.string().max(TOPOLOGY_NAME_MAX + 2),
+    kind: z.literal('queue'),
+    name: z.string().max(TOPOLOGY_NAME_MAX),
+    type: z.enum(QUEUE_TYPES).nullable(),
+    hasMore: z.boolean(),
+  }),
+  /** Objects folded together because the answer is capped: how many, and a few names. */
+  z.strictObject({
+    id: z.string().max(TOPOLOGY_NAME_MAX + 16),
+    kind: z.literal('aggregate'),
+    of: z.enum(GRAPH_OBJECT_KINDS),
+    count: z.number().int().min(1),
+    sample: z
+      .array(z.string().max(TOPOLOGY_NAME_MAX))
+      .max(AGGREGATE_SAMPLE_MAX),
+    /** The id of the node they hang from; null when they are linked to nothing that is shown. */
+    via: z
+      .string()
+      .max(TOPOLOGY_NAME_MAX + 2)
+      .nullable(),
+  }),
+]);
+
+export const GraphEdgeSchema = z.strictObject({
+  id: z.string().max(2 * TOPOLOGY_NAME_MAX + 512),
+  kind: z.enum(['binding', 'alternate-exchange', 'dead-letter', 'aggregate']),
+  from: z.string().max(TOPOLOGY_NAME_MAX + 16),
+  to: z.string().max(TOPOLOGY_NAME_MAX + 16),
+  /** The routing key of a binding, or the fixed dead-letter routing key; null otherwise. */
+  label: z.string().max(TOPOLOGY_NAME_MAX).nullable(),
+  /** Bindings or links behind the edge: 1, or more for an aggregate edge. */
+  count: z.number().int().min(1),
+});
+
+export const TopologyGraphSchema = z.strictObject({
+  nodes: z.array(GraphNodeSchema).max(GRAPH_ELEMENTS_MAX),
+  edges: z.array(GraphEdgeSchema).max(GRAPH_ELEMENTS_MAX),
+  /** Nodes plus edges in this answer; never above the cap asked for. */
+  elements: z.number().int().nonnegative().max(GRAPH_ELEMENTS_MAX),
+  /**
+   * True when the scope did not fit: objects were folded into aggregate nodes, or parallel edges
+   * (the same ends and kind) were merged into one edge that counts them.
+   */
+  aggregated: z.boolean(),
+  /** What the scope held and the answer does not show one by one. */
+  omitted: z.strictObject({ nodes: count, edges: count }),
+  /** The scope before the cap: the whole vhost, or the neighbourhood of the focus. */
+  scope: z.strictObject({ nodes: count, edges: count }),
+  /** Exact figures of the vhost. `unrepresented`: implicit bindings of the default exchange and links to nothing in the vhost. */
+  totals: z.strictObject({
+    exchanges: count,
+    queues: count,
+    bindings: count,
+    links: count,
+    unrepresented: count,
+  }),
+  focus: GraphFocusSchema.nullable(),
+  depth: z.number().int().min(0).max(SUBGRAPH_DEPTH_MAX).nullable(),
+});
+export type TopologyGraph = z.infer<typeof TopologyGraphSchema>;
+export type GraphNode = z.infer<typeof GraphNodeSchema>;
+export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
+
+/** The answer of topology.graph and topology.subgraph. */
+export const GraphAnswerSchema = z.strictObject({
+  vhost: VhostNameSchema,
+  graph: TopologyGraphSchema,
+  gaps: TopologyGapsSchema,
+  snapshot: SnapshotMetaSchema,
+});
+export type GraphAnswer = z.infer<typeof GraphAnswerSchema>;
+
+/** `maxElements` of an input: the cap the caller wants, within the ceiling of the contract. */
+export const MaxElementsSchema = z
+  .number()
+  .int()
+  .min(GRAPH_ELEMENTS_MIN)
+  .max(GRAPH_ELEMENTS_MAX);

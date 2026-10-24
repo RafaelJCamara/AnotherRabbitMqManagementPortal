@@ -74,3 +74,5 @@ export * from './registry/metrics-forecast.ts';
 export * from './registry/metrics-live-topic.ts';
 export * from './registry/topology-types.ts';
 export * from './registry/queues-effective-config.ts';
+export * from './registry/topology-graph.ts';
+export * from './registry/topology-subgraph.ts';

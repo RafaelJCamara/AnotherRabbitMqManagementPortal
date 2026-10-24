@@ -2,7 +2,11 @@
 // a missing profile, vhost or object is, and what a broker failure becomes. The table grows with the
 // actions; each row names the input that reaches the broker.
 import type { ActionDef } from '@app/contracts';
-import { queuesEffectiveConfig } from '@app/contracts';
+import {
+  queuesEffectiveConfig,
+  topologyGraph,
+  topologySubgraph,
+} from '@app/contracts';
 import {
   AppError,
   createTestContext,
@@ -19,6 +23,8 @@ import {
 } from '../testing';
 
 import { createQueuesEffectiveConfigAction } from './queues-effective-config';
+import { createTopologyGraphAction } from './topology-graph';
+import { createTopologySubgraphAction } from './topology-subgraph';
 
 interface Row {
   readonly name: string;
@@ -36,6 +42,27 @@ const ROWS: readonly Row[] = [
     create: createQueuesEffectiveConfigAction,
     input: { cid: 'c1', vhost: '/', queue: 'orders.q' },
     missingObject: { cid: 'c1', vhost: '/', queue: 'no-such-queue' },
+  },
+  {
+    name: 'topology.graph',
+    def: topologyGraph,
+    create: createTopologyGraphAction,
+    input: { cid: 'c1', vhost: '/' },
+  },
+  {
+    name: 'topology.subgraph',
+    def: topologySubgraph,
+    create: createTopologySubgraphAction,
+    input: {
+      cid: 'c1',
+      vhost: '/',
+      focus: { kind: 'exchange', name: 'orders' },
+    },
+    missingObject: {
+      cid: 'c1',
+      vhost: '/',
+      focus: { kind: 'exchange', name: 'no-such-exchange' },
+    },
   },
 ];
 

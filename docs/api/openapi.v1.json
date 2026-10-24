@@ -6393,6 +6393,1086 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/topology/graphs": {
+      "post": {
+        "operationId": "topology.graph",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "maxElements": {
+                    "maximum": 2000,
+                    "minimum": 10,
+                    "type": "integer"
+                  },
+                  "refresh": {
+                    "type": "boolean"
+                  },
+                  "vhost": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "vhost"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "gaps": {
+                      "items": {
+                        "enum": [
+                          "policy-unreadable",
+                          "operator-policy-unreadable",
+                          "stats-fields-missing",
+                          "other-clients-may-declare",
+                          "policy-match-undecided",
+                          "truncated"
+                        ],
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "type": "array"
+                    },
+                    "graph": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "aggregated": {
+                          "type": "boolean"
+                        },
+                        "depth": {
+                          "anyOf": [
+                            {
+                              "maximum": 2,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "edges": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "maximum": 9007199254740991,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "from": {
+                                "maxLength": 271,
+                                "type": "string"
+                              },
+                              "id": {
+                                "maxLength": 1022,
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "binding",
+                                  "alternate-exchange",
+                                  "dead-letter",
+                                  "aggregate"
+                                ],
+                                "type": "string"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "to": {
+                                "maxLength": 271,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "kind",
+                              "from",
+                              "to",
+                              "label",
+                              "count"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 2000,
+                          "type": "array"
+                        },
+                        "elements": {
+                          "maximum": 2000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "focus": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "exchange",
+                                    "queue"
+                                  ],
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "nodes": {
+                          "items": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "hasMore": {
+                                    "type": "boolean"
+                                  },
+                                  "id": {
+                                    "maxLength": 257,
+                                    "type": "string"
+                                  },
+                                  "internal": {
+                                    "type": "boolean"
+                                  },
+                                  "kind": {
+                                    "const": "exchange",
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "maxLength": 64,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "name",
+                                  "type",
+                                  "internal",
+                                  "hasMore"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "hasMore": {
+                                    "type": "boolean"
+                                  },
+                                  "id": {
+                                    "maxLength": 257,
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "queue",
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "classic",
+                                          "quorum",
+                                          "stream"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "name",
+                                  "type",
+                                  "hasMore"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "count": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "id": {
+                                    "maxLength": 271,
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "aggregate",
+                                    "type": "string"
+                                  },
+                                  "of": {
+                                    "enum": [
+                                      "exchange",
+                                      "queue"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "sample": {
+                                    "items": {
+                                      "maxLength": 255,
+                                      "type": "string"
+                                    },
+                                    "maxItems": 5,
+                                    "type": "array"
+                                  },
+                                  "via": {
+                                    "anyOf": [
+                                      {
+                                        "maxLength": 257,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "of",
+                                  "count",
+                                  "sample",
+                                  "via"
+                                ],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "maxItems": 2000,
+                          "type": "array"
+                        },
+                        "omitted": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "edges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "nodes": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "nodes",
+                            "edges"
+                          ],
+                          "type": "object"
+                        },
+                        "scope": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "edges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "nodes": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "nodes",
+                            "edges"
+                          ],
+                          "type": "object"
+                        },
+                        "totals": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "links": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "unrepresented": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "exchanges",
+                            "queues",
+                            "bindings",
+                            "links",
+                            "unrepresented"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "nodes",
+                        "edges",
+                        "elements",
+                        "aggregated",
+                        "omitted",
+                        "scope",
+                        "totals",
+                        "focus",
+                        "depth"
+                      ],
+                      "type": "object"
+                    },
+                    "snapshot": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "consumers": {
+                          "enum": [
+                            "read",
+                            "unreadable",
+                            "truncated"
+                          ],
+                          "type": "string"
+                        },
+                        "takenAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "truncation": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "consumers": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "operatorPolicies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "policies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "queues",
+                            "exchanges",
+                            "bindings",
+                            "consumers",
+                            "policies",
+                            "operatorPolicies"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "takenAt",
+                        "truncation",
+                        "consumers"
+                      ],
+                      "type": "object"
+                    },
+                    "vhost": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "vhost",
+                    "graph",
+                    "gaps",
+                    "snapshot"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "The graph of a vhost, held to a fixed number of elements",
+        "tags": [
+          "topology"
+        ],
+        "x-audit": "none",
+        "x-cli": {
+          "command": "topology graph"
+        },
+        "x-kind": "query",
+        "x-mcp": {
+          "description": "Exchanges, queues, bindings, alternate-exchange and dead-letter links of one vhost, at most 2,000 elements; a larger vhost is aggregated and says so.",
+          "expose": true,
+          "mutating": false,
+          "title": "Topology graph of a vhost"
+        },
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/{cid}/topology/subgraphs": {
+      "post": {
+        "operationId": "topology.subgraph",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "depth": {
+                    "anyOf": [
+                      {
+                        "const": 0,
+                        "type": "number"
+                      },
+                      {
+                        "const": 1,
+                        "type": "number"
+                      },
+                      {
+                        "const": 2,
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "focus": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "exchange",
+                          "queue"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "maxLength": 255,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "maxElements": {
+                    "maximum": 2000,
+                    "minimum": 10,
+                    "type": "integer"
+                  },
+                  "refresh": {
+                    "type": "boolean"
+                  },
+                  "vhost": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "vhost",
+                  "focus"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "gaps": {
+                      "items": {
+                        "enum": [
+                          "policy-unreadable",
+                          "operator-policy-unreadable",
+                          "stats-fields-missing",
+                          "other-clients-may-declare",
+                          "policy-match-undecided",
+                          "truncated"
+                        ],
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "type": "array"
+                    },
+                    "graph": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "aggregated": {
+                          "type": "boolean"
+                        },
+                        "depth": {
+                          "anyOf": [
+                            {
+                              "maximum": 2,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "edges": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "maximum": 9007199254740991,
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "from": {
+                                "maxLength": 271,
+                                "type": "string"
+                              },
+                              "id": {
+                                "maxLength": 1022,
+                                "type": "string"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "binding",
+                                  "alternate-exchange",
+                                  "dead-letter",
+                                  "aggregate"
+                                ],
+                                "type": "string"
+                              },
+                              "label": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "to": {
+                                "maxLength": 271,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "kind",
+                              "from",
+                              "to",
+                              "label",
+                              "count"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 2000,
+                          "type": "array"
+                        },
+                        "elements": {
+                          "maximum": 2000,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "focus": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "exchange",
+                                    "queue"
+                                  ],
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "nodes": {
+                          "items": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "hasMore": {
+                                    "type": "boolean"
+                                  },
+                                  "id": {
+                                    "maxLength": 257,
+                                    "type": "string"
+                                  },
+                                  "internal": {
+                                    "type": "boolean"
+                                  },
+                                  "kind": {
+                                    "const": "exchange",
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "maxLength": 64,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "name",
+                                  "type",
+                                  "internal",
+                                  "hasMore"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "hasMore": {
+                                    "type": "boolean"
+                                  },
+                                  "id": {
+                                    "maxLength": 257,
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "queue",
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "classic",
+                                          "quorum",
+                                          "stream"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "name",
+                                  "type",
+                                  "hasMore"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "count": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "id": {
+                                    "maxLength": 271,
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "aggregate",
+                                    "type": "string"
+                                  },
+                                  "of": {
+                                    "enum": [
+                                      "exchange",
+                                      "queue"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "sample": {
+                                    "items": {
+                                      "maxLength": 255,
+                                      "type": "string"
+                                    },
+                                    "maxItems": 5,
+                                    "type": "array"
+                                  },
+                                  "via": {
+                                    "anyOf": [
+                                      {
+                                        "maxLength": 257,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "of",
+                                  "count",
+                                  "sample",
+                                  "via"
+                                ],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "maxItems": 2000,
+                          "type": "array"
+                        },
+                        "omitted": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "edges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "nodes": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "nodes",
+                            "edges"
+                          ],
+                          "type": "object"
+                        },
+                        "scope": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "edges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "nodes": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "nodes",
+                            "edges"
+                          ],
+                          "type": "object"
+                        },
+                        "totals": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "links": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "unrepresented": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "exchanges",
+                            "queues",
+                            "bindings",
+                            "links",
+                            "unrepresented"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "nodes",
+                        "edges",
+                        "elements",
+                        "aggregated",
+                        "omitted",
+                        "scope",
+                        "totals",
+                        "focus",
+                        "depth"
+                      ],
+                      "type": "object"
+                    },
+                    "snapshot": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "consumers": {
+                          "enum": [
+                            "read",
+                            "unreadable",
+                            "truncated"
+                          ],
+                          "type": "string"
+                        },
+                        "takenAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "truncation": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "consumers": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "operatorPolicies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "policies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "queues",
+                            "exchanges",
+                            "bindings",
+                            "consumers",
+                            "policies",
+                            "operatorPolicies"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "takenAt",
+                        "truncation",
+                        "consumers"
+                      ],
+                      "type": "object"
+                    },
+                    "vhost": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "vhost",
+                    "graph",
+                    "gaps",
+                    "snapshot"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "The neighbourhood of one exchange or queue, at most two hops, held to a fixed number of elements",
+        "tags": [
+          "topology"
+        ],
+        "x-audit": "none",
+        "x-cli": {
+          "command": "topology subgraph"
+        },
+        "x-kind": "query",
+        "x-mcp": {
+          "description": "The exchanges, queues and links within at most two hops of one exchange or queue, at most 2,000 elements; a larger neighbourhood is aggregated and says so.",
+          "expose": true,
+          "mutating": false,
+          "title": "Topology around an object"
+        },
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{connectionId}/arm": {
       "post": {
         "operationId": "ops.arm",
@@ -7397,6 +8477,9 @@
     },
     {
       "name": "settings"
+    },
+    {
+      "name": "topology"
     },
     {
       "name": "views"

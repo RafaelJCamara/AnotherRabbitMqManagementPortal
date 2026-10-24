@@ -27,6 +27,7 @@ export type RejectionCode = (typeof REJECTION_CODES)[number];
 export const REASON_CODES = [
   // INVALID_REQUEST
   'count-invalid',
+  'queue-key-invalid',
   'max-bytes-invalid',
   'preflight-number-invalid',
   'raise-limit-value-invalid',

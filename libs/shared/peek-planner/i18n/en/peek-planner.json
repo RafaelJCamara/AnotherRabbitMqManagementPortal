@@ -61,6 +61,7 @@
     }
   },
   "reasons": {
+    "queue-key-invalid": { "v1": "The queue key is not valid." },
     "count-invalid": { "v1": "The count must be a positive whole number." },
     "max-bytes-invalid": {
       "v1": "The byte limit must be a positive whole number."

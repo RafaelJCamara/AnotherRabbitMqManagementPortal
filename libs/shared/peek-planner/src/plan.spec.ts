@@ -1,6 +1,10 @@
 import { FeatureIdSchema } from '@app/contracts';
 import type { Era } from '@app/domain-model';
-import type { DeliveryLimit } from '@app/semantics';
+import {
+  SemanticsGapError,
+  semanticsRegistry,
+  type DeliveryLimit,
+} from '@app/semantics';
 import { describe, expect, it } from 'vitest';
 
 import { planPeek } from './plan.ts';
@@ -571,5 +575,24 @@ describe('the plan names the disposition and what it asks of a person', () => {
     ]);
     expect(ids(ok.warnings)).toEqual([...ids(ok.warnings)].sort());
     expect(ok.gates).toEqual([]);
+  });
+});
+
+describe('a registry with no settle row at all', () => {
+  it('refuses a quorum plan even for a person: there is nothing to say about the effects', () => {
+    const empty = {
+      ...semanticsRegistry,
+      cell: (key: Parameters<typeof semanticsRegistry.cell>[0]) => {
+        throw new SemanticsGapError(key);
+      },
+    };
+    const result = planPeek(
+      requestOf(),
+      factsOf('4.3', preflightOf(queue43()), { registry: empty }),
+    );
+    expect(rejection(result)).toMatchObject({
+      code: 'SEMANTICS_GAP',
+      reasons: ['semantics-gap'],
+    });
   });
 });

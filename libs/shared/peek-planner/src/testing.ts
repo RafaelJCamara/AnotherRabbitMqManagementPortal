@@ -179,3 +179,98 @@ export function lookup(key: string): string | undefined {
   }
   return typeof node === 'string' ? node : undefined;
 }
+
+export interface Scenario {
+  readonly name: string;
+  readonly era: Era;
+  readonly queue: PreflightQueue;
+  readonly principal?: PeekPrincipal;
+  readonly request?: Partial<PeekRequest>;
+  readonly sources?: {
+    queue: string;
+    limit: { kind: 'finite'; value: number };
+  }[];
+}
+
+/** One scenario for each kind of answer: plans, consents, every family of rejection. */
+export const SCENARIOS: readonly Scenario[] = [
+  { name: '4.0-4.2 budget', era: '4.0-4.2', queue: queueOf({ ttlMs: 60_000 }) },
+  {
+    name: '3.13 unset',
+    era: '3.13',
+    queue: queueOf({
+      deliveryLimit: { kind: 'unlimited' },
+      limitState: 'unset',
+    }),
+  },
+  {
+    name: '3.13 minus1',
+    era: '3.13',
+    queue: queueOf({
+      deliveryLimit: { kind: 'unlimited' },
+      limitState: 'minus1',
+    }),
+  },
+  {
+    name: '4.3 delayed',
+    era: '4.3',
+    queue: queueOf({ delayedRetry: { type: 'all' } }),
+  },
+  {
+    name: '4.3 overlimit',
+    era: '4.3',
+    queue: queueOf({ delayedRetry: { type: 'disabled' } }),
+    sources: [{ queue: 'a', limit: { kind: 'finite', value: 20 } }],
+  },
+  { name: '4.4 gap', era: '4.4', queue: queueOf() },
+  { name: 'classic', era: '4.3', queue: classicQueue() },
+  { name: 'stream', era: '4.3', queue: queueOf({ type: 'stream' }) },
+  {
+    name: 'ai quarantine',
+    era: '4.0-4.2',
+    queue: queueOf(),
+    principal: mcpClient,
+  },
+  {
+    name: 'unattended unknown',
+    era: '4.3',
+    queue: queueOf({ deliveryLimit: { kind: 'unknown' } }),
+    principal: unattended,
+  },
+  {
+    name: 'http fallback',
+    era: '4.3',
+    queue: classicQueue(),
+    request: { prefer: 'http-fallback' },
+  },
+  {
+    name: 'let broker',
+    era: '4.0-4.2',
+    queue: queueOf(),
+    request: {
+      disposition: { kind: 'let-broker-handle', typedConsent: 'orders.dlq' },
+    },
+  },
+];
+
+export function build(
+  scenario: Scenario,
+  nowMs = NOW,
+): { request: PeekRequest; facts: PeekFacts } {
+  const preflight = preflightOf(scenario.queue, {
+    dlxSources: {
+      sources: scenario.sources ?? [],
+      complete: true,
+      unknownReasons: [],
+    },
+    rescue: rescueOf(),
+  });
+  return {
+    request: requestOf(scenario.request),
+    facts: factsOf(scenario.era, preflight, {
+      profile: profileOf(scenario.era),
+      principal: scenario.principal ?? human,
+      nowMs,
+    }),
+  };
+}

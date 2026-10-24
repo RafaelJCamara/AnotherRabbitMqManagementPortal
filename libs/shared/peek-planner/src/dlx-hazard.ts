@@ -17,11 +17,7 @@
 import type { Era } from '@app/domain-model';
 import type { DeliveryLimit } from '@app/semantics';
 import { carriesDeliveryCount, resolveCell, type LimitView } from './limit.ts';
-import type {
-  PeekPreflight,
-  PlannerRegistry,
-  PreflightQueue,
-} from './types.ts';
+import type { PeekPreflight, PlannerRegistry } from './types.ts';
 
 export type UnknownWhy =
   | 'own-limit-unknown'
@@ -101,7 +97,6 @@ export function provablyNonDlx(preflight: PeekPreflight): boolean {
 export interface DlxInput {
   readonly registry: PlannerRegistry;
   readonly era: Era;
-  readonly queue: PreflightQueue;
   readonly limit: LimitView;
   readonly preflight: PeekPreflight;
 }
@@ -137,7 +132,7 @@ function lowestSafeLimit(
 }
 
 export function assessDlxHazard(input: DlxInput): DlxAssessment {
-  const { registry, era, queue, limit, preflight } = input;
+  const { registry, era, limit, preflight } = input;
   const heldDeath =
     preflight.heldDeathSources === undefined ? 'not-checked' : 'covered';
   const none = (kind: 'not-applicable'): DlxAssessment => ({
@@ -146,10 +141,11 @@ export function assessDlxHazard(input: DlxInput): DlxAssessment {
     gap: null,
   });
 
-  if (queue.type !== 'quorum') return none('not-applicable');
+  // A classic queue reads as `unlimited` (readLimit), so this covers it too.
   if (limit.basis === 'unlimited') return none('not-applicable');
   if (!carriesDeliveryCount(registry, era)) return none('not-applicable');
-  if (limit.basis === 'finite-unknown' || limit.value === undefined) {
+  // A finite-unknown limit carries no value.
+  if (limit.value === undefined) {
     return {
       verdict: { kind: 'unknown', why: ['own-limit-unknown'] },
       heldDeath,

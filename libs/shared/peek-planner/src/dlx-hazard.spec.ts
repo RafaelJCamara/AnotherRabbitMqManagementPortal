@@ -1,5 +1,9 @@
 import type { Era } from '@app/domain-model';
-import { semanticsRegistry, type DeliveryLimit } from '@app/semantics';
+import {
+  SemanticsGapError,
+  semanticsRegistry,
+  type DeliveryLimit,
+} from '@app/semantics';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
@@ -52,7 +56,6 @@ function assess(c: Case = {}): DlxAssessment {
   return assessDlxHazard({
     registry: c.registry ?? semanticsRegistry,
     era: c.era ?? '4.3',
-    queue,
     limit: readLimit(queue),
     preflight,
   });
@@ -166,7 +169,6 @@ describe('AC-8 incomplete evidence is finite-unknown, an empty complete list is 
     const result = assessDlxHazard({
       registry: semanticsRegistry,
       era: '4.3',
-      queue,
       limit: readLimit(queue),
       preflight,
     });
@@ -393,5 +395,25 @@ describe('properties of the verdict', () => {
         },
       ),
     );
+  });
+});
+
+describe('a missing failed-delivery row is assumed to add one (R7)', () => {
+  it('keeps Lt = Ls + 1 blocked when the close_while_holding row cannot be read', () => {
+    const noRow: PlannerRegistry = {
+      ...semanticsRegistry,
+      cell: (key) => {
+        if (key.action === 'close_while_holding')
+          throw new SemanticsGapError(key);
+        return semanticsRegistry.cell(key);
+      },
+    };
+    const sources = [{ queue: 'orders', limit: finite(20) }];
+    const result = assess({ own: finite(21), sources, registry: noRow });
+    expect(result.verdict).toMatchObject({
+      kind: 'blocked',
+      minimumFinite: 22,
+    });
+    expect(result.gap).not.toBeNull();
   });
 });

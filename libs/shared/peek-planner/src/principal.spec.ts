@@ -58,3 +58,16 @@ describe('R11 human interactive principals', () => {
     expect(isHumanInteractive(ok)).toBe(true);
   });
 });
+
+describe('R11 a job or the system is never a person, whatever the surface', () => {
+  it('rejects the job and system kinds on a screen or a command line', () => {
+    for (const kind of ['job', 'system'] as const) {
+      for (const surface of ['ui', 'cli'] as const) {
+        expect(
+          isHumanInteractive({ kind, surface, unattended: false }),
+          `${kind} ${surface}`,
+        ).toBe(false);
+      }
+    }
+  });
+});

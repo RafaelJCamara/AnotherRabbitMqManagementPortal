@@ -182,7 +182,6 @@ export function planPeek(
   const hazard = assessDlxHazard({
     registry,
     era,
-    queue,
     limit: own,
     preflight,
   });

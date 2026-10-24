@@ -1,5 +1,9 @@
 import type { Era } from '@app/domain-model';
-import { semanticsRegistry } from '@app/semantics';
+import {
+  SemanticsGapError,
+  semanticsRegistry,
+  type SettleEffect,
+} from '@app/semantics';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -23,7 +27,12 @@ import {
   rescueOf,
   unattended,
 } from './testing.ts';
-import type { Disposition, PeekPrincipal, PreflightQueue } from './types.ts';
+import type {
+  Disposition,
+  PeekPrincipal,
+  PlannerRegistry,
+  PreflightQueue,
+} from './types.ts';
 import { encodeObjectKey } from '@app/contracts';
 
 interface Case {
@@ -459,5 +468,51 @@ describe('queueNameOf', () => {
   it('decodes the name of an object key and refuses a key that is not one', () => {
     expect(queueNameOf(encodeObjectKey('/', 'orders.dlq'))).toBe('orders.dlq');
     expect(queueNameOf('not a key !!' as never)).toBeUndefined();
+  });
+});
+
+describe('minus1IsSafe fails closed on what the registry says (I-3)', () => {
+  const head = (change: Partial<SettleEffect> = {}): SettleEffect => ({
+    deltaAC: 1,
+    deltaDC: 0,
+    countsTowardLimit: 'no',
+    position: 'head',
+    destructive: false,
+    ...change,
+  });
+  const only = (
+    effect: SettleEffect,
+    eras: readonly Era[],
+  ): PlannerRegistry => ({
+    ...semanticsRegistry,
+    cell: (key) => {
+      if (key.action !== 'amqp091.nack_requeue')
+        return semanticsRegistry.cell(key);
+      if (!eras.includes(key.era)) throw new SemanticsGapError(key);
+      return {
+        ...semanticsRegistry.cell({
+          ...key,
+          era: '4.0-4.2',
+          delayedRetry: undefined,
+        }),
+        effect,
+      };
+    },
+  });
+
+  it('refuses a return that destroys the message even when it keeps the head', () => {
+    expect(minus1IsSafe(only(head(), ['4.3']), '4.3')).toBe(true);
+    expect(
+      minus1IsSafe(only(head({ destructive: true }), ['4.3']), '4.3'),
+    ).toBe(false);
+    expect(minus1IsSafe(only(head({ position: 'tail' }), ['4.3']), '4.3')).toBe(
+      false,
+    );
+  });
+
+  it('refuses an answer that is a substitute for a missing row', () => {
+    // 4.3 has no row; the conservative era's row happens to be a safe-looking one.
+    expect(minus1IsSafe(only(head(), ['4.0-4.2']), '4.3')).toBe(false);
+    expect(minus1IsSafe(only(head(), ['4.0-4.2']), '4.0-4.2')).toBe(true);
   });
 });

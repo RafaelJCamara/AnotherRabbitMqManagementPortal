@@ -15,7 +15,7 @@ const input = (extra: Partial<CapsInput> = {}): CapsInput => ({
   ...extra,
 });
 
-describe('R4 caps come from the registry', () => {
+describe('AC-6 caps come from the registry and every clamp is reported (R4)', () => {
   it('quorum 4.0-4.2: 50 for a user, 200 for an administrator', () => {
     expect(computeCaps(input({ requested: 200 }))).toMatchObject({
       ok: true,

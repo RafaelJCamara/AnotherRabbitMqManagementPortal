@@ -213,6 +213,9 @@ export function visibleLimits(preflight: PeekPreflight): number[] {
   const seen: number[] = [...(preflight.queue.visibleLimits ?? [])];
   const disagreement = preflight.queue.limitDisagreement;
   for (const limit of [
+    // The queue's own limit, when the broker reports one: a plan downgraded to finite-unknown by
+    // doubtful dead-letter evidence must not guard at a value ABOVE the limit it knows (A-2).
+    preflight.queue.deliveryLimit,
     disagreement?.stat,
     disagreement?.computed,
     ...preflight.dlxSources.sources.map((source) => source.limit),

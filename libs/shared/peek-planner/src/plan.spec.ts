@@ -596,3 +596,27 @@ describe('a registry with no settle row at all', () => {
     });
   });
 });
+
+describe('AC-8 the estimate never exceeds a limit the broker reported', () => {
+  const incomplete = {
+    sources: [],
+    complete: false,
+    unknownReasons: [{ code: 'truncated' }],
+  };
+
+  it('AC-8 guards at the known own limit when only the dead-letter evidence is in doubt', () => {
+    for (const own of [3, 15, 19, 20, 50]) {
+      const ok = draft(
+        plan('4.3', {
+          queue: queue43({ deliveryLimit: finite(own) }),
+          preflight: { dlxSources: incomplete },
+        }),
+      );
+      expect(ok.preview.limit.basis).toBe('finite-unknown');
+      expect(ok.preview.guard.limit, String(own)).toEqual({
+        kind: 'finite',
+        value: Math.min(own, 20),
+      });
+    }
+  });
+});

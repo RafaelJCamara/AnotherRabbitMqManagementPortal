@@ -241,7 +241,7 @@ describe('the limit estimate of A-2', () => {
     expect(estimateLimit([0, -1, 2.5, Number.NaN, 9])).toBe(9);
   });
 
-  it('collects every finite limit the preflight shows', () => {
+  it('collects every finite limit the preflight shows, the own limit included', () => {
     const preflight = preflightOf(
       queueOf({
         visibleLimits: [25],
@@ -262,6 +262,8 @@ describe('the limit estimate of A-2', () => {
         },
       },
     );
-    expect(visibleLimits(preflight).sort((a, b) => a - b)).toEqual([5, 20, 25]);
+    expect(visibleLimits(preflight).sort((a, b) => a - b)).toEqual([
+      5, 20, 20, 25,
+    ]);
   });
 });

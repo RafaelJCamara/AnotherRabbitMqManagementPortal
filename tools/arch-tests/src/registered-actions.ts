@@ -38,6 +38,8 @@ import { createSearchQueryAction } from '@app/svc-explorer';
 import { createMetricsQueryAction } from '@app/svc-metrics';
 import { createMetricsFakeDeps } from '@app/svc-metrics';
 import { createMetricsForecastAction } from '@app/svc-metrics';
+import { createQueuesEffectiveConfigAction } from '@app/svc-topology';
+import { createTopologyFakeDeps } from '@app/svc-topology';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -185,6 +187,11 @@ const manifest: RegisteredAction[] = [
   {
     path: 'libs/engine/svc-metrics/src/actions/metrics-forecast.ts',
     impl: createMetricsForecastAction(createMetricsFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-topology/src/actions/queues-effective-config.ts',
+    impl: createQueuesEffectiveConfigAction(createTopologyFakeDeps()),
     input: { cid: 'c1' },
   },
 ];

@@ -31,6 +31,7 @@ import { searchQuery } from './search-query.ts';
 import { metricsQuery } from './metrics-query.ts';
 import { metricsForecast } from './metrics-forecast.ts';
 import { metricsLiveTopic } from './metrics-live-topic.ts';
+import { queuesEffectiveConfig } from './queues-effective-config.ts';
 
 export const registry: Registry = {
   actions: [
@@ -63,6 +64,7 @@ export const registry: Registry = {
     searchQuery,
     metricsQuery,
     metricsForecast,
+    queuesEffectiveConfig,
   ],
   topics: [explorerWindowTopic, metricsLiveTopic],
 };

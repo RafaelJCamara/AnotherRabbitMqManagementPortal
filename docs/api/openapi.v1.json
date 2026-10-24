@@ -3047,6 +3047,786 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/effective-config/queries": {
+      "post": {
+        "operationId": "queues.effective-config",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "queue": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "refresh": {
+                    "type": "boolean"
+                  },
+                  "vhost": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "vhost",
+                  "queue"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "effective": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "entries": {
+                              "additionalProperties": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "argument": {
+                                    "anyOf": [
+                                      {
+                                        "maxLength": 255,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "basis": {
+                                    "anyOf": [
+                                      {
+                                        "enum": [
+                                          "source-read",
+                                          "extrapolated"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "key": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "mergeRule": {
+                                    "anyOf": [
+                                      {
+                                        "maxLength": 256,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "provenance": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "layer": {
+                                          "enum": [
+                                            "argument",
+                                            "user-policy",
+                                            "operator-policy",
+                                            "broker-default"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "maxLength": 255,
+                                          "type": "string"
+                                        },
+                                        "role": {
+                                          "enum": [
+                                            "deciding",
+                                            "compared",
+                                            "overridden",
+                                            "ignored",
+                                            "unresolved"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "value": {}
+                                      },
+                                      "required": [
+                                        "layer",
+                                        "name",
+                                        "value",
+                                        "role"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 16,
+                                    "type": "array"
+                                  },
+                                  "rule": {
+                                    "anyOf": [
+                                      {
+                                        "maxLength": 256,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "status": {
+                                    "enum": [
+                                      "effective",
+                                      "default",
+                                      "unset",
+                                      "unknown",
+                                      "invalid"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "type": [
+                                      "number",
+                                      "string",
+                                      "boolean",
+                                      "null"
+                                    ]
+                                  },
+                                  "warnings": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "citations": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "kind": {
+                                                "enum": [
+                                                  "S",
+                                                  "D",
+                                                  "RN",
+                                                  "GH",
+                                                  "M3",
+                                                  "LAB"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "ref": {
+                                                "maxLength": 512,
+                                                "minLength": 1,
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "ref"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 32,
+                                          "type": "array"
+                                        },
+                                        "id": {
+                                          "pattern": "^W-[\\s\\S]{1,}$",
+                                          "type": "string"
+                                        },
+                                        "params": {
+                                          "additionalProperties": {
+                                            "type": "string"
+                                          },
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "type": "object"
+                                        },
+                                        "severity": {
+                                          "enum": [
+                                            "info",
+                                            "warn",
+                                            "consent",
+                                            "block"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "textKey": {
+                                          "maxLength": 256,
+                                          "type": "string"
+                                        },
+                                        "textVersion": {
+                                          "maximum": 9007199254740991,
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "severity",
+                                        "textKey",
+                                        "textVersion",
+                                        "params",
+                                        "citations"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 32,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "argument",
+                                  "status",
+                                  "value",
+                                  "rule",
+                                  "mergeRule",
+                                  "basis",
+                                  "provenance",
+                                  "warnings"
+                                ],
+                                "type": "object"
+                              },
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "type": "object"
+                            },
+                            "mergedPolicy": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "entries": {
+                                  "additionalProperties": {
+                                    "oneOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "rule": {
+                                            "anyOf": [
+                                              {
+                                                "maxLength": 256,
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "status": {
+                                            "const": "value",
+                                            "type": "string"
+                                          },
+                                          "value": {}
+                                        },
+                                        "required": [
+                                          "status",
+                                          "value",
+                                          "rule"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "operatorValue": {},
+                                          "reason": {
+                                            "const": "no-merge-rule",
+                                            "type": "string"
+                                          },
+                                          "status": {
+                                            "const": "unknown",
+                                            "type": "string"
+                                          },
+                                          "userValue": {}
+                                        },
+                                        "required": [
+                                          "status",
+                                          "reason",
+                                          "userValue",
+                                          "operatorValue"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "operatorValue": {},
+                                          "reason": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "status": {
+                                            "const": "invalid",
+                                            "type": "string"
+                                          },
+                                          "userValue": {}
+                                        },
+                                        "required": [
+                                          "status",
+                                          "reason",
+                                          "userValue",
+                                          "operatorValue"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    ]
+                                  },
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "type": "object"
+                                },
+                                "notEffective": {
+                                  "const": true,
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "notEffective",
+                                "entries"
+                              ],
+                              "type": "object"
+                            },
+                            "queueType": {
+                              "enum": [
+                                "classic",
+                                "quorum",
+                                "stream"
+                              ],
+                              "type": "string"
+                            },
+                            "unrecognisedArguments": {
+                              "items": {
+                                "maxLength": 255,
+                                "type": "string"
+                              },
+                              "maxItems": 256,
+                              "type": "array"
+                            },
+                            "version": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 64,
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "warnings": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "citations": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "kind": {
+                                          "enum": [
+                                            "S",
+                                            "D",
+                                            "RN",
+                                            "GH",
+                                            "M3",
+                                            "LAB"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "ref": {
+                                          "maxLength": 512,
+                                          "minLength": 1,
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "ref"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 32,
+                                    "type": "array"
+                                  },
+                                  "id": {
+                                    "pattern": "^W-[\\s\\S]{1,}$",
+                                    "type": "string"
+                                  },
+                                  "params": {
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    },
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "type": "object"
+                                  },
+                                  "severity": {
+                                    "enum": [
+                                      "info",
+                                      "warn",
+                                      "consent",
+                                      "block"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "textKey": {
+                                    "maxLength": 256,
+                                    "type": "string"
+                                  },
+                                  "textVersion": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "severity",
+                                  "textKey",
+                                  "textVersion",
+                                  "params",
+                                  "citations"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 32,
+                              "type": "array"
+                            }
+                          },
+                          "required": [
+                            "queueType",
+                            "version",
+                            "entries",
+                            "mergedPolicy",
+                            "unrecognisedArguments",
+                            "warnings"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "gaps": {
+                      "items": {
+                        "enum": [
+                          "policy-unreadable",
+                          "operator-policy-unreadable",
+                          "stats-fields-missing",
+                          "other-clients-may-declare",
+                          "policy-match-undecided",
+                          "truncated"
+                        ],
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "type": "array"
+                    },
+                    "layers": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "operator": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "state": {
+                                  "const": "none",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "state"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "name": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "const": "policy",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "state",
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "state": {
+                                  "const": "unknown",
+                                  "type": "string"
+                                },
+                                "why": {
+                                  "enum": [
+                                    "unreadable",
+                                    "not-listed",
+                                    "ambiguous"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "state",
+                                "why"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "user": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "state": {
+                                  "const": "none",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "state"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "name": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "const": "policy",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "state",
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "state": {
+                                  "const": "unknown",
+                                  "type": "string"
+                                },
+                                "why": {
+                                  "enum": [
+                                    "unreadable",
+                                    "not-listed",
+                                    "ambiguous"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "state",
+                                "why"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "user",
+                        "operator"
+                      ],
+                      "type": "object"
+                    },
+                    "mixedVersions": {
+                      "type": "boolean"
+                    },
+                    "queue": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "queueType": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "classic",
+                            "quorum",
+                            "stream"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshot": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "consumers": {
+                          "enum": [
+                            "read",
+                            "unreadable",
+                            "truncated"
+                          ],
+                          "type": "string"
+                        },
+                        "takenAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "truncation": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "consumers": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "operatorPolicies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "policies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "queues",
+                            "exchanges",
+                            "bindings",
+                            "consumers",
+                            "policies",
+                            "operatorPolicies"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "takenAt",
+                        "truncation",
+                        "consumers"
+                      ],
+                      "type": "object"
+                    },
+                    "version": {
+                      "anyOf": [
+                        {
+                          "maxLength": 64,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "vhost": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "vhost",
+                    "queue",
+                    "queueType",
+                    "version",
+                    "mixedVersions",
+                    "layers",
+                    "effective",
+                    "gaps",
+                    "snapshot"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "The effective configuration of one queue, per key, with provenance",
+        "tags": [
+          "queues"
+        ],
+        "x-audit": "none",
+        "x-cli": {
+          "command": "effective-config get"
+        },
+        "x-kind": "query",
+        "x-mcp": {
+          "description": "The value each policy key really has for one queue (argument, user policy and operator policy resolved by the registry rule), with the provenance of every input.",
+          "expose": true,
+          "mutating": false,
+          "title": "Effective configuration of a queue"
+        },
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{cid}/inventory/queries": {
       "post": {
         "operationId": "inventory.query",
@@ -6608,6 +7388,9 @@
     },
     {
       "name": "profile"
+    },
+    {
+      "name": "queues"
     },
     {
       "name": "search"

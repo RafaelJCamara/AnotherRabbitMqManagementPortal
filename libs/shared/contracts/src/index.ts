@@ -72,3 +72,5 @@ export * from './registry/metrics-types.ts';
 export * from './registry/metrics-query.ts';
 export * from './registry/metrics-forecast.ts';
 export * from './registry/metrics-live-topic.ts';
+export * from './registry/topology-types.ts';
+export * from './registry/queues-effective-config.ts';

@@ -29,6 +29,7 @@ import { createConnectionsModule } from '@app/svc-connections';
 import { createExplorerModule } from '@app/svc-explorer';
 import { createMetricsModule } from '@app/svc-metrics';
 import { createOpsModule, type OpsModuleDeps } from '@app/svc-ops';
+import { createTopologyModule } from '@app/svc-topology';
 import { createWorkspaceModule } from '@app/svc-workspace';
 
 export interface EngineModule {
@@ -128,6 +129,12 @@ export const coreModules: ModuleFactory = ({
     clock: services.clock,
     timers: services.timers,
   });
+  const topology = createTopologyModule({
+    mgmt: services.mgmt,
+    profiles: services.profiles,
+    connections: services.connections,
+    clock: services.clock,
+  });
   return [
     { id: 'meta', actions: [createMetaAction({ engineVersion, mode })] },
     { id: 'ops', actions: createArmActions(arming) },
@@ -165,5 +172,7 @@ export const coreModules: ModuleFactory = ({
         },
       ],
     },
+    // Reads only, and what it holds is a few seconds of snapshots: nothing to drain (spec M1-20 R3).
+    { id: topology.id, actions: topology.actions },
   ];
 };

@@ -17,6 +17,8 @@ export interface CapsInput {
   readonly avgBytes?: number | undefined;
   /** The most messages the hold budget allows (`floor(target / rtt)`). */
   readonly holdCount: number;
+  /** A ceiling of the method itself (the HTTP fallback takes at most 50); reported as the cap. */
+  readonly methodMax?: number | undefined;
 }
 
 export type CapsOutcome =
@@ -57,9 +59,10 @@ export function computeCaps(input: CapsInput): CapsOutcome {
       : Number.POSITIVE_INFINITY;
   if (byBytes < 1) return { ok: false, reason: 'avg-message-exceeds-bytes' };
 
-  const count = Math.min(input.requested, caps.max, input.holdCount, byBytes);
+  const max = Math.min(caps.max, input.methodMax ?? Number.POSITIVE_INFINITY);
+  const count = Math.min(input.requested, max, input.holdCount, byBytes);
   const limitedBy: CapBound =
-    count === caps.max
+    count === max
       ? 'cap'
       : count === input.holdCount
         ? 'hold'

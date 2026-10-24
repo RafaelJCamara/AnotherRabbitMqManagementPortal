@@ -7,6 +7,7 @@ describe('peek-planner public API', () => {
   it('exports exactly the documented names', () => {
     expect(Object.keys(api).sort()).toEqual([
       'HONEST_LABEL_KEY',
+      'PEEK_FEATURE',
       'PLANNER_WARNING_IDS',
       'REASON_CODES',
       'REJECTION_CODES',
@@ -14,6 +15,8 @@ describe('peek-planner public API', () => {
       'TEXT_VERSION',
       'isHumanInteractive',
       'isRejection',
+      'peekPlanner',
+      'planPeek',
       'plannerWarning',
       'reasonTextKey',
       'rejectionTextKey',

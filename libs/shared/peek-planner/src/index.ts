@@ -15,6 +15,7 @@ export {
   type RejectionCode,
   type SuggestedFix,
 } from './rejections.ts';
+export { PEEK_FEATURE, peekPlanner, planPeek } from './plan.ts';
 export { isHumanInteractive } from './principal.ts';
 export {
   PLANNER_WARNING_IDS,

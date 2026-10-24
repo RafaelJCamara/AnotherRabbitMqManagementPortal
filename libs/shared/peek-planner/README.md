@@ -8,8 +8,7 @@ The wording is honest on purpose: a classic-queue or quorum-queue read is never 
 
 ## Public API
 
-Slice A of M1-12 (types, rejections, warnings, principals). `planPeek` and `peekPlanner` arrive in later slices and are listed here when they do.
-
+- `planPeek(req, facts)` and `peekPlanner.plan`: the planner. Returns a `PeekPlanDraft` (preview, gates, warnings, consents) or a `PeekRejection`. The order of its checks is the contract (spec R2). `PEEK_FEATURE` is the feature id a broker profile may switch off.
 - `REJECTION_CODES`, `REASON_CODES`, `isRejection`, `rejectionTextKey`, `reasonTextKey`, `HONEST_LABEL_KEY`, `TEXT_SCOPE`, `TEXT_VERSION`: the closed vocabulary. A rejection carries a code, closed reasons and a text key, never prose.
 - `PLANNER_WARNING_IDS`, `plannerWarning`: the four warnings the planner owns (`W-BROKER-UNVERIFIED`, `W-DLX-UNVERIFIED`, `W-LIMIT-UNKNOWN`, `W-SEMANTICS-GAP`, all consents; OQ-1425). The 16 warnings of fact sheet b.8 come from the registry.
 - `isHumanInteractive`: who may let the broker handle a message (R11).

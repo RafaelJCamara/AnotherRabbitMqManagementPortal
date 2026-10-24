@@ -29,6 +29,8 @@ export type UnknownWhy =
   | 'source-limit-unknown'
   | 'held-death-source-unknown';
 
+export type BlockReason = 'dlx-sources-over-limit' | 'dlx-source-unbounded';
+
 export type DlxVerdict =
   | { readonly kind: 'not-applicable' }
   | { readonly kind: 'safe' }
@@ -36,10 +38,7 @@ export type DlxVerdict =
   | {
       readonly kind: 'blocked';
       /** `dlx-source-unbounded` when a source has no limit, so its count has no ceiling. */
-      readonly reasons: readonly (
-        | 'dlx-sources-over-limit'
-        | 'dlx-source-unbounded'
-      )[];
+      readonly reasons: readonly [BlockReason, ...BlockReason[]];
       /** The sources that make it unsafe, sorted. */
       readonly sources: readonly string[];
       /** The lowest finite limit that is safe; null when a source is unlimited (only -1 is). */
@@ -191,9 +190,12 @@ export function assessDlxHazard(input: DlxInput): DlxAssessment {
   }
 
   if (over.length > 0 || unbounded.length > 0) {
-    const reasons: ('dlx-sources-over-limit' | 'dlx-source-unbounded')[] = [];
-    if (over.length > 0) reasons.push('dlx-sources-over-limit');
-    if (unbounded.length > 0) reasons.push('dlx-source-unbounded');
+    const reasons: [BlockReason, ...BlockReason[]] =
+      over.length > 0
+        ? unbounded.length > 0
+          ? ['dlx-sources-over-limit', 'dlx-source-unbounded']
+          : ['dlx-sources-over-limit']
+        : ['dlx-source-unbounded'];
     return {
       verdict: {
         kind: 'blocked',

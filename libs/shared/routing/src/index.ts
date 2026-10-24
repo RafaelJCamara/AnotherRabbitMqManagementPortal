@@ -74,3 +74,12 @@ export type {
   PathEnd,
   RoutedDeadLetter,
 } from './dlx.ts';
+export { dlxSources } from './dlx-sources.ts';
+export type {
+  ContextGap,
+  DlxSource,
+  DlxSourcesContext,
+  DlxSourcesResult,
+  UnknownReason,
+  UnknownReasonCode,
+} from './dlx-sources.ts';

@@ -17,6 +17,7 @@ describe('routing public API', () => {
       'deadLetterPath',
       'deadLetterReasons',
       'directRule',
+      'dlxSources',
       'fanoutRule',
       'findDlxLoops',
       'findLoops',

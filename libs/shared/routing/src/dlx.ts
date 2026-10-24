@@ -99,6 +99,11 @@ export interface RoutedDeadLetter {
   readonly missingExchange: boolean;
   /** Open keys on the default exchange: any queue may be the target. */
   readonly anyQueue: boolean;
+  /**
+   * A limit cut the route (or the simulation was refused unexpectedly), so `targets` is a lower
+   * bound and a queue missing from it may still be reached. Counted in the truncation too.
+   */
+  readonly cut: boolean;
   /** Sorted by queue name. */
   readonly targets: readonly DeadLetterTarget[];
   readonly unknownExchanges: readonly UnknownExchange[];
@@ -145,6 +150,7 @@ interface Reach {
   readonly shares: ShareNote[];
   readonly notes: RoutingNote[];
   exact: boolean;
+  cut: boolean;
 }
 
 /** The queues a dead letter may reach when its keys are open: every binding of a key-driven exchange. */
@@ -160,6 +166,7 @@ function mayReach(
     shares: [],
     notes: [],
     exact: true,
+    cut: false,
   };
   interface Node {
     name: string;
@@ -206,6 +213,7 @@ function mayReach(
       if (scanned > limits.maxBindingsScanned) {
         acc.steps += 1;
         reach.exact = false;
+        reach.cut = true;
         break;
       }
       if (binding.destinationType === 'queue') {
@@ -222,6 +230,7 @@ function mayReach(
         if (seen.size >= limits.maxExchanges) {
           acc.steps += 1;
           reach.exact = false;
+          reach.cut = true;
           continue;
         }
         seen.add(binding.destination);
@@ -237,6 +246,7 @@ function mayReach(
       if (seen.size >= limits.maxExchanges) {
         acc.steps += 1;
         reach.exact = false;
+        reach.cut = true;
       } else {
         seen.add(alternate);
         // The alternate exchange is used only when the exchange's own list is empty.
@@ -288,6 +298,7 @@ export function routeDeadLetter(
         exact: true,
         missingExchange: true,
         anyQueue: false,
+        cut: false,
         targets: [],
         unknownExchanges: [],
         shares: [],
@@ -332,6 +343,16 @@ export function routeDeadLetter(
         addCandidate(candidates, candidate, false, [unknown.exchange]);
       }
     }
+    // Only the cuts that can hide a queue count; cut paths, loops and notes lose no queue.
+    const cut =
+      result.refusal !== null ||
+      result.truncation.depth +
+        result.truncation.exchanges +
+        result.truncation.bindings +
+        result.truncation.queues +
+        result.truncation.topicWords >
+        0;
+    if (cut) acc.steps += 1;
     return {
       kind: 'routed',
       routed: {
@@ -341,6 +362,7 @@ export function routeDeadLetter(
         exact: result.exact && result.refusal === null,
         missingExchange: false,
         anyQueue: false,
+        cut,
         targets: toTargets(candidates),
         unknownExchanges: result.unknownExchanges,
         shares,
@@ -362,6 +384,7 @@ export function routeDeadLetter(
         exact: false,
         missingExchange: false,
         anyQueue: true,
+        cut: false,
         targets: [],
         unknownExchanges: [],
         shares: [],
@@ -380,6 +403,7 @@ export function routeDeadLetter(
       exact: reach.exact,
       missingExchange: false,
       anyQueue: false,
+      cut: reach.cut,
       targets: toTargets(reach.candidates),
       unknownExchanges: reach.unknownExchanges,
       shares: reach.shares,

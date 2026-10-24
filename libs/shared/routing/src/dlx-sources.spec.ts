@@ -6,6 +6,7 @@ import type { DlxSourcesResult } from './dlx-sources.ts';
 import { indexDeadLetters } from './dlx.ts';
 import {
   bind,
+  bindX,
   deepFreeze,
   exchange,
   expiring,
@@ -299,6 +300,44 @@ describe('DLX sources', () => {
     expect(result.truncation.sources).toBe(4);
     expect(result.complete).toBe(false);
     expect(codes(result)).toEqual(['truncated']);
+  });
+
+  it('M1-03 AC-10 dlx a fixed-key route cut by a simulation limit keeps its source as possible and says truncated (fail closed)', () => {
+    const t = topologyOf(
+      [
+        exchange('x1', 'fanout'),
+        exchange('x2', 'fanout'),
+        exchange('x3', 'fanout'),
+      ],
+      [
+        expiring('src', 'x1', 'k', {
+          deliveryLimit: { kind: 'finite', value: 20 },
+        }),
+        queue('dlq'),
+      ],
+      [bindX('x1', 'x2'), bindX('x2', 'x3'), bind('x3', 'dlq')],
+    );
+    // With the default limits the chain is followed to the end.
+    expect(dlxSources(t, 'dlq')).toMatchObject({
+      complete: true,
+      sources: [
+        { queue: 'src', certainty: 'definite', via: ['x1', 'x2', 'x3'] },
+      ],
+    });
+    for (const limits of [
+      { maxDepth: 1 },
+      { maxExchanges: 1 },
+      { maxBindingsScanned: 1 },
+    ]) {
+      const cut = dlxSources(t, 'dlq', { limits });
+      // The target is not found on the cut route, but the source must not vanish.
+      expect(cut.sources.map((s) => [s.queue, s.certainty])).toEqual([
+        ['src', 'possible'],
+      ]);
+      expect(cut.complete).toBe(false);
+      expect(codes(cut)).toEqual(['truncated']);
+      expect(cut.truncation.steps).toBeGreaterThan(0);
+    }
   });
 
   it('M1-03 AC-10 dlx with default limits 5,000 sources are scanned on one shared index and nothing is cut', () => {

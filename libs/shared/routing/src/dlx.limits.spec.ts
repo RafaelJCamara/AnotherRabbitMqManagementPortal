@@ -98,6 +98,24 @@ describe('dead-letter limits', () => {
     expect(result.exact).toBe(false);
   });
 
+  it('M1-03 AC-10 dlx a fixed-key route cut by a simulation limit is counted and the path is not exact', () => {
+    const t = topologyOf(
+      [
+        exchange('x1', 'fanout'),
+        exchange('x2', 'fanout'),
+        exchange('x3', 'fanout'),
+      ],
+      [expiring('src', 'x1', 'k'), queue('end')],
+      [bindX('x1', 'x2'), bindX('x2', 'x3'), bind('x3', 'end')],
+    );
+    const full = deadLetterPath(t, 'src');
+    expect(full.reached).toEqual(['end']);
+    expect(full.exact).toBe(true);
+    const cut = deadLetterPath(t, 'src', { limits: { maxDepth: 1 } });
+    expect(cut.truncation.steps).toBeGreaterThan(0);
+    expect(cut.exact).toBe(false);
+  });
+
   it('M1-03 AC-10 dlx the exchange limit of an open-key walk is counted', () => {
     const t = topologyOf(
       [exchange('x1'), exchange('x2'), exchange('x3')],

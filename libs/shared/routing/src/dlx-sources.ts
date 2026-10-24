@@ -183,7 +183,9 @@ export function dlxSources(
     }
     if (hit !== undefined) {
       addSource(queue, hit.certainty, hit.via);
-    } else if (opaque.length > 0) {
+    } else if (opaque.length > 0 || routed.cut) {
+      // A route we could not follow to the end may still reach the target: keep the queue as a
+      // possible source and say so (a cut also adds `truncated`, from the shared counter).
       addSource(queue, 'possible', [routed.exchange]);
     }
   });

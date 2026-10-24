@@ -68,9 +68,9 @@
   "operator_policy": null,
   "policy": "golden-delivery-limit",
   "publishers": 0,
-  "reductions": 21444,
+  "reductions": 21441,
   "reductions_details": {
-    "rate": 1426.6
+    "rate": 1425.2
   },
   "single_active_consumer_tag": null,
   "state": "running",

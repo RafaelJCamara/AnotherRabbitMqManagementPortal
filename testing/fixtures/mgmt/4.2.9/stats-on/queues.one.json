@@ -19,7 +19,7 @@
     "max_heap_size": 0,
     "min_bin_vheap_size": 2984878,
     "min_heap_size": 233,
-    "minor_gcs": 8
+    "minor_gcs": 9
   },
   "incoming": [],
   "internal": false,
@@ -28,7 +28,7 @@
   "members": [
     "rabbit@lab-node"
   ],
-  "memory": 55388,
+  "memory": 47484,
   "message_bytes": 42,
   "message_bytes_dlx": 0,
   "message_bytes_persistent": 42,
@@ -70,9 +70,9 @@
   "operator_policy": null,
   "policy": "golden-delivery-limit",
   "publishers": 0,
-  "reductions": 21454,
+  "reductions": 21450,
   "reductions_details": {
-    "rate": 1428.8
+    "rate": 1427.4
   },
   "single_active_consumer_tag": null,
   "state": "running",

@@ -2,11 +2,6 @@
   {
     "auth_mechanisms": [
       {
-        "name": "RABBIT-CR-DEMO",
-        "description": "RabbitMQ Demo challenge-response authentication mechanism",
-        "enabled": false
-      },
-      {
         "name": "ANONYMOUS",
         "description": "SASL ANONYMOUS authentication mechanism",
         "enabled": true
@@ -20,6 +15,11 @@
         "name": "AMQPLAIN",
         "description": "QPid AMQPLAIN mechanism",
         "enabled": true
+      },
+      {
+        "name": "RABBIT-CR-DEMO",
+        "description": "RabbitMQ Demo challenge-response authentication mechanism",
+        "enabled": false
       }
     ],
     "enabled_plugins": [

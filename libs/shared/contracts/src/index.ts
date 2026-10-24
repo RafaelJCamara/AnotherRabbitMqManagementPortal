@@ -76,3 +76,7 @@ export * from './registry/topology-types.ts';
 export * from './registry/queues-effective-config.ts';
 export * from './registry/topology-graph.ts';
 export * from './registry/topology-subgraph.ts';
+export * from './registry/routing-types.ts';
+export * from './registry/routing-simulate.ts';
+export * from './registry/routing-dead-letter.ts';
+export * from './registry/routing-dlx-sources.ts';

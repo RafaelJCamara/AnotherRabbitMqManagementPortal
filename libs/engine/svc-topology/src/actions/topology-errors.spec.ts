@@ -4,6 +4,9 @@
 import type { ActionDef } from '@app/contracts';
 import {
   queuesEffectiveConfig,
+  routingDeadLetter,
+  routingDlxSources,
+  routingSimulate,
   topologyGraph,
   topologySubgraph,
 } from '@app/contracts';
@@ -23,6 +26,9 @@ import {
 } from '../testing';
 
 import { createQueuesEffectiveConfigAction } from './queues-effective-config';
+import { createRoutingDeadLetterAction } from './routing-dead-letter';
+import { createRoutingDlxSourcesAction } from './routing-dlx-sources';
+import { createRoutingSimulateAction } from './routing-simulate';
 import { createTopologyGraphAction } from './topology-graph';
 import { createTopologySubgraphAction } from './topology-subgraph';
 
@@ -63,6 +69,26 @@ const ROWS: readonly Row[] = [
       vhost: '/',
       focus: { kind: 'exchange', name: 'no-such-exchange' },
     },
+  },
+  {
+    name: 'routing.simulate',
+    def: routingSimulate,
+    create: createRoutingSimulateAction,
+    input: { cid: 'c1', vhost: '/', exchange: 'orders', routingKey: 'a' },
+  },
+  {
+    name: 'routing.dead-letter',
+    def: routingDeadLetter,
+    create: createRoutingDeadLetterAction,
+    input: { cid: 'c1', vhost: '/', queue: 'orders.q' },
+    missingObject: { cid: 'c1', vhost: '/', queue: 'no-such-queue' },
+  },
+  {
+    name: 'routing.dlx-sources',
+    def: routingDlxSources,
+    create: createRoutingDlxSourcesAction,
+    input: { cid: 'c1', vhost: '/', queue: 'orders.dlq' },
+    missingObject: { cid: 'c1', vhost: '/', queue: 'no-such-queue' },
   },
 ];
 

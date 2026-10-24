@@ -6188,6 +6188,2135 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/routing/dead-letter-paths": {
+      "post": {
+        "operationId": "routing.dead-letter",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "keys": {
+                    "items": {
+                      "maxLength": 255,
+                      "type": "string"
+                    },
+                    "maxItems": 64,
+                    "type": "array"
+                  },
+                  "queue": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "reason": {
+                    "enum": [
+                      "rejected",
+                      "expired",
+                      "maxlen",
+                      "delivery_limit"
+                    ],
+                    "type": "string"
+                  },
+                  "refresh": {
+                    "type": "boolean"
+                  },
+                  "vhost": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "vhost",
+                  "queue"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "consumers": {
+                      "enum": [
+                        "read",
+                        "unreadable",
+                        "truncated"
+                      ],
+                      "type": "string"
+                    },
+                    "exact": {
+                      "type": "boolean"
+                    },
+                    "gaps": {
+                      "items": {
+                        "enum": [
+                          "policy-unreadable",
+                          "operator-policy-unreadable",
+                          "stats-fields-missing",
+                          "other-clients-may-declare",
+                          "policy-match-undecided",
+                          "truncated"
+                        ],
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "type": "array"
+                    },
+                    "loops": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "drop-loop",
+                              "retry-ring"
+                            ],
+                            "type": "string"
+                          },
+                          "possible": {
+                            "type": "boolean"
+                          },
+                          "queues": {
+                            "items": {
+                              "maxLength": 255,
+                              "type": "string"
+                            },
+                            "maxItems": 200,
+                            "type": "array"
+                          },
+                          "queuesMore": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "queues",
+                          "queuesMore",
+                          "kind",
+                          "possible"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 16,
+                      "type": "array"
+                    },
+                    "loopsTruncation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "candidates": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "loops": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "paths": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "sources": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "steps": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "sources",
+                        "steps",
+                        "paths",
+                        "loops",
+                        "candidates"
+                      ],
+                      "type": "object"
+                    },
+                    "notes": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "code": {
+                            "enum": [
+                              "invalid-x-match",
+                              "dangling-destination",
+                              "missing-exchange",
+                              "ignored-default-exchange-binding",
+                              "keys-ignored",
+                              "bcc-stripped",
+                              "duplicate-exchange",
+                              "truncated",
+                              "non-deterministic-share",
+                              "random-destination"
+                            ],
+                            "type": "string"
+                          },
+                          "detail": {
+                            "maxLength": 255,
+                            "type": "string"
+                          },
+                          "exchange": {
+                            "maxLength": 255,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "code"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 100,
+                      "type": "array"
+                    },
+                    "paths": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "end": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "const": "terminal",
+                                    "type": "string"
+                                  },
+                                  "queue": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "queue"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "const": "dropped-no-dead-letter",
+                                    "type": "string"
+                                  },
+                                  "queue": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "queue"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "const": "dropped-cycle",
+                                    "type": "string"
+                                  },
+                                  "queue": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "queue"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "exchange": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "dropped-unroutable",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "exchange"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "exchange": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "dropped-missing-exchange",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "exchange"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "const": "indeterminate",
+                                    "type": "string"
+                                  },
+                                  "queue": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "why": {
+                                    "enum": [
+                                      "dead-letter-unknown",
+                                      "unknown-exchange",
+                                      "open-default-exchange",
+                                      "cut"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "queue",
+                                  "why"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "const": "truncated",
+                                    "type": "string"
+                                  },
+                                  "queue": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "queue"
+                                ],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "steps": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "dropped": {
+                                  "items": {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  "maxItems": 1000,
+                                  "type": "array"
+                                },
+                                "exact": {
+                                  "type": "boolean"
+                                },
+                                "exchange": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                },
+                                "from": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                },
+                                "keys": {
+                                  "anyOf": [
+                                    {
+                                      "items": {
+                                        "maxLength": 255,
+                                        "type": "string"
+                                      },
+                                      "maxItems": 64,
+                                      "type": "array"
+                                    },
+                                    {
+                                      "const": "original",
+                                      "type": "string"
+                                    }
+                                  ]
+                                },
+                                "notes": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "code": {
+                                        "enum": [
+                                          "invalid-x-match",
+                                          "dangling-destination",
+                                          "missing-exchange",
+                                          "ignored-default-exchange-binding",
+                                          "keys-ignored",
+                                          "bcc-stripped",
+                                          "duplicate-exchange",
+                                          "truncated",
+                                          "non-deterministic-share",
+                                          "random-destination"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "detail": {
+                                        "maxLength": 255,
+                                        "type": "string"
+                                      },
+                                      "exchange": {
+                                        "maxLength": 255,
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "code"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "maxItems": 100,
+                                  "type": "array"
+                                },
+                                "reasons": {
+                                  "items": {
+                                    "enum": [
+                                      "rejected",
+                                      "expired",
+                                      "maxlen",
+                                      "delivery_limit"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "maxItems": 4,
+                                  "type": "array"
+                                },
+                                "shares": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "candidates": {
+                                        "items": {
+                                          "maxLength": 255,
+                                          "type": "string"
+                                        },
+                                        "maxItems": 1000,
+                                        "type": "array"
+                                      },
+                                      "code": {
+                                        "enum": [
+                                          "non-deterministic-share",
+                                          "random-destination"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "exchange": {
+                                        "maxLength": 255,
+                                        "type": "string"
+                                      },
+                                      "exchangeDestinations": {
+                                        "items": {
+                                          "maxLength": 255,
+                                          "type": "string"
+                                        },
+                                        "maxItems": 1000,
+                                        "type": "array"
+                                      },
+                                      "truncated": {
+                                        "maximum": 9007199254740991,
+                                        "minimum": 0,
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "exchange",
+                                      "candidates",
+                                      "exchangeDestinations",
+                                      "truncated"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "maxItems": 1000,
+                                  "type": "array"
+                                },
+                                "strategy": {
+                                  "anyOf": [
+                                    {
+                                      "enum": [
+                                        "at-most-once",
+                                        "at-least-once"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "targets": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "certainty": {
+                                        "enum": [
+                                          "definite",
+                                          "possible"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "queue": {
+                                        "maxLength": 255,
+                                        "type": "string"
+                                      },
+                                      "via": {
+                                        "items": {
+                                          "maxLength": 255,
+                                          "type": "string"
+                                        },
+                                        "maxItems": 65,
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "queue",
+                                      "certainty",
+                                      "via"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "maxItems": 1000,
+                                  "type": "array"
+                                },
+                                "unknownExchanges": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "alternateExchange": {
+                                        "anyOf": [
+                                          {
+                                            "maxLength": 255,
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "exchange": {
+                                        "maxLength": 255,
+                                        "type": "string"
+                                      },
+                                      "hint": {
+                                        "enum": [
+                                          "hash-single-destination",
+                                          "random-single-destination",
+                                          "delayed",
+                                          "recent-history",
+                                          "unmodelled"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "type": {
+                                        "maxLength": 64,
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "exchange",
+                                      "type",
+                                      "hint",
+                                      "alternateExchange"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "maxItems": 1000,
+                                  "type": "array"
+                                }
+                              },
+                              "required": [
+                                "from",
+                                "reasons",
+                                "exchange",
+                                "keys",
+                                "exact",
+                                "targets",
+                                "dropped",
+                                "strategy",
+                                "unknownExchanges",
+                                "shares",
+                                "notes"
+                              ],
+                              "type": "object"
+                            },
+                            "maxItems": 1000,
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "steps",
+                          "end"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 64,
+                      "type": "array"
+                    },
+                    "queue": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "reached": {
+                      "items": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "maxItems": 1000,
+                      "type": "array"
+                    },
+                    "reachedMore": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "snapshot": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "consumers": {
+                          "enum": [
+                            "read",
+                            "unreadable",
+                            "truncated"
+                          ],
+                          "type": "string"
+                        },
+                        "takenAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "truncation": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "consumers": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "operatorPolicies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "policies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "queues",
+                            "exchanges",
+                            "bindings",
+                            "consumers",
+                            "policies",
+                            "operatorPolicies"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "takenAt",
+                        "truncation",
+                        "consumers"
+                      ],
+                      "type": "object"
+                    },
+                    "truncation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "candidates": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "loops": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "paths": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "sources": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "steps": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "sources",
+                        "steps",
+                        "paths",
+                        "loops",
+                        "candidates"
+                      ],
+                      "type": "object"
+                    },
+                    "vhost": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "vhost",
+                    "queue",
+                    "paths",
+                    "reached",
+                    "reachedMore",
+                    "exact",
+                    "notes",
+                    "truncation",
+                    "loops",
+                    "loopsTruncation",
+                    "consumers",
+                    "gaps",
+                    "snapshot"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Where a message goes when it dies in a queue, and the dead-letter loops of that queue",
+        "tags": [
+          "routing"
+        ],
+        "x-audit": "none",
+        "x-cli": {
+          "command": "routing dead-letter"
+        },
+        "x-kind": "query",
+        "x-mcp": {
+          "description": "Where a message goes when it is rejected, expires, is dropped by a length limit or exceeds the delivery limit in this queue, through the dead-letter exchanges, and the dead-letter loops that include the queue. Nothing is published.",
+          "expose": true,
+          "mutating": false,
+          "title": "Dead-letter path of a queue"
+        },
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/{cid}/routing/dlx-sources": {
+      "post": {
+        "operationId": "routing.dlx-sources",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "heldDeathSources": {
+                    "items": {
+                      "maxLength": 255,
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  },
+                  "queue": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "refresh": {
+                    "type": "boolean"
+                  },
+                  "vhost": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "vhost",
+                  "queue"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "complete": {
+                      "type": "boolean"
+                    },
+                    "gaps": {
+                      "items": {
+                        "enum": [
+                          "policy-unreadable",
+                          "operator-policy-unreadable",
+                          "stats-fields-missing",
+                          "other-clients-may-declare",
+                          "policy-match-undecided",
+                          "truncated"
+                        ],
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "type": "array"
+                    },
+                    "heldDeathSourcesConsidered": {
+                      "items": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "maxItems": 100,
+                      "type": "array"
+                    },
+                    "queue": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "snapshot": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "consumers": {
+                          "enum": [
+                            "read",
+                            "unreadable",
+                            "truncated"
+                          ],
+                          "type": "string"
+                        },
+                        "takenAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "truncation": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "consumers": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "operatorPolicies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "policies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "queues",
+                            "exchanges",
+                            "bindings",
+                            "consumers",
+                            "policies",
+                            "operatorPolicies"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "takenAt",
+                        "truncation",
+                        "consumers"
+                      ],
+                      "type": "object"
+                    },
+                    "sources": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "certainty": {
+                            "enum": [
+                              "definite",
+                              "possible"
+                            ],
+                            "type": "string"
+                          },
+                          "limit": {
+                            "oneOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "const": "unlimited",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "const": "finite",
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 9007199254740991,
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "value"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "const": "unknown",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind"
+                                ],
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "queue": {
+                            "maxLength": 255,
+                            "type": "string"
+                          },
+                          "reasons": {
+                            "items": {
+                              "enum": [
+                                "rejected",
+                                "expired",
+                                "maxlen",
+                                "delivery_limit"
+                              ],
+                              "type": "string"
+                            },
+                            "maxItems": 4,
+                            "type": "array"
+                          },
+                          "via": {
+                            "items": {
+                              "maxLength": 255,
+                              "type": "string"
+                            },
+                            "maxItems": 65,
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "queue",
+                          "limit",
+                          "certainty",
+                          "via",
+                          "reasons"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 1000,
+                      "type": "array"
+                    },
+                    "sourcesMore": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "truncation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "candidates": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "loops": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "paths": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "sources": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "steps": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "sources",
+                        "steps",
+                        "paths",
+                        "loops",
+                        "candidates"
+                      ],
+                      "type": "object"
+                    },
+                    "unknownReasons": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "code": {
+                            "enum": [
+                              "policy-unreadable",
+                              "operator-policy-unreadable",
+                              "stats-fields-missing",
+                              "other-clients-may-declare",
+                              "dead-letter-unknown",
+                              "source-limit-unknown",
+                              "unknown-exchange-in-path",
+                              "held-death-source-missing",
+                              "target-not-found",
+                              "truncated",
+                              "policy-match-undecided"
+                            ],
+                            "type": "string"
+                          },
+                          "subject": {
+                            "maxLength": 255,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "code"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 1000,
+                      "type": "array"
+                    },
+                    "unknownReasonsMore": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "vhost": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "vhost",
+                    "queue",
+                    "sources",
+                    "sourcesMore",
+                    "complete",
+                    "unknownReasons",
+                    "unknownReasonsMore",
+                    "truncation",
+                    "heldDeathSourcesConsidered",
+                    "gaps",
+                    "snapshot"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Every queue that can dead-letter into a queue, with the limit of each and whether the list is complete",
+        "tags": [
+          "routing"
+        ],
+        "x-audit": "none",
+        "x-cli": {
+          "command": "routing dlx-sources"
+        },
+        "x-kind": "query",
+        "x-mcp": {
+          "description": "Every queue whose dead letters can arrive in this queue, with its delivery limit, and whether the list is complete. An empty list is \"no hazard\" only when complete is true.",
+          "expose": true,
+          "mutating": false,
+          "title": "Dead-letter sources of a queue"
+        },
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
+    "/connections/{cid}/routing/simulations": {
+      "post": {
+        "operationId": "routing.simulate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "bcc": {
+                    "items": {
+                      "maxLength": 255,
+                      "type": "string"
+                    },
+                    "maxItems": 64,
+                    "type": "array"
+                  },
+                  "cc": {
+                    "items": {
+                      "maxLength": 255,
+                      "type": "string"
+                    },
+                    "maxItems": 64,
+                    "type": "array"
+                  },
+                  "exchange": {
+                    "maxLength": 255,
+                    "type": "string"
+                  },
+                  "headers": {
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "maxLength": 4096,
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        {
+                          "items": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 4096,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              {
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 4096,
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "maxItems": 64,
+                                "type": "array"
+                              },
+                              {
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 4096,
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "propertyNames": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                },
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "maxItems": 64,
+                          "type": "array"
+                        },
+                        {
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 4096,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              {
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 4096,
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "maxItems": 64,
+                                "type": "array"
+                              },
+                              {
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    {
+                                      "maxLength": 4096,
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "propertyNames": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                },
+                                "type": "object"
+                              }
+                            ]
+                          },
+                          "propertyNames": {
+                            "maxLength": 255,
+                            "type": "string"
+                          },
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "propertyNames": {
+                      "maxLength": 255,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "mandatory": {
+                    "type": "boolean"
+                  },
+                  "refresh": {
+                    "type": "boolean"
+                  },
+                  "routingKey": {
+                    "maxLength": 255,
+                    "type": "string"
+                  },
+                  "vhost": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "vhost",
+                  "exchange",
+                  "routingKey"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "gaps": {
+                      "items": {
+                        "enum": [
+                          "policy-unreadable",
+                          "operator-policy-unreadable",
+                          "stats-fields-missing",
+                          "other-clients-may-declare",
+                          "policy-match-undecided",
+                          "truncated"
+                        ],
+                        "type": "string"
+                      },
+                      "maxItems": 6,
+                      "type": "array"
+                    },
+                    "result": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "exact": {
+                          "type": "boolean"
+                        },
+                        "fate": {
+                          "enum": [
+                            "delivered",
+                            "returned",
+                            "dropped",
+                            "refused",
+                            "unknown"
+                          ],
+                          "type": "string"
+                        },
+                        "keys": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bcc": {
+                              "items": {
+                                "maxLength": 255,
+                                "type": "string"
+                              },
+                              "maxItems": 64,
+                              "type": "array"
+                            },
+                            "cc": {
+                              "items": {
+                                "maxLength": 255,
+                                "type": "string"
+                              },
+                              "maxItems": 64,
+                              "type": "array"
+                            },
+                            "routingKey": {
+                              "maxLength": 255,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "routingKey",
+                            "cc",
+                            "bcc"
+                          ],
+                          "type": "object"
+                        },
+                        "loops": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "exchanges": {
+                                "items": {
+                                  "maxLength": 255,
+                                  "type": "string"
+                                },
+                                "maxItems": 1000,
+                                "type": "array"
+                              }
+                            },
+                            "required": [
+                              "exchanges"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 16,
+                          "type": "array"
+                        },
+                        "notes": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "code": {
+                                "enum": [
+                                  "invalid-x-match",
+                                  "dangling-destination",
+                                  "missing-exchange",
+                                  "ignored-default-exchange-binding",
+                                  "keys-ignored",
+                                  "bcc-stripped",
+                                  "duplicate-exchange",
+                                  "truncated",
+                                  "non-deterministic-share",
+                                  "random-destination"
+                                ],
+                                "type": "string"
+                              },
+                              "detail": {
+                                "maxLength": 255,
+                                "type": "string"
+                              },
+                              "exchange": {
+                                "maxLength": 255,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 100,
+                          "type": "array"
+                        },
+                        "outcome": {
+                          "enum": [
+                            "routed",
+                            "unroutable",
+                            "indeterminate",
+                            "refused"
+                          ],
+                          "type": "string"
+                        },
+                        "paths": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "hops": {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "binding": {
+                                      "anyOf": [
+                                        {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "destination": {
+                                              "maxLength": 255,
+                                              "type": "string"
+                                            },
+                                            "destinationType": {
+                                              "enum": [
+                                                "queue",
+                                                "exchange"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "routingKey": {
+                                              "maxLength": 255,
+                                              "type": "string"
+                                            },
+                                            "source": {
+                                              "maxLength": 255,
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "source",
+                                            "destination",
+                                            "destinationType",
+                                            "routingKey"
+                                          ],
+                                          "type": "object"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "destination": {
+                                      "maxLength": 255,
+                                      "type": "string"
+                                    },
+                                    "destinationType": {
+                                      "enum": [
+                                        "queue",
+                                        "exchange"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "exchange": {
+                                      "maxLength": 255,
+                                      "type": "string"
+                                    },
+                                    "how": {
+                                      "enum": [
+                                        "default-exchange",
+                                        "binding",
+                                        "alternate-exchange"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "rule": {
+                                      "anyOf": [
+                                        {
+                                          "oneOf": [
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "keySource": {
+                                                  "enum": [
+                                                    "routing-key",
+                                                    "cc",
+                                                    "bcc"
+                                                  ],
+                                                  "type": "string"
+                                                },
+                                                "kind": {
+                                                  "const": "default-exchange",
+                                                  "type": "string"
+                                                },
+                                                "routingKey": {
+                                                  "maxLength": 255,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "routingKey",
+                                                "keySource"
+                                              ],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "keySource": {
+                                                  "enum": [
+                                                    "routing-key",
+                                                    "cc",
+                                                    "bcc"
+                                                  ],
+                                                  "type": "string"
+                                                },
+                                                "kind": {
+                                                  "const": "direct",
+                                                  "type": "string"
+                                                },
+                                                "routingKey": {
+                                                  "maxLength": 255,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "routingKey",
+                                                "keySource"
+                                              ],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "fanout",
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "kind"
+                                              ],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "keySource": {
+                                                  "enum": [
+                                                    "routing-key",
+                                                    "cc",
+                                                    "bcc"
+                                                  ],
+                                                  "type": "string"
+                                                },
+                                                "kind": {
+                                                  "const": "topic",
+                                                  "type": "string"
+                                                },
+                                                "pattern": {
+                                                  "maxLength": 255,
+                                                  "type": "string"
+                                                },
+                                                "routingKey": {
+                                                  "maxLength": 255,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "pattern",
+                                                "routingKey",
+                                                "keySource"
+                                              ],
+                                              "type": "object"
+                                            },
+                                            {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "arguments": {
+                                                  "items": {
+                                                    "maxLength": 255,
+                                                    "type": "string"
+                                                  },
+                                                  "maxItems": 64,
+                                                  "type": "array"
+                                                },
+                                                "kind": {
+                                                  "const": "headers",
+                                                  "type": "string"
+                                                },
+                                                "mode": {
+                                                  "enum": [
+                                                    "all",
+                                                    "any",
+                                                    "all-with-x",
+                                                    "any-with-x"
+                                                  ],
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "mode",
+                                                "arguments"
+                                              ],
+                                              "type": "object"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "exchange",
+                                    "how",
+                                    "destination",
+                                    "destinationType",
+                                    "binding",
+                                    "rule"
+                                  ],
+                                  "type": "object"
+                                },
+                                "maxItems": 65,
+                                "type": "array"
+                              },
+                              "queue": {
+                                "maxLength": 255,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "queue",
+                              "hops"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 2000,
+                          "type": "array"
+                        },
+                        "queues": {
+                          "items": {
+                            "maxLength": 255,
+                            "type": "string"
+                          },
+                          "maxItems": 1000,
+                          "type": "array"
+                        },
+                        "reachedExchanges": {
+                          "items": {
+                            "maxLength": 255,
+                            "type": "string"
+                          },
+                          "maxItems": 1000,
+                          "type": "array"
+                        },
+                        "refusal": {
+                          "anyOf": [
+                            {
+                              "oneOf": [
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "code": {
+                                      "const": "exchange-not-found",
+                                      "type": "string"
+                                    },
+                                    "replyCode": {
+                                      "const": 404,
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "replyCode"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "code": {
+                                      "const": "internal-exchange",
+                                      "type": "string"
+                                    },
+                                    "replyCode": {
+                                      "const": 403,
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "replyCode"
+                                  ],
+                                  "type": "object"
+                                },
+                                {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "code": {
+                                      "const": "invalid-routing-header",
+                                      "type": "string"
+                                    },
+                                    "header": {
+                                      "maxLength": 255,
+                                      "type": "string"
+                                    },
+                                    "replyCode": {
+                                      "const": 406,
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "replyCode",
+                                    "header"
+                                  ],
+                                  "type": "object"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "truncation": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "depth": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "loops": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "notes": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "paths": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "topicWords": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "depth",
+                            "exchanges",
+                            "bindings",
+                            "queues",
+                            "paths",
+                            "loops",
+                            "topicWords",
+                            "notes"
+                          ],
+                          "type": "object"
+                        },
+                        "unknownExchanges": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "alternateExchange": {
+                                "anyOf": [
+                                  {
+                                    "maxLength": 255,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "exchange": {
+                                "maxLength": 255,
+                                "type": "string"
+                              },
+                              "hint": {
+                                "enum": [
+                                  "hash-single-destination",
+                                  "random-single-destination",
+                                  "delayed",
+                                  "recent-history",
+                                  "unmodelled"
+                                ],
+                                "type": "string"
+                              },
+                              "type": {
+                                "maxLength": 64,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "exchange",
+                              "type",
+                              "hint",
+                              "alternateExchange"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 1000,
+                          "type": "array"
+                        },
+                        "unroutable": {
+                          "type": "boolean"
+                        },
+                        "usedAE": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "fate",
+                        "unroutable",
+                        "queues",
+                        "paths",
+                        "usedAE",
+                        "exact",
+                        "refusal",
+                        "unknownExchanges",
+                        "loops",
+                        "reachedExchanges",
+                        "keys",
+                        "notes",
+                        "truncation"
+                      ],
+                      "type": "object"
+                    },
+                    "snapshot": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "consumers": {
+                          "enum": [
+                            "read",
+                            "unreadable",
+                            "truncated"
+                          ],
+                          "type": "string"
+                        },
+                        "takenAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "truncation": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "bindings": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "consumers": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "exchanges": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "operatorPolicies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "policies": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "queues": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "queues",
+                            "exchanges",
+                            "bindings",
+                            "consumers",
+                            "policies",
+                            "operatorPolicies"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "takenAt",
+                        "truncation",
+                        "consumers"
+                      ],
+                      "type": "object"
+                    },
+                    "vhost": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "vhost",
+                    "result",
+                    "gaps",
+                    "snapshot"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Which queues a publish reaches in a vhost, and by which path",
+        "tags": [
+          "routing"
+        ],
+        "x-audit": "none",
+        "x-cli": {
+          "command": "routing simulate"
+        },
+        "x-kind": "query",
+        "x-mcp": {
+          "description": "Which queues a message published with this exchange, routing key and headers reaches, by which bindings, and the alternate-exchange path or that it is unroutable. Nothing is published.",
+          "expose": true,
+          "mutating": false,
+          "title": "Simulate a publish"
+        },
+        "x-permission": "broker.read",
+        "x-planning": "none",
+        "x-risk": "none",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{cid}/search": {
       "post": {
         "operationId": "search.query",
@@ -8471,6 +10600,9 @@
     },
     {
       "name": "queues"
+    },
+    {
+      "name": "routing"
     },
     {
       "name": "search"

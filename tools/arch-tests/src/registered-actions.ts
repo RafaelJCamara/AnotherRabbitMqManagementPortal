@@ -42,6 +42,9 @@ import { createQueuesEffectiveConfigAction } from '@app/svc-topology';
 import { createTopologyFakeDeps } from '@app/svc-topology';
 import { createTopologyGraphAction } from '@app/svc-topology';
 import { createTopologySubgraphAction } from '@app/svc-topology';
+import { createRoutingSimulateAction } from '@app/svc-topology';
+import { createRoutingDeadLetterAction } from '@app/svc-topology';
+import { createRoutingDlxSourcesAction } from '@app/svc-topology';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -204,6 +207,21 @@ const manifest: RegisteredAction[] = [
   {
     path: 'libs/engine/svc-topology/src/actions/topology-subgraph.ts',
     impl: createTopologySubgraphAction(createTopologyFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-topology/src/actions/routing-simulate.ts',
+    impl: createRoutingSimulateAction(createTopologyFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-topology/src/actions/routing-dead-letter.ts',
+    impl: createRoutingDeadLetterAction(createTopologyFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-topology/src/actions/routing-dlx-sources.ts',
+    impl: createRoutingDlxSourcesAction(createTopologyFakeDeps()),
     input: { cid: 'c1' },
   },
 ];

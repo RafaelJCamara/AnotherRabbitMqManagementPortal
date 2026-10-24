@@ -34,6 +34,9 @@ import { metricsLiveTopic } from './metrics-live-topic.ts';
 import { queuesEffectiveConfig } from './queues-effective-config.ts';
 import { topologyGraph } from './topology-graph.ts';
 import { topologySubgraph } from './topology-subgraph.ts';
+import { routingSimulate } from './routing-simulate.ts';
+import { routingDeadLetter } from './routing-dead-letter.ts';
+import { routingDlxSources } from './routing-dlx-sources.ts';
 
 export const registry: Registry = {
   actions: [
@@ -69,6 +72,9 @@ export const registry: Registry = {
     queuesEffectiveConfig,
     topologyGraph,
     topologySubgraph,
+    routingSimulate,
+    routingDeadLetter,
+    routingDlxSources,
   ],
   topics: [explorerWindowTopic, metricsLiveTopic],
 };

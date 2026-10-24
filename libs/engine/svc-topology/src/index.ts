@@ -7,3 +7,6 @@ export { createTopologyFakeDeps } from './testing';
 export { createQueuesEffectiveConfigAction } from './actions/queues-effective-config';
 export { createTopologyGraphAction } from './actions/topology-graph';
 export { createTopologySubgraphAction } from './actions/topology-subgraph';
+export { createRoutingSimulateAction } from './actions/routing-simulate';
+export { createRoutingDeadLetterAction } from './actions/routing-dead-letter';
+export { createRoutingDlxSourcesAction } from './actions/routing-dlx-sources';

@@ -49,3 +49,13 @@ export type {
   UnknownHint,
   XMatchMode,
 } from './types.ts';
+export { deadLetterReasons } from './ttl.ts';
+export { shareNoteFor, toRoutingNote } from './hash-random-notes.ts';
+export type { ShareNote } from './hash-random-notes.ts';
+export { DEFAULT_DLX_LIMITS, NO_DLX_TRUNCATION } from './types.ts';
+export type {
+  DeadLetterReason,
+  DeadLetterSetting,
+  DlxLimits,
+  DlxTruncation,
+} from './types.ts';

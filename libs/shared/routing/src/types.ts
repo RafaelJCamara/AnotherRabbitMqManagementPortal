@@ -3,6 +3,8 @@
 // Nothing here is a broker call and nothing carries English text: notes, refusals and hints are
 // codes the UI words.
 
+import type { DeliveryLimit } from '@app/semantics';
+
 /** An AMQP table value. `null` is the AMQP "void" (presence only, OQ-1101). */
 export type HeaderValue =
   | string
@@ -26,7 +28,45 @@ export interface TopologyExchange {
 
 export interface TopologyQueue {
   readonly name: string;
+  // The fields below are for the dead-letter analysis (M1-03, OQ-1300). All are optional so that
+  // every M1-02 input stays valid. The caller resolves argument against policy (M1-01) first.
+  readonly type?: 'classic' | 'quorum' | 'stream';
+  /** Absent: the queue has no dead-letter exchange, so a message that dies there is dropped. */
+  readonly deadLetter?: DeadLetterSetting;
+  /** The resolved message TTL in milliseconds; null or absent: none. */
+  readonly messageTtlMs?: number | null;
+  readonly maxLength?: number | null;
+  readonly maxLengthBytes?: number | null;
+  readonly overflow?:
+    | 'drop-head'
+    | 'reject-publish'
+    | 'reject-publish-dlx'
+    | null;
+  /** Absent is `unknown`, never `unlimited` (OQ-1301). */
+  readonly deliveryLimit?: DeliveryLimit;
+  /** A consumer may reject (nack or reject without requeue). Absent: not known to (OQ-1302). */
+  readonly rejectable?: boolean;
+  /** Queues named by the broker's `x-death` of the messages this queue holds (A-2). */
+  readonly heldDeathSources?: readonly string[];
 }
+
+/** The dead-letter reasons of the broker (`rabbit_dead_letter:reason()`). */
+export type DeadLetterReason =
+  | 'rejected'
+  | 'expired'
+  | 'maxlen'
+  | 'delivery_limit';
+
+export type DeadLetterSetting =
+  | {
+      readonly status: 'set';
+      readonly exchange: string;
+      /** `x-dead-letter-routing-key`; absent or null: the message's own routing keys. */
+      readonly routingKey?: string | null;
+      readonly strategy?: 'at-most-once' | 'at-least-once';
+    }
+  /** A policy or setting that could not be read decides it (A-2). */
+  | { readonly status: 'unknown' };
 
 export interface TopologyBinding {
   readonly source: string;
@@ -123,7 +163,10 @@ export type NoteCode =
   | 'keys-ignored'
   | 'bcc-stripped'
   | 'duplicate-exchange'
-  | 'truncated';
+  | 'truncated'
+  // M1-03: the exchange picks one bound queue, so the share is not a fixed set (R6).
+  | 'non-deterministic-share'
+  | 'random-destination';
 
 export interface RoutingNote {
   readonly code: NoteCode;
@@ -246,3 +289,42 @@ export interface RoutingResult {
   readonly notes: readonly RoutingNote[];
   readonly truncation: Truncation;
 }
+
+/** Limits of the dead-letter analysis (M1-03, R8). Every cut is counted and never silent. */
+export interface DlxLimits {
+  /** Queues examined as possible sources. */
+  readonly maxDlxSourcesScanned: number;
+  /** Steps of dead-letter paths. */
+  readonly maxDlxSteps: number;
+  /** Paths kept per start queue. */
+  readonly maxDlxPaths: number;
+  /** Dead-letter loops listed. */
+  readonly maxDlxLoops: number;
+  /** Candidates listed for a hash or random exchange. */
+  readonly maxDlxCandidates: number;
+}
+
+export const DEFAULT_DLX_LIMITS: DlxLimits = {
+  maxDlxSourcesScanned: 10_000,
+  maxDlxSteps: 1000,
+  maxDlxPaths: 64,
+  maxDlxLoops: 16,
+  maxDlxCandidates: 1000,
+};
+
+/** What each dead-letter limit cut, counted (I-13). All zero means nothing was cut. */
+export interface DlxTruncation {
+  readonly sources: number;
+  readonly steps: number;
+  readonly paths: number;
+  readonly loops: number;
+  readonly candidates: number;
+}
+
+export const NO_DLX_TRUNCATION: DlxTruncation = {
+  sources: 0,
+  steps: 0,
+  paths: 0,
+  loops: 0,
+  candidates: 0,
+};

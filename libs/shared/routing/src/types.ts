@@ -91,6 +91,11 @@ export interface PublishInput {
   readonly headers?: HeaderTable;
   /** With `mandatory` an unroutable message is returned to the publisher. */
   readonly mandatory?: boolean;
+  /**
+   * The publish is made by the broker (a dead letter, M1-03), not by a client: an internal
+   * exchange is then a valid target (the 403 is a channel check).
+   */
+  readonly fromBroker?: boolean;
 }
 
 export const X_MATCH_MODES = [

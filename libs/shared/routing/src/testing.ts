@@ -4,6 +4,7 @@ import type {
   RoutingTopology,
   TopologyBinding,
   TopologyExchange,
+  TopologyQueue,
 } from './types.ts';
 
 export function exchange(
@@ -59,4 +60,40 @@ export function deepFreeze<T>(value: T): T {
     for (const child of Object.values(value)) deepFreeze(child);
   }
   return value;
+}
+
+/** A queue with dead-letter settings (M1-03). */
+export function queue(
+  name: string,
+  extra: Partial<Omit<TopologyQueue, 'name'>> = {},
+): TopologyQueue {
+  return { name, ...extra };
+}
+
+/** A queue that dead-letters to `exchange` when its messages expire. */
+export function expiring(
+  name: string,
+  exchange: string,
+  routingKey?: string,
+  extra: Partial<Omit<TopologyQueue, 'name' | 'deadLetter'>> = {},
+): TopologyQueue {
+  return {
+    name,
+    messageTtlMs: 1000,
+    deadLetter: {
+      status: 'set',
+      exchange,
+      ...(routingKey === undefined ? {} : { routingKey }),
+    },
+    ...extra,
+  };
+}
+
+/** A topology whose queues carry their own settings. */
+export function topologyOf(
+  exchanges: readonly TopologyExchange[],
+  queues: readonly TopologyQueue[],
+  bindings: readonly TopologyBinding[],
+): RoutingTopology {
+  return { exchanges, queues, bindings };
 }

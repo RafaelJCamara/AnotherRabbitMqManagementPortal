@@ -59,3 +59,18 @@ export type {
   DlxLimits,
   DlxTruncation,
 } from './types.ts';
+export { findDlxLoops } from './cycles.ts';
+export type { DlxLoop, DlxLoopsResult } from './cycles.ts';
+export { deadLetterPath, indexDeadLetters, routeDeadLetter } from './dlx.ts';
+export type {
+  DeadLetterIndex,
+  DeadLetterPath,
+  DeadLetterPathOptions,
+  DeadLetterPathResult,
+  DeadLetterRouting,
+  DeadLetterStep,
+  DeadLetterTarget,
+  DlxLimitOptions,
+  PathEnd,
+  RoutedDeadLetter,
+} from './dlx.ts';

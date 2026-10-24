@@ -204,7 +204,7 @@ export function simulate(
       NO_KEYS(publish.routingKey),
     );
   }
-  if (target?.internal === true) {
+  if (target?.internal === true && publish.fromBroker !== true) {
     return refused(
       { code: 'internal-exchange', replyCode: 403 },
       NO_KEYS(publish.routingKey),

@@ -102,11 +102,20 @@ describe('M1-01 AC-12 policy patterns are evaluated only inside a safe subset', 
     });
   });
 
-  it('M1-01 AC-12 the heaviest pattern the subset allows finishes on the longest name', () => {
-    const result = testPattern('.*a.*a.*b', `${'a'.repeat(254)}!`);
+  // The heaviest pattern the subset allows (three unbounded quantifiers) backtracks through many splits
+  // of a 255-character name: about a second on a development machine, but over the 5 s default on the
+  // shared windows-2025 runner, where the workspace runs in parallel (6.1 s measured in CI).
+  const SLOW_RUNNER_MS = 30_000;
 
-    expect(result).toEqual({ ok: true, matches: false });
-  });
+  it(
+    'M1-01 AC-12 the heaviest pattern the subset allows finishes on the longest name',
+    { timeout: SLOW_RUNNER_MS },
+    () => {
+      const result = testPattern('.*a.*a.*b', `${'a'.repeat(254)}!`);
+
+      expect(result).toEqual({ ok: true, matches: false });
+    },
+  );
 
   it('M1-01 AC-12 a name the library cannot treat like the broker is uncertain', () => {
     expect(testPattern('.*', 'q'.repeat(256))).toEqual({

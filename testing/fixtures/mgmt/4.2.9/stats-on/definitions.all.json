@@ -224,6 +224,14 @@
   ],
   "bindings": [
     {
+      "arguments": {},
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "orders.#",
+      "source": "golden.topic",
+      "vhost": "golden"
+    },
+    {
       "arguments": {
         "x-golden": "direct"
       },
@@ -235,26 +243,18 @@
     },
     {
       "arguments": {},
-      "destination": "golden.dead",
-      "destination_type": "queue",
-      "routing_key": "",
-      "source": "golden.dlx",
-      "vhost": "golden"
-    },
-    {
-      "arguments": {},
-      "destination": "golden.classic",
-      "destination_type": "queue",
-      "routing_key": "orders.#",
-      "source": "golden.topic",
-      "vhost": "golden"
-    },
-    {
-      "arguments": {},
       "destination": "golden.quorum",
       "destination_type": "queue",
       "routing_key": "10",
       "source": "golden.hash",
+      "vhost": "golden"
+    },
+    {
+      "arguments": {},
+      "destination": "golden.dead",
+      "destination_type": "queue",
+      "routing_key": "",
+      "source": "golden.dlx",
       "vhost": "golden"
     }
   ]

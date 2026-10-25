@@ -6,9 +6,9 @@
     "min_heap_size": 233,
     "minor_gcs": 7
   },
-  "name": "192.0.2.1:59242 -> 192.0.2.2:5672 (1)",
+  "name": "192.0.2.1:45642 -> 192.0.2.2:5672 (1)",
   "node": "rabbit@lab-node",
-  "reductions": 2679,
+  "reductions": 2677,
   "state": "running",
   "user": "guest",
   "confirm": false,
@@ -17,7 +17,7 @@
   "prefetch_count": 2,
   "user_who_performed_action": "guest",
   "messages_unacknowledged": 2,
-  "idle_since": "2026-10-19T14:13:59.044+00:00",
+  "idle_since": "2026-10-25T07:56:42.136+00:00",
   "consumer_count": 1,
   "acks_uncommitted": 0,
   "cached_segments": 0,
@@ -26,9 +26,9 @@
   "pending_raft_commands": 0,
   "transactional": false,
   "connection_details": {
-    "name": "192.0.2.1:59242 -> 192.0.2.2:5672",
+    "name": "192.0.2.1:45642 -> 192.0.2.2:5672",
     "peer_host": "192.0.2.1",
-    "peer_port": 59242
+    "peer_port": 45642
   },
   "message_stats": {
     "ack": 0,
@@ -68,18 +68,18 @@
     {
       "arguments": {},
       "channel_details": {
-        "connection_name": "192.0.2.1:59242 -> 192.0.2.2:5672",
-        "name": "192.0.2.1:59242 -> 192.0.2.2:5672 (1)",
+        "connection_name": "192.0.2.1:45642 -> 192.0.2.2:5672",
+        "name": "192.0.2.1:45642 -> 192.0.2.2:5672 (1)",
         "node": "rabbit@lab-node",
         "number": 1,
         "peer_host": "192.0.2.1",
-        "peer_port": 59242,
+        "peer_port": 45642,
         "user": "guest"
       },
       "ack_required": true,
       "active": true,
       "activity_status": "blocked",
-      "consumer_tag": "amq.ctag-nWDujzaEDrl4yWsWXnNwjw",
+      "consumer_tag": "amq.ctag-e-InjmYpKeyPV12syUI-5g",
       "consumer_timeout": 1800000,
       "exclusive": false,
       "prefetch_count": 2,

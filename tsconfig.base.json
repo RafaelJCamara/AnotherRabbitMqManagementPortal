@@ -84,6 +84,7 @@
       "@app/svc-messages": ["./libs/engine/svc-messages/src/index.ts"],
       "@app/svc-metrics": ["./libs/engine/svc-metrics/src/index.ts"],
       "@app/svc-ops": ["./libs/engine/svc-ops/src/index.ts"],
+      "@app/svc-peek": ["./libs/engine/svc-peek/src/index.ts"],
       "@app/svc-topology": ["./libs/engine/svc-topology/src/index.ts"],
       "@app/svc-workspace": ["./libs/engine/svc-workspace/src/index.ts"],
       "@app/testkit": ["./libs/testkit/src/index.ts"],

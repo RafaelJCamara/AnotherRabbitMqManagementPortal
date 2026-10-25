@@ -1,0 +1,30 @@
+{
+  "name": "svc-peek",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/engine/svc-peek/src",
+  "projectType": "library",
+  "tags": ["type:service", "runtime:node", "trust:critical"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "tsc -p libs/engine/svc-peek/tsconfig.lib.json --noEmit",
+          "tsc -p libs/engine/svc-peek/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/engine/svc-peek/vitest.config.mts"
+      }
+    }
+  }
+}

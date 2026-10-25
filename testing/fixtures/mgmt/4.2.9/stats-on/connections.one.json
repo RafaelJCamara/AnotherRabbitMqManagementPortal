@@ -1,17 +1,11 @@
 {
-  "peer_host": "192.0.2.1",
+  "recv_oct_details": {
+    "rate": 0
+  },
   "vhost": "golden",
   "recv_oct": 487,
-  "channels": 1,
-  "recv_cnt": 8,
-  "host": "192.0.2.2",
-  "ssl_cipher": "",
-  "connected_at": 1792419238031,
   "user_provided_name": "golden/recorder/source/seed",
-  "node": "rabbit@lab-node",
-  "auth_mechanism": "PLAIN",
-  "ssl_protocol": "",
-  "state": "running",
+  "recv_cnt": 8,
   "client_properties": {
     "capabilities": {
       "authentication_failure_close": true,
@@ -23,45 +17,51 @@
     },
     "connection_name": "golden/recorder/source/seed",
     "information": "https://amqp-node.github.io/amqplib/",
-    "platform": "Node.JS v24.19.0",
+    "platform": "Node.JS v24.22.0",
     "product": "amqplib",
     "version": "2.2.0"
   },
+  "host": "192.0.2.2",
+  "ssl_cipher": "",
+  "node": "rabbit@lab-node",
+  "reductions_details": {
+    "rate": 159.6
+  },
+  "peer_cert_subject": "",
+  "state": "running",
+  "peer_port": 45642,
   "garbage_collection": {
     "fullsweep_after": 65535,
     "max_heap_size": 0,
     "min_bin_vheap_size": 46422,
     "min_heap_size": 233,
-    "minor_gcs": 1
+    "minor_gcs": 2
   },
-  "ssl_key_exchange": "",
   "send_cnt": 7,
   "user": "guest",
-  "timeout": 30,
-  "peer_cert_subject": "",
-  "reductions": 12812,
-  "send_oct_details": {
-    "rate": 0
-  },
-  "send_pend": 0,
   "peer_cert_serial_number": "",
+  "peer_host": "192.0.2.1",
+  "timeout": 30,
+  "ssl_key_exchange": "",
+  "reductions": 13719,
+  "channels": 1,
+  "send_pend": 0,
+  "ssl_hash": "",
   "protocol": "AMQP 0-9-1",
   "channel_max": 2047,
-  "send_oct": 936,
-  "ssl_hash": "",
   "peer_cert_validity": "",
-  "user_who_performed_action": "guest",
+  "send_oct": 944,
+  "auth_mechanism": "PLAIN",
+  "peer_cert_issuer": "",
+  "ssl_protocol": "",
   "port": 5672,
   "ssl": false,
-  "name": "192.0.2.1:59242 -> 192.0.2.2:5672",
-  "peer_cert_issuer": "",
+  "name": "192.0.2.1:45642 -> 192.0.2.2:5672",
   "frame_max": 131072,
-  "type": "network",
-  "reductions_details": {
-    "rate": 166
+  "connected_at": 1792915001127,
+  "send_oct_details": {
+    "rate": 1.6
   },
-  "peer_port": 59242,
-  "recv_oct_details": {
-    "rate": 0
-  }
+  "type": "network",
+  "user_who_performed_action": "guest"
 }

@@ -9,8 +9,8 @@
     },
     "tags": [],
     "default_queue_type": "classic",
-    "protected_from_deletion": false,
     "tracing": false,
+    "protected_from_deletion": false,
     "cluster_state": {
       "rabbit@lab-node": "running"
     }
@@ -31,8 +31,8 @@
       "fixtures"
     ],
     "default_queue_type": "classic",
-    "protected_from_deletion": false,
     "tracing": false,
+    "protected_from_deletion": false,
     "cluster_state": {
       "rabbit@lab-node": "running"
     }

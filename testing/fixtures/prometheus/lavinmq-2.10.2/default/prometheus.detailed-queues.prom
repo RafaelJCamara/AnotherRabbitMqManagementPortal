@@ -42,7 +42,7 @@ lavinmq_detailed_queue_consumers{queue="golden.dead", vhost="golden"} 0
 lavinmq_detailed_queue_consumers{queue="golden.stream", vhost="golden"} 0
 # TYPE telemetry_scrape_duration_seconds gauge
 # HELP telemetry_scrape_duration_seconds Duration for metrics collection in seconds
-telemetry_scrape_duration_seconds 3.1907e-5
+telemetry_scrape_duration_seconds 1.3145e-5
 # TYPE telemetry_scrape_mem gauge
 # HELP telemetry_scrape_mem Memory used for metrics collections in bytes
 telemetry_scrape_mem 32784

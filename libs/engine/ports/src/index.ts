@@ -155,6 +155,12 @@ export type {
   WindowQuery,
 } from './repos.ts';
 export type {
+  HoldJournalRepository,
+  HoldOpen,
+  HoldState,
+  InterruptedHold,
+} from './hold-journal.ts';
+export type {
   SavedViewRecord,
   WorkspaceDocument,
   WorkspaceDocumentKind,

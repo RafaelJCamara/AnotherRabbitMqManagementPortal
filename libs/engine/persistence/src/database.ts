@@ -271,6 +271,19 @@ export interface CaptureBlobChunksTable {
   sealed: Uint8Array;
 }
 
+/** hold_journal (M1-14): one peek hold; the queue name is sealed by the caller (0010_hold_journal). */
+export interface HoldJournalTable {
+  id: string;
+  connection_id: string;
+  vhost: string;
+  queue_sealed: Uint8Array;
+  state: string;
+  returned: number;
+  reason: string | null;
+  started_at: number;
+  ended_at: number | null;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -291,6 +304,7 @@ export interface Database {
   captured_messages: CapturedMessagesTable;
   capture_blobs: CaptureBlobsTable;
   capture_blob_chunks: CaptureBlobChunksTable;
+  hold_journal: HoldJournalTable;
 }
 
 /** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */

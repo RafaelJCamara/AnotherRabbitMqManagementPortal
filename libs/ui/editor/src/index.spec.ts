@@ -7,6 +7,7 @@ describe('ui-editor public API', () => {
   it('exports exactly the documented names', () => {
     expect(Object.keys(api).sort()).toEqual([
       'CodeEditor',
+      'DiffEditor',
       'EDITOR_MAX_MARKERS',
       'EDITOR_WORKER_PATHS',
       'EditorLoadError',

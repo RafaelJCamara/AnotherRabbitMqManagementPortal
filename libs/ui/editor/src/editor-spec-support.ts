@@ -3,6 +3,8 @@
 import { type ComponentFixture } from '@angular/core/testing';
 import type { Provider } from '@angular/core';
 import type {
+  DiffEditorHandle,
+  DiffEditorOptions,
   EditorHandle,
   EditorHost,
   EditorLanguage,
@@ -29,8 +31,21 @@ export interface FakeEditor extends EditorHandle {
   type(text: string): void;
 }
 
+export interface FakeDiff extends DiffEditorHandle {
+  readonly options: DiffEditorOptions;
+  original: string;
+  modified: string;
+  language: EditorLanguage;
+  disposed: number;
+  sets: number;
+  listenersAdded: number;
+  listenersDisposed: number;
+  type(text: string): void;
+}
+
 export interface FakeHost extends EditorHost {
   readonly editors: FakeEditor[];
+  readonly diffs: FakeDiff[];
   readonly themes: EditorThemeName[];
   /** Every list `setSchemas` was given, in order. */
   readonly schemaCalls: (readonly SchemaEntry[])[];
@@ -41,10 +56,12 @@ export function fakeHost(
   normalize: (text: string) => string = (text) => text,
 ): FakeHost {
   const editors: FakeEditor[] = [];
+  const diffs: FakeDiff[] = [];
   const themes: EditorThemeName[] = [];
   const schemaCalls: (readonly SchemaEntry[])[] = [];
   return {
     editors,
+    diffs,
     themes,
     schemaCalls,
     schemas: { setSchemas: (entries) => schemaCalls.push(entries) },
@@ -94,6 +111,48 @@ export function fakeHost(
       };
       editors.push(editor);
       return editor;
+    },
+    createDiffEditor(_container, options) {
+      const listeners = new Set<(value: string) => void>();
+      const diff: FakeDiff = {
+        options,
+        original: options.original,
+        modified: options.modified,
+        language: options.language,
+        disposed: 0,
+        sets: 0,
+        listenersAdded: 0,
+        listenersDisposed: 0,
+        getModified: () => diff.modified,
+        setOriginal: (value) => (diff.original = value),
+        setModified: (value) => {
+          diff.sets++;
+          diff.modified = normalize(value);
+          listeners.forEach((listener) => {
+            listener(diff.modified);
+          });
+        },
+        setLanguage: (language) => (diff.language = language),
+        onDidChangeModified: (listener) => {
+          listeners.add(listener);
+          diff.listenersAdded++;
+          return {
+            dispose: () => {
+              diff.listenersDisposed++;
+              listeners.delete(listener);
+            },
+          };
+        },
+        dispose: () => diff.disposed++,
+        type: (text) => {
+          diff.modified = text;
+          listeners.forEach((listener) => {
+            listener(text);
+          });
+        },
+      };
+      diffs.push(diff);
+      return diff;
     },
   };
 }

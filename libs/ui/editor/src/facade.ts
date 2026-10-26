@@ -52,9 +52,31 @@ export interface EditorHandle extends EditorDisposable {
   onDidChangeValue(listener: (value: string) => void): EditorDisposable;
 }
 
+export interface DiffEditorOptions {
+  readonly original: string;
+  readonly modified: string;
+  readonly language: EditorLanguage;
+  readonly ariaLabel: string;
+  /** The original side is never editable; a host must honour it. */
+  readonly originalEditable: false;
+}
+
+/** A diff pair. `dispose` disposes the editor and both models, once. */
+export interface DiffEditorHandle extends EditorDisposable {
+  getModified(): string;
+  setOriginal(value: string): void;
+  setModified(value: string): void;
+  setLanguage(language: EditorLanguage): void;
+  onDidChangeModified(listener: (value: string) => void): EditorDisposable;
+}
+
 export interface EditorHost {
   /** The host lays the editor out by itself when its container resizes (and stops on dispose). */
   createEditor(container: HTMLElement, options: EditorOptions): EditorHandle;
+  createDiffEditor(
+    container: HTMLElement,
+    options: DiffEditorOptions,
+  ): DiffEditorHandle;
   /** Monaco's theme is global to the page. */
   setTheme(theme: EditorThemeName): void;
   readonly schemas: SchemaPort;

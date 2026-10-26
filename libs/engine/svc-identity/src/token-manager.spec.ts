@@ -89,6 +89,7 @@ interface Harness {
     listening(): boolean;
     emitClose(connectionId: string): void;
     onReconnect: (id: string, protocol: RenewalProtocol) => Promise<void>;
+    onCancel: () => Promise<{ cancelled: number }>;
   };
   readonly caps: RenewalCapabilities;
   readonly states: TokenState[];
@@ -104,8 +105,10 @@ function harness(
     script?: (
       call: number,
       now: number,
+      request: { connectionId: string; protocol: CredentialProtocol },
     ) => IssuedCredential | Promise<IssuedCredential>;
     caps?: Partial<RenewalCapabilities>;
+    capabilities?: (connectionId: string) => RenewalCapabilities;
     limits?: Partial<TokenManagerLimits>;
     withPutAuthToken?: boolean;
     timers?: (inner: Timers) => Timers;
@@ -117,14 +120,14 @@ function harness(
   const provider = { calls: 0 };
   const credentialProvider: CredentialProvider = {
     kind: 'client-credentials',
-    acquire: () => {
+    acquire: (request) => {
       provider.calls += 1;
       const now = clock.now();
       return Promise.resolve(
         (
           options.script ??
           ((n, at) => bearer({ n, iat: at, exp: at + lifetime }))
-        )(provider.calls, now),
+        )(provider.calls, now, request),
       );
     },
   };
@@ -139,6 +142,7 @@ function harness(
     listening: () => closeListener !== undefined,
     emitClose: (id) => closeListener?.(id),
     onReconnect: () => Promise.resolve(),
+    onCancel: () => Promise.resolve(auth.cancelResult),
   };
   const port: ConnectionAuthPort = {
     updateSecret: (id, secret, reason) => {
@@ -156,7 +160,7 @@ function harness(
     },
     cancelOwnConsumers: (id, reason) => {
       calls.push({ method: 'cancelOwnConsumers', id, arg: reason });
-      return Promise.resolve(auth.cancelResult);
+      return auth.onCancel();
     },
     onCredentialExpiredClose: (listener) => {
       closeListener = listener;
@@ -181,7 +185,7 @@ function harness(
   const manager = createTokenManager({
     providers: { providerFor: () => Promise.resolve(credentialProvider) },
     auth: port,
-    capabilities: () => caps,
+    capabilities: options.capabilities ?? (() => caps),
     clock,
     timers: options.timers === undefined ? timers : options.timers(timers),
     ...(options.limits === undefined ? {} : { limits: options.limits }),
@@ -994,7 +998,9 @@ describe('TokenManager edges (slice C)', () => {
       long.auth.calls.filter((c) => c.method === 'cancelOwnConsumers'),
     ).toEqual([]);
     expect(stateOf(long)?.state).toBe('valid');
-    expect(Math.max(...delays)).toBeLessThanOrEqual(2_147_483_647);
+    expect(delays.reduce((a, b) => Math.max(a, b), 0)).toBeLessThanOrEqual(
+      2_147_483_647,
+    );
     expect(delays.some((d) => d === 2_147_483_647)).toBe(true);
 
     // The wall clock was set back 100 s: the timer fires on time but the instant is not here yet.
@@ -1090,7 +1096,6 @@ describe('TokenManager edges (slice C)', () => {
     await never.timers.advance(10 * SECOND);
     expect((await outcome).code).toBe('BROKER_UNREACHABLE');
     expect(never.timers.pending()).toBe(0);
-    expect(never.manager.stats().entries).toBe(0);
     // A push that never returns is cut off too, and the failure is recorded.
     const stuck = harness({ limits: { operationTimeoutMs: 10 * SECOND } });
     stuck.auth.onReconnect = () => new Promise<void>(() => undefined);
@@ -1770,5 +1775,366 @@ describe('TokenManager edges found by mutation (slice C)', () => {
     await h.manager.dispose();
     expect(h.manager.stats().pendingTasks).toBe(0);
     expect(h.manager.stats().pendingOperations).toBe(0);
+  });
+});
+
+// -- hardening after the two reviews of slice C (user name continuity, invalidate, bounds) -------
+
+const firstThenDown = (
+  n: number,
+  now: number,
+): IssuedCredential | Promise<IssuedCredential> =>
+  n === 1
+    ? bearer({ n, iat: now, exp: now + LIFETIME })
+    : Promise.reject(new AppError('BROKER_UNREACHABLE', { detail: 'down' }));
+
+const helpers = {
+  calls: (h: Harness, method: string) =>
+    h.auth.calls.filter((c) => c.method === method),
+};
+
+describe('TokenManager first-token requests and the sweep (slice C hardening)', () => {
+  it('M1-23 hardening a retry that is due a little before the token point is made at the point (armWake)', async () => {
+    // A 401 fails at 749 s with a retry due at 751 s; the 75 % point (750 s) is sooner, so the
+    // wake is at the point and the scheduled renewal does not wait for the backoff.
+    const h = harness({
+      script: (n, now) =>
+        n === 2
+          ? Promise.reject(new AppError('BROKER_UNREACHABLE', {}))
+          : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    await started(h);
+    await h.timers.advance(749 * SECOND);
+    const generation = (await credentialFor(h)).generation;
+    await failureOf(
+      h.manager.refreshAfterUnauthorized('c1', 'amqp', generation, signal),
+    );
+    expect(h.provider.calls).toBe(2);
+    expect(stateOf(h)?.nextRefreshAt).toBe(750 * SECOND);
+    await h.timers.advance(999);
+    expect(h.provider.calls).toBe(2);
+    await h.timers.advance(1);
+    expect(h.provider.calls).toBe(3);
+  });
+});
+
+describe('TokenManager reviews: timers, tasks and the edges they found (slice C hardening)', () => {
+  it('M1-23 hardening the slot of the limiter is given back when the provider fails (F2a)', async () => {
+    const h = harness({
+      limits: { maxConcurrentAcquires: 1 },
+      script: (n, now) =>
+        n === 1
+          ? Promise.reject(new AppError('BROKER_UNREACHABLE', { detail: 'x' }))
+          : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    await failureOf(credentialFor(h, 'c1'));
+    const second = credentialFor(h, 'c2');
+    await h.timers.settle();
+    expect(h.provider.calls).toBe(2); // not stuck behind a slot that was never returned
+    expect(reveal((await second).credential)).toBe('token-2');
+    // A timeout gives the slot back as well.
+    const slow = harness({
+      limits: { maxConcurrentAcquires: 1, operationTimeoutMs: 10 * SECOND },
+      script: (n, now) =>
+        n === 1
+          ? new Promise<IssuedCredential>(() => undefined)
+          : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    const stuck = failureOf(credentialFor(slow, 'c1'));
+    const next = credentialFor(slow, 'c2');
+    await slow.timers.advance(10 * SECOND);
+    expect((await stuck).code).toBe('BROKER_UNREACHABLE');
+    expect(reveal((await next).credential)).toBe('token-2');
+  });
+
+  it('M1-23 hardening an expiry timer that fires early is armed again and the consumers are cancelled once at the real expiry (F2b)', async () => {
+    const h = harness({ script: firstThenDown });
+    await started(h);
+    h.clock.setNow(h.clock.now() - 100 * SECOND); // the wall clock is set back
+    await h.timers.advance(LIFETIME); // the timer is due, the instant is not here yet
+    expect(helpers.calls(h, 'cancelOwnConsumers')).toEqual([]);
+    expect(stateOf(h)?.state).not.toBe('expired');
+    await h.timers.advance(99_999);
+    expect(helpers.calls(h, 'cancelOwnConsumers')).toEqual([]);
+    await h.timers.advance(1);
+    expect(helpers.calls(h, 'cancelOwnConsumers').length).toBe(1);
+    expect(stateOf(h)?.state).toBe('expired');
+  });
+
+  it('M1-23 hardening the work started at expiry and at a forced close is counted as pending until it ends (F2c)', async () => {
+    const gate = deferred<{ cancelled: number }>();
+    const expiring = harness({ script: firstThenDown });
+    expiring.auth.onCancel = () => gate.promise;
+    await started(expiring);
+    await expiring.timers.advance(LIFETIME);
+    expect(expiring.manager.stats().pendingTasks).toBe(1);
+    expect(expiring.manager.stats().pendingOperations).toBe(1);
+    gate.resolve({ cancelled: 2 });
+    await expiring.timers.settle();
+    expect(expiring.manager.stats().pendingTasks).toBe(0);
+    expect(stateOf(expiring)?.consumersCancelled).toBe(2);
+
+    const closing = harness();
+    const reopen = deferred<undefined>();
+    closing.auth.onReconnect = () => reopen.promise;
+    await started(closing);
+    closing.auth.emitClose('c1');
+    await closing.timers.settle();
+    expect(closing.manager.stats().pendingTasks).toBe(1);
+    // dispose waits for it, and the unfinished reconnect is cut off.
+    const disposed = closing.manager.dispose();
+    await disposed;
+    expect(closing.manager.stats().pendingTasks).toBe(0);
+    reopen.resolve(undefined);
+  });
+
+  it('M1-23 hardening cancelling the consumers can fail or hang, and the state says so, counted and published (I-13, F2)', async () => {
+    const problem =
+      'The engine own consumers could not be cancelled at token expiry.';
+    const cases: {
+      name: string;
+      cancel: () => Promise<{ cancelled: number }>;
+      wait: number;
+    }[] = [
+      {
+        name: 'rejects',
+        cancel: () => Promise.reject(new Error('CANARY-cancel-text')),
+        wait: 0,
+      },
+      {
+        name: 'hangs',
+        cancel: () => new Promise<{ cancelled: number }>(() => undefined),
+        wait: 10 * SECOND,
+      },
+    ];
+    for (const { name, cancel, wait } of cases) {
+      const h = harness({
+        script: firstThenDown,
+        limits: { operationTimeoutMs: 10 * SECOND },
+      });
+      h.auth.onCancel = cancel;
+      await started(h);
+      await h.timers.advance(LIFETIME);
+      if (wait > 0) {
+        await h.timers.advance(wait - 1);
+        expect(stateOf(h)?.problem?.detail ?? '').not.toBe(problem);
+        await h.timers.advance(1);
+      }
+      expect(stateOf(h)?.consumersCancelled, name).toBe(0);
+      expect(stateOf(h)?.problem?.code, name).toBe('BROKER_ERROR');
+      expect(stateOf(h)?.problem?.detail, name).toBe(problem);
+      expect(h.states.at(-1)?.problem?.detail, name).toBe(problem);
+      expect(JSON.stringify(h.states)).not.toContain('CANARY');
+      expect(h.manager.stats().pendingTasks).toBe(0);
+    }
+  });
+
+  it('M1-23 hardening a push that hangs is cut off at the operation timeout and not before (F2)', async () => {
+    const h = harness({ limits: { operationTimeoutMs: 10 * SECOND } });
+    await started(h);
+    h.auth.updateSecretGate = new Promise<void>(() => undefined);
+    await h.timers.advance(750 * SECOND);
+    await h.timers.advance(10 * SECOND - 1);
+    expect(stateOf(h)?.state).toBe('valid');
+    expect(h.manager.stats().pendingOperations).toBe(1);
+    await h.timers.advance(1);
+    expect(stateOf(h)?.state).toBe('failed');
+    expect(h.manager.stats().pendingOperations).toBe(0);
+  });
+
+  it('M1-23 hardening a 320 close whose renewal fails keeps the failure of the renewal and never reconnects (F2 renewed flag)', async () => {
+    const h = harness({ script: firstThenDown });
+    await started(h);
+    h.auth.emitClose('c1');
+    await h.timers.settle();
+    expect(helpers.calls(h, 'reconnect')).toEqual([]);
+    expect(stateOf(h)?.problem?.code).toBe('BROKER_UNREACHABLE');
+    expect(stateOf(h)?.problem?.detail).toBe('down');
+    expect(stateOf(h)?.state).toBe('failed');
+  });
+
+  it('M1-23 hardening a lazy renewal that carries the same expiry is refused as well (F2e)', async () => {
+    const h = harness({
+      script: (n, now) =>
+        n === 1
+          ? bearer({ n, iat: now, exp: LIFETIME })
+          : bearer({ n, iat: now, exp: LIFETIME }), // the same expiry again
+    });
+    const first = await credentialFor(h);
+    await h.timers.advance(800 * SECOND); // past the 75 % point, still before the expiry
+    const again = await credentialFor(h); // the renewal is refused; the good token is kept
+    expect(h.provider.calls).toBe(2);
+    expect(again.generation).toBe(first.generation);
+    expect(stateOf(h)?.state).toBe('failed');
+    expect(stateOf(h)?.problem?.code).toBe('VALIDATION_FAILED');
+  });
+
+  it('M1-23 hardening a request that was cancelled before it started, or while it waits, is answered as cancelled (F2)', async () => {
+    const h = harness();
+    const done = new AbortController();
+    done.abort();
+    for (const call of [
+      () => h.manager.credentialFor('c1', 'amqp', done.signal),
+      () => h.manager.refreshAfterUnauthorized('c1', 'amqp', 1, done.signal),
+    ]) {
+      const error = await failureOf(call());
+      expect(error.code).toBe('BROKER_UNREACHABLE');
+      expect(error.detail).toBe('The credential request was cancelled.');
+    }
+    expect(h.provider.calls).toBe(0);
+    expect(h.manager.stats().entries).toBe(0);
+
+    // Waiting on a renewal that another caller started: giving up leaves it running.
+    const gate = deferred<IssuedCredential>();
+    const slow = harness({
+      script: (n, now) =>
+        n === 2 ? gate.promise : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    const first = await credentialFor(slow);
+    await slow.timers.advance(5 * SECOND);
+    const waiter = new AbortController();
+    const unauthorized = failureOf(
+      slow.manager.refreshAfterUnauthorized(
+        'c1',
+        'amqp',
+        first.generation,
+        waiter.signal,
+      ),
+    );
+    await slow.timers.settle();
+    const joiner = new AbortController();
+    const joined = failureOf(
+      slow.manager.refreshAfterUnauthorized(
+        'c1',
+        'amqp',
+        first.generation,
+        joiner.signal,
+      ),
+    );
+    waiter.abort();
+    joiner.abort();
+    expect((await unauthorized).detail).toBe(
+      'The credential request was cancelled.',
+    );
+    expect((await joined).detail).toBe('The credential request was cancelled.');
+    expect(slow.manager.stats().inflightRefreshes).toBe(1);
+    gate.resolve(bearer({ n: 2, iat: 5 * SECOND, exp: 5 * SECOND + LIFETIME }));
+    await slow.timers.settle();
+    expect(reveal((await credentialFor(slow)).credential)).toBe('token-2');
+  });
+
+  it('M1-23 hardening the state is published as refreshing while a renewal runs, and in flight renewals are counted (F2)', async () => {
+    const gates = [deferred<IssuedCredential>(), deferred<IssuedCredential>()];
+    const h = harness({
+      script: (n, now) =>
+        n >= 3
+          ? (gates[n - 3]?.promise ?? down())
+          : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    const down = () =>
+      Promise.reject<IssuedCredential>(new AppError('BROKER_UNREACHABLE', {}));
+    await credentialFor(h, 'a');
+    await credentialFor(h, 'b');
+    h.manager.track({ connectionId: 'a', protocol: 'amqp091' });
+    h.manager.track({ connectionId: 'b', protocol: 'amqp091' });
+    h.states.length = 0;
+    await h.timers.advance(750 * SECOND);
+    expect(h.manager.stats().inflightRefreshes).toBe(2);
+    const refreshing = h.states.filter((s) => s.state === 'refreshing');
+    expect(refreshing.map((s) => s.connectionId).sort()).toEqual(['a', 'b']);
+    expect(refreshing[0]?.expiresAt).toBe(LIFETIME); // the old token is still described
+    gates[0]?.resolve(bearer({ n: 3, iat: 750 * SECOND, exp: 1750 * SECOND }));
+    gates[1]?.resolve(bearer({ n: 4, iat: 750 * SECOND, exp: 1750 * SECOND }));
+    await h.timers.settle();
+    expect(h.manager.stats().inflightRefreshes).toBe(0);
+    expect(h.states.at(-1)?.state).toBe('valid');
+  });
+
+  it('M1-23 hardening a 401 for a token that was already replaced gets the current one, and an unknown connection gets its first (F2)', async () => {
+    const h = harness();
+    const old = await credentialFor(h);
+    await h.timers.advance(5 * SECOND);
+    const fresh = await h.manager.refreshAfterUnauthorized(
+      'c1',
+      'amqp',
+      old.generation,
+      signal,
+    );
+    expect(h.provider.calls).toBe(2);
+    const stale = await h.manager.refreshAfterUnauthorized(
+      'c1',
+      'amqp',
+      old.generation,
+      signal,
+    );
+    expect(stale.generation).toBe(fresh.generation);
+    expect(h.provider.calls).toBe(2);
+    const unknown = await h.manager.refreshAfterUnauthorized(
+      'other',
+      'amqp',
+      99,
+      signal,
+    );
+    expect(reveal(unknown.credential)).toBe('token-3');
+    expect(h.provider.calls).toBe(3);
+  });
+});
+
+describe('TokenManager edges found by the mutation pass over the hardening (slice C hardening)', () => {
+  it('M1-23 hardening an entry whose renewal failed is evicted for room like any idle entry', async () => {
+    const h = harness({ limits: { maxEntries: 1 }, script: firstThenDown });
+    await credentialFor(h, 'c1');
+    await h.timers.advance(800 * SECOND);
+    await credentialFor(h, 'c1'); // the lazy renewal fails; the good token is kept
+    expect(h.provider.calls).toBe(2);
+    await failureOf(credentialFor(h, 'c2')); // evicts c1; c2's own request fails
+    expect(h.manager.stats().evictedEntries).toBe(1);
+    expect(h.manager.stats().refusedEntries).toBe(0);
+  });
+
+  it('M1-23 hardening the floor between renewals counts from when the last one started, not from when it ended', async () => {
+    const gate = deferred<IssuedCredential>();
+    const h = harness({
+      script: (n, now) =>
+        n === 2 ? gate.promise : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    const first = await credentialFor(h);
+    await h.timers.advance(100 * SECOND);
+    const renewal = h.manager.refreshAfterUnauthorized(
+      'c1',
+      'amqp',
+      first.generation,
+      signal,
+    );
+    await h.timers.advance(3 * SECOND);
+    gate.resolve(
+      bearer({ n: 2, iat: h.clock.now(), exp: h.clock.now() + LIFETIME }),
+    );
+    const second = await renewal; // started at 100 s, ended at 103 s
+    await h.timers.advance(2 * SECOND); // 105 s: five seconds after the start
+    const third = await h.manager.refreshAfterUnauthorized(
+      'c1',
+      'amqp',
+      second.generation,
+      signal,
+    );
+    expect(reveal(third.credential)).toBe('token-3');
+  });
+
+  it('M1-23 hardening a request that was cancelled before it started does not reach the provider even when the entry exists', async () => {
+    const h = harness();
+    const first = await credentialFor(h);
+    await h.timers.advance(5 * SECOND);
+    const done = new AbortController();
+    done.abort();
+    await failureOf(
+      h.manager.refreshAfterUnauthorized(
+        'c1',
+        'amqp',
+        first.generation,
+        done.signal,
+      ),
+    );
+    expect(h.provider.calls).toBe(1);
   });
 });

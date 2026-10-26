@@ -46,3 +46,19 @@ export type {
   Read,
   RescueReads,
 } from './internal/preflight.ts';
+// The rescue preflight (M1-13 slice C, DC-09): judges the quarantine path before any message is acquired.
+export {
+  createRescuePreflight,
+  MAX_ALARMS,
+  RESCUE_BYTES_FLOOR,
+  RESCUE_FAILURES,
+} from './internal/rescue-preflight.ts';
+export type {
+  CheckState,
+  RescueFailure,
+  RescueJudgement,
+  RescuePreflight,
+  RescuePreflightDeps,
+  RescuePreflightResult,
+  RescueRegistry,
+} from './internal/rescue-preflight.ts';

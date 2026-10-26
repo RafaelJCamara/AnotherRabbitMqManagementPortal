@@ -25,6 +25,7 @@ import {
 import { QueueRowSchema } from './preflight-rows.ts';
 import {
   createPeekPreflight,
+  createPreflightGatherer,
   DEFAULT_PREFLIGHT_LIMITS,
   queueFromRow,
   type PeekPreflightDeps,
@@ -115,26 +116,29 @@ function setup(
     queues: { orders: quorumRow, ...vhost.queues },
   });
   const evidence = createFakeEvidence(evidenceOptions);
-  const service = createPeekPreflight({
+  const deps = {
     mgmt: api.mgmt,
     evidence,
     clock,
     quarantinePrefix: 'product',
     limits,
+  };
+  const service = createPeekPreflight(deps);
+  const gatherer = createPreflightGatherer(deps);
+  const asked = (queue: string, rescue: 'check' | 'skip') => ({
+    connectionId: CID,
+    vhost: VHOST,
+    queue,
+    principal: caller,
+    profile: preflightProfile,
+    rescue,
   });
   const run = (queue = 'orders', rescue: 'check' | 'skip' = 'skip') =>
-    service.run(
-      {
-        connectionId: CID,
-        vhost: VHOST,
-        queue,
-        principal: caller,
-        profile: preflightProfile,
-        rescue,
-      },
-      signal,
-    );
-  return { api, evidence, clock, run };
+    service.run(asked(queue, rescue), signal);
+  // The raw reads, which an outcome never carries (the rescue preflight judges them).
+  const gather = (queue = 'orders', rescue: 'check' | 'skip' = 'skip') =>
+    gatherer.gather(asked(queue, rescue), signal);
+  return { api, evidence, clock, run, gather };
 }
 
 /** The real planner over a preflight: a person consents to the broker handling the return. */
@@ -235,7 +239,7 @@ describe('peek preflight', () => {
       new Set(['interactive']),
     );
     expectTypeOf<keyof PeekPreflightDeps>().toEqualTypeOf<
-      'mgmt' | 'evidence' | 'clock' | 'quarantinePrefix' | 'limits'
+      'mgmt' | 'evidence' | 'clock' | 'quarantinePrefix' | 'limits' | 'registry'
     >();
     expectTypeOf<PeekPreflightDeps['mgmt']>().toEqualTypeOf<MgmtReadPort>();
     expectTypeOf<PeekPreflightDeps['mgmt']>().not.toHaveProperty('send');
@@ -431,7 +435,7 @@ describe('peek preflight', () => {
       priority: 0,
       definition: {},
     };
-    const { api, run } = setup({
+    const { api, gather } = setup({
       queues: { orders: sacRow },
       consumers: others,
       policies: Array.from({ length: 1_001 }, () => policy),
@@ -440,7 +444,7 @@ describe('peek preflight', () => {
       permission: { configure: '.*', write: '.*', read: '.*' },
     });
 
-    const { preflight, reads, cut } = await run('orders', 'check');
+    const { preflight, reads, cut } = await gather('orders', 'check');
 
     expect(api.requests.length).toBeLessThanOrEqual(9);
     // Not one consumer of ours was seen, but the cut rows may hold it: not "no consumer".
@@ -588,7 +592,7 @@ describe('peek preflight', () => {
         read: '.*',
         canary: 'x',
       },
-    }).run('orders', 'check');
+    }).gather('orders', 'check');
 
     expect(first.reads).toEqual({
       quarantine: {
@@ -629,14 +633,14 @@ describe('peek preflight', () => {
     expect(first.quarantineName).toBe('product.quarantine');
     expect(JSON.stringify(first)).not.toContain('canary');
 
-    const absent = await setup({}).run('orders', 'check');
+    const absent = await setup({}).gather('orders', 'check');
     expect(absent.reads?.quarantine).toEqual({ state: 'absent' });
     expect(absent.reads?.permission).toEqual({ state: 'unreadable' });
     const refused = await setup({
       failures: { [queuePath(VHOST, 'product.quarantine')]: 403 },
-    }).run('orders', 'check');
+    }).gather('orders', 'check');
     expect(refused.reads?.quarantine).toEqual({ state: 'unreadable' });
-    const skipped = await setup({}).run('orders', 'skip');
+    const skipped = await setup({}).gather('orders', 'skip');
     expect(skipped.reads).toBeNull();
     const deps = {
       mgmt: setup().api.mgmt,
@@ -885,7 +889,7 @@ describe('peek preflight mapping', () => {
       user: 'ada',
       permission: { configure: '', write: '' },
     });
-    const done = await plain.run('orders', 'check');
+    const done = await plain.gather('orders', 'check');
     const queries = Object.fromEntries(
       plain.api.requests.map((r) => [r.path, r.query]),
     );
@@ -907,7 +911,7 @@ describe('peek preflight mapping', () => {
       connections: 0,
     });
     expect(done.reads?.nodes).toEqual({ state: 'read', value: [] });
-    expect((await setup().run()).cut).toEqual(done.cut);
+    expect((await setup().gather()).cut).toEqual(done.cut);
 
     const item = { name: 'c', state: 'running' };
     const cases = [
@@ -920,20 +924,20 @@ describe('peek preflight mapping', () => {
       [{ items: [item], page_count: 1, total_count: 1 }, 0],
     ] as const;
     for (const [connections, cut] of cases) {
-      const made = await setup({ connections }).run('orders', 'check');
+      const made = await setup({ connections }).gather('orders', 'check');
       expect(made.cut.connections, JSON.stringify(connections)).toBe(cut);
     }
     const cutNodes = await setup({
       nodes: { items: [{ name: 'a' }], page_count: 2 },
-    }).run('orders', 'check');
+    }).gather('orders', 'check');
     expect(cutNodes.reads?.nodes).toEqual({ state: 'unreadable' });
     const wholeNodes = await setup({
       nodes: { items: [{ name: 'a' }], page_count: 1 },
-    }).run('orders', 'check');
+    }).gather('orders', 'check');
     expect(wholeNodes.reads?.nodes.state).toBe('read');
     const items = Array.from({ length: 1_001 }, () => item);
     expect(
-      (await setup({ connections: items }).run('orders', 'check')).cut
+      (await setup({ connections: items }).gather('orders', 'check')).cut
         .connections,
     ).toBe(1);
     const sources = await setup({}, { dlxSources: { sourcesMore: 0 } }).run();
@@ -956,10 +960,9 @@ describe('peek preflight mapping', () => {
       name: 'product.quarantine',
       arguments: { 'x-queue-type': 'classic' },
     };
-    const found = await setup({ queues: { 'product.quarantine': noType } }).run(
-      'orders',
-      'check',
-    );
+    const found = await setup({
+      queues: { 'product.quarantine': noType },
+    }).gather('orders', 'check');
     expect(found.reads?.quarantine).toMatchObject({
       state: 'present',
       found: { type: 'classic' },
@@ -1020,7 +1023,7 @@ describe('peek preflight mapping', () => {
       failures: { [consumersPath]: 403 },
     });
     expect((await refusing.run()).preflight.queue.hasActiveConsumer).toBe(true);
-    const unlisted = await setup({ queues: { orders: sacRow } }).run(
+    const unlisted = await setup({ queues: { orders: sacRow } }).gather(
       'orders',
       'check',
     );

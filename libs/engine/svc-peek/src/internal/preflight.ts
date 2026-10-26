@@ -38,6 +38,11 @@ import {
   type QueueRow,
 } from './preflight-rows.ts';
 import { quarantineName, type FoundQueue } from './quarantine.ts';
+import {
+  createRescuePreflight,
+  type RescuePreflightResult,
+  type RescueRegistry,
+} from './rescue-preflight.ts';
 
 const LANE: Lane = 'interactive';
 /** The broker's own ceiling for a page; a list that needs another page is cut and counted. */
@@ -77,6 +82,8 @@ export interface PeekPreflightDeps {
   /** Injected by the composition root; a bad prefix fails at construction (OQ-1470). */
   readonly quarantinePrefix: string;
   readonly limits?: Partial<PreflightLimits>;
+  /** The registry the rescue preflight asks (I-3); the shipped one by default. */
+  readonly registry?: RescueRegistry;
 }
 
 export interface PeekPreflightRequest {
@@ -114,11 +121,20 @@ export interface RescueReads {
   readonly permission: Read<PermissionRow>;
 }
 
-export interface PreflightOutcome {
-  /** Handed to `planPeek` unchanged. */
+/** What the reads found, before the rescue preflight judges them. Not an outcome: it holds raw rows. */
+export interface Gathered {
   readonly preflight: PeekPreflight;
   /** Null when the caller asked to `skip` the rescue check. */
   readonly reads: RescueReads | null;
+  readonly quarantineName: string;
+  readonly cut: PreflightOutcome['cut'];
+}
+
+export interface PreflightOutcome {
+  /** Handed to `planPeek` unchanged; `rescue` holds the facts of the rescue preflight when it ran. */
+  readonly preflight: PeekPreflight;
+  /** Null when the caller asked to `skip` the rescue check. */
+  readonly rescue: RescuePreflightResult | null;
   readonly quarantineName: string;
   /** Rows read but not used because of a bound; a minimum when the broker gave no total. */
   readonly cut: {
@@ -319,9 +335,14 @@ function dlxFrom(answer: RoutingDlxSourcesOutput | null): DlxEvidence {
   };
 }
 
-export function createPeekPreflight(
+export interface PreflightGatherer {
+  gather(request: PeekPreflightRequest, signal: AbortSignal): Promise<Gathered>;
+}
+
+/** The reads of the preflight (GET only); `createPeekPreflight` adds the rescue judgement. */
+export function createPreflightGatherer(
   deps: PeekPreflightDeps,
-): PeekPreflightService {
+): PreflightGatherer {
   const limits: PreflightLimits = {
     ...DEFAULT_PREFLIGHT_LIMITS,
     ...deps.limits,
@@ -331,7 +352,7 @@ export function createPeekPreflight(
   const { clock } = deps;
 
   return {
-    async run(request, signal) {
+    async gather(request, signal) {
       const { connectionId, vhost, queue, principal, profile } = request;
       const enc = encodeURIComponent(vhost);
       let used = 0;
@@ -523,6 +544,39 @@ export function createPeekPreflight(
         },
         reads,
         quarantineName: quarantine,
+        cut,
+      };
+    },
+  };
+}
+
+export function createPeekPreflight(
+  deps: PeekPreflightDeps,
+): PeekPreflightService {
+  const gatherer = createPreflightGatherer(deps);
+  const rescue = createRescuePreflight({
+    ...(deps.registry === undefined ? {} : { registry: deps.registry }),
+    connectionPrefix: deps.quarantinePrefix,
+  });
+  return {
+    async run(request, signal) {
+      const { preflight, reads, quarantineName, cut } =
+        await gatherer.gather(request, signal);
+      if (reads === null) {
+        return { preflight, rescue: null, quarantineName, cut };
+      }
+      // The reads are done: `takenAt` is the clock after the last one, and so is `checkedAt`.
+      const judged = rescue.judge({
+        vhost: request.vhost,
+        queueName: quarantineName,
+        profile: request.profile,
+        reads,
+        checkedAt: preflight.takenAt,
+      });
+      return {
+        preflight: { ...preflight, rescue: judged.facts },
+        rescue: judged,
+        quarantineName,
         cut,
       };
     },

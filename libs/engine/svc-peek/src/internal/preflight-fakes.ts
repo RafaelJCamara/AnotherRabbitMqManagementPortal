@@ -7,6 +7,7 @@
 // and parses the answer with the schema the caller sent, as the real adapter does (a body of the wrong
 // shape is a BROKER_ERROR Problem, the adapter's `unexpected-body`). The paths are the ones the
 // management API serves; a path with no row answers 404, and `failures` makes a path answer a status.
+import { parseSemVer, type Era } from '@app/domain-model';
 import { AppError } from '@app/kernel';
 import type {
   Lane,
@@ -20,6 +21,7 @@ import type {
 } from '@app/ports';
 import { ZodError } from 'zod';
 
+import type { PreflightProfile } from './preflight.ts';
 import type {
   FoundQueue,
   QuarantineQueueSpec,
@@ -278,3 +280,92 @@ export function createFakeEvidence(
       ),
   };
 }
+
+// Fixtures of the rescue preflight specs (M1-13 slice C): a profile for an era, the queue that is
+// peeked, the quarantine queue as the management API lists it, a policy, healthy nodes, a permission.
+const VERSION_OF: Readonly<Record<Era, string>> = {
+  '3.13': '3.13.7',
+  '4.0-4.2': '4.2.9',
+  '4.3': '4.3.6',
+  '4.4': '4.4.0',
+};
+
+export interface ProfileOptions {
+  readonly era?: Era;
+  readonly classicEnabled?: boolean | 'unknown';
+  readonly version?: string | null;
+  readonly maxMessageBytes?: number;
+}
+export function profileOf(options: ProfileOptions = {}): PreflightProfile {
+  const era = options.era ?? '4.0-4.2';
+  const version =
+    options.version === undefined ? VERSION_OF[era] : options.version;
+  return {
+    era: { value: era, reasons: [], conservative: false },
+    versions: {
+      min: version === null ? null : parseSemVer(version),
+      perNode: {},
+      mixed: false,
+      build: 'oss',
+    },
+    identity: {
+      user: 'ada',
+      tags: [],
+      isAdmin: false,
+      canMonitor: true,
+      isPolicymaker: false,
+    },
+    classicEnabled: options.classicEnabled ?? true,
+    limits: {
+      preAuthFrameMax: 4096,
+      ...(options.maxMessageBytes === undefined
+        ? {}
+        : { maxMessageBytes: options.maxMessageBytes }),
+    },
+  };
+}
+
+export const peekedQuorumRow: ManagementRow = {
+  name: 'orders',
+  type: 'quorum',
+  durable: true,
+  auto_delete: false,
+  arguments: { 'x-queue-type': 'quorum', 'x-delivery-limit': 20 },
+  consumers: 1,
+  messages_ready: 40,
+  message_bytes_ready: 40_000,
+  policy: null,
+  operator_policy: null,
+  delivery_limit: 20,
+  delayed_retry: 'disabled',
+  leader: 'rabbit@a',
+  members: ['rabbit@a'],
+  online: ['rabbit@a'],
+};
+export const quarantineRow = (overrides: ManagementRow = {}): ManagementRow => ({
+  name: 'product.quarantine',
+  type: 'classic',
+  durable: true,
+  auto_delete: false,
+  exclusive: false,
+  arguments: { 'x-queue-type': 'classic', 'x-overflow': 'reject-publish' },
+  messages: 0,
+  message_bytes: 0,
+  ...overrides,
+});
+export const policyRow = (
+  definition: Record<string, unknown>,
+  overrides: ManagementRow = {},
+): ManagementRow => ({
+  name: 'amazon-mq',
+  pattern: '.*',
+  'apply-to': 'all',
+  priority: 0,
+  definition,
+  ...overrides,
+});
+export const healthyNodes = [
+  { name: 'rabbit@a', mem_alarm: false, disk_free_alarm: false },
+];
+export const openPermission = { configure: '.*', write: '.*', read: '.*' };
+

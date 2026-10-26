@@ -48,6 +48,14 @@ Spec: [specs/M1-13.md](../specs/M1-13.md) (26 acceptance criteria, questions OQ-
 - **Decide before slice A:** confirm or change the agent's extension of A-5 (an effective `message-ttl` or `expires` makes the quarantine unsafe), and the other defaults in the spec's Risks section.
 - **Slices:** A quarantine spec, `ensureQuarantine` and a new `PeekEvidencePort` (about 550 lines); B the peek preflight (about 750); C the rescue preflight (about 800); D the lab spec and the `svc-peek:it` target (about 250).
 
+### M0-64 Container image (#57): written without a Docker daemon, live checks unproved
+
+Spec: [specs/M0-64.md](../specs/M0-64.md) (questions OQ-1486 to OQ-1491). `packaging/docker` holds the Dockerfile (two stages, both base images pinned by digest, distroless non-root runtime), the compose file, the static and live checks, and `.github/workflows/image.yml` (native amd64 and arm64, Trivy, push by digest with SBOM and provenance, cosign keyless).
+
+- **Proved without a daemon:** the static checks (`pnpm nx run docker:test`), the workflow's shape and pins, and the build stage and layout (a clean copy of the build context was installed and built, the runtime tree was assembled with the Dockerfile's commands and started in container mode).
+- **Not proved, needs a daemon:** the image build itself, the live checks (non-root, read-only root, SIGTERM within 2 s, no shell, `--network none`, usage error on a misspelt setting), and the workflow-only criteria (multi-arch manifest, signature, SBOM, Trivy). Run `pnpm nx run docker:test` on a machine with Docker, then `gh workflow run image.yml` on the repository, before closing #57.
+- **For a maintainer:** set the repository variable `IMAGE_NAME` when the name is decided (OQ-1487); decide Trivy's `ignore-unfixed` (OQ-1488); M0-68 must start `image.yml` from a release tag (OQ-1489).
+
 ## Not started
 
 - **M1-15** guard and dispositions (needs M1-13 and M1-14), **M1-16** peek actions, receipts and captures, **M1-17** model-based executor tests, **M1-18** per-era peek conformance. They follow M1-13 to M1-14 in that order.

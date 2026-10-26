@@ -1,0 +1,27 @@
+{
+  "name": "docker",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packaging/docker",
+  "tags": ["type:tooling", "runtime:node"],
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node packaging/docker/docker-tool.mjs build",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node --test packaging/docker/dockerfile.test.mjs packaging/docker/image.live.test.mjs",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

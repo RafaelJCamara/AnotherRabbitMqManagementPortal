@@ -54,3 +54,6 @@ Thumbs.db
 .angular
 
 __screenshots__/
+
+# Secret files for packaging/docker/compose.yaml (the launch token and the key-encryption key)
+/packaging/docker/secrets/

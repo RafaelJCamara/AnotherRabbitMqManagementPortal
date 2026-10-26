@@ -1,0 +1,58 @@
+# The single-user container (M0-64, ADR-016, amendment A-12). From the repository root:
+#
+#   mkdir -p packaging/docker/secrets
+#   openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n' > packaging/docker/secrets/token
+#   openssl rand -hex 32 > packaging/docker/secrets/kek
+#   docker compose -f packaging/docker/compose.yaml up --build
+#
+# The launch URL (with the token in the fragment) is printed to the container log:
+# `docker compose -f packaging/docker/compose.yaml logs app`.
+#
+# The port is published on 127.0.0.1 only. Do not change it to "8765:8765", "0.0.0.0:8765:8765" or
+# network_mode: host: a published port bypasses host firewalls such as ufw, and the token would be
+# the only barrier (ADR-016). To use the app from another machine, tunnel: ssh -L 8765:127.0.0.1:8765.
+name: product
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: packaging/docker/Dockerfile
+    # APP_IMAGE names a published image; without it the image built above is used.
+    image: ${APP_IMAGE:-product-local}
+    ports:
+      - '127.0.0.1:${APP_HOST_PORT:-8765}:8765'
+    environment:
+      # Secrets are files, never values (I-10): `docker inspect` shows these two paths, not the secrets.
+      APP_TOKEN_FILE: /run/secrets/app_token
+      APP_KEK_PATH: /run/secrets/app_kek
+      # The banner and the Host check use the host port you chose. Loopback origins only (A-12).
+      APP_PUBLIC_ORIGIN: http://127.0.0.1:${APP_HOST_PORT:-8765}
+    secrets:
+      - app_token
+      - app_kek
+    volumes:
+      - app-data:/data
+    # The root filesystem is read-only; the engine writes to /data (the volume) and /tmp only.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # The engine drains within 2 s of SIGTERM; five seconds leaves room before SIGKILL.
+    stop_grace_period: 5s
+    restart: unless-stopped
+    # A broker on the Docker host is reached as host.docker.internal (Linux needs this line).
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+secrets:
+  app_token:
+    file: ./secrets/token
+  app_kek:
+    file: ./secrets/kek
+
+volumes:
+  app-data:

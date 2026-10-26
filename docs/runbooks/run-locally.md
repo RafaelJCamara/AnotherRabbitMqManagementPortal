@@ -52,7 +52,7 @@ A page on another origin, or any other `Host`, cannot call the engine even with 
 
 ## Container mode (ADR-016)
 
-The container image (work package M0-64, not built yet) sets `APP_RUNTIME=container`. Until it exists you can try the runtime on your own machine with the bundle:
+The container image (work package M0-64, `packaging/docker`) sets `APP_RUNTIME=container`. Build it with `pnpm nx run docker:build` (needs a Docker daemon; it tags `product-local`) or run `docker compose -f packaging/docker/compose.yaml up --build` (read the header of that file for the two secret files it needs). Without a daemon you can try the same runtime on your own machine with the bundle:
 
 ```sh
 APP_RUNTIME=container APP_DATA_DIR=tmp/container-data node dist/apps/engine/main.mjs --mode=local --port=8765

@@ -11,8 +11,8 @@
 #            (the only job with id-token: write); verifies the signature and that both platforms are in.
 #
 # Nothing is published until a maintainer sets the repository variable IMAGE_NAME (the image name
-# under ghcr.io/<owner>/): the product name is pending (ADR-029, amendment A-22), and a package
-# pushed from a private repository is private. This workflow never picks a name.
+# under ghcr.io/<owner>/): the product name is pending (ADR-029, amendment A-22). This workflow
+# never picks a name, and a package it pushes starts private until a maintainer changes that.
 name: image
 
 on:

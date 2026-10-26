@@ -284,6 +284,24 @@ export interface HoldJournalTable {
   ended_at: number | null;
 }
 
+/** publish_history (M1-19): one publish call; properties, headers and body are one sealed document (0011). */
+export interface PublishHistoryTable {
+  id: string;
+  owner_id: string;
+  connection_id: string;
+  vhost: string;
+  published_at: number;
+  expires_at: number;
+  exchange: string;
+  routing_key: string;
+  copies: number;
+  /** JSON text: the per-outcome counts. */
+  summary: string;
+  body_bytes: number;
+  body_sha256: string;
+  data_sealed: Uint8Array;
+}
+
 /** The typed schema every repository and the runner query through. */
 export interface Database {
   schema_migrations: SchemaMigrationsTable;
@@ -305,6 +323,7 @@ export interface Database {
   capture_blobs: CaptureBlobsTable;
   capture_blob_chunks: CaptureBlobChunksTable;
   hold_journal: HoldJournalTable;
+  publish_history: PublishHistoryTable;
 }
 
 /** Runs one raw SQL statement, for what Kysely cannot express (triggers) in tests and repair tools. */

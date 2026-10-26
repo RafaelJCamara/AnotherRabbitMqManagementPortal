@@ -16,6 +16,7 @@ export type {
   JobsTable,
   PersistenceHandle,
   PlansTable,
+  PublishHistoryTable,
   ReceiptsTable,
   SchemaMigrationsTable,
   SettingsTable,

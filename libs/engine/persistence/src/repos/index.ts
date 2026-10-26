@@ -7,6 +7,7 @@ import { createConnectionProfileRepository } from './connection-profiles';
 import { createConnectionStore } from './connections';
 import { createDataKeyRepository } from './data-keys';
 import { createJobStore } from './jobs';
+import { createPublishHistory } from './publish-history';
 import { createIdempotencyRepository, createPlanRepository } from './plans';
 import type { Repositories } from './ports';
 import { createSettingsRepository } from './settings';
@@ -37,5 +38,6 @@ export function createRepositories(
     workspace: createWorkspaceRepository(handle.db, now),
     brokerProfiles: createBrokerProfileStore(handle.db),
     captures: createCaptureRepository(handle.db, handle.dialect, now),
+    publishHistory: createPublishHistory(handle.db),
   };
 }

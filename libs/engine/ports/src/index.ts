@@ -164,6 +164,18 @@ export type {
   Window,
   WindowQuery,
 } from './repos.ts';
+export {
+  PUBLISH_HISTORY_MAX_PURGE,
+  PUBLISH_HISTORY_MAX_SEALED_BYTES,
+  PUBLISH_HISTORY_MAX_WINDOW,
+} from './publish-history.ts';
+export type {
+  NewPublishHistory,
+  PublishHistoryHead,
+  PublishHistoryQuery,
+  PublishHistoryRepository,
+  PublishHistoryRow,
+} from './publish-history.ts';
 export type {
   HoldJournalRepository,
   HoldOpen,

@@ -9,6 +9,7 @@ import { migration0007Credentials } from './0007_credentials';
 import { migration0008BrokerProfiles } from './0008_broker_profiles';
 import { migration0009Captures } from './0009_captures';
 import { migration0010HoldJournal } from './0010_hold_journal';
+import { migration0011PublishHistory } from './0011_publish_history';
 
 export const migrations: readonly Migration[] = [
   migration0001Core,
@@ -21,4 +22,5 @@ export const migrations: readonly Migration[] = [
   migration0008BrokerProfiles,
   migration0009Captures,
   migration0010HoldJournal,
+  migration0011PublishHistory,
 ];

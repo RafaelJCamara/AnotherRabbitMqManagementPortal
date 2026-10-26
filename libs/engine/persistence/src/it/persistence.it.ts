@@ -20,6 +20,7 @@ import {
   type PostgresContainer,
 } from '../testing/postgres-container';
 import { captureContract } from '../testing/capture-contract';
+import { publishHistoryContract } from '../testing/publish-history-contract';
 import { repositoryContract } from '../testing/repository-contract';
 import { tempDirectory } from '../testing/sqlite-fixtures';
 import { sql } from 'kysely';
@@ -139,6 +140,15 @@ describe.each(targets)('$name', (target) => {
   });
 
   captureContract({
+    name: target.name,
+    open: async () => {
+      const handle = await fresh();
+      await createMigrationRunner({ handle }).migrate();
+      return handle;
+    },
+  });
+
+  publishHistoryContract({
     name: target.name,
     open: async () => {
       const handle = await fresh();

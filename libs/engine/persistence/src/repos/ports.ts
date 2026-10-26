@@ -4,6 +4,7 @@
 import type {
   AuditRepository,
   CaptureRepository,
+  PublishHistoryRepository,
   ConnectionStore,
   DataKeyRepository,
   IdempotencyRepository,
@@ -108,4 +109,6 @@ export interface Repositories {
   readonly brokerProfiles: BrokerProfileStore;
   /** Saved captures: sealed messages, blobs and the full-text index (M1-09). The port is @app/ports'. */
   readonly captures: CaptureRepository;
+  /** What a person published, per owner and connection, with the sealed masked document (M1-19). The port is @app/ports'. */
+  readonly publishHistory: PublishHistoryRepository;
 }

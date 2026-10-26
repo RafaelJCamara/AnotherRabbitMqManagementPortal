@@ -25,3 +25,13 @@ export {
   TOKEN_REQUEST_TIMEOUT_MS,
   createClientCredentialsProvider,
 } from './providers/client-credentials';
+export {
+  backoffDelayMs,
+  expiryRuleFor,
+  plannedRefreshAt,
+  refreshPoint,
+  renewalActionFor,
+  type ExpiryRule,
+  type RenewalAction,
+} from './internal/renewal-plan';
+export { isRetryableAfter401 } from './retry-policy';

@@ -1,7 +1,9 @@
 export { createMessagesModule } from './module';
 export type {
+  MessagesActionDeps,
   MessagesModuleDeps,
   PublishRecord,
+  PublishHistoryReader,
   PublishRecorder,
 } from './deps';
 export type { EngineModule } from './module';
@@ -12,6 +14,7 @@ export {
   createMemoryPublishHistory,
   createMemoryPublishRecorder,
   createMessagesFakeDeps,
+  createMessagesFakeModuleDeps,
   sampleMessage,
   type FakeSealer,
   type MemoryCaptureRepository,
@@ -66,3 +69,5 @@ export {
   type BodyOmitted,
   type MaskedMessage,
 } from './internal/mask';
+export { createMessagesPublishHistoryListAction } from './actions/messages-publish-history-list';
+export { createMessagesPublishHistoryGetAction } from './actions/messages-publish-history-get';

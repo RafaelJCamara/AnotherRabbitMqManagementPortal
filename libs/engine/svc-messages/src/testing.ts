@@ -32,13 +32,15 @@ import {
   type StoredMessage,
 } from '@app/ports';
 
-import { createLogger } from '@app/kernel';
+import { createLogger, createManualClock } from '@app/kernel';
 
 import type {
+  MessagesActionDeps,
   MessagesModuleDeps,
   PublishRecord,
   PublishRecorder,
 } from './deps';
+import { createPublishHistory } from './internal/publish-history';
 import type { CapturedMessageInput } from './internal/types';
 
 export interface MemoryPublishRecorder extends PublishRecorder {
@@ -234,12 +236,40 @@ export function createMemoryPublishHistory(): MemoryPublishHistory {
   };
 }
 
-export function createMessagesFakeDeps(
+/**
+ * The ports of the module itself, over a history in memory and a fake sealer. `newId` numbers
+ * entries `entry-1`, ...; `clock` is a manual clock at 1,000,000,000,000 ms.
+ */
+export function createMessagesFakeModuleDeps(
   overrides: Partial<MessagesModuleDeps> = {},
 ): MessagesModuleDeps {
+  let n = 0;
+  return {
+    history: createMemoryPublishHistory(),
+    sealer: createFakeSealer(),
+    newId: () => {
+      n += 1;
+      return `entry-${String(n)}`;
+    },
+    clock: createManualClock(1_000_000_000_000),
+    logger: createLogger({ level: 'silent' }),
+    ...overrides,
+  };
+}
+
+/**
+ * The ports of the actions: a memory recorder (its `entries` are what a publish handed over) and a
+ * real history store over the memory repository and the fake sealer, for the reads. Override
+ * `recorder: store` to make a publish land in that store.
+ */
+export function createMessagesFakeDeps(
+  overrides: Partial<MessagesActionDeps> = {},
+): MessagesActionDeps {
+  const module = createMessagesFakeModuleDeps();
   return {
     recorder: createMemoryPublishRecorder(),
-    logger: createLogger({ level: 'silent' }),
+    store: createPublishHistory(module),
+    logger: module.logger,
     ...overrides,
   };
 }

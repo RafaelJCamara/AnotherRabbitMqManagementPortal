@@ -15,7 +15,7 @@ import {
 } from '@app/contracts';
 import { AppError, implementAction, type ActionImpl } from '@app/kernel';
 
-import type { MessagesModuleDeps } from '../deps';
+import type { MessagesActionDeps } from '../deps';
 import {
   decodeBody,
   failureCode,
@@ -28,7 +28,7 @@ import {
 
 /** The ports this action reads through. */
 export type MessagesPublishDeps = Pick<
-  MessagesModuleDeps,
+  MessagesActionDeps,
   'recorder' | 'logger'
 >;
 

@@ -38,6 +38,8 @@ import { routingSimulate } from './routing-simulate.ts';
 import { routingDeadLetter } from './routing-dead-letter.ts';
 import { routingDlxSources } from './routing-dlx-sources.ts';
 import { messagesPublish } from './messages-publish.ts';
+import { messagesPublishHistoryList } from './messages-publish-history-list.ts';
+import { messagesPublishHistoryGet } from './messages-publish-history-get.ts';
 
 export const registry: Registry = {
   actions: [
@@ -77,6 +79,8 @@ export const registry: Registry = {
     routingDeadLetter,
     routingDlxSources,
     messagesPublish,
+    messagesPublishHistoryList,
+    messagesPublishHistoryGet,
   ],
   topics: [explorerWindowTopic, metricsLiveTopic],
 };

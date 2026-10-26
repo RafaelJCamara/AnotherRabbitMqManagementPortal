@@ -1,5 +1,8 @@
 import type { CopyOutcome, PublishHeaders, PublishProps } from '@app/contracts';
-import type { Logger } from '@app/kernel';
+import type { Clock, Logger } from '@app/kernel';
+import type { FieldSealer, PublishHistoryRepository } from '@app/ports';
+
+import type { PublishHistory } from './internal/publish-history';
 
 /**
  * What `messages.publish` hands to the history once the copies have an outcome (H1). It carries the
@@ -34,12 +37,31 @@ export interface PublishRecorder {
   record(entry: PublishRecord): Promise<string>;
 }
 
+/** The two reads of the publish history store, all the history actions need. */
+export type PublishHistoryReader = Pick<PublishHistory, 'window' | 'get'>;
+
 /**
- * The ports this module needs, injected by the composition root. The broker is reached only through
- * `ctx.writes.connections` of the executor, so the module needs no lease port of its own.
+ * What the actions of this module read through. The composition root does not build it: it hands
+ * `MessagesModuleDeps` to `createMessagesModule`, which builds the history store and passes it here
+ * as both the recorder of `messages.publish` and the reader of the two history actions. The broker is
+ * reached only through `ctx.writes.connections` of the executor, so the module needs no lease port.
  */
-export interface MessagesModuleDeps {
+export interface MessagesActionDeps {
   readonly recorder: PublishRecorder;
-  /** Redacts (I-10). The action logs fixed texts and codes, never a value. */
+  readonly store: PublishHistoryReader;
+  /** Redacts (I-10). The actions log fixed texts and codes, never a value. */
+  readonly logger: Logger;
+}
+
+/** The ports this module needs, injected by the composition root. */
+export interface MessagesModuleDeps {
+  /** The history table (slice B): `@app/persistence`'s `repos.publishHistory`. */
+  readonly history: PublishHistoryRepository;
+  /** The vault's field cipher. It rejects while the vault is locked, so nothing is stored then (I-10). */
+  readonly sealer: FieldSealer;
+  /** A new, opaque, path-safe id: a ULID. */
+  readonly newId: () => string;
+  readonly clock: Clock;
+  /** Redacts (I-10). */
   readonly logger: Logger;
 }

@@ -47,6 +47,8 @@ import { createRoutingDeadLetterAction } from '@app/svc-topology';
 import { createRoutingDlxSourcesAction } from '@app/svc-topology';
 import { createMessagesPublishAction } from '@app/svc-messages';
 import { createMessagesFakeDeps } from '@app/svc-messages';
+import { createMessagesPublishHistoryListAction } from '@app/svc-messages';
+import { createMessagesPublishHistoryGetAction } from '@app/svc-messages';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -237,6 +239,16 @@ const manifest: RegisteredAction[] = [
       props: {},
       body: { encoding: 'utf8', data: 'hello' },
     },
+  },
+  {
+    path: 'libs/engine/svc-messages/src/actions/messages-publish-history-list.ts',
+    impl: createMessagesPublishHistoryListAction(createMessagesFakeDeps()),
+    input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-messages/src/actions/messages-publish-history-get.ts',
+    impl: createMessagesPublishHistoryGetAction(createMessagesFakeDeps()),
+    input: { cid: 'c1', entryId: 'sample' },
   },
 ];
 

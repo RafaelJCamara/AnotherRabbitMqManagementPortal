@@ -3,6 +3,7 @@
 // cross-service needs are ports wired in the composition root.
 import { createActions } from './actions';
 import type { MessagesModuleDeps } from './deps';
+import { createPublishHistory } from './internal/publish-history';
 import { jobs } from './jobs';
 import { topics } from './topics';
 
@@ -18,5 +19,19 @@ export interface EngineModule {
 }
 
 export function createMessagesModule(deps: MessagesModuleDeps): EngineModule {
-  return { id: 'svc-messages', actions: createActions(deps), topics, jobs };
+  const store = createPublishHistory(deps);
+  // Expired entries leave on every write and when the module starts (H5): there is no timer. A purge
+  // that fails is retried by the next write; the engine does not wait for this one.
+  void store.purge().catch(() => {
+    deps.logger.warn(
+      { event: 'messages.publish-history.purge-failed' },
+      'expired publish history entries could not be purged',
+    );
+  });
+  return {
+    id: 'svc-messages',
+    actions: createActions({ recorder: store, store, logger: deps.logger }),
+    topics,
+    jobs,
+  };
 }

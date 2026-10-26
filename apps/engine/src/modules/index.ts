@@ -11,6 +11,7 @@ import {
   type Authorizer,
   type Clock,
   type DrainPhaseSpec,
+  type Logger,
   type Timers,
 } from '@app/kernel';
 import type { RegisteredTopic } from '@app/live';
@@ -22,11 +23,13 @@ import type {
   FieldSealer,
   MgmtReadPort,
   PromReadPort,
+  PublishHistoryRepository,
   WorkspaceRepository,
 } from '@app/ports';
 import { createCapabilitiesModule } from '@app/svc-capabilities';
 import { createConnectionsModule } from '@app/svc-connections';
 import { createExplorerModule } from '@app/svc-explorer';
+import { createMessagesModule } from '@app/svc-messages';
 import { createMetricsModule } from '@app/svc-metrics';
 import { createOpsModule, type OpsModuleDeps } from '@app/svc-ops';
 import { createTopologyModule } from '@app/svc-topology';
@@ -59,10 +62,14 @@ export interface ServicePorts {
   readonly prober: ConnectionProber;
   /** The authorizer the executor uses, so `profile.get` can tell a caller what it may call. */
   readonly authorizer: Authorizer;
+  /** The publish history table (M1-19): masked, sealed with `sealer` and kept 30 days. */
+  readonly publishHistory: PublishHistoryRepository;
   /** A new, opaque, path-safe id: a ULID. */
   readonly newId: () => string;
   readonly clock: Clock;
   readonly timers: Timers;
+  /** The engine's logger; it redacts (I-10). */
+  readonly logger: Logger;
 }
 
 /** What the composition root hands to the module factory. */
@@ -135,6 +142,13 @@ export const coreModules: ModuleFactory = ({
     connections: services.connections,
     clock: services.clock,
   });
+  const messages = createMessagesModule({
+    history: services.publishHistory,
+    sealer: services.sealer,
+    newId: services.newId,
+    clock: services.clock,
+    logger: services.logger,
+  });
   return [
     { id: 'meta', actions: [createMetaAction({ engineVersion, mode })] },
     { id: 'ops', actions: createArmActions(arming) },
@@ -174,5 +188,9 @@ export const coreModules: ModuleFactory = ({
     },
     // Reads only, and what it holds is a few seconds of snapshots: nothing to drain (spec M1-20 R3).
     { id: topology.id, actions: topology.actions },
+    // The publish and its history (M1-19). Nothing to drain: the history is written when a publish
+    // ends and expired entries leave on a write and at start. Writes are not wired yet (OQ-357,
+    // OQ-771), so `messages.publish` answers CAPABILITY_MISSING until a manager is; the two reads work.
+    { id: messages.id, actions: implsOf(messages.actions) },
   ];
 };

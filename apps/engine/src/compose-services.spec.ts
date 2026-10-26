@@ -3,18 +3,25 @@
 // quote the acceptance criterion of docs/specs/M0-ENGINE-WIRING.md that they prove.
 import { registry } from '@app/contracts';
 import {
+  createLogger,
   createManualClock,
   createManualTimers,
   denyAllAuthorizer,
+  systemClock,
 } from '@app/kernel';
 import { createFakeWire } from '@app/svc-capabilities';
 import { createFakeProber } from '@app/svc-connections';
+import {
+  createMemoryPublishHistory,
+  createPublishHistory,
+} from '@app/svc-messages';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { coreModules, type ServicePorts } from './modules/index.ts';
 import {
   boot,
   closeAll,
+  OWNER,
   scriptedBroker,
   storedConfig,
 } from './testing/services.ts';
@@ -48,6 +55,7 @@ function fakeServices(): ServicePorts {
       listDocuments: unused,
     },
     sealer: { seal: unused, open: unused },
+    publishHistory: createMemoryPublishHistory(),
     mgmt: broker.read,
     prom: { read: unused },
     wire: createFakeWire(),
@@ -56,16 +64,12 @@ function fakeServices(): ServicePorts {
     newId: () => 'id',
     clock,
     timers: createManualTimers(clock),
+    logger: createLogger({ level: 'silent' }),
   };
 }
 
 /** Registry actions this build does not serve, each with the reason. Every entry must still be unserved. */
-const INTENTIONALLY_UNSERVED: Readonly<Record<string, string>> = {
-  // M1-19 slice A adds the action and proves it over a scripted lease; slice D registers
-  // svc-messages in coreModules (OQ-1445) and removes this entry.
-  'messages.publish':
-    'The action is implemented and proved over a scripted lease; the svc-messages module is registered in M1-19 slice D.',
-};
+const INTENTIONALLY_UNSERVED: Readonly<Record<string, string>> = {};
 
 describe('the modules the engine registers', () => {
   const diagnostics = {
@@ -253,6 +257,124 @@ describe('probe, profile, inventory and overview through the real router', () =>
     expect(views.status).toBe(200);
     expect(renamed.status).toBe(422);
     expect(renamed.body).toMatchObject({ code: 'GATE_BLOCKED' });
+  });
+});
+
+describe('the publish actions on the composed engine', () => {
+  const PUBLISH_IDS = [
+    'messages.publish',
+    'messages.publish-history.get',
+    'messages.publish-history.list',
+  ];
+  const message = {
+    vhost: '/',
+    exchange: '',
+    routingKey: 'orders',
+    props: {},
+    body: { encoding: 'utf8', data: 'hello' },
+  };
+
+  it('M1-19 AC-19 the composed engine serves the publish actions; publish is unwired until a manager is', async () => {
+    const booted = await boot();
+    await booted.seed('c1');
+
+    const locked = await booted.call(
+      'POST',
+      '/connections/c1/messages/publish',
+      message,
+    );
+    await booted.call('POST', '/connections/c1/arm', {});
+    const publish = await booted.call(
+      'POST',
+      '/connections/c1/messages/publish',
+      message,
+    );
+    const history = await booted.call(
+      'GET',
+      '/connections/c1/messages/publish-history',
+    );
+    const entry = await booted.call(
+      'GET',
+      '/connections/c1/messages/publish-history/nothing',
+    );
+
+    expect(
+      PUBLISH_IDS.filter((id) => !booted.engine.served.actions.includes(id)),
+    ).toEqual([]);
+    // The prod lock comes first. Once the connection is armed, no broker connection manager is wired
+    // yet (OQ-357, OQ-771): the publish is refused, says so, and records nothing. The reads work.
+    expect(locked.body).toMatchObject({ code: 'GATE_BLOCKED' });
+    expect(publish.status).toBe(412);
+    expect(publish.body).toMatchObject({ code: 'CAPABILITY_MISSING' });
+    expect(history.status).toBe(200);
+    expect(history.body).toEqual({ entries: [] });
+    expect(entry.status).toBe(404);
+    expect(entry.body).toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('M1-19 slice D: the composed engine reads a stored publish back through its real repository, vault and router', async () => {
+    const booted = await boot();
+    await booted.seed('c1');
+    // The store of the module, built over the engine own table and field cipher: what a publish
+    // that reached a broker would have written.
+    const store = createPublishHistory({
+      history: booted.repos().publishHistory,
+      sealer: booted.input().sealer,
+      newId: () => 'entry-composed-1',
+      clock: systemClock,
+      logger: createLogger({ level: 'silent' }),
+    });
+    await store.record({
+      ownerId: OWNER,
+      connectionId: 'c1',
+      vhost: '/',
+      at: Date.now(),
+      exchange: '',
+      routingKey: 'orders',
+      copies: 1,
+      summary: {
+        confirmed: 1,
+        nacked: 0,
+        returned: 0,
+        blocked: 0,
+        timeout: 0,
+        failed: 0,
+        'not-sent': 0,
+      },
+      props: {},
+      headers: {
+        authorization: { t: 'string', v: 'Bearer COMPOSED-SECRET-1' },
+      },
+      body: new TextEncoder().encode('hello'),
+    });
+
+    const list = await booted.call(
+      'GET',
+      '/connections/c1/messages/publish-history',
+    );
+    const entry = await booted.call(
+      'GET',
+      '/connections/c1/messages/publish-history/entry-composed-1',
+    );
+    const other = await booted.call(
+      'GET',
+      '/connections/c2/messages/publish-history/entry-composed-1',
+    );
+
+    expect(list.status).toBe(200);
+    expect(
+      (list.body.entries as { id: string }[]).map((item) => item.id),
+    ).toEqual(['entry-composed-1']);
+    expect(entry.status).toBe(200);
+    expect(entry.body).toMatchObject({
+      resend: {
+        routingKey: 'orders',
+        body: { encoding: 'utf8', data: 'hello' },
+        masked: ['header:authorization'],
+      },
+    });
+    expect(JSON.stringify(entry.body)).not.toContain('COMPOSED-SECRET-1');
+    expect(other.status).toBe(404);
   });
 });
 

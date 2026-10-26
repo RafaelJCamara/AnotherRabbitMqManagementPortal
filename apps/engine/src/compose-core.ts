@@ -362,6 +362,7 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
         profiles: repos.brokerProfiles,
         workspace: repos.workspace,
         sealer: vault.fields,
+        publishHistory: repos.publishHistory,
         mgmt: mapMgmtErrors(scheduleMgmtRead(broker.mgmt, scheduler)),
         // Scrapes wait for the scheduler's background slot; the reader holds it until the body is parsed.
         prom: mapPromErrors(
@@ -373,6 +374,7 @@ export async function composeEngine(options: ComposeOptions): Promise<Engine> {
         newId: () => ids.ulid(),
         clock,
         timers,
+        logger,
       },
       ...(options.logs === undefined || profile.diagnostics === undefined
         ? {}

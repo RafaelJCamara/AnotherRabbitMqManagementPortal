@@ -17,13 +17,12 @@ export const PUBLISH_LIMITS = {
   reasonMax: 120,
 } as const;
 
-const text = z.string().max(PUBLISH_LIMITS.textMax);
-
 /**
- * The properties a publisher may set. Nothing else is accepted: the flags that change routing or
- * delivery (`mandatory`, `CC`, `BCC`, `immediate`) are not properties of a message here.
+ * The properties of a message, with the longest text a property may hold. A publisher's input is held
+ * to `textMax`; what the history echoes back is held to a wider bound, because replacing a secret
+ * can make a value longer than it was (see `PUBLISH_HISTORY_LIMITS.valueMax`).
  */
-export const PublishPropsSchema = z.strictObject({
+const propsShape = (text: z.ZodString) => ({
   contentType: text.optional(),
   contentEncoding: text.optional(),
   deliveryMode: z.union([z.literal(1), z.literal(2)]).optional(),
@@ -42,6 +41,14 @@ export const PublishPropsSchema = z.strictObject({
   userId: text.optional(),
   appId: text.optional(),
 });
+
+/**
+ * The properties a publisher may set. Nothing else is accepted: the flags that change routing or
+ * delivery (`mandatory`, `CC`, `BCC`, `immediate`) are not properties of a message here.
+ */
+export const PublishPropsSchema = z.strictObject(
+  propsShape(z.string().max(PUBLISH_LIMITS.textMax)),
+);
 export type PublishProps = z.infer<typeof PublishPropsSchema>;
 
 // --- The typed header table -----------------------------------------------------------------------
@@ -50,32 +57,42 @@ export type PublishProps = z.infer<typeof PublishPropsSchema>;
 const INTEGER_TYPES = ['byte', 'short', 'int', 'long'] as const;
 const FLOAT_TYPES = ['float', 'double'] as const;
 
-const scalarVariants = [
-  z.strictObject({ t: z.literal('string'), v: z.string().max(65_535) }),
-  z.strictObject({
-    t: z.enum(INTEGER_TYPES),
-    v: z
-      .number()
-      .int()
-      .min(Number.MIN_SAFE_INTEGER)
-      .max(Number.MAX_SAFE_INTEGER),
-  }),
-  z.strictObject({ t: z.enum(FLOAT_TYPES), v: z.number() }),
-  z.strictObject({ t: z.literal('bool'), v: z.boolean() }),
-  z.strictObject({
-    t: z.literal('timestamp'),
-    v: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-  }),
-  z.strictObject({
-    t: z.literal('decimal'),
-    v: z.strictObject({
-      places: z.number().int().min(0).max(255),
-      digits: z.number().int().min(0).max(4_294_967_295),
+/** The longest string and the longest base64 text a header value may hold. */
+interface HeaderLimits {
+  readonly string: number;
+  readonly bytes: number;
+}
+
+const scalarVariants = (limits: HeaderLimits) =>
+  [
+    z.strictObject({
+      t: z.literal('string'),
+      v: z.string().max(limits.string),
     }),
-  }),
-  z.strictObject({ t: z.literal('bytes'), v: z.string().max(87_380) }),
-  z.strictObject({ t: z.literal('void'), v: z.null() }),
-] as const;
+    z.strictObject({
+      t: z.enum(INTEGER_TYPES),
+      v: z
+        .number()
+        .int()
+        .min(Number.MIN_SAFE_INTEGER)
+        .max(Number.MAX_SAFE_INTEGER),
+    }),
+    z.strictObject({ t: z.enum(FLOAT_TYPES), v: z.number() }),
+    z.strictObject({ t: z.literal('bool'), v: z.boolean() }),
+    z.strictObject({
+      t: z.literal('timestamp'),
+      v: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    }),
+    z.strictObject({
+      t: z.literal('decimal'),
+      v: z.strictObject({
+        places: z.number().int().min(0).max(255),
+        digits: z.number().int().min(0).max(4_294_967_295),
+      }),
+    }),
+    z.strictObject({ t: z.literal('bytes'), v: z.string().max(limits.bytes) }),
+    z.strictObject({ t: z.literal('void'), v: z.null() }),
+  ] as const;
 
 const headerName = z.string().min(1).max(PUBLISH_LIMITS.textMax);
 
@@ -84,9 +101,12 @@ const headerName = z.string().min(1).max(PUBLISH_LIMITS.textMax);
  * variant with a list of entries (a table's entries have a `name`, a list's do not), so `inner`
  * appears once per level and the emitted documents grow with the depth, not with its power of two.
  */
-const nested = <T extends z.ZodType>(inner: T) =>
+const nested = <T extends z.ZodType>(
+  scalars: ReturnType<typeof scalarVariants>,
+  inner: T,
+) =>
   z.discriminatedUnion('t', [
-    ...scalarVariants,
+    ...scalars,
     z
       .strictObject({
         t: z.enum(['array', 'table']),
@@ -106,22 +126,32 @@ const nested = <T extends z.ZodType>(inner: T) =>
       ),
   ]);
 
-const level0 = z.discriminatedUnion('t', scalarVariants);
-const level1 = nested(level0);
-const level2 = nested(level1);
-const level3 = nested(level2);
-const level4 = nested(level3);
-const level5 = nested(level4);
-const level6 = nested(level5);
-const level7 = nested(level6);
 /** A header value: scalars, or lists and tables nested at most `headerDepthMax` (8) levels. */
-export const PublishHeaderValueSchema = nested(level7);
+const headerValue = (limits: HeaderLimits) => {
+  const scalars = scalarVariants(limits);
+  const level0 = z.discriminatedUnion('t', scalars);
+  const level1 = nested(scalars, level0);
+  const level2 = nested(scalars, level1);
+  const level3 = nested(scalars, level2);
+  const level4 = nested(scalars, level3);
+  const level5 = nested(scalars, level4);
+  const level6 = nested(scalars, level5);
+  const level7 = nested(scalars, level6);
+  return nested(scalars, level7);
+};
 
-export const PublishHeadersSchema = z
-  .record(headerName, PublishHeaderValueSchema)
-  .refine((table) => Object.keys(table).length <= PUBLISH_LIMITS.headersMax, {
-    message: 'At most 64 headers.',
-  });
+const headerTable = <V extends z.ZodType>(value: V) =>
+  z
+    .record(headerName, value)
+    .refine((table) => Object.keys(table).length <= PUBLISH_LIMITS.headersMax, {
+      message: 'At most 64 headers.',
+    });
+
+export const PublishHeaderValueSchema = headerValue({
+  string: 65_535,
+  bytes: 87_380,
+});
+export const PublishHeadersSchema = headerTable(PublishHeaderValueSchema);
 export type PublishHeaders = z.infer<typeof PublishHeadersSchema>;
 
 // --- The body -------------------------------------------------------------------------------------
@@ -191,3 +221,73 @@ export const PublishSummarySchema = z.strictObject({
   'not-sent': count,
 });
 export type PublishSummary = z.infer<typeof PublishSummarySchema>;
+
+// --- The publish history (PUB-02) ------------------------------------------------------------------
+
+/** The bounds of the history reads (H4, H5). */
+export const PUBLISH_HISTORY_LIMITS = {
+  windowMax: 200,
+  idMax: 64,
+  cursorMax: 128,
+  /**
+   * The longest value the history gives back. It is held far above the publish limits on purpose:
+   * the mask replaces a secret with a longer marker, so a value can come back longer than it went in,
+   * and an answer that broke its contract would hide the entry. The stored document is itself held to
+   * 1 MiB, which bounds every value in it.
+   */
+  valueMax: 1_048_576,
+} as const;
+
+const ECHO_LIMITS = {
+  string: PUBLISH_HISTORY_LIMITS.valueMax,
+  bytes: PUBLISH_HISTORY_LIMITS.valueMax,
+} as const;
+
+/** One entry of a window: the plain facts, never a property, a header or the body. */
+export const HistorySummarySchema = z.strictObject({
+  id: z.string().min(1).max(PUBLISH_HISTORY_LIMITS.idMax),
+  /** When the publish ended (epoch ms). */
+  at: z.number().int().nonnegative(),
+  /** When the entry stops being returned (epoch ms); 30 days after `at`. */
+  expiresAt: z.number().int().nonnegative(),
+  vhost: z.string().max(PUBLISH_LIMITS.textMax),
+  exchange: z.string().max(PUBLISH_LIMITS.textMax),
+  routingKey: z.string().max(PUBLISH_LIMITS.textMax),
+  copies: z.number().int().min(1).max(PUBLISH_LIMITS.copiesMax),
+  summary: PublishSummarySchema,
+  /** The size of the body as published, whether or not the history kept it. */
+  bodyBytes: z.number().int().nonnegative().max(PUBLISH_LIMITS.bodyBytesMax),
+  /** sha256 of the body as published (hex). */
+  bodySha256: z.string().regex(/^[0-9a-f]{64}$/),
+});
+export type HistorySummary = z.infer<typeof HistorySummarySchema>;
+
+/**
+ * What the publish studio is prefilled with to send a publish again: the fields of a publish that
+ * describe the message, with every value the mask recognised as a secret replaced. The person types
+ * those again; the history never held them. A secret with no recognisable shape can still be here
+ * (OQ-1442), so a re-send is a starting point, not a copy.
+ */
+export const ResendDataSchema = z.strictObject({
+  exchange: z.string().max(PUBLISH_LIMITS.textMax),
+  routingKey: z.string().max(PUBLISH_LIMITS.textMax),
+  props: z.strictObject(
+    propsShape(z.string().max(PUBLISH_HISTORY_LIMITS.valueMax)),
+  ),
+  headers: headerTable(headerValue(ECHO_LIMITS)).optional(),
+  /** Absent when `bodyOmitted` says why. Text only: a binary body is not kept. */
+  body: z
+    .strictObject({
+      encoding: z.literal('utf8'),
+      data: z.string().max(PUBLISH_HISTORY_LIMITS.valueMax),
+    })
+    .optional(),
+  copies: z.number().int().min(1).max(PUBLISH_LIMITS.copiesMax),
+  /** Where a value was replaced: `prop:<name>`, `header:<name>`, `body`. */
+  masked: z
+    .array(z.string().max(PUBLISH_LIMITS.textMax + 16))
+    .max(PUBLISH_LIMITS.headersMax + 64),
+  /** Why there is no body: it was binary, or over 64 KiB. Its size and sha256 stay in the summary. */
+  bodyOmitted: z.enum(['too-large', 'binary']).optional(),
+});
+export type ResendData = z.infer<typeof ResendDataSchema>;

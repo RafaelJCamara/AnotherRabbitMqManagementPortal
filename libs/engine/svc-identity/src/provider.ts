@@ -2,7 +2,7 @@
 // for one connection and protocol; it never keeps one. The credential holds its secret in a
 // `SecretValue`, and a provider that cannot give one rejects with an `AppError` whose text is fixed
 // and holds no secret, no user name, no command line and no response body (I-10).
-import type { CredentialProtocol } from '@app/ports';
+import { isLoopbackHost, type CredentialProtocol } from '@app/ports';
 import { z } from 'zod';
 
 import { DEFAULT_USERNAME_CLAIMS } from './internal/claims';
@@ -65,8 +65,6 @@ function hasNoControlCharacters(text: string): boolean {
   return true;
 }
 
-const LOOPBACK_V4 = /^127(?:\.\d{1,3}){3}$/;
-
 /**
  * A token endpoint the engine may call (OQ-1462): `https`, or `http` only for a loopback issuer (the
  * lab). A login in the URL would be a secret in a URL (I-10), and a fragment is never sent.
@@ -82,12 +80,9 @@ function isAcceptableEndpoint(text: string): boolean {
     return false;
   }
   if (url.protocol === 'https:') return url.hostname !== '';
-  return (
-    url.protocol === 'http:' &&
-    (url.hostname === 'localhost' ||
-      url.hostname === '[::1]' ||
-      LOOPBACK_V4.test(url.hostname))
-  );
+  // The name is only a first filter: the token endpoint client also requires the connected peer
+  // to be on the loopback interface (`isLoopbackAddress`, same module as this check).
+  return url.protocol === 'http:' && isLoopbackHost(url.hostname);
 }
 
 /**

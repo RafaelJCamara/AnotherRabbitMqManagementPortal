@@ -238,6 +238,8 @@ describe('client credentials config', () => {
       'http://127.0.0.1:8080/token',
       'http://127.1.2.3/token',
       'http://[::1]:8080/token',
+      'http://[0:0:0:0:0:0:0:1]/token',
+      'http://127.1/token',
     ]) {
       expect(parse({ endpoint }), endpoint).toBe(true);
     }
@@ -245,6 +247,15 @@ describe('client credentials config', () => {
       'http://idp.example.test/token',
       'http://127.0.0.1.evil.test/token',
       'http://localhost.evil.test/token',
+      'http://evil.localhost/token',
+      'http://notlocalhost/token',
+      'http://localhost./token',
+      'http://127.0.0.256/token',
+      'http://0.0.0.0/token',
+      'http://[::]/token',
+      'http://[::ffff:127.0.0.1]/token',
+      'http://[::ffff:7f00:1]/token',
+      'http://[::2]/token',
       'ftp://idp.example.test/token',
       'https://user:pw@idp.example.test/token',
       'https://idp.example.test/token#frag',

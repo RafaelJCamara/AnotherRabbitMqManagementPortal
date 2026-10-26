@@ -8,6 +8,7 @@ import {
   createDialer,
   isRegisteredPurpose,
   PURPOSES,
+  type Dialer,
   type DialerOptions,
 } from '@app/net-dialer';
 import { createTrustStore, type TlsTrust } from '@app/net-truststore';
@@ -460,5 +461,196 @@ describe('token endpoint adapter strength', () => {
         timeoutMs: 0,
       }),
     ).toThrow(RangeError);
+  });
+});
+
+/**
+ * A Dialer that records what the adapter asked for and connects to the loopback issuer instead,
+ * whatever the name and port were. `peer` overrides the address the socket reports, which is how a
+ * name that resolved somewhere else is made. Nothing leaves the machine.
+ */
+function viaIssuer(port: number, peer?: { remoteAddress: string | undefined }) {
+  const real = createDialer({ purposes: isRegisteredPurpose });
+  const dialed: { host: string; port: number; tls: boolean }[] = [];
+  const sockets: Awaited<ReturnType<Dialer['dial']>>['socket'][] = [];
+  return {
+    dialed,
+    sockets,
+    dialer: {
+      dial: async (...args: Parameters<Dialer['dial']>) => {
+        const [target, route] = args;
+        dialed.push({
+          host: target.host,
+          port: target.port,
+          tls: target.tls !== undefined,
+        });
+        const result = await real.dial(
+          { host: '127.0.0.1', port, purpose: target.purpose },
+          route,
+        );
+        if (peer !== undefined) {
+          Object.defineProperty(result.socket, 'remoteAddress', {
+            value: peer.remoteAddress,
+            configurable: true,
+          });
+        }
+        sockets.push(result.socket);
+        return result;
+      },
+    },
+  };
+}
+
+describe('token endpoint adapter Host header (N1)', () => {
+  const hostSent = async (endpoint: string) => {
+    const issuer = await startIssuer();
+    const via = viaIssuer(issuer.port);
+    const outcome = await createTokenEndpoint({
+      dialer: via.dialer,
+      trust: trust(),
+    }).requestToken(request(endpoint), signal);
+    expect(outcome.ok, endpoint).toBe(true);
+    expect(issuer.requests).toHaveLength(1);
+    return { host: issuer.requests[0]?.headers.host, dialed: via.dialed };
+  };
+
+  it('M1-23 hardening an https endpoint on the default port sends Host without a port, and any other port keeps it', async () => {
+    expect(await hostSent('https://idp.example.test/t')).toEqual({
+      host: 'idp.example.test',
+      dialed: [{ host: 'idp.example.test', port: 443, tls: true }],
+    });
+    expect(await hostSent('https://idp.example.test:443/t')).toMatchObject({
+      host: 'idp.example.test',
+    });
+    expect(await hostSent('https://idp.example.test:8443/t')).toEqual({
+      host: 'idp.example.test:8443',
+      dialed: [{ host: 'idp.example.test', port: 8443, tls: true }],
+    });
+    // 80 is the default of http, not of https.
+    expect((await hostSent('https://idp.example.test:80/t')).host).toBe(
+      'idp.example.test:80',
+    );
+  });
+
+  it('M1-23 hardening an http endpoint sends Host without port 80, keeps any other, and brackets an IPv6 literal', async () => {
+    expect(await hostSent('http://localhost/t')).toEqual({
+      host: 'localhost',
+      dialed: [{ host: 'localhost', port: 80, tls: false }],
+    });
+    expect((await hostSent('http://localhost:80/t')).host).toBe('localhost');
+    expect(await hostSent('http://127.0.0.1:8080/t')).toEqual({
+      host: '127.0.0.1:8080',
+      dialed: [{ host: '127.0.0.1', port: 8080, tls: false }],
+    });
+    // 443 is the default of https, not of http.
+    expect((await hostSent('http://localhost:443/t')).host).toBe(
+      'localhost:443',
+    );
+    expect(await hostSent('http://[::1]:9/t')).toEqual({
+      host: '[::1]:9',
+      dialed: [{ host: '[::1]', port: 9, tls: false }],
+    });
+    expect((await hostSent('http://[::1]/t')).host).toBe('[::1]');
+    expect((await hostSent('https://[::1]:8443/t')).host).toBe('[::1]:8443');
+    expect((await hostSent('https://[::1]/t')).host).toBe('[::1]');
+  });
+
+  it('M1-23 hardening the Host header is the right one through the real Dialer to a real listener', async () => {
+    const issuer = await startIssuer();
+    const real = spied();
+    await createTokenEndpoint({
+      dialer: real.dialer,
+      trust: trust(),
+    }).requestToken(request(issuer.url), signal);
+    expect(issuer.requests[0]?.headers.host).toBe(
+      `127.0.0.1:${String(issuer.port)}`,
+    );
+  });
+});
+
+describe('token endpoint adapter loopback check (N2)', () => {
+  it('M1-23 hardening plain http to a lookalike name is refused before anything is dialled', async () => {
+    const issuer = await startIssuer();
+    const via = viaIssuer(issuer.port);
+    const adapter = createTokenEndpoint({
+      dialer: via.dialer,
+      trust: trust(),
+    });
+    for (const endpoint of [
+      'http://127.0.0.1.evil.test/t',
+      'http://evil.localhost/t',
+      'http://localhost.evil.test/t',
+      'http://notlocalhost/t',
+      'http://localhost./t',
+      'http://0.0.0.0/t',
+      'http://[::ffff:127.0.0.1]/t',
+      'http://[::ffff:7f00:1]/t',
+      'http://[::2]/t',
+      'http://issuer.example.test/t',
+    ]) {
+      expect(
+        await adapter.requestToken(request(endpoint), signal),
+        endpoint,
+      ).toEqual({ ok: false, reason: 'egress-denied' });
+    }
+    expect(via.dialed).toEqual([]);
+    expect(issuer.requests).toHaveLength(0);
+  });
+
+  it('M1-23 hardening a loopback name that reaches a non-loopback address is refused after the dial, with nothing sent', async () => {
+    for (const peer of [
+      '203.0.113.9',
+      '10.0.0.1',
+      '0.0.0.0',
+      '::ffff:203.0.113.9',
+      '2001:db8::1',
+      '127.0.0.1.evil.test',
+      '',
+      undefined,
+    ]) {
+      for (const endpoint of [
+        'http://localhost/t',
+        'http://127.0.0.1:8080/t',
+        'http://[::1]:8080/t',
+      ]) {
+        const issuer = await startIssuer();
+        const via = viaIssuer(issuer.port, { remoteAddress: peer });
+        const outcome = await createTokenEndpoint({
+          dialer: via.dialer,
+          trust: trust(),
+        }).requestToken(request(endpoint), signal);
+        const label = `${endpoint} via ${String(peer)}`;
+        expect(outcome, label).toEqual({ ok: false, reason: 'egress-denied' });
+        expect(via.dialed, label).toHaveLength(1);
+        expect(via.sockets[0]?.destroyed, label).toBe(true);
+        // The issuer never saw a request, so the secret never left.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(issuer.requests, label).toHaveLength(0);
+      }
+    }
+  });
+
+  it('M1-23 hardening plain http to a peer on the loopback interface works in every form a socket reports', async () => {
+    for (const peer of ['127.0.0.1', '127.8.8.8', '::1', '::ffff:127.0.0.1']) {
+      const issuer = await startIssuer();
+      const via = viaIssuer(issuer.port, { remoteAddress: peer });
+      const outcome = await createTokenEndpoint({
+        dialer: via.dialer,
+        trust: trust(),
+      }).requestToken(request('http://localhost/t'), signal);
+      expect(outcome.ok, peer).toBe(true);
+      expect(issuer.requests, peer).toHaveLength(1);
+    }
+  });
+
+  it('M1-23 hardening an https issuer is not limited to loopback peers', async () => {
+    const issuer = await startIssuer();
+    const via = viaIssuer(issuer.port, { remoteAddress: '203.0.113.9' });
+    const outcome = await createTokenEndpoint({
+      dialer: via.dialer,
+      trust: trust(),
+    }).requestToken(request('https://idp.example.test/t'), signal);
+    expect(outcome.ok).toBe(true);
+    expect(issuer.requests).toHaveLength(1);
   });
 });

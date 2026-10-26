@@ -19,6 +19,8 @@ describe('ports public API', () => {
       'assertSafeReturnProof',
       'isConfirmedCopyProof',
       'isDestructiveConsentProof',
+      'isLoopbackAddress',
+      'isLoopbackHost',
       'isSafeReturnProof',
       'isStreamCreditProof',
       'mintConfirmedCopyProof',

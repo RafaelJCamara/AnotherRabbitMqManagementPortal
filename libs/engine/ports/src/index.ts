@@ -78,6 +78,7 @@ export type {
   RoleBudget,
 } from './connection-manager.ts';
 export type { DialCheck, DialerPort, DialTarget } from './dialer.ts';
+export { isLoopbackAddress, isLoopbackHost } from './loopback.ts';
 export type {
   CommandRunnerPort,
   ConnectionAuthPort,

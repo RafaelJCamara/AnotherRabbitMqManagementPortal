@@ -22,11 +22,13 @@ import type { Duplex } from 'node:stream';
 
 import type { Dialer } from '@app/net-dialer';
 import { NetworkError, type TlsTrust } from '@app/net-truststore';
-import type {
-  TokenEndpointFailure,
-  TokenEndpointPort,
-  TokenRequest,
-  TokenResponse,
+import {
+  isLoopbackAddress,
+  isLoopbackHost,
+  type TokenEndpointFailure,
+  type TokenEndpointPort,
+  type TokenRequest,
+  type TokenResponse,
 } from '@app/ports';
 
 /** Why the connection is made, for the egress policy and the outbound-calls page. */
@@ -45,7 +47,6 @@ const MAX_REQUEST_FIELDS_CHARS = 16 * 1024;
 const BEARER_TOKEN = /^[A-Za-z0-9._~+/-]+=*$/;
 const MAX_TOKEN_CHARS = 64 * 1024;
 const TOKEN_TYPE = /^[A-Za-z][A-Za-z0-9._-]{0,31}$/;
-const LOOPBACK_V4 = /^127(?:\.\d{1,3}){3}$/;
 
 export interface TokenEndpointOptions {
   /** The Dialer (I-9). Only `dial` is used. */
@@ -66,6 +67,11 @@ interface DialInfo {
   /** Present: an https issuer, verified with this trust. Absent: plain http (loopback only). */
   readonly tls: TlsTrust | undefined;
   readonly route: unknown;
+  /**
+   * Plain http: the connected peer must be on the loopback interface. The name in the URL proves
+   * nothing (`localhost` is whatever the resolver says), so the address the socket reached decides.
+   */
+  readonly loopbackOnly: boolean;
 }
 
 class DialerAgent extends Agent {
@@ -85,7 +91,7 @@ class DialerAgent extends Agent {
     const done = callback as
       | ((error: Error | null, stream?: Duplex) => void)
       | undefined;
-    const { host, port, tls, route } = this.#target;
+    const { host, port, tls, route, loopbackOnly } = this.#target;
     this.#dialer
       .dial(
         {
@@ -98,6 +104,17 @@ class DialerAgent extends Agent {
       )
       .then(
         ({ socket }) => {
+          if (loopbackOnly && !isLoopbackAddress(socket.remoteAddress)) {
+            // Not a byte is sent: the request is written only after this callback hands over a socket.
+            socket.destroy();
+            done?.(
+              new NetworkError(
+                'EGRESS_DENIED',
+                'a plain http token endpoint must be on the loopback interface',
+              ),
+            );
+            return;
+          }
           done?.(null, socket);
         },
         (error: unknown) => {
@@ -118,14 +135,6 @@ function formEncode(value: string): string {
     });
 }
 
-function isLoopback(hostname: string): boolean {
-  return (
-    hostname === 'localhost' ||
-    hostname === '[::1]' ||
-    LOOPBACK_V4.test(hostname)
-  );
-}
-
 /** The endpoint as a URL the exchange may use, or the reason it may not. */
 function checkEndpoint(
   endpoint: string,
@@ -144,7 +153,7 @@ function checkEndpoint(
     return { ok: false, reason: 'malformed' };
   }
   // Plain http only for a loopback issuer (the lab); everything else must be verified TLS.
-  if (url.protocol === 'http:' && !isLoopback(url.hostname)) {
+  if (url.protocol === 'http:' && !isLoopbackHost(url.hostname)) {
     return { ok: false, reason: 'egress-denied' };
   }
   return { ok: true, url };
@@ -275,6 +284,7 @@ export function createTokenEndpoint(
         port,
         tls: secure ? options.trust : undefined,
         route,
+        loopbackOnly: !secure,
       });
       let reason: 'timeout' | 'aborted' | undefined;
       let settled = false;
@@ -312,6 +322,9 @@ export function createTokenEndpoint(
           method: 'POST',
           path: `${url.pathname}${url.search}`,
           headers: {
+            // The agent's default port is 80, so Node would add `:443` to an https Host. `url.host`
+            // leaves the scheme's default port out and keeps any other, and brackets an IPv6 literal.
+            host: url.host,
             accept: 'application/json',
             'accept-encoding': 'identity',
             authorization: `Basic ${login}`,

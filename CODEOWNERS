@@ -12,6 +12,7 @@
 # Security: secrets, identity, access, audit, networking, transport, MCP
 /libs/engine/secrets/                                   @RafaelJCamara
 /libs/engine/svc-identity/                              @RafaelJCamara
+/libs/engine/adapter-token-endpoint/                      @RafaelJCamara
 /libs/engine/svc-access/                                @RafaelJCamara
 /libs/engine/svc-audit/                                 @RafaelJCamara
 /libs/engine/net-dialer/                                @RafaelJCamara

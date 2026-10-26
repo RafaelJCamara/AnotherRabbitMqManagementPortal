@@ -23,6 +23,7 @@ Tags: `type:service`, `runtime:node`, `trust:critical`.
 
 - The journal row is `acquiring` before the first `get` and leaves `acquiring` exactly once (`settled` or `incident`).
 - `nack` names only a tag the execution took, so it never hits a 406 unknown-tag.
+- On a quorum queue the barrier is not enough (OQ-215): the executor reads the ready count before the first `get` and, after the barrier, waits up to `QUORUM_RETURN_WAIT_MS` (10 s) for it to be back, reporting `returnConfirmedAfterMs`. If it is not, the hold is an `incident` (`return-unconfirmed`, `returned: 0`) and the lease stays healthy. Classic queues return at the barrier.
 - A `get` that is still outstanding when the hold ends poisons the lease: its delivery cannot be held on a reused channel.
 - Holds are bounded: the count, the bytes and the target time are checked before each `get`; the watchdog ends the hold at `hardAbortMs` (at most 30 s, the planner's cap); at most `maxActive` holds run at once (I-6).
 - Without a guard nothing is acquired (fail closed). A doomed message stops the loop and is returned with the others; M1-14 applies no disposition.

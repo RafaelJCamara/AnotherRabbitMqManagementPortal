@@ -4,6 +4,7 @@ import type {
   HoldOpen,
   InterruptedHold,
   PeekLease,
+  ThrowawayChannel,
 } from '@app/ports';
 import { describe, expect, it } from 'vitest';
 
@@ -12,6 +13,7 @@ import {
   type ExecutionHooks,
   type ExecutorPorts,
   type PeekExecution,
+  QUORUM_RETURN_WAIT_MS,
 } from './executor.ts';
 
 // A fake lease over one shared log, so the order of lease calls and journal writes can be checked.
@@ -21,6 +23,12 @@ class FakeLease {
   readonly ready: Delivery[] = [];
   readonly held: Delivery[] = [];
   maxHeld = 0;
+  /** Quorum model: the returned deliveries show as ready only after this many ready-count reads. */
+  readsUntilReturned = 0;
+  #parked: Delivery[] = [];
+  /** When set, the ready-count read fails. */
+  readFails = false;
+  reads = 0;
   released: 'healthy' | 'poisoned' | undefined;
   barrier: () => Promise<void> = () => Promise.resolve();
   /** When set, the `get` after this many answered gets never resolves. */
@@ -64,7 +72,8 @@ class FakeLease {
       this.held.length,
       ...this.held.filter((d) => d.tag > upToTag),
     );
-    this.ready.unshift(...back);
+    if (this.readsUntilReturned > 0) this.#parked.push(...back);
+    else this.ready.unshift(...back);
   }
 
   qosBarrier(): Promise<void> {
@@ -76,8 +85,25 @@ class FakeLease {
     throw new Error('ack is not part of M1-14');
   }
 
-  throwaway(): never {
-    throw new Error('throwaway channels are not part of M1-14');
+  throwaway<T>(fn: (channel: ThrowawayChannel) => Promise<T>): Promise<T> {
+    return fn({
+      checkQueue: () => {
+        this.log.push('read-ready');
+        this.reads += 1;
+        if (this.readFails) return Promise.reject(new Error('channel closed'));
+        if (this.readsUntilReturned > 0) {
+          this.readsUntilReturned -= 1;
+          if (this.readsUntilReturned === 0) {
+            this.ready.unshift(...this.#parked);
+            this.#parked = [];
+          }
+        }
+        return Promise.resolve({
+          messageCount: this.ready.length,
+          consumerCount: 0,
+        });
+      },
+    });
   }
 
   release(state: 'healthy' | 'poisoned'): Promise<void> {
@@ -190,6 +216,7 @@ const plan = (overrides: Partial<PeekExecution> = {}): PeekExecution => ({
   connectionId: 'c1',
   vhost: '/',
   queue: 'orders.q',
+  queueType: 'classic',
   count: 20,
   bytes: 1_000_000,
   targetMs: 5_000,
@@ -495,5 +522,127 @@ describe('executor (M1-14) fail-closed rules', () => {
       returned: 0,
     });
     expect(log).toEqual(['release:healthy']);
+  });
+});
+
+describe('executor (M1-14) quorum return, OQ-215', () => {
+  /** Drives the fake clock while the executor polls, until the execution has finished. */
+  async function run<T>(
+    clock: FakeClock,
+    execution: Promise<T>,
+    stepMs = 25,
+  ): Promise<T> {
+    const state = { finished: false };
+    const watched = execution.finally(() => {
+      state.finished = true;
+    });
+    for (let tries = 0; tries < 2000 && !state.finished; tries += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+      clock.advance(stepMs);
+    }
+    return watched;
+  }
+
+  it('M1-14 AC-1 executor on a quorum queue waits until the ready count shows the return and reports the delay', async () => {
+    const { lease, executor, clock, journal } = setup(100);
+    lease.readsUntilReturned = 4;
+    const result = await run(
+      clock,
+      executor.execute(
+        lease.asLease(),
+        plan({ queueType: 'quorum' }),
+        notDoomed,
+        never(),
+      ),
+    );
+    expect(result).toMatchObject({
+      outcome: 'settled',
+      taken: 20,
+      returned: 20,
+    });
+    // The deliveries are back on the queue, and the delay is reported: more than none (the first
+    // reads saw them missing) and well inside the wait.
+    expect(lease.ready).toHaveLength(100);
+    const delay =
+      result.outcome === 'settled' ? result.returnConfirmedAfterMs : -1;
+    expect(delay).toBeGreaterThan(0);
+    expect(delay).toBeLessThan(QUORUM_RETURN_WAIT_MS);
+    expect([...journal.rows.values()]).toEqual([
+      { state: 'settled', reason: null },
+    ]);
+    expect(lease.released).toBe('healthy');
+  });
+
+  it('M1-14 AC-1 executor on a quorum queue ends as an incident when the ready count never shows the return', async () => {
+    const { lease, executor, clock, journal } = setup(100);
+    lease.readsUntilReturned = Number.MAX_SAFE_INTEGER;
+    const result = await run(
+      clock,
+      executor.execute(
+        lease.asLease(),
+        plan({ queueType: 'quorum' }),
+        notDoomed,
+        never(),
+      ),
+    );
+    expect(result).toEqual({
+      outcome: 'incident',
+      reason: 'return-unconfirmed',
+      returned: 0,
+    });
+    expect(clock.now).toBeGreaterThanOrEqual(QUORUM_RETURN_WAIT_MS);
+    expect([...journal.rows.values()]).toEqual([
+      { state: 'incident', reason: 'return-unconfirmed' },
+    ]);
+    // The channel itself answered the barrier: it is not poisoned.
+    expect(lease.released).toBe('healthy');
+  });
+
+  it('M1-14 AC-1 executor on a quorum queue does not confirm a return it could not measure', async () => {
+    const { lease, executor, clock } = setup(100);
+    lease.readFails = true;
+    const result = await run(
+      clock,
+      executor.execute(
+        lease.asLease(),
+        plan({ queueType: 'quorum' }),
+        notDoomed,
+        never(),
+      ),
+    );
+    expect(result).toEqual({
+      outcome: 'incident',
+      reason: 'return-unconfirmed',
+      returned: 0,
+    });
+    // It still nacked and waited for the barrier before anything else.
+    expect(nacks(lease.log)).toEqual(['nack:20']);
+  });
+
+  it('M1-14 AC-1 executor on a classic queue reads no ready count and returns at the barrier', async () => {
+    const { lease, executor } = setup(100);
+    const result = await executor.execute(
+      lease.asLease(),
+      plan(),
+      notDoomed,
+      never(),
+    );
+    expect(result).toMatchObject({ outcome: 'settled', returned: 20 });
+    expect(lease.reads).toBe(0);
+    expect(result).not.toHaveProperty('returnConfirmedAfterMs');
+  });
+
+  it('refuses a plan with a queue type the executor does not peek', async () => {
+    const { lease, executor } = setup(1);
+    const result = await executor.execute(
+      lease.asLease(),
+      plan({ queueType: 'stream' as 'classic' }),
+      notDoomed,
+      never(),
+    );
+    expect(result).toMatchObject({
+      outcome: 'incident',
+      reason: 'invalid-plan',
+    });
   });
 });

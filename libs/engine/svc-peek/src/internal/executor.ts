@@ -16,12 +16,25 @@ export const MAX_HARD_ABORT_MS = 30_000;
 export const DEFAULT_MAX_ACTIVE_HOLDS = 64;
 /** The prefetch of the barrier: a `basic.qos` round trip that proves the nack was processed (DC-04). */
 const BARRIER_PREFETCH = 0;
+/**
+ * OQ-215: on a quorum queue the barrier answers before the queue shows the nack (the return goes
+ * through the Raft log), so the executor also waits, at most this long, for the ready count to be
+ * back where it was before the first `get`.
+ */
+export const QUORUM_RETURN_WAIT_MS = 10_000;
+/** How often the ready count is read while waiting for a quorum return. */
+const QUORUM_POLL_MS = 25;
+
+/** The queue types a `basic.get` peek runs on. */
+const PEEKABLE_QUEUE_TYPES = ['classic', 'quorum'] as const;
 
 /** What the planner decided for this peek (the caps and the hold, `PeekPlanPreview`). */
 export interface PeekExecution {
   readonly connectionId: string;
   readonly vhost: string;
   readonly queue: string;
+  /** Classic returns at the barrier; quorum also waits for the ready count (OQ-215). */
+  readonly queueType: 'classic' | 'quorum';
   /** `caps.count`: deliveries taken at most. */
   readonly count: number;
   /** `caps.bytes`: body bytes taken at most. */
@@ -52,6 +65,8 @@ export type ExecutionResult =
       /** Deliveries the broker confirmed back on the queue (the barrier resolved). */
       readonly returned: number;
       readonly stop: StopReason;
+      /** Quorum only: ms from the barrier until the ready count showed the return (OQ-215). */
+      readonly returnConfirmedAfterMs?: number;
     }
   | {
       readonly outcome: 'incident';
@@ -110,6 +125,8 @@ function validPlan(plan: PeekExecution): boolean {
     positive(plan.count) &&
     positive(plan.bytes) &&
     positive(plan.targetMs) &&
+    // Checked at run time: a caller may hand over a type this executor never peeks (a stream).
+    (PEEKABLE_QUEUE_TYPES as readonly string[]).includes(plan.queueType) &&
     positive(plan.hardAbortMs) &&
     plan.hardAbortMs <= MAX_HARD_ABORT_MS &&
     plan.queue.length > 0
@@ -146,6 +163,41 @@ function untilAborted<T>(
 }
 
 export function createPeekExecutor(ports: ExecutorPorts): PeekExecutor {
+  const pause = (ms: number): Promise<void> =>
+    new Promise((resolve) => {
+      ports.timers.setTimeout(resolve, ms);
+    });
+
+  /** The ready count of the queue (a passive declare on a throwaway channel; changes nothing). */
+  function readyCount(lease: PeekLease, queue: string): Promise<number> {
+    return lease.throwaway(
+      async (channel) => (await channel.checkQueue(queue)).messageCount,
+    );
+  }
+
+  /**
+   * Waits until the ready count is back at `baseline` or more. Resolves with the ms it took, or
+   * `null` when the wait ran out or a read failed: the return is then unconfirmed, never assumed.
+   */
+  async function awaitQuorumReturn(
+    lease: PeekLease,
+    queue: string,
+    baseline: number,
+  ): Promise<number | null> {
+    const from = ports.now();
+    try {
+      for (;;) {
+        if ((await readyCount(lease, queue)) >= baseline) {
+          return ports.now() - from;
+        }
+        if (ports.now() - from >= QUORUM_RETURN_WAIT_MS) return null;
+        await pause(QUORUM_POLL_MS);
+      }
+    } catch {
+      return null;
+    }
+  }
+
   const maxActive = ports.maxActive ?? DEFAULT_MAX_ACTIVE_HOLDS;
   const active = new Map<string, ActiveHold>();
 
@@ -235,8 +287,18 @@ export function createPeekExecutor(ports: ExecutorPorts): PeekExecutor {
     let stop: StopReason | null = null;
     let failure: string | null = null;
     let poisoned = false;
+    let quorumBaseline: number | null = null;
+    let returnConfirmedAfterMs: number | undefined;
 
     try {
+      if (plan.queueType === 'quorum') {
+        // Read before the first `get`; if it cannot be read, the return cannot be confirmed later.
+        try {
+          quorumBaseline = await readyCount(lease, plan.queue);
+        } catch {
+          quorumBaseline = null;
+        }
+      }
       for (;;) {
         if (abort.signal.aborted) {
           stop = cause.reason ?? 'abort';
@@ -304,6 +366,19 @@ export function createPeekExecutor(ports: ExecutorPorts): PeekExecutor {
         try {
           await lease.qosBarrier(BARRIER_PREFETCH);
           returned = taken;
+          if (plan.queueType === 'quorum') {
+            const confirmed =
+              quorumBaseline === null
+                ? null
+                : await awaitQuorumReturn(lease, plan.queue, quorumBaseline);
+            if (confirmed === null) {
+              // The channel is healthy; only the queue's own count could not confirm the return.
+              failure ??= 'return-unconfirmed';
+              returned = 0;
+            } else {
+              returnConfirmedAfterMs = confirmed;
+            }
+          }
         } catch {
           failure ??= 'barrier-failed';
           poisoned = true;
@@ -340,6 +415,9 @@ export function createPeekExecutor(ports: ExecutorPorts): PeekExecutor {
       taken,
       returned,
       stop: stop ?? 'empty',
+      ...(returnConfirmedAfterMs === undefined
+        ? {}
+        : { returnConfirmedAfterMs }),
     };
   }
 

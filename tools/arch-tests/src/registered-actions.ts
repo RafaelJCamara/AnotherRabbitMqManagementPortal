@@ -45,6 +45,8 @@ import { createTopologySubgraphAction } from '@app/svc-topology';
 import { createRoutingSimulateAction } from '@app/svc-topology';
 import { createRoutingDeadLetterAction } from '@app/svc-topology';
 import { createRoutingDlxSourcesAction } from '@app/svc-topology';
+import { createMessagesPublishAction } from '@app/svc-messages';
+import { createMessagesFakeDeps } from '@app/svc-messages';
 
 export interface RegisteredAction extends PlanPuritySample {
   /** The module that calls `implementAction(...)`, repository-relative. */
@@ -223,6 +225,18 @@ const manifest: RegisteredAction[] = [
     path: 'libs/engine/svc-topology/src/actions/routing-dlx-sources.ts',
     impl: createRoutingDlxSourcesAction(createTopologyFakeDeps()),
     input: { cid: 'c1' },
+  },
+  {
+    path: 'libs/engine/svc-messages/src/actions/messages-publish.ts',
+    impl: createMessagesPublishAction(createMessagesFakeDeps()),
+    input: {
+      cid: 'c1',
+      vhost: '/',
+      exchange: '',
+      routingKey: 'orders',
+      props: {},
+      body: { encoding: 'utf8', data: 'hello' },
+    },
   },
 ];
 

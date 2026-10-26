@@ -1,14 +1,20 @@
 export { createMessagesModule } from './module';
-export type { MessagesModuleDeps } from './deps';
+export type {
+  MessagesModuleDeps,
+  PublishRecord,
+  PublishRecorder,
+} from './deps';
 export type { EngineModule } from './module';
 // Fakes for the ports of this module, for the architecture manifest and the HTTP specs.
 export {
   createFakeSealer,
   createMemoryCaptureRepository,
+  createMemoryPublishRecorder,
   createMessagesFakeDeps,
   sampleMessage,
   type FakeSealer,
   type MemoryCaptureRepository,
+  type MemoryPublishRecorder,
 } from './testing';
 // The capture store (M1-09): sealed captures, blobs, the redacted projection and the ingest queue.
 export {
@@ -36,3 +42,4 @@ export type {
   SaveOptions,
   SaveResult,
 } from './internal/types';
+export { createMessagesPublishAction } from './actions/messages-publish';

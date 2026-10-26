@@ -60,7 +60,12 @@ function fakeServices(): ServicePorts {
 }
 
 /** Registry actions this build does not serve, each with the reason. Every entry must still be unserved. */
-const INTENTIONALLY_UNSERVED: Readonly<Record<string, string>> = {};
+const INTENTIONALLY_UNSERVED: Readonly<Record<string, string>> = {
+  // M1-19 slice A adds the action and proves it over a scripted lease; slice D registers
+  // svc-messages in coreModules (OQ-1445) and removes this entry.
+  'messages.publish':
+    'The action is implemented and proved over a scripted lease; the svc-messages module is registered in M1-19 slice D.',
+};
 
 describe('the modules the engine registers', () => {
   const diagnostics = {

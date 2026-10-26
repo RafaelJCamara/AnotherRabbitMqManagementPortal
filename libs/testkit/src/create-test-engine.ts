@@ -16,6 +16,7 @@ import {
   type ActionImpl,
   type Authorizer,
   type ExecutorContext,
+  type ExecutorWrite,
   type TestExecutor,
 } from '@app/kernel';
 import type { Principal } from '@app/ports';
@@ -32,6 +33,8 @@ export interface TestEngineOptions {
   authorizer?: Authorizer;
   /** Register `ops.arm` and `ops.disarm` too, so a spec can arm over HTTP. Default false. */
   withArming?: boolean;
+  /** The write ports `execute` gets, for an action that needs a scripted lease. Default: recording stubs. */
+  writes?: ExecutorWrite;
 }
 
 export interface InjectRequest {
@@ -89,9 +92,16 @@ export interface TestEngine extends TestExecutor {
 
 export function createTestEngine(options: TestEngineOptions): TestEngine {
   const parts = createTestExecutor({
-    ...(options.authorizer === undefined
+    ...(options.authorizer === undefined && options.writes === undefined
       ? {}
-      : { executor: { authorizer: options.authorizer } }),
+      : {
+          executor: {
+            ...(options.authorizer === undefined
+              ? {}
+              : { authorizer: options.authorizer }),
+            ...(options.writes === undefined ? {} : { writes: options.writes }),
+          },
+        }),
   });
   parts.executor.register(
     ...options.actions,

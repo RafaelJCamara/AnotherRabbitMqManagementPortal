@@ -26,11 +26,56 @@ import {
   type StoredMessage,
 } from '@app/ports';
 
-import type { MessagesModuleDeps } from './deps';
+import { createLogger } from '@app/kernel';
+
+import type {
+  MessagesModuleDeps,
+  PublishRecord,
+  PublishRecorder,
+} from './deps';
 import type { CapturedMessageInput } from './internal/types';
 
-export function createMessagesFakeDeps(): MessagesModuleDeps {
-  return {};
+export interface MemoryPublishRecorder extends PublishRecorder {
+  /** What was recorded, in order. */
+  readonly entries: readonly PublishRecord[];
+  /** Makes the next `record` calls reject, `times` times, as a dead store would. */
+  failNext(times: number, error?: unknown): void;
+}
+
+/** A recorder in memory. It numbers entries `history-1`, ... and keeps what it was handed. */
+export function createMemoryPublishRecorder(): MemoryPublishRecorder {
+  const entries: PublishRecord[] = [];
+  let failures = 0;
+  let failure: unknown = new Error('the history store is down');
+  return {
+    entries,
+    failNext(times, error) {
+      failures = times;
+      if (error !== undefined) failure = error;
+    },
+    record(entry) {
+      if (failures > 0) {
+        failures -= 1;
+        return Promise.reject(
+          failure instanceof Error
+            ? failure
+            : new Error('the history store is down'),
+        );
+      }
+      entries.push(entry);
+      return Promise.resolve(`history-${String(entries.length)}`);
+    },
+  };
+}
+
+export function createMessagesFakeDeps(
+  overrides: Partial<MessagesModuleDeps> = {},
+): MessagesModuleDeps {
+  return {
+    recorder: createMemoryPublishRecorder(),
+    logger: createLogger({ level: 'silent' }),
+    ...overrides,
+  };
 }
 
 export interface MemoryCaptureRepository extends CaptureRepository {

@@ -37,6 +37,7 @@ import { topologySubgraph } from './topology-subgraph.ts';
 import { routingSimulate } from './routing-simulate.ts';
 import { routingDeadLetter } from './routing-dead-letter.ts';
 import { routingDlxSources } from './routing-dlx-sources.ts';
+import { messagesPublish } from './messages-publish.ts';
 
 export const registry: Registry = {
   actions: [
@@ -75,6 +76,7 @@ export const registry: Registry = {
     routingSimulate,
     routingDeadLetter,
     routingDlxSources,
+    messagesPublish,
   ],
   topics: [explorerWindowTopic, metricsLiveTopic],
 };

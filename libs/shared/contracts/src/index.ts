@@ -80,3 +80,5 @@ export * from './registry/routing-types.ts';
 export * from './registry/routing-simulate.ts';
 export * from './registry/routing-dead-letter.ts';
 export * from './registry/routing-dlx-sources.ts';
+export * from './registry/publish-types.ts';
+export * from './registry/messages-publish.ts';

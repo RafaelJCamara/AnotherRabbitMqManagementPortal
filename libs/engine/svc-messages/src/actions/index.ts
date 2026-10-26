@@ -3,10 +3,11 @@
 import type { ActionImpl } from '@app/kernel';
 
 import type { MessagesModuleDeps } from '../deps';
+import { createMessagesPublishAction } from './messages-publish';
 
 export const actionFactories: readonly ((
   deps: MessagesModuleDeps,
-) => ActionImpl)[] = [];
+) => ActionImpl)[] = [createMessagesPublishAction];
 
 export function createActions(deps: MessagesModuleDeps): readonly ActionImpl[] {
   return actionFactories.map((create) => create(deps));

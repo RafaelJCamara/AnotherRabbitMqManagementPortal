@@ -4822,6 +4822,2129 @@
         "x-since": "1.0"
       }
     },
+    "/connections/{cid}/messages/publish": {
+      "post": {
+        "operationId": "messages.publish",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "data": {
+                        "maxLength": 1398104,
+                        "type": "string"
+                      },
+                      "encoding": {
+                        "enum": [
+                          "utf8",
+                          "base64"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "encoding",
+                      "data"
+                    ],
+                    "type": "object"
+                  },
+                  "confirm": {
+                    "const": true,
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "copies": {
+                    "default": 1,
+                    "maximum": 100,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "exchange": {
+                    "maxLength": 255,
+                    "type": "string"
+                  },
+                  "headers": {
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "const": "string",
+                              "type": "string"
+                            },
+                            "v": {
+                              "maxLength": 65535,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "enum": [
+                                "byte",
+                                "short",
+                                "int",
+                                "long"
+                              ],
+                              "type": "string"
+                            },
+                            "v": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "enum": [
+                                "float",
+                                "double"
+                              ],
+                              "type": "string"
+                            },
+                            "v": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "const": "bool",
+                              "type": "string"
+                            },
+                            "v": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "const": "timestamp",
+                              "type": "string"
+                            },
+                            "v": {
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "const": "decimal",
+                              "type": "string"
+                            },
+                            "v": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "digits": {
+                                  "maximum": 4294967295,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                },
+                                "places": {
+                                  "maximum": 255,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "places",
+                                "digits"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "const": "bytes",
+                              "type": "string"
+                            },
+                            "v": {
+                              "maxLength": 87380,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "const": "void",
+                              "type": "string"
+                            },
+                            "v": {
+                              "type": "null"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "t": {
+                              "enum": [
+                                "array",
+                                "table"
+                              ],
+                              "type": "string"
+                            },
+                            "v": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "name": {
+                                    "maxLength": 255,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "oneOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "const": "string",
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "maxLength": 65535,
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "enum": [
+                                              "byte",
+                                              "short",
+                                              "int",
+                                              "long"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": -9007199254740991,
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "enum": [
+                                              "float",
+                                              "double"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "const": "bool",
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "type": "boolean"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "const": "timestamp",
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "maximum": 9007199254740991,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "const": "decimal",
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "digits": {
+                                                "maximum": 4294967295,
+                                                "minimum": 0,
+                                                "type": "integer"
+                                              },
+                                              "places": {
+                                                "maximum": 255,
+                                                "minimum": 0,
+                                                "type": "integer"
+                                              }
+                                            },
+                                            "required": [
+                                              "places",
+                                              "digits"
+                                            ],
+                                            "type": "object"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "const": "bytes",
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "maxLength": 87380,
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "const": "void",
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "type": "null"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "t": {
+                                            "enum": [
+                                              "array",
+                                              "table"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "v": {
+                                            "items": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "name": {
+                                                  "maxLength": 255,
+                                                  "minLength": 1,
+                                                  "type": "string"
+                                                },
+                                                "value": {
+                                                  "oneOf": [
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "const": "string",
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "maxLength": 65535,
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    },
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "enum": [
+                                                            "byte",
+                                                            "short",
+                                                            "int",
+                                                            "long"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "maximum": 9007199254740991,
+                                                          "minimum": -9007199254740991,
+                                                          "type": "integer"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    },
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "enum": [
+                                                            "float",
+                                                            "double"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "type": "number"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    },
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "const": "bool",
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "type": "boolean"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    },
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "const": "timestamp",
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "maximum": 9007199254740991,
+                                                          "minimum": 0,
+                                                          "type": "integer"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    },
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "const": "decimal",
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "additionalProperties": false,
+                                                          "properties": {
+                                                            "digits": {
+                                                              "maximum": 4294967295,
+                                                              "minimum": 0,
+                                                              "type": "integer"
+                                                            },
+                                                            "places": {
+                                                              "maximum": 255,
+                                                              "minimum": 0,
+                                                              "type": "integer"
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "places",
+                                                            "digits"
+                                                          ],
+                                                          "type": "object"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    },
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "const": "bytes",
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "maxLength": 87380,
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    },
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "const": "void",
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "type": "null"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    },
+                                                    {
+                                                      "additionalProperties": false,
+                                                      "properties": {
+                                                        "t": {
+                                                          "enum": [
+                                                            "array",
+                                                            "table"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        "v": {
+                                                          "items": {
+                                                            "additionalProperties": false,
+                                                            "properties": {
+                                                              "name": {
+                                                                "maxLength": 255,
+                                                                "minLength": 1,
+                                                                "type": "string"
+                                                              },
+                                                              "value": {
+                                                                "oneOf": [
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "const": "string",
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "maxLength": 65535,
+                                                                        "type": "string"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  },
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "enum": [
+                                                                          "byte",
+                                                                          "short",
+                                                                          "int",
+                                                                          "long"
+                                                                        ],
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "maximum": 9007199254740991,
+                                                                        "minimum": -9007199254740991,
+                                                                        "type": "integer"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  },
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "enum": [
+                                                                          "float",
+                                                                          "double"
+                                                                        ],
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "type": "number"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  },
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "const": "bool",
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "type": "boolean"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  },
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "const": "timestamp",
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "maximum": 9007199254740991,
+                                                                        "minimum": 0,
+                                                                        "type": "integer"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  },
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "const": "decimal",
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "additionalProperties": false,
+                                                                        "properties": {
+                                                                          "digits": {
+                                                                            "maximum": 4294967295,
+                                                                            "minimum": 0,
+                                                                            "type": "integer"
+                                                                          },
+                                                                          "places": {
+                                                                            "maximum": 255,
+                                                                            "minimum": 0,
+                                                                            "type": "integer"
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "places",
+                                                                          "digits"
+                                                                        ],
+                                                                        "type": "object"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  },
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "const": "bytes",
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "maxLength": 87380,
+                                                                        "type": "string"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  },
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "const": "void",
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "type": "null"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  },
+                                                                  {
+                                                                    "additionalProperties": false,
+                                                                    "properties": {
+                                                                      "t": {
+                                                                        "enum": [
+                                                                          "array",
+                                                                          "table"
+                                                                        ],
+                                                                        "type": "string"
+                                                                      },
+                                                                      "v": {
+                                                                        "items": {
+                                                                          "additionalProperties": false,
+                                                                          "properties": {
+                                                                            "name": {
+                                                                              "maxLength": 255,
+                                                                              "minLength": 1,
+                                                                              "type": "string"
+                                                                            },
+                                                                            "value": {
+                                                                              "oneOf": [
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "const": "string",
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "maxLength": 65535,
+                                                                                      "type": "string"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                },
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "enum": [
+                                                                                        "byte",
+                                                                                        "short",
+                                                                                        "int",
+                                                                                        "long"
+                                                                                      ],
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "maximum": 9007199254740991,
+                                                                                      "minimum": -9007199254740991,
+                                                                                      "type": "integer"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                },
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "enum": [
+                                                                                        "float",
+                                                                                        "double"
+                                                                                      ],
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "type": "number"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                },
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "const": "bool",
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "type": "boolean"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                },
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "const": "timestamp",
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "maximum": 9007199254740991,
+                                                                                      "minimum": 0,
+                                                                                      "type": "integer"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                },
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "const": "decimal",
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "additionalProperties": false,
+                                                                                      "properties": {
+                                                                                        "digits": {
+                                                                                          "maximum": 4294967295,
+                                                                                          "minimum": 0,
+                                                                                          "type": "integer"
+                                                                                        },
+                                                                                        "places": {
+                                                                                          "maximum": 255,
+                                                                                          "minimum": 0,
+                                                                                          "type": "integer"
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "places",
+                                                                                        "digits"
+                                                                                      ],
+                                                                                      "type": "object"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                },
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "const": "bytes",
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "maxLength": 87380,
+                                                                                      "type": "string"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                },
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "const": "void",
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "type": "null"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                },
+                                                                                {
+                                                                                  "additionalProperties": false,
+                                                                                  "properties": {
+                                                                                    "t": {
+                                                                                      "enum": [
+                                                                                        "array",
+                                                                                        "table"
+                                                                                      ],
+                                                                                      "type": "string"
+                                                                                    },
+                                                                                    "v": {
+                                                                                      "items": {
+                                                                                        "additionalProperties": false,
+                                                                                        "properties": {
+                                                                                          "name": {
+                                                                                            "maxLength": 255,
+                                                                                            "minLength": 1,
+                                                                                            "type": "string"
+                                                                                          },
+                                                                                          "value": {
+                                                                                            "oneOf": [
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "const": "string",
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "maxLength": 65535,
+                                                                                                    "type": "string"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              },
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "enum": [
+                                                                                                      "byte",
+                                                                                                      "short",
+                                                                                                      "int",
+                                                                                                      "long"
+                                                                                                    ],
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "maximum": 9007199254740991,
+                                                                                                    "minimum": -9007199254740991,
+                                                                                                    "type": "integer"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              },
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "enum": [
+                                                                                                      "float",
+                                                                                                      "double"
+                                                                                                    ],
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "type": "number"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              },
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "const": "bool",
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "type": "boolean"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              },
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "const": "timestamp",
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "maximum": 9007199254740991,
+                                                                                                    "minimum": 0,
+                                                                                                    "type": "integer"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              },
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "const": "decimal",
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "additionalProperties": false,
+                                                                                                    "properties": {
+                                                                                                      "digits": {
+                                                                                                        "maximum": 4294967295,
+                                                                                                        "minimum": 0,
+                                                                                                        "type": "integer"
+                                                                                                      },
+                                                                                                      "places": {
+                                                                                                        "maximum": 255,
+                                                                                                        "minimum": 0,
+                                                                                                        "type": "integer"
+                                                                                                      }
+                                                                                                    },
+                                                                                                    "required": [
+                                                                                                      "places",
+                                                                                                      "digits"
+                                                                                                    ],
+                                                                                                    "type": "object"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              },
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "const": "bytes",
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "maxLength": 87380,
+                                                                                                    "type": "string"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              },
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "const": "void",
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "type": "null"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              },
+                                                                                              {
+                                                                                                "additionalProperties": false,
+                                                                                                "properties": {
+                                                                                                  "t": {
+                                                                                                    "enum": [
+                                                                                                      "array",
+                                                                                                      "table"
+                                                                                                    ],
+                                                                                                    "type": "string"
+                                                                                                  },
+                                                                                                  "v": {
+                                                                                                    "items": {
+                                                                                                      "additionalProperties": false,
+                                                                                                      "properties": {
+                                                                                                        "name": {
+                                                                                                          "maxLength": 255,
+                                                                                                          "minLength": 1,
+                                                                                                          "type": "string"
+                                                                                                        },
+                                                                                                        "value": {
+                                                                                                          "oneOf": [
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "const": "string",
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "maxLength": 65535,
+                                                                                                                  "type": "string"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "enum": [
+                                                                                                                    "byte",
+                                                                                                                    "short",
+                                                                                                                    "int",
+                                                                                                                    "long"
+                                                                                                                  ],
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "maximum": 9007199254740991,
+                                                                                                                  "minimum": -9007199254740991,
+                                                                                                                  "type": "integer"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "enum": [
+                                                                                                                    "float",
+                                                                                                                    "double"
+                                                                                                                  ],
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "type": "number"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "const": "bool",
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "type": "boolean"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "const": "timestamp",
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "maximum": 9007199254740991,
+                                                                                                                  "minimum": 0,
+                                                                                                                  "type": "integer"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "const": "decimal",
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "additionalProperties": false,
+                                                                                                                  "properties": {
+                                                                                                                    "digits": {
+                                                                                                                      "maximum": 4294967295,
+                                                                                                                      "minimum": 0,
+                                                                                                                      "type": "integer"
+                                                                                                                    },
+                                                                                                                    "places": {
+                                                                                                                      "maximum": 255,
+                                                                                                                      "minimum": 0,
+                                                                                                                      "type": "integer"
+                                                                                                                    }
+                                                                                                                  },
+                                                                                                                  "required": [
+                                                                                                                    "places",
+                                                                                                                    "digits"
+                                                                                                                  ],
+                                                                                                                  "type": "object"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "const": "bytes",
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "maxLength": 87380,
+                                                                                                                  "type": "string"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "const": "void",
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "type": "null"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            },
+                                                                                                            {
+                                                                                                              "additionalProperties": false,
+                                                                                                              "properties": {
+                                                                                                                "t": {
+                                                                                                                  "enum": [
+                                                                                                                    "array",
+                                                                                                                    "table"
+                                                                                                                  ],
+                                                                                                                  "type": "string"
+                                                                                                                },
+                                                                                                                "v": {
+                                                                                                                  "items": {
+                                                                                                                    "additionalProperties": false,
+                                                                                                                    "properties": {
+                                                                                                                      "name": {
+                                                                                                                        "maxLength": 255,
+                                                                                                                        "minLength": 1,
+                                                                                                                        "type": "string"
+                                                                                                                      },
+                                                                                                                      "value": {
+                                                                                                                        "oneOf": [
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "const": "string",
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "maxLength": 65535,
+                                                                                                                                "type": "string"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "enum": [
+                                                                                                                                  "byte",
+                                                                                                                                  "short",
+                                                                                                                                  "int",
+                                                                                                                                  "long"
+                                                                                                                                ],
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "maximum": 9007199254740991,
+                                                                                                                                "minimum": -9007199254740991,
+                                                                                                                                "type": "integer"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "enum": [
+                                                                                                                                  "float",
+                                                                                                                                  "double"
+                                                                                                                                ],
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "type": "number"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "const": "bool",
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "type": "boolean"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "const": "timestamp",
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "maximum": 9007199254740991,
+                                                                                                                                "minimum": 0,
+                                                                                                                                "type": "integer"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "const": "decimal",
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "additionalProperties": false,
+                                                                                                                                "properties": {
+                                                                                                                                  "digits": {
+                                                                                                                                    "maximum": 4294967295,
+                                                                                                                                    "minimum": 0,
+                                                                                                                                    "type": "integer"
+                                                                                                                                  },
+                                                                                                                                  "places": {
+                                                                                                                                    "maximum": 255,
+                                                                                                                                    "minimum": 0,
+                                                                                                                                    "type": "integer"
+                                                                                                                                  }
+                                                                                                                                },
+                                                                                                                                "required": [
+                                                                                                                                  "places",
+                                                                                                                                  "digits"
+                                                                                                                                ],
+                                                                                                                                "type": "object"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "const": "bytes",
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "maxLength": 87380,
+                                                                                                                                "type": "string"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "const": "void",
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "type": "null"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          },
+                                                                                                                          {
+                                                                                                                            "additionalProperties": false,
+                                                                                                                            "properties": {
+                                                                                                                              "t": {
+                                                                                                                                "enum": [
+                                                                                                                                  "array",
+                                                                                                                                  "table"
+                                                                                                                                ],
+                                                                                                                                "type": "string"
+                                                                                                                              },
+                                                                                                                              "v": {
+                                                                                                                                "items": {
+                                                                                                                                  "additionalProperties": false,
+                                                                                                                                  "properties": {
+                                                                                                                                    "name": {
+                                                                                                                                      "maxLength": 255,
+                                                                                                                                      "minLength": 1,
+                                                                                                                                      "type": "string"
+                                                                                                                                    },
+                                                                                                                                    "value": {
+                                                                                                                                      "oneOf": [
+                                                                                                                                        {
+                                                                                                                                          "additionalProperties": false,
+                                                                                                                                          "properties": {
+                                                                                                                                            "t": {
+                                                                                                                                              "const": "string",
+                                                                                                                                              "type": "string"
+                                                                                                                                            },
+                                                                                                                                            "v": {
+                                                                                                                                              "maxLength": 65535,
+                                                                                                                                              "type": "string"
+                                                                                                                                            }
+                                                                                                                                          },
+                                                                                                                                          "required": [
+                                                                                                                                            "t",
+                                                                                                                                            "v"
+                                                                                                                                          ],
+                                                                                                                                          "type": "object"
+                                                                                                                                        },
+                                                                                                                                        {
+                                                                                                                                          "additionalProperties": false,
+                                                                                                                                          "properties": {
+                                                                                                                                            "t": {
+                                                                                                                                              "enum": [
+                                                                                                                                                "byte",
+                                                                                                                                                "short",
+                                                                                                                                                "int",
+                                                                                                                                                "long"
+                                                                                                                                              ],
+                                                                                                                                              "type": "string"
+                                                                                                                                            },
+                                                                                                                                            "v": {
+                                                                                                                                              "maximum": 9007199254740991,
+                                                                                                                                              "minimum": -9007199254740991,
+                                                                                                                                              "type": "integer"
+                                                                                                                                            }
+                                                                                                                                          },
+                                                                                                                                          "required": [
+                                                                                                                                            "t",
+                                                                                                                                            "v"
+                                                                                                                                          ],
+                                                                                                                                          "type": "object"
+                                                                                                                                        },
+                                                                                                                                        {
+                                                                                                                                          "additionalProperties": false,
+                                                                                                                                          "properties": {
+                                                                                                                                            "t": {
+                                                                                                                                              "enum": [
+                                                                                                                                                "float",
+                                                                                                                                                "double"
+                                                                                                                                              ],
+                                                                                                                                              "type": "string"
+                                                                                                                                            },
+                                                                                                                                            "v": {
+                                                                                                                                              "type": "number"
+                                                                                                                                            }
+                                                                                                                                          },
+                                                                                                                                          "required": [
+                                                                                                                                            "t",
+                                                                                                                                            "v"
+                                                                                                                                          ],
+                                                                                                                                          "type": "object"
+                                                                                                                                        },
+                                                                                                                                        {
+                                                                                                                                          "additionalProperties": false,
+                                                                                                                                          "properties": {
+                                                                                                                                            "t": {
+                                                                                                                                              "const": "bool",
+                                                                                                                                              "type": "string"
+                                                                                                                                            },
+                                                                                                                                            "v": {
+                                                                                                                                              "type": "boolean"
+                                                                                                                                            }
+                                                                                                                                          },
+                                                                                                                                          "required": [
+                                                                                                                                            "t",
+                                                                                                                                            "v"
+                                                                                                                                          ],
+                                                                                                                                          "type": "object"
+                                                                                                                                        },
+                                                                                                                                        {
+                                                                                                                                          "additionalProperties": false,
+                                                                                                                                          "properties": {
+                                                                                                                                            "t": {
+                                                                                                                                              "const": "timestamp",
+                                                                                                                                              "type": "string"
+                                                                                                                                            },
+                                                                                                                                            "v": {
+                                                                                                                                              "maximum": 9007199254740991,
+                                                                                                                                              "minimum": 0,
+                                                                                                                                              "type": "integer"
+                                                                                                                                            }
+                                                                                                                                          },
+                                                                                                                                          "required": [
+                                                                                                                                            "t",
+                                                                                                                                            "v"
+                                                                                                                                          ],
+                                                                                                                                          "type": "object"
+                                                                                                                                        },
+                                                                                                                                        {
+                                                                                                                                          "additionalProperties": false,
+                                                                                                                                          "properties": {
+                                                                                                                                            "t": {
+                                                                                                                                              "const": "decimal",
+                                                                                                                                              "type": "string"
+                                                                                                                                            },
+                                                                                                                                            "v": {
+                                                                                                                                              "additionalProperties": false,
+                                                                                                                                              "properties": {
+                                                                                                                                                "digits": {
+                                                                                                                                                  "maximum": 4294967295,
+                                                                                                                                                  "minimum": 0,
+                                                                                                                                                  "type": "integer"
+                                                                                                                                                },
+                                                                                                                                                "places": {
+                                                                                                                                                  "maximum": 255,
+                                                                                                                                                  "minimum": 0,
+                                                                                                                                                  "type": "integer"
+                                                                                                                                                }
+                                                                                                                                              },
+                                                                                                                                              "required": [
+                                                                                                                                                "places",
+                                                                                                                                                "digits"
+                                                                                                                                              ],
+                                                                                                                                              "type": "object"
+                                                                                                                                            }
+                                                                                                                                          },
+                                                                                                                                          "required": [
+                                                                                                                                            "t",
+                                                                                                                                            "v"
+                                                                                                                                          ],
+                                                                                                                                          "type": "object"
+                                                                                                                                        },
+                                                                                                                                        {
+                                                                                                                                          "additionalProperties": false,
+                                                                                                                                          "properties": {
+                                                                                                                                            "t": {
+                                                                                                                                              "const": "bytes",
+                                                                                                                                              "type": "string"
+                                                                                                                                            },
+                                                                                                                                            "v": {
+                                                                                                                                              "maxLength": 87380,
+                                                                                                                                              "type": "string"
+                                                                                                                                            }
+                                                                                                                                          },
+                                                                                                                                          "required": [
+                                                                                                                                            "t",
+                                                                                                                                            "v"
+                                                                                                                                          ],
+                                                                                                                                          "type": "object"
+                                                                                                                                        },
+                                                                                                                                        {
+                                                                                                                                          "additionalProperties": false,
+                                                                                                                                          "properties": {
+                                                                                                                                            "t": {
+                                                                                                                                              "const": "void",
+                                                                                                                                              "type": "string"
+                                                                                                                                            },
+                                                                                                                                            "v": {
+                                                                                                                                              "type": "null"
+                                                                                                                                            }
+                                                                                                                                          },
+                                                                                                                                          "required": [
+                                                                                                                                            "t",
+                                                                                                                                            "v"
+                                                                                                                                          ],
+                                                                                                                                          "type": "object"
+                                                                                                                                        }
+                                                                                                                                      ]
+                                                                                                                                    }
+                                                                                                                                  },
+                                                                                                                                  "required": [
+                                                                                                                                    "value"
+                                                                                                                                  ],
+                                                                                                                                  "type": "object"
+                                                                                                                                },
+                                                                                                                                "maxItems": 64,
+                                                                                                                                "type": "array"
+                                                                                                                              }
+                                                                                                                            },
+                                                                                                                            "required": [
+                                                                                                                              "t",
+                                                                                                                              "v"
+                                                                                                                            ],
+                                                                                                                            "type": "object"
+                                                                                                                          }
+                                                                                                                        ]
+                                                                                                                      }
+                                                                                                                    },
+                                                                                                                    "required": [
+                                                                                                                      "value"
+                                                                                                                    ],
+                                                                                                                    "type": "object"
+                                                                                                                  },
+                                                                                                                  "maxItems": 64,
+                                                                                                                  "type": "array"
+                                                                                                                }
+                                                                                                              },
+                                                                                                              "required": [
+                                                                                                                "t",
+                                                                                                                "v"
+                                                                                                              ],
+                                                                                                              "type": "object"
+                                                                                                            }
+                                                                                                          ]
+                                                                                                        }
+                                                                                                      },
+                                                                                                      "required": [
+                                                                                                        "value"
+                                                                                                      ],
+                                                                                                      "type": "object"
+                                                                                                    },
+                                                                                                    "maxItems": 64,
+                                                                                                    "type": "array"
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "t",
+                                                                                                  "v"
+                                                                                                ],
+                                                                                                "type": "object"
+                                                                                              }
+                                                                                            ]
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "value"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                      },
+                                                                                      "maxItems": 64,
+                                                                                      "type": "array"
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "t",
+                                                                                    "v"
+                                                                                  ],
+                                                                                  "type": "object"
+                                                                                }
+                                                                              ]
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "value"
+                                                                          ],
+                                                                          "type": "object"
+                                                                        },
+                                                                        "maxItems": 64,
+                                                                        "type": "array"
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "t",
+                                                                      "v"
+                                                                    ],
+                                                                    "type": "object"
+                                                                  }
+                                                                ]
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "value"
+                                                            ],
+                                                            "type": "object"
+                                                          },
+                                                          "maxItems": 64,
+                                                          "type": "array"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "t",
+                                                        "v"
+                                                      ],
+                                                      "type": "object"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "value"
+                                              ],
+                                              "type": "object"
+                                            },
+                                            "maxItems": 64,
+                                            "type": "array"
+                                          }
+                                        },
+                                        "required": [
+                                          "t",
+                                          "v"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "value"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 64,
+                              "type": "array"
+                            }
+                          },
+                          "required": [
+                            "t",
+                            "v"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "propertyNames": {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "mandatory": {
+                    "const": true,
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "props": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "appId": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "contentEncoding": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "contentType": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "correlationId": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "deliveryMode": {
+                        "anyOf": [
+                          {
+                            "const": 1,
+                            "type": "number"
+                          },
+                          {
+                            "const": 2,
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "expiration": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "messageId": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "priority": {
+                        "maximum": 255,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "replyTo": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "timestamp": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "type": {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      "userId": {
+                        "maxLength": 255,
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "routingKey": {
+                    "maxLength": 255,
+                    "type": "string"
+                  },
+                  "timeoutMs": {
+                    "default": 5000,
+                    "maximum": 30000,
+                    "minimum": 100,
+                    "type": "integer"
+                  },
+                  "vhost": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "vhost",
+                  "exchange",
+                  "routingKey",
+                  "props",
+                  "body"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "allConfirmed": {
+                      "type": "boolean"
+                    },
+                    "copies": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "index": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "outcome": {
+                            "enum": [
+                              "confirmed",
+                              "nacked",
+                              "returned",
+                              "blocked",
+                              "timeout",
+                              "failed",
+                              "not-sent"
+                            ],
+                            "type": "string"
+                          },
+                          "reason": {
+                            "maxLength": 120,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "index",
+                          "outcome"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 100,
+                      "type": "array"
+                    },
+                    "historyId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "historyRecorded": {
+                      "type": "boolean"
+                    },
+                    "summary": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "blocked": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "confirmed": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "failed": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "nacked": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "not-sent": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "returned": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "timeout": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "confirmed",
+                        "nacked",
+                        "returned",
+                        "blocked",
+                        "timeout",
+                        "failed",
+                        "not-sent"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "copies",
+                    "summary",
+                    "allConfirmed",
+                    "historyRecorded"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Publish copies of one message and report what the broker did with each",
+        "tags": [
+          "messages"
+        ],
+        "x-audit": "attempt+outcome",
+        "x-cli": {
+          "command": "messages publish"
+        },
+        "x-kind": "command",
+        "x-permission": "messages.publish",
+        "x-planning": "optional",
+        "x-risk": "medium",
+        "x-since": "1.0"
+      }
+    },
     "/connections/{cid}/metrics/forecasts": {
       "post": {
         "operationId": "metrics.forecast",
@@ -10579,6 +12702,9 @@
     },
     {
       "name": "layouts"
+    },
+    {
+      "name": "messages"
     },
     {
       "name": "meta"

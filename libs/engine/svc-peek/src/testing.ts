@@ -13,5 +13,6 @@ export function createPeekFakeDeps(): PeekModuleDeps {
     mgmt: createScriptedManagement({ vhost: '/' }).mgmt,
     evidence: createFakeEvidence(),
     clock: createManualClock(),
+    quarantinePrefix: 'product',
   };
 }

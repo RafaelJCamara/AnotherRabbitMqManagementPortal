@@ -35,6 +35,38 @@ export const ConsumerRowSchema = z.object({
   active: z.boolean().nullish(),
 });
 
+export const PolicyRowSchema = z.object({
+  name: z.string(),
+  pattern: z.string(),
+  'apply-to': z.string(),
+  priority: z.number(),
+  definition: table,
+});
+export type PolicyRow = z.infer<typeof PolicyRowSchema>;
+
+export const NodeRowSchema = z.object({
+  name: z.string(),
+  mem_alarm: z.boolean().nullish(),
+  disk_free_alarm: z.boolean().nullish(),
+});
+export type NodeRow = z.infer<typeof NodeRowSchema>;
+
+/** Only the name the connection manager gave it and its state: other client properties are dropped. */
+export const ConnectionRowSchema = z.object({
+  name: z.string().nullish(),
+  state: z.string().nullish(),
+  client_properties: z
+    .object({ connection_name: z.string().nullish() })
+    .nullish(),
+});
+export type ConnectionRow = z.infer<typeof ConnectionRowSchema>;
+
+export const PermissionRowSchema = z.object({
+  configure: z.string(),
+  write: z.string(),
+});
+export type PermissionRow = z.infer<typeof PermissionRowSchema>;
+
 /** A list is a bare array on RabbitMQ and a paged envelope on some providers; both are one page. */
 const listOf = <T extends z.ZodType>(item: T) =>
   z.union([
@@ -48,6 +80,9 @@ const listOf = <T extends z.ZodType>(item: T) =>
 
 // One schema object per list: the scheduler dedupes reads by the identity of the schema.
 export const ConsumerListSchema = listOf(ConsumerRowSchema);
+export const PolicyListSchema = listOf(PolicyRowSchema);
+export const NodeListSchema = listOf(NodeRowSchema);
+export const ConnectionListSchema = listOf(ConnectionRowSchema);
 
 /** The rows of a list answer, and how many more the broker said it has (never silently dropped). */
 export function rowsOf<T>(

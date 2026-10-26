@@ -40,7 +40,15 @@ export interface VhostDescription {
   readonly vhost: string;
   /** Queue rows by queue name. */
   readonly queues?: Readonly<Record<string, ManagementRow>>;
-  readonly consumers?: readonly ManagementRow[];
+  /** The lists are raw bodies: a bare array or a paged envelope. */
+  readonly consumers?: unknown;
+  readonly policies?: unknown;
+  readonly operatorPolicies?: unknown;
+  readonly nodes?: unknown;
+  readonly connections?: unknown;
+  /** The permission row of `user`, when the user has one. */
+  readonly user?: string;
+  readonly permission?: ManagementRow;
   /** HTTP status a path answers with instead of a body: 403, 404 and 5xx become Problems. */
   readonly failures?: Readonly<Record<string, number>>;
   /** Called before each answer; a spec uses it to move a manual clock during a read. */
@@ -69,6 +77,17 @@ export function createScriptedManagement(
     routes.set(queuePath(vhost, name), row);
   }
   routes.set(`/api/consumers/${enc}`, description.consumers ?? []);
+  routes.set(`/api/policies/${enc}`, description.policies ?? []);
+  routes.set(
+    `/api/operator-policies/${enc}`,
+    description.operatorPolicies ?? [],
+  );
+  routes.set('/api/nodes', description.nodes ?? []);
+  routes.set(`/api/vhosts/${enc}/connections`, description.connections ?? []);
+  if (description.permission !== undefined) {
+    const user = encodeURIComponent(description.user ?? 'guest');
+    routes.set(`/api/permissions/${enc}/${user}`, description.permission);
+  }
   const requests: RecordedRequest[] = [];
   const record = (request: RecordedRequest): void => {
     requests.push(request);

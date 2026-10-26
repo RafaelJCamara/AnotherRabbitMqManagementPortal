@@ -8,4 +8,6 @@ export interface PeekModuleDeps {
   /** Dead-letter sources and effective configuration, wired over the topology queries (OQ-1468). */
   readonly evidence: PeekEvidencePort;
   readonly clock: Clock;
+  /** The prefix of the quarantine queue's name; a bad one fails when the preflight is created. */
+  readonly quarantinePrefix: string;
 }

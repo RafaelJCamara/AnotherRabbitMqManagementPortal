@@ -10,6 +10,7 @@ import {
 } from '@app/peek-planner';
 import type { MgmtReadPort, Principal } from '@app/ports';
 import { semanticsRegistry } from '@app/semantics';
+import fc from 'fast-check';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
@@ -20,7 +21,12 @@ import {
   type ManagementRow,
   type VhostDescription,
 } from './preflight-fakes.ts';
-import { createPeekPreflight, type PeekPreflightDeps } from './preflight.ts';
+import {
+  createPeekPreflight,
+  type PeekPreflightDeps,
+  type PreflightLimits,
+  type PreflightProfile,
+} from './preflight.ts';
 
 const CID = 'conn-1' as ConnectionId;
 const VHOST = '/';
@@ -82,6 +88,11 @@ const quorumRow: ManagementRow = {
   members: ['rabbit@a'],
   online: ['rabbit@a'],
 };
+const preflightProfile: PreflightProfile = {
+  ...profile,
+  classicEnabled: 'unknown',
+  limits: { preAuthFrameMax: 4096 },
+};
 const sacArguments = {
   'x-queue-type': 'quorum',
   'x-single-active-consumer': true,
@@ -91,6 +102,7 @@ const sacRow: ManagementRow = { ...quorumRow, arguments: sacArguments };
 function setup(
   vhost: Partial<VhostDescription> = {},
   evidenceOptions: FakeEvidenceOptions = {},
+  limits: Partial<PreflightLimits> = {},
 ) {
   const clock = createManualClock(NOW);
   const api = createScriptedManagement({
@@ -99,10 +111,23 @@ function setup(
     queues: { orders: quorumRow, ...vhost.queues },
   });
   const evidence = createFakeEvidence(evidenceOptions);
-  const service = createPeekPreflight({ mgmt: api.mgmt, evidence, clock });
-  const run = (queue = 'orders') =>
+  const service = createPeekPreflight({
+    mgmt: api.mgmt,
+    evidence,
+    clock,
+    quarantinePrefix: 'product',
+    limits,
+  });
+  const run = (queue = 'orders', rescue: 'check' | 'skip' = 'skip') =>
     service.run(
-      { connectionId: CID, vhost: VHOST, queue, principal: caller },
+      {
+        connectionId: CID,
+        vhost: VHOST,
+        queue,
+        principal: caller,
+        profile: preflightProfile,
+        rescue,
+      },
       signal,
     );
   return { api, evidence, clock, run };
@@ -157,8 +182,36 @@ describe('peek preflight', () => {
       ['GET', 'interactive', consumersPath],
     ]);
     // The deps name a read port and an evidence port: no write port, no lease, no connection manager.
+    // With the rescue check the closed list grows by the quarantine, policies, nodes, connections
+    // and the permission row: still reads, still the interactive lane, at most nine.
+    const checked = setup({
+      queues: { orders: sacRow },
+      user: 'ada',
+      permission: { configure: '.*', write: '.*', read: '.*' },
+    });
+    await checked.run('orders', 'check');
+    const enc = encodeURIComponent(VHOST);
+    expect(new Set(checked.api.requests.map((r) => r.path))).toEqual(
+      new Set([
+        queuePath(VHOST, 'orders'),
+        queuePath(VHOST, 'product.quarantine'),
+        consumersPath,
+        `/api/policies/${enc}`,
+        `/api/operator-policies/${enc}`,
+        '/api/nodes',
+        `/api/vhosts/${enc}/connections`,
+        `/api/permissions/${enc}/ada`,
+      ]),
+    );
+    expect(checked.api.requests.length).toBeLessThanOrEqual(9);
+    expect(new Set(checked.api.requests.map((r) => r.method))).toEqual(
+      new Set(['GET']),
+    );
+    expect(new Set(checked.api.requests.map((r) => r.lane))).toEqual(
+      new Set(['interactive']),
+    );
     expectTypeOf<keyof PeekPreflightDeps>().toEqualTypeOf<
-      'mgmt' | 'evidence' | 'clock' | 'limits'
+      'mgmt' | 'evidence' | 'clock' | 'quarantinePrefix' | 'limits'
     >();
     expectTypeOf<PeekPreflightDeps['mgmt']>().toEqualTypeOf<MgmtReadPort>();
     expectTypeOf<PeekPreflightDeps['mgmt']>().not.toHaveProperty('send');
@@ -276,7 +329,7 @@ describe('peek preflight', () => {
       heldDeath: 'not-checked',
     });
     // A list cut at its bound is not complete either: it may hide the source that matters.
-    const cut = await setup({}, { dlxSources: { sourcesMore: 3 } }).run();
+    const cut = await setup({}, { dlxSources: { sourcesMore: 1 } }).run();
     expect(cut.preflight.dlxSources.complete).toBe(false);
     expect(cut.preflight.dlxSources.unknownReasons).toEqual([
       { code: 'truncated' },
@@ -340,5 +393,234 @@ describe('peek preflight', () => {
     expect(slow.preflight.takenAt).toBe(NOW + 12);
     expect(instant.preflight.rttMs).toBe(1);
     expect(instant.preflight.takenAt).toBe(NOW);
+  });
+
+  it('M1-13 AC-8 reads and rows are bounded and an over-bound list fails closed', async () => {
+    const others = Array.from({ length: 1_200 }, () => ({
+      queue: { name: 'other' },
+      active: true,
+    }));
+    const policy = {
+      name: 'p',
+      pattern: '.*',
+      'apply-to': 'all',
+      priority: 0,
+      definition: {},
+    };
+    const { api, run } = setup({
+      queues: { orders: sacRow },
+      consumers: others,
+      policies: Array.from({ length: 1_001 }, () => policy),
+      operatorPolicies: [policy],
+      user: 'ada',
+      permission: { configure: '.*', write: '.*', read: '.*' },
+    });
+
+    const { preflight, reads, cut } = await run('orders', 'check');
+
+    expect(api.requests.length).toBeLessThanOrEqual(9);
+    // Not one consumer of ours was seen, but the cut rows may hold it: not "no consumer".
+    expect(cut).toEqual({
+      consumers: 200,
+      policies: 1,
+      operatorPolicies: 0,
+      connections: 0,
+    });
+    expect(preflight.queue.hasActiveConsumer).toBe(true);
+    // A policy list past its bound is unreadable, not "no policy"; the others are still read.
+    expect(reads?.policies).toEqual({ state: 'unreadable' });
+    expect(reads?.operatorPolicies.state).toBe('read');
+
+    const spent = setup({ queues: { orders: sacRow } }, {}, { maxReads: 1 });
+    await expect(spent.run()).rejects.toMatchObject({ code: 'INTERNAL' });
+    expect(spent.api.requests).toHaveLength(1);
+  });
+
+  it('M1-13 AC-9 whatever the broker answers, the preflight output is a valid planner input', async () => {
+    const number = fc.oneof(
+      fc.constantFrom(-1, 0, 1e308, Number.MAX_SAFE_INTEGER),
+      fc.integer({ min: -1_000, max: 1_000_000 }),
+      fc.double({ noNaN: true, noDefaultInfinity: true }),
+    );
+    const value = fc.oneof(
+      number,
+      fc.string(),
+      fc.constant(null),
+      fc.boolean(),
+      fc.constant({ a: [1] }),
+    );
+    const row = fc.record(
+      {
+        name: fc.constant('orders'),
+        type: fc.constantFrom('classic', 'quorum', 'stream', 'mqtt'),
+        exclusive: fc.option(fc.boolean()),
+        consumers: number,
+        messages_ready: number,
+        message_bytes_ready: number,
+        delivery_limit: fc.oneof(
+          number,
+          fc.constantFrom('unlimited', '20', 'x', '1e999'),
+        ),
+        delayed_retry: fc.oneof(
+          fc.constantFrom('disabled', 'all', 'failed', 'returned'),
+          fc.string(),
+        ),
+        members: fc.array(fc.string(), { maxLength: 5 }),
+        online: fc.array(fc.string(), { maxLength: 5 }),
+        leader: fc.option(fc.string()),
+        arguments: fc.record(
+          {
+            'x-message-ttl': value,
+            'x-max-length': value,
+            'x-consumer-timeout': value,
+            'x-delivery-limit': value,
+            'x-overflow': value,
+            'x-single-active-consumer': value,
+          },
+          { requiredKeys: [] },
+        ),
+      },
+      { requiredKeys: ['name'] },
+    );
+    const finiteEverywhere = (x: unknown): boolean =>
+      typeof x === 'number'
+        ? Number.isFinite(x)
+        : typeof x === 'object' && x !== null
+          ? Object.values(x).every(finiteEverywhere)
+          : true;
+    let planned = 0;
+
+    await fc.assert(
+      fc.asyncProperty(row, async (generated) => {
+        const { run } = setup({ queues: { orders: generated } });
+        const outcome = await run().then(
+          (done) => done,
+          (error: unknown) => {
+            expect(error).toBeInstanceOf(AppError);
+            return null;
+          },
+        );
+        if (outcome === null) return;
+        planned += 1;
+        expect(finiteEverywhere(outcome.preflight)).toBe(true);
+        const result = plan(outcome.preflight);
+        if (isRejection(result)) {
+          expect(result.reasons).not.toContain('preflight-number-invalid');
+        }
+      }),
+      { numRuns: 300 },
+    );
+    expect(planned).toBeGreaterThan(50);
+  });
+
+  it('the rescue reads are data: the quarantine queue, policies, alarms, connections and the permission', async () => {
+    const conforming = {
+      name: 'product.quarantine',
+      type: 'classic',
+      durable: true,
+      auto_delete: false,
+      exclusive: false,
+      arguments: { 'x-queue-type': 'classic', 'x-overflow': 'reject-publish' },
+      messages: 3,
+      message_bytes: 300,
+    };
+    const policy = {
+      name: 'p',
+      pattern: '.*',
+      'apply-to': 'all',
+      priority: 1,
+      definition: { 'max-length': 1_000 },
+    };
+    const failures = {
+      [`/api/operator-policies/${encodeURIComponent(VHOST)}`]: 405,
+    };
+    const first = await setup({
+      queues: { 'product.quarantine': conforming },
+      policies: [policy],
+      failures,
+      nodes: [
+        {
+          name: 'rabbit@a',
+          mem_alarm: true,
+          disk_free_alarm: false,
+          os_pid: 'x',
+        },
+      ],
+      connections: [
+        {
+          name: '10.0.0.1:5672',
+          state: 'blocked',
+          client_properties: {
+            connection_name: 'product/peek',
+            secret: 'canary',
+          },
+          user: 'canary',
+        },
+      ],
+      user: 'ada',
+      permission: {
+        configure: '^product\\.',
+        write: '^product\\.',
+        read: '.*',
+        canary: 'x',
+      },
+    }).run('orders', 'check');
+
+    expect(first.reads).toEqual({
+      quarantine: {
+        state: 'present',
+        found: {
+          name: 'product.quarantine',
+          vhost: VHOST,
+          type: 'classic',
+          durable: true,
+          autoDelete: false,
+          exclusive: false,
+          arguments: conforming.arguments,
+        },
+        messages: 3,
+        bytes: 300,
+      },
+      policies: { state: 'read', value: [policy] },
+      operatorPolicies: { state: 'unreadable' },
+      nodes: {
+        state: 'read',
+        value: [{ name: 'rabbit@a', mem_alarm: true, disk_free_alarm: false }],
+      },
+      connections: {
+        state: 'read',
+        value: [
+          {
+            name: '10.0.0.1:5672',
+            state: 'blocked',
+            client_properties: { connection_name: 'product/peek' },
+          },
+        ],
+      },
+      permission: {
+        state: 'read',
+        value: { configure: '^product\\.', write: '^product\\.' },
+      },
+    });
+    expect(first.quarantineName).toBe('product.quarantine');
+    expect(JSON.stringify(first)).not.toContain('canary');
+
+    const absent = await setup({}).run('orders', 'check');
+    expect(absent.reads?.quarantine).toEqual({ state: 'absent' });
+    expect(absent.reads?.permission).toEqual({ state: 'unreadable' });
+    const refused = await setup({
+      failures: { [queuePath(VHOST, 'product.quarantine')]: 403 },
+    }).run('orders', 'check');
+    expect(refused.reads?.quarantine).toEqual({ state: 'unreadable' });
+    const skipped = await setup({}).run('orders', 'skip');
+    expect(skipped.reads).toBeNull();
+    const deps = {
+      mgmt: setup().api.mgmt,
+      evidence: createFakeEvidence(),
+      clock: createManualClock(),
+    };
+    expect(() =>
+      createPeekPreflight({ ...deps, quarantinePrefix: 'RabbitTool' }),
+    ).toThrow(RangeError);
   });
 });

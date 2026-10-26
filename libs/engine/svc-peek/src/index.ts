@@ -41,4 +41,8 @@ export type {
   PeekPreflightService,
   PreflightLimits,
   PreflightOutcome,
+  PreflightProfile,
+  QuarantineRead,
+  Read,
+  RescueReads,
 } from './internal/preflight.ts';

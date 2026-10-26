@@ -4,6 +4,7 @@
 // (I-6, I-13); a field the broker did not send stays absent; the outcome holds numbers, names and
 // closed codes, never a body or the broker's text (I-10).
 import type { ConnectionId } from '@app/contracts';
+import type { BrokerProfile } from '@app/domain-model';
 import { AppError, type Clock } from '@app/kernel';
 import type {
   DlxEvidence,
@@ -23,11 +24,20 @@ import type { DeliveryLimit, LimitState } from '@app/semantics';
 import type { z } from 'zod';
 
 import {
+  ConnectionListSchema,
   ConsumerListSchema,
+  NodeListSchema,
+  PermissionRowSchema,
+  PolicyListSchema,
   QueueRowSchema,
   rowsOf,
+  type ConnectionRow,
+  type NodeRow,
+  type PermissionRow,
+  type PolicyRow,
   type QueueRow,
 } from './preflight-rows.ts';
+import { quarantineName, type FoundQueue } from './quarantine.ts';
 
 const LANE: Lane = 'interactive';
 /** The broker's own ceiling for a page; a list that needs another page is cut and counted. */
@@ -38,14 +48,24 @@ const STOPS: ReadonlySet<string> = new Set([
   'INTERNAL',
 ]);
 
+export type PreflightProfile = Pick<
+  BrokerProfile,
+  'era' | 'versions' | 'identity' | 'classicEnabled' | 'limits'
+>;
+
 export interface PreflightLimits {
+  /** Past it the policy list is unreadable: a cut list could hide the policy that decides. */
+  readonly maxPolicies: number;
   readonly maxConsumerRows: number;
+  readonly maxConnectionRows: number;
   /** A hard stop: the preflight reads at most this many times (an assertion of the spec too). */
   readonly maxReads: number;
 }
 
 export const DEFAULT_PREFLIGHT_LIMITS: PreflightLimits = {
+  maxPolicies: 1_000,
   maxConsumerRows: 1_000,
+  maxConnectionRows: 1_000,
   maxReads: 9,
 };
 
@@ -54,6 +74,8 @@ export interface PeekPreflightDeps {
   readonly mgmt: MgmtReadPort;
   readonly evidence: PeekEvidencePort;
   readonly clock: Clock;
+  /** Injected by the composition root; a bad prefix fails at construction (OQ-1470). */
+  readonly quarantinePrefix: string;
   readonly limits?: Partial<PreflightLimits>;
 }
 
@@ -62,13 +84,49 @@ export interface PeekPreflightRequest {
   readonly vhost: string;
   readonly queue: string;
   readonly principal: Principal;
+  readonly profile: PreflightProfile;
+  /** `check` when the plan may need the quarantine (a quorum queue with a finite or unknown limit). */
+  readonly rescue: 'check' | 'skip';
+}
+
+/** A management list or row: read in full, or not (refused, failed, or past its bound). */
+export type Read<T> =
+  | { readonly state: 'read'; readonly value: T }
+  | { readonly state: 'unreadable' };
+
+export type QuarantineRead =
+  | { readonly state: 'absent' }
+  | {
+      readonly state: 'present';
+      readonly found: FoundQueue;
+      readonly messages?: number;
+      readonly bytes?: number;
+    }
+  | { readonly state: 'unreadable' };
+
+/** What the rescue preflight judges: the quarantine queue and the broker's rules about it. */
+export interface RescueReads {
+  readonly quarantine: QuarantineRead;
+  readonly policies: Read<readonly PolicyRow[]>;
+  readonly operatorPolicies: Read<readonly PolicyRow[]>;
+  readonly nodes: Read<readonly NodeRow[]>;
+  readonly connections: Read<readonly ConnectionRow[]>;
+  readonly permission: Read<PermissionRow>;
 }
 
 export interface PreflightOutcome {
   /** Handed to `planPeek` unchanged. */
   readonly preflight: PeekPreflight;
+  /** Null when the caller asked to `skip` the rescue check. */
+  readonly reads: RescueReads | null;
+  readonly quarantineName: string;
   /** Rows read but not used because of a bound; a minimum when the broker gave no total. */
-  readonly cut: { readonly consumers: number };
+  readonly cut: {
+    readonly consumers: number;
+    readonly policies: number;
+    readonly operatorPolicies: number;
+    readonly connections: number;
+  };
 }
 
 export interface PeekPreflightService {
@@ -117,6 +175,11 @@ const OVERFLOWS = [
   'reject-publish-dlx',
   'reject-publish',
 ] as const;
+
+const declaredType = (row: QueueRow): string => {
+  const declared = row.arguments?.['x-queue-type'];
+  return typeof declared === 'string' ? declared : '';
+};
 
 /** Unknown arguments count as single-active-consumer: the cautious reading. */
 const isSingleActive = (row: QueueRow): boolean =>
@@ -263,21 +326,23 @@ export function createPeekPreflight(
     ...DEFAULT_PREFLIGHT_LIMITS,
     ...deps.limits,
   };
+  // A bad prefix fails here, at construction, and not at the first peek (OQ-1470).
+  const quarantine = quarantineName(deps.quarantinePrefix);
   const { clock } = deps;
 
   return {
     async run(request, signal) {
-      const { connectionId, vhost, queue, principal } = request;
+      const { connectionId, vhost, queue, principal, profile } = request;
       const enc = encodeURIComponent(vhost);
-      let reads = 0;
+      let used = 0;
 
       const get = async <T>(
         path: string,
         schema: z.ZodType<T>,
         query?: MgmtQuery,
       ): Promise<T> => {
-        if (reads >= limits.maxReads) throw new AppError('INTERNAL');
-        reads += 1;
+        if (used >= limits.maxReads) throw new AppError('INTERNAL');
+        used += 1;
         try {
           const request = { connectionId, path, schema, lane: LANE };
           return await deps.mgmt.get(
@@ -305,37 +370,149 @@ export function createPeekPreflight(
         }
       };
 
+      const queuePath = (name: string): string =>
+        `/api/queues/${enc}/${encodeURIComponent(name)}`;
       const started = clock.monotonic();
-      const row = await get(
-        `/api/queues/${enc}/${encodeURIComponent(queue)}`,
-        QueueRowSchema,
-        { enable_queue_totals: true },
-      );
+      const row = await get(queuePath(queue), QueueRowSchema, {
+        enable_queue_totals: true,
+      });
       const elapsed = clock.monotonic() - started;
       const rttMs = Number.isFinite(elapsed) && elapsed >= 1 ? elapsed : 1;
 
       // Only a single-active-consumer queue needs the consumer list (basic.get is refused there).
       const sac = isSingleActive(row);
-      let consumersCut = 0;
-      const listed = async () => {
-        const { rows, more } = rowsOf(
-          await get(`/api/consumers/${enc}`, ConsumerListSchema, PAGE),
-        );
-        consumersCut = Math.max(rows.length - limits.maxConsumerRows, 0) + more;
-        return rows.slice(0, limits.maxConsumerRows);
+      const cut = {
+        consumers: 0,
+        policies: 0,
+        operatorPolicies: 0,
+        connections: 0,
       };
+      type CutKey = keyof typeof cut;
+      /** A list read up to `bound` rows; the rows past it, or on another page, are counted in `cut`. */
+      const listed = async <S, T>(
+        key: CutKey,
+        path: string,
+        schema: z.ZodType<S>,
+        pick: (answer: S) => { rows: readonly T[]; more: number },
+        bound: number,
+        query: MgmtQuery = PAGE,
+      ): Promise<readonly T[]> => {
+        const { rows, more } = pick(await get(path, schema, query));
+        cut[key] = Math.max(rows.length - bound, 0) + more;
+        return rows.slice(0, bound);
+      };
+      const readOf = async <T>(call: () => Promise<T>): Promise<Read<T>> => {
+        const value = await soft(call);
+        return value === null
+          ? { state: 'unreadable' }
+          : { state: 'read', value };
+      };
+      const policyList = (key: 'policies' | 'operatorPolicies', path: string) =>
+        readOf(async () => {
+          const rows = await listed(
+            key,
+            path,
+            PolicyListSchema,
+            rowsOf,
+            limits.maxPolicies,
+          );
+          // A cut list could hide the policy that decides: it is unreadable, and counted.
+          if (cut[key] > 0) throw new AppError('BUDGET_EXCEEDED');
+          return rows;
+        });
+      const quarantineRead = async (): Promise<QuarantineRead> => {
+        try {
+          const f = await get(queuePath(quarantine), QueueRowSchema, {
+            enable_queue_totals: true,
+          });
+          const messages = count(f.messages);
+          const bytes = count(f.message_bytes);
+          return {
+            state: 'present',
+            found: {
+              name: f.name,
+              vhost,
+              type: f.type ?? declaredType(f),
+              durable: f.durable === true,
+              autoDelete: f.auto_delete !== false,
+              ...(f.exclusive == null ? {} : { exclusive: f.exclusive }),
+              arguments: f.arguments ?? {},
+            },
+            ...(messages === undefined ? {} : { messages }),
+            ...(bytes === undefined ? {} : { bytes }),
+          };
+        } catch (error) {
+          if (error instanceof AppError && error.code === 'NOT_FOUND') {
+            return { state: 'absent' };
+          }
+          if (
+            signal.aborted ||
+            (error instanceof AppError && STOPS.has(error.code))
+          ) {
+            throw error;
+          }
+          return { state: 'unreadable' };
+        }
+      };
+      const rescueReads = async (): Promise<RescueReads> => ({
+        quarantine: await quarantineRead(),
+        policies: await policyList('policies', `/api/policies/${enc}`),
+        operatorPolicies: await policyList(
+          'operatorPolicies',
+          `/api/operator-policies/${enc}`,
+        ),
+        nodes: await readOf(async () => {
+          const { rows, more } = rowsOf(
+            await get('/api/nodes', NodeListSchema, {
+              columns: 'name,mem_alarm,disk_free_alarm',
+              ...PAGE,
+            }),
+          );
+          // A node that was not listed may be the one in alarm.
+          if (more > 0) throw new AppError('BUDGET_EXCEEDED');
+          return rows;
+        }),
+        connections: await readOf(() =>
+          listed(
+            'connections',
+            `/api/vhosts/${enc}/connections`,
+            ConnectionListSchema,
+            rowsOf,
+            limits.maxConnectionRows,
+            { columns: 'name,state,client_properties', ...PAGE },
+          ),
+        ),
+        permission: await readOf(() =>
+          get(
+            `/api/permissions/${enc}/${encodeURIComponent(profile.identity.user)}`,
+            PermissionRowSchema,
+          ),
+        ),
+      });
+
       const evidence = { connectionId, vhost, queue };
-      const [consumerRows, dlx, config] = await Promise.all([
-        sac ? soft(listed) : Promise.resolve([]),
+      const [consumerRows, dlx, config, reads] = await Promise.all([
+        sac
+          ? soft(() =>
+              listed(
+                'consumers',
+                `/api/consumers/${enc}`,
+                ConsumerListSchema,
+                rowsOf,
+                limits.maxConsumerRows,
+              ),
+            )
+          : Promise.resolve([]),
         soft(() => deps.evidence.dlxSources(evidence, principal, signal)),
         soft(() => deps.evidence.effectiveConfig(evidence, principal, signal)),
+        request.rescue === 'check' ? rescueReads() : Promise.resolve(null),
       ]);
 
       const ours = consumerRows?.filter((c) => c.queue.name === queue);
       // Fail closed: a list that is unreadable or cut may hide the consumer that makes the queue busy.
       const active =
         ours === undefined ||
-        consumersCut > 0 ||
+        cut.consumers > 0 ||
         ours.some((c) => c.active !== false);
       return {
         preflight: {
@@ -344,7 +521,9 @@ export function createPeekPreflight(
           rttMs,
           takenAt: clock.now(),
         },
-        cut: { consumers: consumersCut },
+        reads,
+        quarantineName: quarantine,
+        cut,
       };
     },
   };

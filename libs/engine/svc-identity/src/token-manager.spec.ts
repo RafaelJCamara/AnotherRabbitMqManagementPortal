@@ -981,6 +981,8 @@ describe('TokenManager edges (slice C)', () => {
     const delays: number[] = [];
     const long = harness({
       lifetimeMs: 100 * 86_400 * SECOND,
+      // One sweep a day: a tick every 10 s over 75 days would be 650,000 manual timers.
+      limits: { sweepIntervalMs: 86_400 * SECOND },
       timers: (inner) => ({
         setTimer: (callback, ms) => {
           delays.push(ms);

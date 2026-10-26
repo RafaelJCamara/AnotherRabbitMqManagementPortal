@@ -5,10 +5,15 @@
 // The scripted lease lives in this file on purpose: building a `confirmed` outcome needs
 // `mintConfirmedCopyProof`, which only specs and the lease itself may import (A-9, arch test), and
 // a lease type may be named only by an action module or a spec (I-2).
-import { checkRegistry, MessagesPublishOutputSchema } from '@app/contracts';
+import {
+  checkRegistry,
+  MessagesPublishOutputSchema,
+  type InputOf,
+} from '@app/contracts';
 import {
   AppError,
   checkPlanPurity,
+  createCanaryScanner,
   createLogger,
   createRoleAuthorizer,
   createTestContext,
@@ -16,8 +21,10 @@ import {
   createTestPrincipal,
   createWiredExecutor,
   denyAllAuthorizer,
+  toProblem,
   type ExecutorContext,
   type ExecutorWrite,
+  type WiredExecutor,
 } from '@app/kernel';
 import {
   mintConfirmedCopyProof,
@@ -503,5 +510,330 @@ describe('messages.publish (M1-19 slice A)', () => {
     const closed = await setup(stubborn, { lines }).publish(sampleInput);
     expect(closed.allConfirmed).toBe(true);
     expect(lines.join('')).toContain('did not close cleanly');
+  });
+
+  it('M1-19 AC-7 publish maps a failure before any outcome to a Problem without values', async () => {
+    const BODY = 'BODY-SECRET-7f3a9c';
+    const input = {
+      ...sampleInput,
+      body: { encoding: 'utf8', data: BODY },
+      headers: { authorization: { t: 'string', v: 'HEADER-SECRET-91b2d4' } },
+      props: { correlationId: 'PROP-SECRET-55e0a1' },
+    };
+    const known = createScript([
+      {
+        throws: adapterError('NOT_FOUND', 'The exchange does not exist.', BODY),
+      },
+    ]);
+    const missing = setup(known);
+    const notFound = await refusal(missing.publish(input));
+    expect(notFound.code).toBe('NOT_FOUND');
+    expect(notFound.detail).toBe('The exchange does not exist.');
+    expect(missing.recorder.entries).toEqual([]);
+
+    const strange = createScript([
+      { throws: adapterError('NOT-A-CODE', BODY, BODY) },
+    ]);
+    const unknown = setup(strange);
+    const internal = await refusal(unknown.publish(input));
+    expect(internal.code).toBe('INTERNAL');
+    expect(internal.detail).toBe(
+      'The message could not be published; nothing was sent.',
+    );
+    expect(unknown.recorder.entries).toEqual([]);
+
+    const plain = createScript([{ throws: new Error(BODY) }]);
+    const bare = await refusal(setup(plain).publish(input));
+    expect(bare.code).toBe('INTERNAL');
+
+    // A lease that cannot be taken at all is the same: a code, nothing sent, no values.
+    const noLease = createScript([]);
+    noLease.writes.connections.publish = () =>
+      Promise.reject(
+        adapterError('BROKER_UNREACHABLE', 'The broker is unreachable.'),
+      );
+    const down = await refusal(setup(noLease).publish(input));
+    expect(down.code).toBe('BROKER_UNREACHABLE');
+
+    for (const error of [notFound, internal, bare, down]) {
+      const problem = JSON.stringify(toProblem(error));
+      for (const value of [
+        BODY,
+        'HEADER-SECRET-91b2d4',
+        'PROP-SECRET-55e0a1',
+      ]) {
+        expect(problem).not.toContain(value);
+        expect(error.message).not.toContain(value);
+      }
+    }
+  });
+
+  it('M1-19 AC-8 publish keeps the decided copies and marks the failed one when a later copy throws', async () => {
+    const script = createScript([
+      confirmed(),
+      { throws: adapterError('BROKER_ERROR') },
+      confirmed(),
+    ]);
+    const { publish, recorder } = setup(script);
+
+    const output = await publish(withCopies(3));
+
+    expect(output.copies.map((copy) => [copy.outcome, copy.reason])).toEqual([
+      ['confirmed', undefined],
+      ['failed', 'BROKER_ERROR'],
+      ['not-sent', expect.any(String)],
+    ]);
+    expect(script.calls).toHaveLength(2);
+    expect(output.allConfirmed).toBe(false);
+    // A history row exists, with the counts of what happened.
+    expect(output.historyRecorded).toBe(true);
+    expect(output.historyId).toBe('history-1');
+    expect(recorder.entries).toHaveLength(1);
+    expect(recorder.entries[0]).toMatchObject({
+      ownerId: 'user-1',
+      connectionId: 'c1',
+      vhost: '/',
+      exchange: '',
+      routingKey: 'orders',
+      copies: 3,
+      summary: { confirmed: 1, failed: 1, 'not-sent': 1 },
+    });
+  });
+
+  it('M1-19 AC-9 publish goes through the executor: the prod lock stops it and the audit has no body', async () => {
+    const BODY = 'BODY-CANARY-0c4d8e2f';
+    const input = { ...sampleInput, body: { encoding: 'utf8', data: BODY } };
+    const script = createScript([confirmed(), confirmed()]);
+    const { engine, context } = setup(script);
+    const prod = (): ExecutorContext => context({ env: 'prod' });
+    const principal = createTestPrincipal();
+
+    // Not armed: refused before any lease is taken, and nothing is written as if it had run.
+    await expect(engine.executor.run(def, input, prod())).rejects.toMatchObject(
+      {
+        code: 'GATE_BLOCKED',
+      },
+    );
+    expect(script.count.leases).toBe(0);
+    expect(script.calls).toEqual([]);
+    expect(engine.auditRows.rows).toEqual([]);
+
+    // Armed: it runs, and leaves an attempt row and then an outcome row.
+    engine.arming.arm(principal, 'c1');
+    const direct = await engine.executor.run(def, input, prod());
+    expect(direct.kind).toBe('output');
+    expect(script.count.leases).toBe(1);
+    expect(engine.auditRows.rows.map((row) => row.phase)).toEqual([
+      'attempt',
+      'outcome',
+    ]);
+    expect(engine.auditRows.rows[1]).toMatchObject({
+      result: 'ok',
+      attemptSeq: 1,
+    });
+
+    // The two-phase path (the policy may require it): the plan holds no body, and nothing is
+    // published until it is executed.
+    const ctx = prod();
+    const plan = await engine.executor.plan(def, input, ctx);
+    expect(script.calls).toHaveLength(1);
+    const done = await engine.executor.execute(
+      {
+        planId: plan.id,
+        consents: [...plan.consentsRequired],
+        confirmation: plan.confirmationPhrase,
+        idempotencyKey: ctx.idempotencyKey ?? '',
+      },
+      ctx,
+    );
+    expect(done.kind).toBe('output');
+    expect(script.calls).toHaveLength(2);
+    expect(engine.auditRows.rows).toHaveLength(4);
+
+    const written = JSON.stringify({
+      audit: engine.auditRows.rows,
+      receipts: [...engine.receiptRows.rows.values()],
+      plan,
+    });
+    expect(written).toContain('messages.publish');
+    expect(createCanaryScanner([BODY]).scan(written)).toEqual([]);
+    expect(createCanaryScanner([BODY]).scan(JSON.stringify(input))).not.toEqual(
+      [],
+    );
+  });
+
+  it('M1-19 AC-10 publish keeps a canary secret out of audit, logs, problems and outputs', async () => {
+    const canary = {
+      body: 'CANARY-body-Lq7x2VnB',
+      header: 'CANARY-header-Rt5w8KcD',
+      prop: 'CANARY-prop-Yh3m6ZpF',
+      reply: 'CANARY-reply-Gd9s1JaE',
+    };
+    const scanner = createCanaryScanner(Object.values(canary));
+    const input = {
+      ...sampleInput,
+      body: { encoding: 'utf8', data: `{"password":"${canary.body}"}` },
+      headers: { authorization: { t: 'string', v: `Bearer ${canary.header}` } },
+      props: { correlationId: canary.prop },
+    };
+    const lines: string[] = [];
+    const seen: unknown[] = [];
+
+    // Confirmed, returned (the broker's own text carries a canary), and throwing.
+    const runs: Step[][] = [
+      [confirmed()],
+      [returned(canary.reply)],
+      [
+        {
+          throws: adapterError(
+            'BROKER_ERROR',
+            'The broker failed.',
+            canary.body,
+          ),
+        },
+      ],
+      [
+        confirmed(),
+        { throws: adapterError('BROKER_ERROR', undefined, canary.reply) },
+      ],
+    ];
+    const engines: WiredExecutor[] = [];
+    for (const steps of runs) {
+      const { engine, publish } = setup(createScript(steps), { lines });
+      engines.push(engine);
+      const answer: unknown = await publish({
+        ...input,
+        copies: steps.length,
+      }).catch((error: unknown) => toProblem(error));
+      seen.push(answer);
+    }
+    for (const engine of engines) {
+      seen.push(engine.auditRows.rows, [...engine.receiptRows.rows.values()]);
+    }
+    seen.push(lines);
+
+    // The scan is not vacuous: it finds each canary in the caller's own input.
+    expect(
+      [
+        ...new Set(scanner.scan(JSON.stringify(input)).map((hit) => hit.index)),
+      ].sort(),
+    ).toEqual([0, 1, 2]);
+    expect(scanner.scan(JSON.stringify(seen))).toEqual([]);
+    expect(lines.length).toBeGreaterThan(0);
+  });
+});
+
+describe('messages.publish (M1-19 slice A, beyond the ACs)', () => {
+  it('M1-19 slice A: typed headers reach the lease with their AMQP types, bytes decoded', async () => {
+    const script = createScript([confirmed()]);
+    const { publish } = setup(script);
+
+    await publish({
+      ...sampleInput,
+      props: { contentType: 'application/json', deliveryMode: 2, priority: 5 },
+      headers: {
+        count: { t: 'long', v: 7 },
+        raw: { t: 'bytes', v: Buffer.from('abc').toString('base64') },
+        list: { t: 'array', v: [{ value: { t: 'string', v: 'x' } }] },
+        nest: {
+          t: 'table',
+          v: [{ name: '__proto__', value: { t: 'bool', v: true } }],
+        },
+        none: { t: 'void', v: null },
+      },
+      body: {
+        encoding: 'base64',
+        data: Buffer.from([0, 255, 16]).toString('base64'),
+      },
+    });
+
+    const props = script.calls[0]?.props;
+    expect(props).toMatchObject({
+      contentType: 'application/json',
+      deliveryMode: 2,
+      priority: 5,
+    });
+    const headers = props?.headers as Record<string, unknown>;
+    expect(headers.count).toEqual({ t: 'long', v: 7 });
+    expect(headers.raw).toEqual({
+      t: 'bytes',
+      v: new Uint8Array(Buffer.from('abc')),
+    });
+    expect(headers.list).toEqual({ t: 'array', v: [{ t: 'string', v: 'x' }] });
+    expect(headers.none).toEqual({ t: 'void', v: null });
+    const nest = headers.nest as { t: string; v: Record<string, unknown> };
+    expect(Object.keys(nest.v)).toEqual(['__proto__']);
+    expect(Object.getPrototypeOf(nest.v)).toBeNull();
+    expect([...(script.calls[0]?.body ?? [])]).toEqual([0, 255, 16]);
+  });
+
+  it('M1-19 slice A: a header table with a duplicate or missing name is refused', async () => {
+    const script = createScript([confirmed()]);
+    const { publish } = setup(script);
+    const bool = { t: 'bool', v: true };
+
+    for (const headers of [
+      {
+        dup: {
+          t: 'table',
+          v: [
+            { name: 'a', value: bool },
+            { name: 'a', value: bool },
+          ],
+        },
+      },
+      { nameless: { t: 'table', v: [{ value: bool }] } },
+      { named: { t: 'array', v: [{ name: 'a', value: bool }] } },
+    ]) {
+      const error = await refusal(publish({ ...sampleInput, headers }));
+      expect(error.code).toBe('VALIDATION_FAILED');
+    }
+    expect(script.count.leases).toBe(0);
+  });
+
+  it('M1-19 slice A: a failing history write never changes the outcome and is flagged', async () => {
+    const lines: string[] = [];
+    const recorder = createMemoryPublishRecorder();
+    recorder.failNext(1, new Error('store down, password=HISTORY-SECRET-123'));
+    const script = createScript([confirmed(), confirmed()]);
+    const { publish } = setup(script, { lines, recorder });
+
+    const failed = await publish(sampleInput);
+    expect(failed.allConfirmed).toBe(true);
+    expect(failed.copies).toEqual([{ index: 0, outcome: 'confirmed' }]);
+    expect(failed.historyRecorded).toBe(false);
+    expect(failed.historyId).toBeUndefined();
+    expect(lines.join('')).toContain('could not be recorded');
+    expect(lines.join('')).not.toContain('HISTORY-SECRET-123');
+
+    const next = await publish(sampleInput);
+    expect(next.historyRecorded).toBe(true);
+  });
+
+  it('M1-19 slice A: a call cancelled before its first copy sends nothing and records nothing', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const script = createScript([confirmed()]);
+    const { engine, recorder } = setup(script);
+    // The executor refuses a call that is already cancelled, before the action runs.
+    await expect(
+      engine.executor.run(
+        def,
+        sampleInput,
+        createTestContext({ signal: controller.signal, idempotencyKey: 'k1' }),
+      ),
+    ).rejects.toBeInstanceOf(AppError);
+    expect(script.count.leases).toBe(0);
+    expect(recorder.entries).toEqual([]);
+  });
+
+  it('M1-19 slice A: an input type fits the contract', () => {
+    const input: InputOf<typeof def> = def.input.parse(sampleInput);
+    expect(input).toMatchObject({
+      copies: 1,
+      mandatory: true,
+      confirm: true,
+      timeoutMs: 5_000,
+    });
   });
 });

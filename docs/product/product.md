@@ -8,7 +8,9 @@ RabbitMQ is a trademark of Broadcom, Inc. in the U.S. and other countries. <Prod
 
 **Vision.** Make <Product> the de facto tool for both *using* RabbitMQ (developers) and *managing* it (operators, security, platform teams). It is free forever, and every feature is open source, including the team server.
 
-**One-line positioning.** *The open-source workbench and control plane for RabbitMQ®. One engine and one UI run on your desktop, in your browser or on your team's server, with message tools that know what your RabbitMQ version really does.*
+**One-line positioning.** *The open-source workbench and control plane for RabbitMQ®. One engine and one UI run in your browser, then on your desktop and on your team's server, with message tools that know what your RabbitMQ version really does.*
+
+**Current goal.** The web app comes first: Web 1.0, the single-user Docker web app, is targeted for a public release on 2026-11-30 ([ADR-035](../adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md)). The desktop apps follow it and are not a goal before then.
 
 **Why we can win** (fact sheet §k):
 - No competitor covers developer IDE + full admin + ops + team server.
@@ -302,6 +304,20 @@ The brand must be coined, contain no rabbit, and carry the descriptor '<Name> fo
 
 ## 6. Roadmap at a glance and ordering rationale
 
+> **Superseded numbering.** The table below is the design-phase roadmap. The binding order and milestone numbers are web-first ([ADR-030](../adr/ADR-030-web-first-delivery-order.md), [ADR-035](../adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md), [milestones.md](milestones.md)):
+>
+> | Milestone | Target | Theme |
+> | --- | --- | --- |
+> | M0 Foundations & evidence (internal alpha) | 2026-11-13 | registry, probe, conformance, container, read-only explorer |
+> | M1 Web 1.0 "Developer" (public) | **2026-11-30** | peek, publish, tap, streams, simulator, effective config, DLQ basics, as a Docker web app |
+> | M2 Windows desktop 1.0 | after Web 1.0 | desktop spikes, Electron shell, Windows packaging; management parity I |
+> | M3 Linux desktop 1.0 | after M2 | Linux packaging; parity II, DLQ operations centre, plugin SDK |
+> | M4 macOS desktop 1.0 | after M3 | macOS signing; advanced messaging, providers, IPC/CLI/MCP |
+> | M5 Free team server | after M4 | OIDC, RBAC, audit, approvals, masking, Helm |
+> | M6–M8 | later | ops intelligence, governed AI and MCP, platform scale |
+>
+> The web app ships first; desktop builds join from M2, and each later milestone ships to every platform already released.
+
 | Milestone | Target | Theme |
 | --- | --- | --- |
 | M0 Foundations (internal alpha) | ~Dec 2026 | semantics registry, probe, conformance suite, shells, read-only explorer |
@@ -312,7 +328,7 @@ The brand must be coined, contain no rabbit, and carry the descriptor '<Name> fo
 | M5 Governed AI and MCP | ~Feb 2028 | — |
 | M6 Platform scale | 2028 | plan/apply, drift, self-service, HA, node agent, UI extensions |
 
-**Every milestone ships** signed Windows, macOS (arm64 + x64) and Linux desktop builds, an npm package and a Docker image; the team-server image and chart ship from M3 on.
+Design-phase note (superseded): every milestone was to ship signed Windows, macOS and Linux desktop builds, an npm package and a Docker image.
 
 **Alternatives considered**
 - **Team server at M2.** Rejected: governance only pays off once there is a breadth of governed actions, and parity is needed for operators to switch.

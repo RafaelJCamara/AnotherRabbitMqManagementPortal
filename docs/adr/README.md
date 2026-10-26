@@ -33,11 +33,12 @@ ADRs use the MADR style (status, context/decision, rationale, alternatives, cons
 | [ADR-027](ADR-027-supply-chain-gates-with-a-reviewed-release-age-exclusion-lis.md) | Supply-chain gates with a reviewed release-age exclusion list and a security lane | Accepted |
 | [ADR-028](ADR-028-doom-guard-applies-the-era-rule-literally.md) | Doom guard applies the era rule literally | Accepted |
 | [ADR-029](ADR-029-product-name.md) | Product name and brand | Proposed |
-| [ADR-030](ADR-030-web-first-delivery-order.md) | Web-first delivery order | Accepted |
+| [ADR-030](ADR-030-web-first-delivery-order.md) | Web-first delivery order | Accepted (amended by ADR-035) |
 | [ADR-031](ADR-031-fully-open-source.md) | Fully open source (Apache-2.0) | Accepted |
 | [ADR-032](ADR-032-typescript-and-angular.md) | TypeScript end to end with Angular | Accepted |
 | [ADR-033](ADR-033-github-as-system-of-record.md) | GitHub as system of record | Accepted |
 | [ADR-034](ADR-034-docs-policy.md) | Docs policy (banned terms) | Accepted |
+| [ADR-035](ADR-035-web-1-0-by-2026-11-30-desktop-after.md) | Web 1.0 public release by 2026-11-30; desktop after | Accepted |
 
 ## Template
 

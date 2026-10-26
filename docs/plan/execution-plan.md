@@ -1,6 +1,6 @@
-> **Design-phase output (2026-10-16).** Amended by [`docs/plan/amendments.md`](../plan/amendments.md), which takes precedence, and re-sequenced web-first ([ADR-030](../adr/ADR-030-web-first-delivery-order.md), [`docs/product/milestones.md`](../product/milestones.md)). Content about a specific third-party product was removed under the docs policy ([ADR-034](../adr/ADR-034-docs-policy.md)).
+> **Design-phase output (2026-10-16).** Amended by [`docs/plan/amendments.md`](../plan/amendments.md), which takes precedence, and re-sequenced web-first ([ADR-030](../adr/ADR-030-web-first-delivery-order.md), [`docs/product/milestones.md`](../product/milestones.md)). **Since 2026-10-26** ([ADR-035](../adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md), A-26): Web 1.0 (M0 + M1) is targeted for a public release on 2026-11-30 with its full scope, M0 by 2026-11-13; no desktop work happens before it ships; the critical path carries the label `priority:critical-path`. Content about a specific third-party product was removed under the docs policy ([ADR-034](../adr/ADR-034-docs-policy.md)).
 
-> **ID map (web-first re-sequencing).** This is the design-phase execution plan; its WP ids are the original ones. Re-sequenced ids and GitHub issue links are in [`work-items.md`](work-items.md). Moved items: M0-18→M1-67, M0-19→M1-68, M0-34→M2-P01, M0-55→M2-P02, M0-56→M2-P03, M0-57→M2-P04, M0-58→M2-P05, M0-61→M2-P06, M0-67→M2-P07, M0-65→M2-P17, M0-66→M3-P01 + M4-P01; epics M2-01/02/04→M2-F01/F02/F03, M2-03/06/07→M3-F01/F02/F03, M2-05/08/09/10/11→M4-F01…F05, M3-xx→M5-xx, M4-xx→M6-xx, M5-xx→M7-xx, M6-xx→M8-xx.
+> **ID map (web-first re-sequencing).** This is the design-phase execution plan; its WP ids are the original ones. Re-sequenced ids and GitHub issue links are in [`work-items.md`](work-items.md). Moved items: M0-18→M1-67→M2-P18, M0-19→M1-68→M2-P19 (second move by ADR-035), M0-34→M2-P01, M0-55→M2-P02, M0-56→M2-P03, M0-57→M2-P04, M0-58→M2-P05, M0-61→M2-P06, M0-67→M2-P07, M0-65→M2-P17, M0-66→M3-P01 + M4-P01; epics M2-01/02/04→M2-F01/F02/F03, M2-03/06/07→M3-F01/F02/F03, M2-05/08/09/10/11→M4-F01…F05, M3-xx→M5-xx, M4-xx→M6-xx, M5-xx→M7-xx, M6-xx→M8-xx.
 
 **Summary.** Execution plan for <Product> for RabbitMQ® (Apache-2.0; one Node 24 engine and one Angular 22 build; desktop, local web and team server), built mostly by AI agents. It follows the final blueprint: Fastify 5.12.7 rather than NestJS, no client codegen, and a fail-closed ActionExecutor. The ordering is evidence first. Wave 0 bootstraps the repository in an exact order: licence, Nx 23.3 + pnpm 12.14, the TS 6.0.3 pin, lint and module boundaries, supply-chain and licence gates, CI, Conventional Commits + release-please, a docs site, governance files, and the agent toolchain (AGENTS.md, CLAUDE.md, path rules, hooks, skills, generators, spec template, CODEOWNERS). Next come contracts, the semantics registry, a broker lab with an independent evidence recorder and three-way assertions, and the capability probe. All peek, tap and DLQ work waits until the settle-path cells are three-way green on 3.13.7, 4.0.9, 4.1.8, 4.2.9 and 4.3.6. M0 has 69 work packages (WPs) and M1 has 59, each with Given/When/Then criteria and exact nx verification commands. M2-M6 are split into 46 epics. The plan also gives waves, critical paths, integration points, the DoD and CI gates, a schedule for all 26 open uncertainties, and a release checklist for each milestone.
 
@@ -302,7 +302,7 @@ A wave lists WPs whose dependencies are met at about the same time. Within a wav
 M0-01 → 03 → 04 → 08 → 10 → 11 → 16 → 21 → 29 → 32 → 33 → 34 → 36 → 56 → 58 → 67 → 68
 
 - **Near-critical evidence lane:** M0-05 → 14 → 15 → 37 → 38/39/40/41 → 62.
-- **Calendar risks outside the agent path:** verification of the Apple, Store and Certum accounts (start on day 1), and human approval of lab evidence.
+- **Calendar risks outside the agent path:** verification of the Apple, Store and Certum accounts (start on day 1), and human approval of lab evidence. *(Web-first, ADR-035: the Store and Certum accounts are opened at the start of M2 and Apple before M4; for Web 1.0 the calendar risks are lab-evidence approval, brand clearance and ADR-029.)*
 
 **M1 critical path:** M0-62 → M1-12 → 14 → 15 → 16 → 18 → 38 (needs 7 clean chaos nights) → 59.
 - UI tail: M1-16 → 44 → 56 → 59.
@@ -326,6 +326,8 @@ M0-01 → 03 → 04 → 08 → 10 → 11 → 16 → 21 → 29 → 32 → 33 → 
 - **Then M5, then M6.**
 
 **Capacity.** M0 is about 115 agent-days and M1 about 120 agent-days. With 6 parallel writers and a 1.5× integration/review factor, each milestone takes roughly 6 weeks. That fits the ~Dec 2026 and ~Mar 2027 targets only if human review keeps pace.
+
+*Re-targeted by ADR-035 (2026-10-26):* M0 by 2026-11-13 and the Web 1.0 public release by 2026-11-30, with the full M1 scope. That is far faster than the estimate above, so the date is a target: it holds only with more parallel writers, same-day human review of trust-critical WPs and lab evidence, and critical-path work first (`priority:critical-path`, A-26). If it does not hold, the date slips; the scope does not change.
 
 ## 4. Definition of Done and CI gates
 **DoD for every WP**

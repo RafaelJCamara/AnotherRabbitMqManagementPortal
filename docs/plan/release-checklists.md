@@ -2,7 +2,7 @@
 
 > **Design-phase output (2026-10-16).** Amended by [`docs/plan/amendments.md`](../plan/amendments.md), which takes precedence, and re-sequenced web-first ([ADR-030](../adr/ADR-030-web-first-delivery-order.md), [`docs/product/milestones.md`](../product/milestones.md)). Content about a specific third-party product was removed under the docs policy ([ADR-034](../adr/ADR-034-docs-policy.md)).
 
-> Written before the web-first re-sequencing. The per-channel release gates in [plan.md](plan.md) §7 take precedence: image (M1), Windows (M2), Linux (M3), macOS (M4), team (M5).
+> Written before the web-first re-sequencing. The per-channel release gates in [plan.md](plan.md) §7 take precedence: image (M1), Windows (M2), Linux (M3), macOS (M4), team (M5). For M0 and M1 (Web 1.0, public release targeted for 2026-11-30 by [ADR-035](../adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md)), the Desktop and npm sections below do not apply, and the e2e-desktop run starts in M2.
 
 **Every milestone** (gated on the release-please PR and the tag):
 - [ ] A maintainer has reviewed the release PR: changelog, version, ADR links.
@@ -48,7 +48,8 @@
 **Milestone deltas**
 | Milestone | Version and channels | Extra gates |
 | --- | --- | --- |
-| **M0 internal alpha** | 0.1.0-alpha.N. Channels: GitHub prerelease; npm `alpha` (under the codename if ADR-029 is still pending); GHCR; private Store flight. No tap or winget yet | - Matrix v0 published<br>- Amazon MQ + CloudAMQP probe run<br>- Licence, git-dependency and TS-pin gates proven by the self-test<br>- NSIS signing exception documented if Certum fails |
+| **M0 internal alpha** (target 2026-11-13) | 0.1.0-alpha.N. Channels: GitHub prerelease; private GHCR image. No npm, Store, tap or winget (desktop and npm move to M2, ADR-035) | - Matrix v0 published<br>- Amazon MQ + CloudAMQP probe run<br>- Licence, git-dependency and TS-pin gates proven by the self-test |
+| **M1 Web 1.0 "Developer"** (target 2026-11-30) | 0.9.x public beta, then 1.0.0. Channels: GitHub release; public GHCR (optional Docker Hub mirror); docs site. Needs ADR-029 accepted and the repo public (A-22) | - Every peek receipt matches the conformance matrix<br>- M1 developer checklist 100%<br>- Time-to-first-peek under 3 min from `docker run`<br>- Pre-1.0 security review (M1-60)<br>- Deny-all egress run of the container |
 | **M2** | 1.x | - Parity checklist against the official UI 4.3.6<br>- Decoder fixture apps: MassTransit v8, Spring, NServiceBus, EasyNetQ, Celery<br>- 10k-replay chaos run with zero loss and zero duplicates<br>- Local MCP passes the SDK-oracle tests |
 | **M3** | 2.0, plus the team image and OCI chart | - Helm on kind under restricted PSS<br>- Compose quickstart in under 10 min<br>- An RBAC test and an audit attempt/outcome test for every mutating API<br>- Audit verify and restore drill<br>- Keycloak 26 + Entra delegated OAuth<br>- SSRF suite<br>- Security review sign-off |
 | **M4** | 2.x | - DC-56 rule fixtures per version<br>- Upgrade advisor validated on 4.2.9→4.3.6 labs, and on 4.4 within 14 days of GA<br>- Alert delivery E2E (Slack, Teams, email, webhook)<br>- Flathub + Snap |

@@ -10,12 +10,12 @@
     {
       "key": "M1",
       "title": "M1 · Web 1.0 \"Developer\"",
-      "description": "Deliverable: **The dockerized web app** as the best developer tool for RabbitMQ\nPlatform lane: Compose quickstart (app + RabbitMQ); host-broker networking (`host.docker.internal`, Linux `host-gateway`); SSH-tunnel guide for remote use; browser matrix (Chrome, Edge, Firefox, Safari); public GHCR (and optional Docker Hub mirror)\nFeature lane: Safe peek, publish, tap, stream browser, routing simulator, effective config, DLQ basics (inventory, deaths, replay), queue/exchange admin, TLS/mTLS/tunnels/OAuth (PKCE redirect to the app origin), live metrics and forecast, palette, a11y, i18n, docs\nExit: Every peek receipt matches the conformance matrix. M1 developer checklist 100%. Time-to-first-peek < 3 min from `docker run` in usability tests (Windows, macOS and Linux hosts). Devtools listing PR\nDocs: docs/product/milestones.md"
+      "description": "Deliverable: **The dockerized web app** as the best developer tool for RabbitMQ. Public release targeted for 2026-11-30 (ADR-035); no desktop work\nPlatform lane: Compose quickstart (app + RabbitMQ); host-broker networking (`host.docker.internal`, Linux `host-gateway`); SSH-tunnel guide for remote use; browser matrix (Chrome, Edge, Firefox, Safari); public GHCR (and optional Docker Hub mirror)\nFeature lane: Safe peek, publish, tap, stream browser, routing simulator, effective config, DLQ basics (inventory, deaths, replay), queue/exchange admin, TLS/mTLS/tunnels/OAuth (PKCE redirect to the app origin), live metrics and forecast, palette, a11y, i18n, docs\nExit: Every peek receipt matches the conformance matrix. M1 developer checklist 100%. Time-to-first-peek < 3 min from `docker run` in usability tests (Windows, macOS and Linux hosts). Devtools listing PR\nDocs: docs/product/milestones.md"
     },
     {
       "key": "M2",
       "title": "M2 · Windows desktop 1.0",
-      "description": "Deliverable: Signed Windows app (x64 + arm64)\nPlatform lane: Electron shell (main, preload, supervisor, **MessagePort tunnel**, `app://`, fuses, CSP); safeStorage key wrap; OS notifications; system-browser OAuth; native menus; MSIX (Store) + NSIS (Certum/SignPath), electron-updater; Windows CI with broker-lab reachability; MSIX virtualisation and data-directory rules; spellchecker off; desktop egress E2E; optional `npx` local-web channel\nFeature lane: **Management parity I:** vhosts, users, permissions, topic permissions, limits; connections, channels, consumers; nodes and health checks; feature flags and deprecated features; **policy and operator-policy editor**\nExit: Windows release passes signature, WACK and SmartScreen-free (Store) checks. Desktop E2E green on Windows x64 and arm64. Parity I live on web + Windows\nDocs: docs/product/milestones.md"
+      "description": "Deliverable: Signed Windows app (x64 + arm64)\nStarts after Web 1.0 (ADR-035). Platform lane: desktop spikes first (M2-P18, M2-P19; U-16, U-21) and signing accounts (H-09); Electron shell (main, preload, supervisor, **MessagePort tunnel**, `app://`, fuses, CSP); safeStorage key wrap; OS notifications; system-browser OAuth; native menus; MSIX (Store) + NSIS (Certum/SignPath), electron-updater; Windows CI with broker-lab reachability; MSIX virtualisation and data-directory rules; spellchecker off; desktop egress E2E; optional `npx` local-web channel\nFeature lane: **Management parity I:** vhosts, users, permissions, topic permissions, limits; connections, channels, consumers; nodes and health checks; feature flags and deprecated features; **policy and operator-policy editor**\nExit: Windows release passes signature, WACK and SmartScreen-free (Store) checks. Desktop E2E green on Windows x64 and arm64. Parity I live on web + Windows\nDocs: docs/product/milestones.md"
     },
     {
       "key": "M3",
@@ -796,7 +796,7 @@
       ]
     },
     {
-      "formerly": "M0-18",
+      "formerly": "M0-18, M1-67",
       "kind": "work-package",
       "lane": "platform",
       "size": "M",
@@ -807,28 +807,27 @@
       "parent": null,
       "amended": [],
       "needsSplit": false,
-      "wave": "M1-W4",
+      "wave": "M2-platform",
       "areas": [
         "desktop-win",
         "desktop-mac",
         "ci"
       ],
-      "id": "M1-67",
-      "title": "[M1-67] Spike S-01/S-02/S-03: MessagePort tunnel, utilityProcess cold start, node:sqlite in Electron",
-      "milestone": "M1",
-      "body": "**Milestone:** M1 · **Wave:** M1-W4 · **Lane:** platform · **Size:** M · **Formerly:** M0-18\n\n## Goal\n\nMeasure the desktop transport and runtime assumptions on all three OSes before building them (U-16).\n\n## Scope (projects / files)\n\nspikes/desktop-runtime/ (throwaway); .github/workflows/spike.yml (ubuntu-24.04, windows-2025, macos-15, macos-15-intel); ADR-002 and ADR-013 addenda with the numbers\n\n## Interfaces\n\nDecision records: ESM vs CJS engine bundle; engine-link worker yes/no; node:sqlite vs better-sqlite3 fallback\n\n## Acceptance criteria\n\n- [ ] Given Electron 44.8 and an ESM engine bundle forked as a utilityProcess, then ready is reported within 600 ms p95 on each OS, or the CJS fallback decision is recorded\n- [ ] Given 10,000 requests of 4 KiB and one 16 MiB response over MessagePort + fastify.inject, then overhead p95 is at most 2 ms with no renderer long task above 50 ms, and FTS5 works inside the utilityProcess\n\n## Verification\n\n- `gh workflow run spike.yml -f spike=desktop-runtime`\n- `pnpm nx run spikes:desktop-runtime-report`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md",
+      "id": "M2-P18",
+      "title": "[M2-P18] Spike S-01/S-02/S-03: MessagePort tunnel, utilityProcess cold start, node:sqlite in Electron",
+      "milestone": "M2",
+      "body": "**Milestone:** M2 · **Wave:** M2-platform · **Lane:** platform · **Size:** M · **Formerly:** M0-18, M1-67\n\n## Goal\n\nMeasure the desktop transport and runtime assumptions on all three OSes before building them (U-16).\n\n## Scope (projects / files)\n\nspikes/desktop-runtime/ (throwaway); .github/workflows/spike.yml (ubuntu-24.04, windows-2025, macos-15, macos-15-intel); ADR-002 and ADR-013 addenda with the numbers\n\n## Interfaces\n\nDecision records: ESM vs CJS engine bundle; engine-link worker yes/no; node:sqlite vs better-sqlite3 fallback\n\n## Acceptance criteria\n\n- [ ] Given Electron 44.8 and an ESM engine bundle forked as a utilityProcess, then ready is reported within 600 ms p95 on each OS, or the CJS fallback decision is recorded\n- [ ] Given 10,000 requests of 4 KiB and one 16 MiB response over MessagePort + fastify.inject, then overhead p95 is at most 2 ms with no renderer long task above 50 ms, and FTS5 works inside the utilityProcess\n\n## Verification\n\n- `gh workflow run spike.yml -f spike=desktop-runtime`\n- `pnpm nx run spikes:desktop-runtime-report`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md\n\n> **Re-sequenced (ADR-035, 2026-10-26):** moved from the M1 tail (M1-67) to the start of M2, before the Electron shell work. Not part of Web 1.0.",
       "labels": [
         "type:work-package",
         "lane:platform",
         "size:M",
         "area:desktop-win",
         "area:desktop-mac",
-        "area:ci",
-        "wave:M1-W4"
+        "area:ci"
       ]
     },
     {
-      "formerly": "M0-19",
+      "formerly": "M0-19, M1-68",
       "kind": "work-package",
       "lane": "platform",
       "size": "M",
@@ -839,23 +838,22 @@
       "parent": null,
       "amended": [],
       "needsSplit": false,
-      "wave": "M1-W4",
+      "wave": "M2-platform",
       "areas": [
         "desktop-win",
         "release"
       ],
-      "id": "M1-68",
-      "title": "[M1-68] Spike S-07/S-10: Electron crypto/TLS and Windows packaging/signing",
-      "milestone": "M1",
-      "body": "**Milestone:** M1 · **Wave:** M1-W4 · **Lane:** platform · **Size:** M · **Trust-critical** · **Formerly:** M0-19\n\n## Goal\n\nProve key wrapping, system CAs and the MSIX/NSIS signing flows before the vault and release work starts (U-16, U-21).\n\n## Scope (projects / files)\n\nspikes/desktop-platform/; test signing certificates; ADR-014 and ADR-026 addenda\n\n## Interfaces\n\nDecision records: argon2 vs scrypt; Linux backend matrix; Certum CI signing yes/no; MSIX + utilityProcess viability\n\n## Acceptance criteria\n\n- [ ] Given Electron's Node (BoringSSL), when tls.getCACertificates('system'), setDefaultCACertificates, PKCS#12 client certs, crypto.argon2 and safeStorage async are exercised on 3 OSes (plus Linux gnome-libsecret, kwallet6 and basic_text), then each result is recorded with a fallback\n- [ ] Given an MSIX built by electron-builder 26.17.0 and installed on windows-2025 with a test certificate, then the utilityProcess engine starts; given a two-pass signed NSIS, then the regenerated latest.yml sha512 matches\n\n## Verification\n\n- `gh workflow run spike.yml -f spike=desktop-platform`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md",
+      "id": "M2-P19",
+      "title": "[M2-P19] Spike S-07/S-10: Electron crypto/TLS and Windows packaging/signing",
+      "milestone": "M2",
+      "body": "**Milestone:** M2 · **Wave:** M2-platform · **Lane:** platform · **Size:** M · **Trust-critical** · **Formerly:** M0-19, M1-68\n\n## Goal\n\nProve key wrapping, system CAs and the MSIX/NSIS signing flows before the vault and release work starts (U-16, U-21).\n\n## Scope (projects / files)\n\nspikes/desktop-platform/; test signing certificates; ADR-014 and ADR-026 addenda\n\n## Interfaces\n\nDecision records: argon2 vs scrypt; Linux backend matrix; Certum CI signing yes/no; MSIX + utilityProcess viability\n\n## Acceptance criteria\n\n- [ ] Given Electron's Node (BoringSSL), when tls.getCACertificates('system'), setDefaultCACertificates, PKCS#12 client certs, crypto.argon2 and safeStorage async are exercised on 3 OSes (plus Linux gnome-libsecret, kwallet6 and basic_text), then each result is recorded with a fallback\n- [ ] Given an MSIX built by electron-builder 26.17.0 and installed on windows-2025 with a test certificate, then the utilityProcess engine starts; given a two-pass signed NSIS, then the regenerated latest.yml sha512 matches\n\n## Verification\n\n- `gh workflow run spike.yml -f spike=desktop-platform`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md\n\n> **Re-sequenced (ADR-035, 2026-10-26):** moved from the M1 tail (M1-68) to the start of M2, before the Electron shell work. Not part of Web 1.0.",
       "labels": [
         "type:work-package",
         "lane:platform",
         "size:M",
         "area:desktop-win",
         "area:release",
-        "trust:critical",
-        "wave:M1-W4"
+        "trust:critical"
       ]
     },
     {
@@ -1326,7 +1324,7 @@
       "depends": [
         "M0-32",
         "M0-33",
-        "M1-67"
+        "M2-P18"
       ],
       "parent": null,
       "amended": [],
@@ -1616,7 +1614,7 @@
       "id": "M0-42",
       "title": "[M0-42] Conformance CI workflows",
       "milestone": "M0",
-      "body": "**Milestone:** M0 · **Wave:** M0-W2 · **Lane:** evidence · **Size:** M · **Trust-critical**\n\n## Goal\n\nRun the matrix on every PR (sharded) and nightly across runtimes and alphas, with mutation testing of the registry.\n\n## Scope (projects / files)\n\n.github/workflows/{conformance-pr,conformance-nightly,mutation-nightly}.yml; Stryker config for semantics and the harness\n\n## Interfaces\n\nRequired check 'conformance' when affected; nightly runs Node 26.12, Electron's Node (ELECTRON_RUN_AS_NODE on the test-fused binary) and alphas that may fail and feed the 'unverified' state\n\n## Acceptance criteria\n\n- [ ] Given a PR touching semantics, adapters or conformance, then 5 versions run on Node 24.22 in shards and block the merge on failure\n- [ ] Given the nightly registry mutants (swap nack for reject; '>' to '>=' in isDoomed; drop a W-* gate), then each is killed by at least one test\n\n## Verification\n\n- `gh workflow run conformance-nightly.yml`\n- `gh workflow run mutation-nightly.yml`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md",
+      "body": "**Milestone:** M0 · **Wave:** M0-W2 · **Lane:** evidence · **Size:** M · **Trust-critical**\n\n## Goal\n\nRun the matrix on every PR (sharded) and nightly across runtimes and alphas, with mutation testing of the registry.\n\n## Scope (projects / files)\n\n.github/workflows/{conformance-pr,conformance-nightly,mutation-nightly}.yml; Stryker config for semantics and the harness\n\n## Interfaces\n\nRequired check 'conformance' when affected; nightly runs Node 26.12, Electron's Node (ELECTRON_RUN_AS_NODE on the test-fused binary) and alphas that may fail and feed the 'unverified' state\n\n## Acceptance criteria\n\n- [ ] Given a PR touching semantics, adapters or conformance, then 5 versions run on Node 24.22 in shards and block the merge on failure\n- [ ] Given the nightly registry mutants (swap nack for reject; '>' to '>=' in isDoomed; drop a W-* gate), then each is killed by at least one test\n\n## Verification\n\n- `gh workflow run conformance-nightly.yml`\n- `gh workflow run mutation-nightly.yml`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md\n\n> **Re-sequenced (ADR-035, 2026-10-26):** the Electron's Node leg of the nightly run starts with the desktop work in M2; M0 runs Node 24 and Node 26 only.",
       "labels": [
         "type:work-package",
         "lane:evidence",
@@ -1812,8 +1810,7 @@
       "wave": "M0-W3",
       "areas": [
         "conformance",
-        "engine",
-        "desktop-win"
+        "engine"
       ],
       "id": "M0-48",
       "title": "[M0-48] svc-explorer: inventory windows, overview, explorer.window topic (EXP-02/03 engine, S-13)",
@@ -1825,7 +1822,6 @@
         "size:L",
         "area:conformance",
         "area:engine",
-        "area:desktop-win",
         "trust:critical",
         "wave:M0-W3"
       ]
@@ -2034,7 +2030,7 @@
       "size": "M",
       "trust": true,
       "depends": [
-        "M1-67",
+        "M2-P18",
         "M0-20"
       ],
       "parent": null,
@@ -2106,7 +2102,7 @@
       "depends": [
         "M2-P03",
         "M0-22",
-        "M1-68"
+        "M2-P19"
       ],
       "parent": null,
       "amended": [],
@@ -2424,7 +2420,7 @@
       "trust": true,
       "depends": [
         "M2-P05",
-        "M1-68"
+        "M2-P19"
       ],
       "parent": null,
       "amended": [
@@ -2469,13 +2465,11 @@
       "wave": "M0-W4",
       "areas": [
         "tap",
-        "desktop-win",
-        "desktop-mac",
         "ci",
         "release"
       ],
       "id": "M0-68",
-      "title": "[M0-68] Release workflow, opt-in updates, Homebrew tap and winget scaffolding (PLAT-10)",
+      "title": "[M0-68] Release workflow and opt-in updates for the image and docs (PLAT-10)",
       "milestone": "M0",
       "body": "**Milestone:** M0 · **Wave:** M0-W4 · **Lane:** platform · **Size:** L · **Trust-critical**\n\n## Goal\n\nOne gated pipeline from tag to immutable release, with update checks that are off until the user opts in.\n\n## Scope (projects / files)\n\n.github/workflows/release.yml; apps/desktop/src/main/updater.ts (electron-updater 6.8.10; first-run opt-in with no preselection; enterprise disable); homebrew-tap template; winget-releaser config\n\n## Interfaces\n\nRelease stages: conformance gate, build, sign/notarise, metadata regeneration, fuse-check, notices/SBOM, SHA256SUMS + attestations, draft, immutable publish\n\n## Acceptance criteria\n\n- [ ] Given a release-please tag on a fork, then every stage completes in order and produces an immutable release with all artefacts attached\n- [ ] Given the enterprise disable setting, or no opt-in, then no update request is made (egress proxy log)\n\n## Verification\n\n- `gh workflow run release.yml -f dry_run=true --ref <fork-tag>`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n> **Re-sequenced (web-first):** image + docs release only; desktop release parts moved to M2-P08 (Windows), M3-P04 (Linux repos) and M4-P03 (Homebrew).\n\n## Amendments (binding; docs/plan/amendments.md)\n\n- **A-22:** Naming gate: everything private until ADR-029; codename for appId/data paths/env prefix.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md",
       "labels": [
@@ -2483,8 +2477,6 @@
         "lane:platform",
         "size:L",
         "area:tap",
-        "area:desktop-win",
-        "area:desktop-mac",
         "area:ci",
         "area:release",
         "trust:critical",
@@ -4510,22 +4502,18 @@
       "areas": [
         "peek",
         "tap",
-        "desktop-win",
-        "desktop-mac",
         "docs"
       ],
       "id": "M1-59",
       "title": "[M1-59] Beta to 1.0 'Developer': parity checklist, time-to-first-peek, channels, devtools listing",
       "milestone": "M1",
-      "body": "**Milestone:** M1 · **Wave:** M1-W5 · **Lane:** feature · **Size:** M · **Trust-critical**\n\n## Goal\n\nMeet the M1 exit criteria and ship publicly on every channel.\n\n## Scope (projects / files)\n\n## Interfaces\n\nRelease channel 'stable'\n\n## Acceptance criteria\n\n- [ ] Given usability tests on Windows, macOS, Linux and npx, then median install-to-first-receipt is under 3 minutes\n\n## Verification\n\n- `pnpm nx e2e e2e-web --grep=@parity`\n- `gh workflow run release.yml -f channel=stable`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md",
+      "body": "**Milestone:** M1 · **Wave:** M1-W5 · **Lane:** feature · **Size:** M · **Trust-critical**\n\n## Goal\n\nMeet the M1 exit criteria and ship Web 1.0 publicly (GitHub release, public GHCR, docs) on the 2026-11-30 target.\n\n## Scope (projects / files)\n\n## Interfaces\n\nRelease channel 'stable'\n\n## Acceptance criteria\n\n- [ ] Given usability tests of the container (`docker run`) on Windows, macOS and Linux hosts, then median install-to-first-receipt is under 3 minutes\n\n## Verification\n\n- `pnpm nx e2e e2e-web --grep=@parity`\n- `gh workflow run release.yml -f channel=stable`\n\n> Follow `gh workflow run …` with `gh run watch --exit-status` so the check actually waits for the result.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md\n\n> **Re-sequenced (ADR-035, 2026-10-26):** Web 1.0 only: the npx and desktop channels ship from M2. Target date 2026-11-30.",
       "labels": [
         "type:work-package",
         "lane:feature",
         "size:M",
         "area:peek",
         "area:tap",
-        "area:desktop-win",
-        "area:desktop-mac",
         "area:docs",
         "trust:critical",
         "wave:M1-W5"
@@ -7303,8 +7291,8 @@
       ],
       "id": "H-09",
       "title": "[H-09] Microsoft Partner Center, Certum OSS certificate, maintainer identity/country",
-      "milestone": "M1",
-      "body": "**Milestone:** M1 · **Lane:** platform · **Size:** S\n\n## What\n\nLead time for Windows signing in M2; record legal identity and country (Azure Artifact Signing: individuals only in the US/Canada).\n\n## Done when\n\n- [ ] Completed and recorded here (link or note)\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md",
+      "milestone": "M2",
+      "body": "**Milestone:** M2 · **Lane:** platform · **Size:** S\n\n## What\n\nLead time for Windows signing in M2; record legal identity and country (Azure Artifact Signing: individuals only in the US/Canada).\n\n## Done when\n\n- [ ] Completed and recorded here (link or note)\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md\n\n> **Re-sequenced (ADR-035, 2026-10-26):** moved from M1 to M2: desktop only, not part of Web 1.0.",
       "labels": [
         "type:human",
         "lane:platform",
@@ -7795,8 +7783,8 @@
       ],
       "id": "U-16",
       "title": "[U-16] Lab/spike: Electron runtime: CA APIs, argon2, PKCS#12, safeStorage, prompts, MessagePort performance, cold start",
-      "milestone": "M1",
-      "body": "**Milestone:** M1 · **Lane:** evidence · **Size:** S · **Trust-critical**\n\n## Uncertainty\n\nElectron runtime: CA APIs, argon2, PKCS#12, safeStorage, prompts, MessagePort performance, cold start\n\nDetails: [docs/research/uncertainties.md](docs/research/uncertainties.md#u-16)\n\n## Resolved by\n\nS-01/02/03 and S-07\n\n## Work packages\n\nM1-67, M1-68\n\n## Must land before\n\nM0-26, M2-P01, M2-P03/57\n\n## If negative\n\nCJS bundle; scrypt; engine-link worker; documented prompts\n\n## Rule\n\nA feature whose correctness depends on this cannot merge (or stays behind a disabled flag) until the result is recorded; a negative result changes the registry or the design, never the test.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md",
+      "milestone": "M2",
+      "body": "**Milestone:** M2 · **Lane:** evidence · **Size:** S · **Trust-critical**\n\n## Uncertainty\n\nElectron runtime: CA APIs, argon2, PKCS#12, safeStorage, prompts, MessagePort performance, cold start\n\nDetails: [docs/research/uncertainties.md](docs/research/uncertainties.md#u-16)\n\n## Resolved by\n\nS-01/02/03 and S-07\n\n## Work packages\n\nM2-P18, M2-P19\n\n## Must land before\n\nM0-26, M2-P01, M2-P03/57\n\n## If negative\n\nCJS bundle; scrypt; engine-link worker; documented prompts\n\n## Rule\n\nA feature whose correctness depends on this cannot merge (or stays behind a disabled flag) until the result is recorded; a negative result changes the registry or the design, never the test.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md\n\n> **Re-sequenced (ADR-035, 2026-10-26):** moved from M1 to M2: desktop only, not part of Web 1.0.",
       "labels": [
         "type:lab-cell",
         "lane:evidence",
@@ -7925,8 +7913,8 @@
       ],
       "id": "U-21",
       "title": "[U-21] Lab/spike: Signing pipeline: SignPath, MSIX + utilityProcess, Certum in CI",
-      "milestone": "M1",
-      "body": "**Milestone:** M1 · **Lane:** evidence · **Size:** S · **Trust-critical**\n\n## Uncertainty\n\nSigning pipeline: SignPath, MSIX + utilityProcess, Certum in CI\n\nDetails: [docs/research/uncertainties.md](docs/research/uncertainties.md#u-21)\n\n## Resolved by\n\nS-10 plus a SignPath inquiry\n\n## Work packages\n\nM1-68\n\n## Must land before\n\nM2-P07/68\n\n## If negative\n\nUnsigned NSIS for the internal alpha only\n\n## Rule\n\nA feature whose correctness depends on this cannot merge (or stays behind a disabled flag) until the result is recorded; a negative result changes the registry or the design, never the test.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md",
+      "milestone": "M2",
+      "body": "**Milestone:** M2 · **Lane:** evidence · **Size:** S · **Trust-critical**\n\n## Uncertainty\n\nSigning pipeline: SignPath, MSIX + utilityProcess, Certum in CI\n\nDetails: [docs/research/uncertainties.md](docs/research/uncertainties.md#u-21)\n\n## Resolved by\n\nS-10 plus a SignPath inquiry\n\n## Work packages\n\nM2-P19\n\n## Must land before\n\nM2-P07/68\n\n## If negative\n\nUnsigned NSIS for the internal alpha only\n\n## Rule\n\nA feature whose correctness depends on this cannot merge (or stays behind a disabled flag) until the result is recorded; a negative result changes the registry or the design, never the test.\n\n## References\n\n- Plan: docs/plan/plan.md · Amendments: docs/plan/amendments.md · Design WPs: docs/plan/work-packages-design.md · Blueprint: docs/architecture/blueprint.md\n\n> **Re-sequenced (ADR-035, 2026-10-26):** moved from M1 to M2: desktop only, not part of Web 1.0.",
       "labels": [
         "type:lab-cell",
         "lane:evidence",

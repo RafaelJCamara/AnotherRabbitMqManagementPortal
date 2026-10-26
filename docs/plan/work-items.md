@@ -66,7 +66,7 @@ Generated from [work-items.json](work-items.json) after seeding GitHub (254 issu
 | M0 | [#53](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/53) | M0-62 | Matrix generator and docs publication (matrix v0) | work-package | evidence |
 | M0 | [#56](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/56) | M0-63 | Provider contract run v0: Amazon MQ and CloudAMQP (U-11, U-12 part) | work-package | feature |
 | M0 | [#57](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/57) | M0-64 | Container image (PLAT-09) | work-package | platform |
-| M0 | [#58](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/58) | M0-68 | Release workflow, opt-in updates, Homebrew tap and winget scaffolding (PLAT-10) | work-package | platform |
+| M0 | [#58](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/58) | M0-68 | Release workflow and opt-in updates for the image and docs (PLAT-10) | work-package | platform |
 | M0 | [#59](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/59) | M0-69 | Privacy: outbound-calls list, deny-all egress E2E, diagnostics bundle (PLAT-12) | work-package | platform |
 | M0 | [#61](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/61) | M0-70 | Codename and private-identifier gate | work-package | platform |
 | M0 | [#62](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/62) | M0-71 | CI lab-evidence recorder workflow | work-package | evidence |
@@ -90,7 +90,6 @@ Generated from [work-items.json](work-items.json) after seeding GitHub (254 issu
 | M1 | [#145](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/145) | ADR-029 | Accept a product name and brand | adr | feature |
 | M1 | [#144](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/144) | H-07 | Brand clearance (USPTO/EUIPO/WIPO, RabbitMQ core team email) | human | platform |
 | M1 | [#154](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/154) | H-08 | Keycloak 26 and Entra test tenants | human | platform |
-| M1 | [#155](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/155) | H-09 | Microsoft Partner Center, Certum OSS certificate, maintainer identity/country | human | platform |
 | M1 | [#86](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/86) | M1-01 | Effective-config resolver and k.3 tables (POL-01 core, DC-30) | work-package | feature |
 | M1 | [#87](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/87) | M1-02 | Routing simulator I: exchange matching, E2E, AE, default exchange, CC/BCC (TOP-02 core) | work-package | feature |
 | M1 | [#88](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/88) | M1-03 | Routing simulator II: DLX/TTL paths, loops, DLX-source analysis | work-package | feature |
@@ -157,8 +156,6 @@ Generated from [work-items.json](work-items.json) after seeding GitHub (254 issu
 | M1 | [#151](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/151) | M1-64 | Support/LTS policy and versioned export formats | work-package | feature |
 | M1 | [#152](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/152) | M1-65 | Usability-test protocol (time-to-first-peek) | work-package | feature |
 | M1 | [#153](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/153) | M1-66 | Translation platform and safety-string policy | work-package | feature |
-| M1 | [#84](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/84) | M1-67 | Spike S-01/S-02/S-03: MessagePort tunnel, utilityProcess cold start, node:sqlite in Electron | work-package | platform |
-| M1 | [#85](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/85) | M1-68 | Spike S-07/S-10: Electron crypto/TLS and Windows packaging/signing | work-package | platform |
 | M1 | [#169](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/169) | RC-M1 | M1 release & exit checklist | chore | platform |
 | M1 | [#156](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/156) | U-03 | Lab/spike: Aborted HTTP /get may turn held messages into failed deliveries | lab-cell | evidence |
 | M1 | [#157](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/157) | U-04 | Lab/spike: DOWN overtaking a pipelined nack | lab-cell | evidence |
@@ -167,10 +164,8 @@ Generated from [work-items.json](work-items.json) after seeding GitHub (254 issu
 | M1 | [#160](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/160) | U-10 | Lab/spike: Tap back-pressure on publishers | lab-cell | evidence |
 | M1 | [#161](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/161) | U-14 | Lab/spike: Auth behaviour per protocol/version; 431 and frame thresholds; `?token=` | lab-cell | evidence |
 | M1 | [#162](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/162) | U-15 | Lab/spike: IdP specifics: ephemeral ports, OBO, token exchange | lab-cell | evidence |
-| M1 | [#163](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/163) | U-16 | Lab/spike: Electron runtime: CA APIs, argon2, PKCS#12, safeStorage, prompts, MessagePort performance, cold start | lab-cell | evidence |
 | M1 | [#164](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/164) | U-18 | Lab/spike: CQ requeue order for paged and priority queues | lab-cell | evidence |
 | M1 | [#165](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/165) | U-19 | Lab/spike: Copied x-delivery-count vs framework retry logic | lab-cell | evidence |
-| M1 | [#166](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/166) | U-21 | Lab/spike: Signing pipeline: SignPath, MSIX + utilityProcess, Certum in CI | lab-cell | evidence |
 | M1 | [#167](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/167) | U-23 | Lab/spike: Cytoscape WebGL on VMs and RDP | lab-cell | evidence |
 | M1 | [#168](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/168) | U-26 | Lab/spike: Market data | lab-cell | evidence |
 | M2 | [#190](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/190) | H-10 | Apply to SignPath Foundation (after the first public release) | human | platform |
@@ -194,6 +189,11 @@ Generated from [work-items.json](work-items.json) after seeding GitHub (254 issu
 | M2 | [#188](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/188) | M2-P15 | CSP and Trusted Types under app:// (AG Grid, Monaco, ELK, Cytoscape) | work-package | platform |
 | M2 | [#189](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/189) | M2-P16 | Electron security checklist review and Windows arm64 build/test | work-package | platform |
 | M2 | [#176](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/176) | M2-P17 | npm CLI package, THIRD_PARTY_NOTICES and SBOM from the esbuild metafile | work-package | platform |
+| M2 | [#155](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/155) | H-09 | Microsoft Partner Center, Certum OSS certificate, maintainer identity/country | human | platform |
+| M2 | [#84](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/84) | M2-P18 | Spike S-01/S-02/S-03: MessagePort tunnel, utilityProcess cold start, node:sqlite in Electron | work-package | platform |
+| M2 | [#85](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/85) | M2-P19 | Spike S-07/S-10: Electron crypto/TLS and Windows packaging/signing | work-package | platform |
+| M2 | [#163](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/163) | U-16 | Lab/spike: Electron runtime: CA APIs, argon2, PKCS#12, safeStorage, prompts, MessagePort performance, cold start | lab-cell | evidence |
+| M2 | [#166](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/166) | U-21 | Lab/spike: Signing pipeline: SignPath, MSIX + utilityProcess, Certum in CI | lab-cell | evidence |
 | M2 | [#191](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/191) | RC-M2 | M2 release & exit checklist | chore | platform |
 | M3 | [#199](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/199) | H-11 | Enrol in the Apple Developer Program ($99/yr) | human | platform |
 | M3 | [#192](https://github.com/RafaelJCamara/AnotherRabbitMqManagementPortal/issues/192) | M3-F01 | Epic: Admin parity III: definitions, shovels/federation, QQ replica ops, CLI runbooks, bulk ops (ADM-03/11/12/13/15) | epic | feature |

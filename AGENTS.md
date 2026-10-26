@@ -8,6 +8,8 @@ The source of truth for design is [docs/architecture/blueprint.md](docs/architec
 
 `<Product> for RabbitMQ®` is an open-source (Apache-2.0) workbench and control plane for RabbitMQ: one TypeScript engine and one Angular UI, shipped as a local web app, desktop apps and a team server. It is built mostly by agents under human review.
 
+**Current goal: Web 1.0** (M0 + M1, the single-user Docker web app), public release targeted for 2026-11-30 ([ADR-035](docs/adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md), amendment A-26). Pick issues labelled `priority:critical-path` first. Do not start desktop work (Electron, `apps/desktop`, signing, OS packaging) before Web 1.0 ships.
+
 - **Honest wording (DC-15).** Say "side-effect-aware peek". Never call a classic-queue or quorum-queue read "non-destructive" or "read-only". Only the allow-listed stream and node-agent i18n keys may. The `@app/honest-wording` lint rule enforces this in UI strings and i18n JSON; apply the same care in docs and commit messages.
 - **Evidence over assertion.** Broker behaviour is data in the semantics registry, backed by lab evidence. Never claim a behaviour the registry or the fact sheet does not support.
 - **Names.** The product name is a placeholder (`<Product>`, ADR-029). Keep the placeholder; do not invent a name. Never put "rabbitmq" or "rmq" in a coined name. RabbitMQ is a Broadcom trademark; keep the attribution and non-affiliation line ([TRADEMARKS.md](TRADEMARKS.md)).
@@ -57,7 +59,7 @@ The authoritative tables (full dependency rules, runtime rules, third-party conf
 
 ## 4. Toolchain pins and dependency policy
 
-Pins: Node 24.22 (`.nvmrc`; `engines` >=24.15), pnpm 12.14, TypeScript 6.0.3, Nx 23.3, Angular 22.2.3, Vitest 5.0.5, ESLint 10, Electron 44.8 then 45.0 after GA plus a soak.
+Pins: Node 24.22 (`.nvmrc`; `engines` >=24.15), pnpm 12.14, TypeScript 6.0.3, Nx 23.3, Angular 22.2.3, Vitest 5.0.5, ESLint 10; for desktop (M2, after Web 1.0), Electron 44.8 then 45.0 after GA plus a soak.
 
 - Every dependency is declared once in the `pnpm-workspace.yaml` catalog with an **exact version** and referenced as `catalog:`. No ranges, no git or tarball sources.
 - A new package needs, in one reviewed change: an entry in `tools/supply-chain/deps-allowlist.json`, a clean 3-day release-age check, an ADR-027 log line when an exclusion is needed, and CODEOWNERS approval. The allow-list, the exclusion log and the supply-chain keys of `pnpm-workspace.yaml` are **protected paths**: you propose the change, a maintainer applies it.

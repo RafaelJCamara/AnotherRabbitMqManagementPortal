@@ -29,6 +29,7 @@
 | Licence / business | **Fully open source (Apache-2.0)**. Team features (SSO, RBAC, audit, approvals, masking) are free. No paid tiers, no SaaS |
 | Delivery modes | Web app in Docker; desktop for Windows, Linux and macOS; self-hosted team server (Docker/Helm) |
 | **Delivery order** | **1. Docker web app (single user) → 2. Windows desktop → 3. Linux desktop → 4. macOS desktop → 5. team server**, then ops intelligence, AI and platform scale |
+| **Current goal** (2026-10-26, [ADR-035](../adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md)) | **Web 1.0 public release targeted for 2026-11-30**, full M1 scope (the date slips rather than the scope). No desktop work before it ships |
 | First release users | **Single user.** Loopback-only container with token login, reached through an SSH tunnel when remote. Team features wait for the team-server milestone (after macOS) |
 | Delivery method | Built mostly by **AI agents**: agent-sized work packages with Given/When/Then acceptance criteria and exact verification commands |
 | Name | Deferred. Private codename until cleared; no public identifiers before then |
@@ -235,15 +236,17 @@ Every claim here comes from source at exact tags; the conformance lab will confi
 
 ## 3. Roadmap: web first, then Windows, Linux, macOS
 
+**Web 1.0 is targeted for a public release on 2026-11-30** ([ADR-035](../adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md), amendment A-26): M0 exit by 2026-11-13, ADR-029 accepted by 2026-11-16, beta freeze on 2026-11-23, public flip on 2026-11-27. Desktop work starts after the release. Checkpoints and the critical path are in [milestones.md](../product/milestones.md) and [amendments.md](amendments.md).
+
 Each desktop milestone has two lanes, run by agents in parallel worktrees:
 - a **platform lane**: shell, packaging, signing, OS integration;
 - a **feature lane**: features that ship to the web app and to every desktop platform already released.
 
 | Milestone | Deliverable | Platform lane | Feature lane | Exit criteria (abridged) |
 | --- | --- | --- | --- | --- |
-| **M0 Foundations & evidence** (internal alpha 0.1) | Engine + UI running as a **single-user Docker web app**, proving what each RabbitMQ version does, with a read-only explorer | Container mode (loopback bind, token, data volume, healthcheck), multi-arch image, private GHCR, release workflow for images | Repo, gates, agent toolchain; contracts kit; semantics registry and era resolver; broker lab and lab evidence; capability probe; persistence and secrets (file KEK / passphrase); ActionExecutor and audit; HTTP + WebSocket transport; Angular shell; explorer | Settle-path cells three-way green on 3.13.7 / 4.1.8 / 4.2.9 / 4.3.6 (4.0.9 visible, non-blocking); matrix v0. Explorer works in the container against local, Amazon MQ and CloudAMQP brokers. Image signed (cosign) and private. All gates enforced |
-| **M1 Web 1.0 "Developer"** (first public release; needs ADR-029 name) | **The dockerized web app** as the best developer tool for RabbitMQ | Compose quickstart (app + RabbitMQ); host-broker networking (`host.docker.internal`, Linux `host-gateway`); SSH-tunnel guide for remote use; browser matrix (Chrome, Edge, Firefox, Safari); public GHCR (and optional Docker Hub mirror) | Safe peek, publish, tap, stream browser, routing simulator, effective config, DLQ basics (inventory, deaths, replay), queue/exchange admin, TLS/mTLS/tunnels/OAuth (PKCE redirect to the app origin), live metrics and forecast, palette, a11y, i18n, docs | Every peek receipt matches the conformance matrix. M1 developer checklist 100%. Time-to-first-peek < 3 min from `docker run` in usability tests (Windows, macOS and Linux hosts). Devtools listing PR |
-| **M2 Windows desktop 1.0** | Signed Windows app (x64 + arm64) | Electron shell (main, preload, supervisor, **MessagePort tunnel**, `app://`, fuses, CSP); safeStorage key wrap; OS notifications; system-browser OAuth; native menus; MSIX (Store) + NSIS (Certum/SignPath), electron-updater; Windows CI with broker-lab reachability; MSIX virtualisation and data-directory rules; spellchecker off; desktop egress E2E; optional `npx` local-web channel | **Management parity I:** vhosts, users, permissions, topic permissions, limits; connections, channels, consumers; nodes and health checks; feature flags and deprecated features; **policy and operator-policy editor** | Windows release passes signature, WACK and SmartScreen-free (Store) checks. Desktop E2E green on Windows x64 and arm64. Parity I live on web + Windows |
+| **M0 Foundations & evidence** (internal alpha 0.1; target 2026-11-13) | Engine + UI running as a **single-user Docker web app**, proving what each RabbitMQ version does, with a read-only explorer | Container mode (loopback bind, token, data volume, healthcheck), multi-arch image, private GHCR, release workflow for images | Repo, gates, agent toolchain; contracts kit; semantics registry and era resolver; broker lab and lab evidence; capability probe; persistence and secrets (file KEK / passphrase); ActionExecutor and audit; HTTP + WebSocket transport; Angular shell; explorer | Settle-path cells three-way green on 3.13.7 / 4.1.8 / 4.2.9 / 4.3.6 (4.0.9 visible, non-blocking); matrix v0. Explorer works in the container against local, Amazon MQ and CloudAMQP brokers. Image signed (cosign) and private. All gates enforced |
+| **M1 Web 1.0 "Developer"** (first public release, target 2026-11-30; needs ADR-029 name) | **The dockerized web app** as the best developer tool for RabbitMQ | Compose quickstart (app + RabbitMQ); host-broker networking (`host.docker.internal`, Linux `host-gateway`); SSH-tunnel guide for remote use; browser matrix (Chrome, Edge, Firefox, Safari); public GHCR (and optional Docker Hub mirror) | Safe peek, publish, tap, stream browser, routing simulator, effective config, DLQ basics (inventory, deaths, replay), queue/exchange admin, TLS/mTLS/tunnels/OAuth (PKCE redirect to the app origin), live metrics and forecast, palette, a11y, i18n, docs | Every peek receipt matches the conformance matrix. M1 developer checklist 100%. Time-to-first-peek < 3 min from `docker run` in usability tests (Windows, macOS and Linux hosts). Devtools listing PR |
+| **M2 Windows desktop 1.0** (starts after Web 1.0) | Signed Windows app (x64 + arm64) | Desktop spikes first (M2-P18, M2-P19; U-16, U-21); signing accounts (H-09); Electron shell (main, preload, supervisor, **MessagePort tunnel**, `app://`, fuses, CSP); safeStorage key wrap; OS notifications; system-browser OAuth; native menus; MSIX (Store) + NSIS (Certum/SignPath), electron-updater; Windows CI with broker-lab reachability; MSIX virtualisation and data-directory rules; spellchecker off; desktop egress E2E; optional `npx` local-web channel | **Management parity I:** vhosts, users, permissions, topic permissions, limits; connections, channels, consumers; nodes and health checks; feature flags and deprecated features; **policy and operator-policy editor** | Windows release passes signature, WACK and SmartScreen-free (Store) checks. Desktop E2E green on Windows x64 and arm64. Parity I live on web + Windows |
 | **M3 Linux desktop 1.0** | Linux app (x64 + arm64) | deb/rpm with AppArmor profile, AppImage (Ubuntu 24.04 caveat), signed apt/rpm repositories or updater; Secret Service / basic_text → master password; X11 and Wayland checks; Linux desktop E2E (xvfb) | **Management parity II + DLQ operations centre:** definitions, shovels/federation, QQ replica ops, CLI runbooks, guarded bulk ops; full replay engine, edit and resend, move/copy/selective delete; plugin SDK + framework decoders v1.0 | Official-UI parity checklist: every HTTP-available action native, CLI-only actions have runbooks. Decoder fixture apps pass. Replay chaos: **0 lost; duplicates detectable (replay-id) and within a stated bound**. Linux packages pass install/upgrade tests on Ubuntu, Fedora and Debian |
 | **M4 macOS desktop 1.0** | Notarised macOS app (arm64 + x64) | Developer ID signing + notarisation, DMG + zip, Local Network permission (`NSLocalNetworkUsageDescription`), keychain prompts, Homebrew tap, macOS E2E | **Advanced messaging & ecosystem:** exchange-to-exchange tap, firehose leases, stream ops and filter builder; publish collections, bulk publish, generators, request/reply, copy-as-code; providers + Kubernetes discovery; local IPC + tool CLI + read-only MCP; free web utilities | `spctl`/`codesign` checks pass. macOS E2E green on arm64 + x64. **All four platforms at 1.x** with parity and the DLQ centre |
 | **M5 Free team server** (2.0) | The Docker web app gains multi-user mode | Helm chart (restricted PSS), Compose quickstart, Postgres, air-gap kit | Team runtime, OIDC BFF, RBAC, shared catalogue and pollers, delegated credentials, audit and anchors, approvals, masking, SSRF egress, desktop remote workspaces, revoke/freeze, security review, team privacy, scale tests | Every mutating API has RBAC and audit tests. Delegated OAuth works with Keycloak 26 and Entra. Compose quickstart < 10 min |
@@ -262,8 +265,8 @@ Each desktop milestone has two lanes, run by agents in parallel worktrees:
 - The ADR-002 MessagePort transport, the `EngineTransport`/`PlatformBridge` abstractions and the engine's mode files are designed in M0.
 - A transport test runs the contract suite over HTTP/WS and a fake port.
 - The UI stays browser-API-clean.
-- Desktop spikes run at the tail of M1 so that M2 starts de-risked.
-- **Signing lead time:** Windows signing accounts (Microsoft Partner Center, Certum) are opened during M1.
+- Desktop spikes open M2 (ADR-035 moved them out of the M1 tail).
+- **Signing lead time:** the Windows signing accounts (Microsoft Partner Center, Certum; H-09) are opened at the start of M2; opening them earlier is optional and off the Web 1.0 path.
 
 ---
 
@@ -447,6 +450,8 @@ Design constraints DC-01…DC-60 are recorded in `docs/research/design-constrain
 
 ## 5. Binding amendments from the final critique
 The critique found 1 blocker, 24 majors and ~20 minors. Step 0 applies these to the docs; they **override** the blueprint and plan text. Each is tagged with the milestone where it becomes active under the web-first order.
+
+A later maintainer decision added **A-26** (Web 1.0 by 2026-11-30, desktop after; [ADR-035](../adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md)). Its text is only in [amendments.md](amendments.md), which is authoritative for every amendment.
 
 **A-1 (blocker, M1) Doom guard.** Replace ADR-028 "counter trust":
 - A message is doomed exactly when the era rule holds on the observed header, whatever its provenance:
@@ -652,8 +657,8 @@ Source: the workflow outputs. Apply amendments A-1…A-25, the minor fixes, the 
 | --- | --- |
 | **Before Step 0.5** | Run `! gh auth refresh -h github.com -s project` (the current token lacks the `project` scope that GitHub Projects needs). Without it, Step 0 seeds labels, milestones and issues, and the Project board is created afterwards |
 | **Day 1 (M0)** | Pick a permanent internal **codename** (lowercase, no "rabbit"/"rmq"). Agent identity: a GitHub App or machine user (A-21); branch protection, merge queue, private vulnerability reporting. **Docker Desktop (WSL2 backend)** on the dev machine for broker-lab and Testcontainers. **Self-hosted Linux Actions runner** (WSL2/Docker on the dev machine or a small VM) for conformance and lab jobs while the repo is private. Provider test brokers: Amazon MQ 3.13/4.2/4.3 and CloudAMQP shared/dedicated (ask for OSS credits) |
-| **During M0/M1** | Start brand clearance (USPTO/EUIPO/WIPO, email the RabbitMQ core team); ADR-029 must merge before the Web 1.0 public release. Keycloak 26 and Entra test tenants (broker OAuth, M1) |
-| **During M1** (lead time for M2) | Microsoft Partner Center (free) and a Certum OSS certificate. Record the maintainer's legal identity and country (Azure Artifact Signing is open to individuals only in the US/Canada) |
+| **During M0/M1** | Brand clearance (USPTO/EUIPO/WIPO, email the RabbitMQ core team) so that ADR-029 is accepted **by 2026-11-16**; it must merge before the Web 1.0 public release (target 2026-11-30, ADR-035). Keycloak 26 and Entra test tenants (broker OAuth, M1) |
+| **Start of M2** (after Web 1.0; ADR-035) | Microsoft Partner Center (free) and a Certum OSS certificate. Record the maintainer's legal identity and country (Azure Artifact Signing is open to individuals only in the US/Canada) |
 | **After the first public release** | Apply to SignPath |
 | **Before M4** | Apple Developer Program ($99/yr) |
 
@@ -702,8 +707,8 @@ Source: the workflow outputs. Apply amendments A-1…A-25, the minor fixes, the 
 | M0-W2 | Persistence, secrets (file KEK/passphrase), ports and scheduler, management/AMQP adapters, executor and audit, jobs, transport (HTTP/WS + fake-port transport test), live hub, composition root. **Evidence lane:** harness + lab cells |
 | M0-W3 | Connection manager, probe, explorer, UI shell and design system, grid, container mode, web E2E against the image, matrix v0 |
 | M0-W4 | Provider runs, container image hardening, image release workflow, privacy/egress |
-| M1-W1…W5 | As before (pure libraries → peek core → taps/streams/DLQ/admin → UIs → a11y/i18n/docs/Web 1.0). **Desktop spikes in W4/W5:** MessagePort tunnel, utilityProcess cold start, node:sqlite in Electron, Electron TLS/crypto, Windows packaging/signing |
-| M2 | Platform lane: Electron shell → secrets/OAuth/notifications/menus → MSIX/NSIS/updater/E2E. Feature lane: parity I + policy editor |
+| M1-W1…W5 | As before (pure libraries → peek core → taps/streams/DLQ/admin → UIs → a11y/i18n/docs/Web 1.0), targeted to finish by 2026-11-30. No desktop work (ADR-035) |
+| M2 | Platform lane: **desktop spikes first** (MessagePort tunnel, utilityProcess cold start, node:sqlite in Electron, Electron TLS/crypto, Windows packaging/signing) → Electron shell → secrets/OAuth/notifications/menus → MSIX/NSIS/updater/E2E. Feature lane: parity I + policy editor |
 | M3 | Platform lane: Linux packaging/keyring/E2E/repositories. Feature lane: parity II + DLQ operations centre + plugin SDK/decoders |
 | M4 | Platform lane: macOS signing/notarisation/local network/keychain/Homebrew/E2E. Feature lane: advanced messaging, providers/Kubernetes, IPC/CLI/read-only MCP, web utilities |
 
@@ -735,7 +740,7 @@ Source: the workflow outputs. Apply amendments A-1…A-25, the minor fixes, the 
 
 | WP | Moves to |
 | --- | --- |
-| 18 (MessagePort / utilityProcess / node:sqlite-in-Electron spikes), 19 (Electron crypto/TLS + Windows packaging spike) | M1 tail |
+| 18 (MessagePort / utilityProcess / node:sqlite-in-Electron spikes), 19 (Electron crypto/TLS + Windows packaging spike) | Start of M2 as M2-P18 and M2-P19 (first placed at the M1 tail as M1-67/68; moved by ADR-035) |
 | 34 PortSessionServer, 55 desktop main, 56 supervisor/preload/drain, 57 key wrap, 58 fuses, 61 desktop E2E, 67 Windows MSIX/NSIS, desktop parts of 68/69, 74 cross-OS broker lab | M2 Windows |
 | Linux part of 66 | M3 |
 | macOS part of 66, Homebrew tap | M4 |
@@ -871,8 +876,9 @@ Also split M1-26 and M1-49.
 - **Product name** (deferred): needed before any public artefact, at the latest before the **Web 1.0** release (ADR-029 gates public GHCR, the devtools listing and the public docs). Candidates checked: Sortyard (recommended), Kewbench, Relaybay. Everything stays private until then (A-22).
 - **Desktop deferral risk:** desktop-specific issues surface later (MessagePort tunnel, keychains, Electron CSP with Monaco/ELK, signing). Mitigations:
   - the transport and PlatformBridge abstractions plus a fake-port transport test from M0;
-  - desktop spikes at the M1 tail;
-  - Windows signing accounts opened during M1.
+  - desktop spikes at the start of M2 (ADR-035 moved them out of the M1 tail; M2 now starts with this risk open);
+  - Windows signing accounts opened at the start of M2.
+- **Web 1.0 date risk** (ADR-035): about 210–235 agent-days of M0 + M1 work against a public release targeted for 2026-11-30. On 2026-10-26, 126 M0/M1 issues were open and the last week closed 3–4 a day. The scope is fixed, so the date slips if throughput or human review (trust-critical WPs, lab evidence, ADR-029) falls behind. Mitigations: the `priority:critical-path` label, M1-38's chaos nights started by 2026-11-16, and human prerequisites done first.
 - **Private-repo constraints (until ADR-029):**
   - GitHub Free gives 2,000 Actions minutes a month; Windows runners cost 2× and macOS 10×. Mitigations: a self-hosted Linux runner for conformance and lab work, affected-only PR CI, nightly full matrices.
   - GitHub Pages is unavailable on Free private repos, so docs are read in-repo until public.

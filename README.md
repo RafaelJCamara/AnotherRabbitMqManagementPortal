@@ -1,8 +1,8 @@
 # `<Product>` for RabbitMQ®
 
-> **Status: early scaffold (M0).** The Nx workspace builds; there is no product functionality yet. The product name is deferred ([ADR-029](docs/adr/ADR-029-product-name.md)); this repository is private until a cleared name is chosen.
+> **Status: pre-release (M0 and M1).** Current goal: **Web 1.0**, the single-user Docker web app, with a public release targeted for **2026-11-30** ([ADR-035](docs/adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md)). The product name is deferred ([ADR-029](docs/adr/ADR-029-product-name.md)); this repository is private until a cleared name is chosen.
 
-An open-source (Apache-2.0) workbench and control plane for RabbitMQ: one TypeScript engine and one Angular UI, shipped **web-first** as a single-user Docker web app, then as desktop apps for Windows, Linux and macOS, then as a free self-hosted team server ([ADR-030](docs/adr/ADR-030-web-first-delivery-order.md)).
+An open-source (Apache-2.0) workbench and control plane for RabbitMQ: one TypeScript engine and one Angular UI, shipped **web-first** as a single-user Docker web app, then as desktop apps for Windows, Linux and macOS, then as a free self-hosted team server ([ADR-030](docs/adr/ADR-030-web-first-delivery-order.md)). Desktop work starts after Web 1.0 ships.
 
 ## What makes it different
 - **Version-correct, side-effect-aware message tools.** Peek, tap and dead-letter replay follow what each RabbitMQ version really does, backed by a public conformance matrix.

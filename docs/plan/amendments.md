@@ -1,6 +1,20 @@
-# Binding amendments A-1…A-25
+# Binding amendments A-1…A-26
 
-These amendments come from the final consistency critique ([critique.md](critique.md)). They **override** the design-phase text in the blueprint, execution plan, product docs and work packages. Each is reflected in the GitHub issues it affects (label `amended`).
+A-1…A-25 come from the final consistency critique ([critique.md](critique.md)); A-26 is a later maintainer decision. They **override** the design-phase text in the blueprint, execution plan, product docs and work packages. Each is reflected in the GitHub issues it affects (label `amended`, or `priority:critical-path` for A-26).
+
+**A-26 (M0/M1, 2026-10-26) Web 1.0 by 2026-11-30; desktop after** ([ADR-035](../adr/ADR-035-web-1-0-by-2026-11-30-desktop-after.md)).
+- **Goal and date.** Until it ships, the only goal is Web 1.0: M0 and M1, the single-user Docker web app. Its **public** release is targeted for **2026-11-30** (milestone M1 due date; M0 due 2026-11-13).
+- **Full scope.** No M1 feature is cut. If the work is late, the date slips.
+- **Desktop out of M0/M1.** M1-67 becomes M2-P18 and M1-68 becomes M2-P19; U-16, U-21 and H-09 move to M2; PLAT-07 leaves the M1 checklist; the Electron leg of the nightly conformance run waits for M2. No agent starts desktop work (Electron, `apps/desktop`, signing, packaging) before Web 1.0 ships.
+- **Order after Web 1.0** is ADR-030's: Windows (M2) → Linux (M3) → macOS (M4) → team server (M5) → M6–M8.
+- **Critical path** (label `priority:critical-path`). Agents pick these first and reviewers review them first:
+  - evidence gate: M0-38..M0-42, M0-62 (IP-4);
+  - M0 exit: M0-48, M0-51, M0-54, M0-60, M0-64, M0-68, RC-M0;
+  - peek: M1-13 → M1-14 → M1-15 → M1-16 → M1-18 → M1-38 (7 clean chaos nights; start by 2026-11-16), M1-44;
+  - DLQ: M1-34 → M1-35;
+  - release: M1-56, M1-60, M1-59, RC-M1;
+  - public release: H-07 → ADR-029 (accept by 2026-11-16), M0-70;
+  - human prerequisites: H-01, H-02, H-03, H-04, H-05, H-08.
 
 The critique found 1 blocker, 24 majors and ~20 minors. Step 0 applies these to the docs; they **override** the blueprint and plan text. Each is tagged with the milestone where it becomes active under the web-first order.
 

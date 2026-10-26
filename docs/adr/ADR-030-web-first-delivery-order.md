@@ -1,6 +1,6 @@
 # ADR-030: Web-first delivery order
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR-035](ADR-035-web-1-0-by-2026-11-30-desktop-after.md) (Web 1.0 public release targeted for 2026-11-30; desktop spikes and signing accounts moved from M1 to M2)
 - **Date:** 2026-10-16
 - **Decided by:** maintainer
 
@@ -21,6 +21,6 @@ Each desktop milestone runs a platform lane (shell, packaging, signing, OS integ
 - Shipping macOS last defers the Apple Developer cost.
 
 ## Consequences
-- **Desktop is deferred, not designed out.** The MessagePort transport (ADR-002), the EngineTransport/PlatformBridge abstractions and the engine mode files exist from M0, with a fake-port transport test. Desktop spikes run at the end of M1.
+- **Desktop is deferred, not designed out.** The MessagePort transport (ADR-002), the EngineTransport/PlatformBridge abstractions and the engine mode files exist from M0, with a fake-port transport test. Desktop spikes run at the start of M2 (ADR-035; this ADR first placed them at the end of M1).
 - **The first release is single-user:** a loopback-only container with token login, and an SSH tunnel for remote use (ADR-016, amendment A-12).
 - **Supersedes** the design-phase sequence (all shells in M0, team server in M3).

@@ -2,7 +2,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { checkPlanPurity } from '@app/kernel';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { registeredActions } from './registered-actions.ts';
 import {
@@ -18,6 +18,16 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const sources = listSources(root);
 
 describe('architecture: the real tree', () => {
+  // Parsing the few thousand files of the repository is the only slow part of these specs, and a
+  // loaded shared runner (the Windows CI job) can need several seconds for it. The rules cache the
+  // facts of each file, so parse once here, under a generous hook timeout, and every test below
+  // only reads the cache. The results are discarded; the tests below make the assertions.
+  beforeAll(() => {
+    checkMutationFunnel(sources);
+    checkProofMinting(sources);
+    findActionSites(sources);
+  }, 60_000);
+
   it('reads the sources it is meant to check', () => {
     const paths = sources.map((source) => source.path);
 

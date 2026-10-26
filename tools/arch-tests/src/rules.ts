@@ -11,6 +11,20 @@ export interface ArchViolation {
   message: string;
 }
 
+// The rules each read the same few thousand files; parsing a file is the expensive part, so the
+// facts of a file are read once per SourceFile object (and once more only if its text changed).
+const factsCache = new WeakMap<
+  SourceFile,
+  { text: string; facts: FileFacts }
+>();
+function factsOf(file: SourceFile): FileFacts {
+  const cached = factsCache.get(file);
+  if (cached?.text === file.text) return cached.facts;
+  const facts = readFacts(file.path, file.text);
+  factsCache.set(file, { text: file.text, facts });
+  return facts;
+}
+
 const isSpec = (path: string): boolean =>
   /\.(?:spec|test)\.[mc]?ts$/.test(path);
 const under = (path: string, prefixes: readonly string[]): boolean =>
@@ -83,7 +97,7 @@ export function checkMutationFunnel(
   const violations: ArchViolation[] = [];
   for (const file of files) {
     if (isSpec(file.path) || under(file.path, FUNNEL_EXEMPT_PREFIXES)) continue;
-    const facts = readFacts(file.path, file.text);
+    const facts = factsOf(file);
     const names = mentionsWriteCapability(facts);
     if (names.length === 0) continue;
     if (FUNNEL_MARKERS.some((marker) => facts.calls.has(marker))) continue;
@@ -134,7 +148,7 @@ export function checkLocalScopeModules(
       });
       continue;
     }
-    const names = mentionsWriteCapability(readFacts(file.path, file.text));
+    const names = mentionsWriteCapability(factsOf(file));
     if (names.length > 0) {
       violations.push({
         rule: 'local-scope-module',
@@ -184,7 +198,7 @@ export function checkProofMinting(
     const inPorts = file.path.startsWith('libs/engine/ports/');
     const mayMint = under(file.path, PROOF_MINTING_PREFIXES);
     if (inPorts) continue;
-    const facts = readFacts(file.path, file.text);
+    const facts = factsOf(file);
     const minted = [...facts.importedNames].filter((name) =>
       MINT_FUNCTION.test(name),
     );
@@ -234,7 +248,7 @@ export function checkRecorderIndependence(
   const violations: ArchViolation[] = [];
   for (const file of files) {
     if (isSpec(file.path) || !under(file.path, RECORDER_PREFIXES)) continue;
-    const bad = [...readFacts(file.path, file.text).moduleSpecifiers]
+    const bad = [...factsOf(file).moduleSpecifiers]
       .filter((specifier) => {
         if (specifier.startsWith('@app/')) return true;
         if (!specifier.startsWith('.')) return false;
@@ -283,7 +297,7 @@ export function findActionSites(files: readonly SourceFile[]): ActionSite[] {
   const sites: ActionSite[] = [];
   for (const file of files) {
     if (!isActionModule(file.path)) continue;
-    const calls = readFacts(file.path, file.text).calls.get('implementAction');
+    const calls = factsOf(file).calls.get('implementAction');
     if (calls !== undefined) sites.push({ path: file.path, calls });
   }
   return sites;

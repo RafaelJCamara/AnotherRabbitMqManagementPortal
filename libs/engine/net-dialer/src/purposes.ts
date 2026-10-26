@@ -57,11 +57,11 @@ export const PURPOSES: readonly PurposeSpec[] = [
   },
   {
     id: 'oidc',
-    feature: 'Single sign-on and broker OAuth',
+    feature: 'Broker OAuth (client credentials)',
     destination:
-      'The identity provider (discovery, key set and token endpoints) an administrator configured',
-    trigger: 'A sign-in, a key refresh or a token refresh',
-    default: 'Never until an identity provider is configured',
+      'The token endpoint of an identity provider an administrator configured (client credentials)',
+    trigger: 'A credential acquisition or refresh',
+    default: 'Never until a client-credentials provider is configured',
     status: 'active',
   },
   {

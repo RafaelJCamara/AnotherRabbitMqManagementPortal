@@ -16,7 +16,15 @@ export function createStaticTokenProvider(deps: {
   return {
     kind: 'static-token',
     async acquire({ connectionId, protocol }) {
-      const login = await deps.stored.open(connectionId, protocol);
+      let login: Awaited<ReturnType<StoredLoginPort['open']>>;
+      try {
+        login = await deps.stored.open(connectionId, protocol);
+      } catch {
+        // No `cause`: what the vault or the store said stays out of the error (I-10).
+        throw new AppError('INTERNAL', {
+          detail: 'The stored credential could not be read.',
+        });
+      }
       if (login.kind === 'locked') {
         throw new AppError('GATE_BLOCKED', {
           detail:

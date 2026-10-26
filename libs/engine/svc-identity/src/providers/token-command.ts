@@ -58,11 +58,25 @@ export function createTokenCommandProvider(deps: {
           detail: 'Token commands are not available in this delivery mode.',
         });
       }
-      const result = await deps.runner.run(
-        { file: config.file, args: config.args },
-        { timeoutMs: config.timeoutMs, maxStdoutBytes: config.maxStdoutBytes },
-        signal,
-      );
+      let result: Awaited<ReturnType<CommandRunnerPort['run']>>;
+      try {
+        result = await deps.runner.run(
+          { file: config.file, args: config.args },
+          {
+            timeoutMs: config.timeoutMs,
+            maxStdoutBytes: config.maxStdoutBytes,
+          },
+          signal,
+        );
+      } catch {
+        // A runner that rejects (a spawn error carries the command line) is reported as a fixed
+        // text with no `cause`, so nothing the runner said reaches a log sink (I-10).
+        throw new AppError('UNAUTHENTICATED', {
+          detail: signal.aborted
+            ? 'The token command was cancelled.'
+            : FAILURE_TEXT['spawn-failed'],
+        });
+      }
       if (!result.ok) {
         throw new AppError('UNAUTHENTICATED', {
           detail: FAILURE_TEXT[result.reason],

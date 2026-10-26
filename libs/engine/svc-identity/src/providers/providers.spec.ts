@@ -441,3 +441,133 @@ describe('credential providers', () => {
     expect(direct.reveal()).toBe('CANARY-direct-Xv3nQ9tR2k');
   });
 });
+
+// The findings of the adversarial review of slice A. They are hardening, not acceptance criteria, so
+// they carry no AC id.
+describe('credential providers hardening', () => {
+  const CANARY = 'CANARY-spawn-Qm7wL4zT9p';
+  const everything = (error: AppError): string =>
+    [
+      JSON.stringify(toProblem(error)),
+      util.inspect(error, { showHidden: true, depth: null }),
+      String(error.cause),
+    ].join('|');
+
+  it('M1-23 hardening a runner that rejects gives a fixed text with no cause, and the spawn error never surfaces', async () => {
+    // A Node spawn error carries the command line in `path` and `spawnargs`.
+    const spawnError = Object.assign(new Error(`spawn ${CANARY} ENOENT`), {
+      path: CANARY,
+      spawnargs: ['--token', CANARY],
+    });
+    const rejecting = fakeRunner(() => Promise.reject(spawnError));
+    const provider = createTokenCommandProvider({
+      config: commandConfig(),
+      runner: rejecting.runner,
+      clock,
+    });
+
+    const error = await failure(provider.acquire(request(), signal));
+
+    expect(error.code).toBe('UNAUTHENTICATED');
+    expect(error.cause).toBeUndefined();
+    expect(everything(error)).not.toContain(CANARY);
+
+    const controller = new AbortController();
+    controller.abort();
+    const cancelled = await failure(
+      provider.acquire(request(), controller.signal),
+    );
+    expect(cancelled.cause).toBeUndefined();
+    expect(everything(cancelled)).not.toContain(CANARY);
+    expect(cancelled.message).not.toBe(error.message);
+  });
+
+  it('M1-23 hardening a stored login that cannot be read gives a fixed text with no cause', async () => {
+    const failing: StoredLoginPort = {
+      open: () => Promise.reject(new Error(`vault says ${CANARY}`)),
+    };
+    for (const provider of [
+      createPasswordProvider({ stored: failing }),
+      createStaticTokenProvider({ stored: failing, clock }),
+    ]) {
+      const error = await failure(provider.acquire(request(), signal));
+      expect(error.code).toBe('INTERNAL');
+      expect(error.cause).toBeUndefined();
+      expect(everything(error)).not.toContain(CANARY);
+    }
+  });
+
+  it('M1-23 hardening a token that lives more than a year, or whose lifetime overflows, is refused', async () => {
+    const day = 24 * 60 * 60;
+    const later = (days: number): string =>
+      jwt({ exp: seconds(NOW) + days * day, sub: 'u' });
+    const stored = (token: string) =>
+      createStaticTokenProvider({
+        stored: fakeStored({ username: null, secret: token }),
+        clock,
+      });
+
+    // A year less than the bound is accepted; two years and an overflowing exp are refused.
+    expect(await stored(later(300)).acquire(request(), signal)).toMatchObject({
+      kind: 'bearer',
+    });
+    expect(
+      (await failure(stored(later(800)).acquire(request(), signal))).code,
+    ).toBe('VALIDATION_FAILED');
+    expect(
+      (
+        await failure(
+          stored(jwt({ exp: 1e308, sub: 'u' })).acquire(request(), signal),
+        )
+      ).code,
+    ).toBe('VALIDATION_FAILED');
+
+    // The token command takes the lifetime from `expires_in` when the token has no exp.
+    const noExp = jwt({ sub: 'u' });
+    const viaCommand = (expiresIn: number) =>
+      createTokenCommandProvider({
+        config: commandConfig(),
+        runner: fakeRunner({
+          ok: true,
+          stdout: JSON.stringify({
+            access_token: noExp,
+            expires_in: expiresIn,
+          }),
+        }).runner,
+        clock,
+      }).acquire(request(), signal);
+    expect(await viaCommand(3600)).toMatchObject({
+      expiresAt: NOW + 3_600_000,
+    });
+    expect((await failure(viaCommand(1e308))).code).toBe('VALIDATION_FAILED');
+    expect((await failure(viaCommand(800 * day))).code).toBe(
+      'VALIDATION_FAILED',
+    );
+  });
+
+  it('M1-23 hardening the token command must be an absolute path', () => {
+    const parse = (file: string) =>
+      ProviderConfigSchema.safeParse({ kind: 'token-command', file }).success;
+
+    for (const file of [
+      '/usr/bin/get-token',
+      'C:\\tools\\get-token.exe',
+      'c:/tools/get-token.exe',
+      '\\\\host\\share\\get-token.exe',
+    ]) {
+      expect(parse(file), file).toBe(true);
+    }
+    for (const file of [
+      'get-token',
+      './get-token',
+      '../bin/get-token',
+      'bin/get-token',
+      '//host/share/get-token',
+      '\\get-token',
+      'C:get-token',
+      '',
+    ]) {
+      expect(parse(file), file).toBe(false);
+    }
+  });
+});

@@ -35,9 +35,12 @@ function decodeObject(segment: string): Record<string, unknown> | undefined {
 
 /** A JWT numeric date (seconds) as epoch milliseconds, or null when it is not a finite number. */
 function toMillis(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? Math.round(value * 1000)
-    : null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+  // A date that overflows the millisecond range (1e308 s is Infinity ms) is not a date.
+  const millis = Math.round(value * 1000);
+  return Number.isSafeInteger(millis) ? millis : null;
 }
 
 /**

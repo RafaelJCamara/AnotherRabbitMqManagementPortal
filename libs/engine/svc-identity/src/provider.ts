@@ -47,6 +47,13 @@ const UsernameClaimsSchema = z
   .max(8)
   .default([...DEFAULT_USERNAME_CLAIMS]);
 
+/**
+ * An absolute path: POSIX (`/usr/bin/x`), a Windows drive (`C:\x` or `C:/x`) or a UNC share
+ * (`\\host\share`). A bare name would be looked up on PATH and a relative one against the working
+ * directory, so neither is accepted: the person names the exact program that runs.
+ */
+const ABSOLUTE_PATH = /^(?:\/(?!\/)|[A-Za-z]:[\\/]|\\\\[^\\])/;
+
 /** No control characters: a NUL or a newline has no place in a file name or an argument. */
 const ArgSchema = z.string().max(1024).refine(hasNoControlCharacters);
 
@@ -70,7 +77,14 @@ export const ProviderConfigSchema = z.discriminatedUnion('kind', [
   }),
   z.strictObject({
     kind: z.literal('token-command'),
-    file: z.string().min(1).max(1024).refine(hasNoControlCharacters),
+    file: z
+      .string()
+      .min(1)
+      .max(1024)
+      .refine(hasNoControlCharacters)
+      .refine((file) => ABSOLUTE_PATH.test(file), {
+        message: 'The command must be an absolute path.',
+      }),
     args: z.array(ArgSchema).max(32).default([]),
     timeoutMs: z
       .number()

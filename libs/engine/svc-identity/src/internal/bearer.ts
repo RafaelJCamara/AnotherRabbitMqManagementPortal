@@ -8,6 +8,12 @@ import type { IssuedCredential } from '../provider';
 import { readTokenClaims } from './claims';
 import { SecretValue } from './secret-value';
 
+/**
+ * The longest a token may live from now. A later expiry (or an `expires_in` that overflows) cannot
+ * be trusted to be renewed or to end, so the token is refused rather than used blind.
+ */
+export const MAX_TOKEN_LIFETIME_MS = 366 * 24 * 60 * 60 * 1000;
+
 export function bearerCredential(input: {
   readonly token: string;
   readonly usernameClaims: readonly string[];
@@ -35,6 +41,12 @@ export function bearerCredential(input: {
     throw new AppError('VALIDATION_FAILED', {
       detail:
         'The token has no expiry (exp), so it could never be renewed and is refused.',
+    });
+  }
+  if (expiresAt !== null && expiresAt - now > MAX_TOKEN_LIFETIME_MS) {
+    throw new AppError('VALIDATION_FAILED', {
+      detail:
+        'The token expires more than a year from now, so its expiry cannot be trusted and it is refused.',
     });
   }
   if (expiresAt !== null && expiresAt <= now) {

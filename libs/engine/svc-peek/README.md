@@ -12,6 +12,8 @@ Tags: `type:service`, `runtime:node`, `trust:critical`.
   - `reconcileInterrupted()`: marks the `acquiring` rows a crashed process left as `incident` (`interrupted`). It never touches the broker.
 - `ExecutorPorts`: the journal (`HoldJournalRepository`, `@app/ports`), a clock, an id source, the queue sealer (ADR-014), and timers.
 - `ExecutionHooks`: the guard (returns `doomed` or `not-doomed`) and the copy. M1-15 and M1-16 supply the real ones.
+- `quarantineName(prefix)`, `buildQuarantineSpec(name, vhost, type)`, `conformsToSpec(found, spec)`, `ensureQuarantine(args, signal)` (`src/internal/quarantine.ts`, M1-13 slice A): the rescue preflight's quarantine queue. The name is `${prefix}.quarantine` with the prefix injected by the composition root (a bad prefix throws `RangeError` at start). The spec is literal (A-5): durable, not auto-delete, `x-overflow: reject-publish`, no max-length, never `drop-head`; classic by default, quorum with `x-delivery-limit: -1` as the fallback where classic is disabled. `ensureQuarantine` reuses a conforming queue, never touches a queue of another shape, and otherwise sends one `PUT /api/queues/{vhost}/{name}` through the `send` its caller passes. The peek action (M1-16) calls it from `execute()` with `ctx.writes.mgmt.send`.
+- `PeekEvidencePort` (`@app/ports`, `peek-evidence.ts`): the DLX sources and the effective configuration of the peeked queue, as `routing.dlx-sources` and `queues.effective-config` answer them. The composition root implements it over the query actions; this project sees only the port (a service never imports a service, OQ-1468).
 - `createPeekModule(deps)`: returns the `EngineModule` the composition root registers.
 - `createPeekFakeDeps()` (`src/testing.ts`): fakes for the module's ports, for specs and the architecture manifest.
 
@@ -31,12 +33,16 @@ Tags: `type:service`, `runtime:node`, `trust:critical`.
 - `reconcileInterrupted` never calls the broker; each window is bounded (I-7).
 - The executor is reached only through an `implementAction` module (I-2). Its wiring is M1-16.
 - Never imports another service or an adapter (blueprint 2.2); the copy goes through a port.
+- The quarantine code names no write port, lease or connection manager: it takes `send` as an argument, so the architecture test (I-2) needs no exemption for it (M1-13 AC-25).
+- A quarantine queue of the right name but another shape (non-durable, another type, any extra argument) is reported `wrong-shape` and is never reused, changed or deleted (A-5). Its outcome holds closed codes only, never the broker's text (I-10).
 
 ## Proof commands
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p svc-peek
 pnpm nx test svc-peek --testNamePattern=executor
+pnpm nx test svc-peek --testNamePattern=preflight   # the quarantine spec (M1-13 slice A: AC-22 to AC-24)
+pnpm nx test arch-tests --testNamePattern=M1-13     # AC-25
 ```
 
 The lab run against the five broker versions (`svc-peek:it`) is planned for slice C of M1-14 and needs a Docker daemon.

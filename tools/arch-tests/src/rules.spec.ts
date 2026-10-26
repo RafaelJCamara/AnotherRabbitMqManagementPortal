@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +9,7 @@ import {
   checkProofMinting,
   checkRecorderIndependence,
   findActionSites,
+  FUNNEL_EXEMPT_PREFIXES,
 } from './rules.ts';
 import type { SourceFile } from './sources.ts';
 
@@ -156,6 +160,48 @@ export const replay = defineJob({ run: (lease: PublishLease) => lease });`,
     expect(checkMutationFunnel(exempt.map((path) => file(path, text)))).toEqual(
       [],
     );
+  });
+
+  it('M1-13 AC-25 the preflight and quarantine files stay outside the mutation funnel exemption', () => {
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const base = 'libs/engine/svc-peek/src/internal/';
+    const names = [
+      'preflight.ts',
+      'rescue-preflight.ts',
+      'quarantine.ts',
+      'preflight-rows.ts',
+      'preflight-fakes.ts',
+    ].map((name) => `${base}${name}`);
+    // The files of later slices are checked as soon as they exist.
+    const present = names.filter((path) => existsSync(`${root}${path}`));
+    expect(present).toContain(`${base}quarantine.ts`);
+    expect(present).toContain(`${base}preflight-fakes.ts`);
+
+    for (const path of names) {
+      expect(
+        FUNNEL_EXEMPT_PREFIXES.some((prefix) => path.startsWith(prefix)),
+        path,
+      ).toBe(false);
+    }
+    const real = present.map((path) =>
+      file(path, readFileSync(`${root}${path}`, 'utf8')),
+    );
+    expect(checkMutationFunnel(real)).toEqual([]);
+
+    // The same file naming a write port is reported, so the check has teeth.
+    const quarantine = real.find((source) =>
+      source.path.endsWith('quarantine.ts'),
+    );
+    const planted = file(
+      `${base}quarantine.ts`,
+      `${quarantine?.text ?? ''}
+import type { MgmtWritePort } from '@app/ports';
+export type Leak = MgmtWritePort;
+`,
+    );
+    const violations = checkMutationFunnel([planted]);
+    expect(paths(violations)).toEqual([planted.path]);
+    expect(violations[0]?.message).toContain('MgmtWritePort');
   });
 
   it('is not fooled by a comment or a string that mentions a write port', () => {

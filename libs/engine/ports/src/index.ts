@@ -97,6 +97,12 @@ export type {
   TlsProbeResult,
   WireTarget,
 } from './probe.ts';
+export type {
+  PeekEvidencePort,
+  PeekEvidenceRequest,
+  QueuesEffectiveConfigOutput,
+  RoutingDlxSourcesOutput,
+} from './peek-evidence.ts';
 export { LANES } from './mgmt.ts';
 export type {
   Lane,

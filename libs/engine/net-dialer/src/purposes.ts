@@ -62,7 +62,7 @@ export const PURPOSES: readonly PurposeSpec[] = [
       'The identity provider (discovery, key set and token endpoints) an administrator configured',
     trigger: 'A sign-in, a key refresh or a token refresh',
     default: 'Never until an identity provider is configured',
-    status: 'planned',
+    status: 'active',
   },
   {
     id: 'alert-webhook',

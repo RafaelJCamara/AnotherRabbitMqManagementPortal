@@ -18,7 +18,11 @@
 //   - Secrets (I-10). A failure carries a fixed text and never a `cause`; tokens are `SecretValue`s
 //     and cross `ConnectionAuthPort` only as the argument of the one call that needs them.
 //   - Time and timers are injected (`Clock`, `Timers`). A timer that fires early on the wall clock
-//     (a clock set back, or a timer longer than the platform allows) is re-armed, not trusted.
+//     (a clock set back, or a timer longer than the platform allows) is re-armed, not trusted. A
+//     clock set forward does not move a timer, so one sweep timer for the whole manager looks at
+//     the tracked entries every `sweepIntervalMs` and acts on a deadline that is long past.
+//   - The user name a connection first had is kept apart from the entries (`knownUsernames`), so
+//     evicting an entry for room never forgets it. It is dropped only by `invalidate` when asked.
 import { AppError, toProblem, type Clock, type Timers } from '@app/kernel';
 import type {
   ConnectionAuthPort,
@@ -29,6 +33,7 @@ import type { Problem } from '@app/contracts';
 
 import { createLimiter } from './internal/limiter';
 import {
+  type ExpiryRule,
   BACKOFF_BASE_MS,
   BACKOFF_MAX_MS,
   MAX_ATTEMPTS,
@@ -53,7 +58,9 @@ export type TokenStateName =
   | 'refreshing'
   | 'failed'
   | 'expired'
-  | 'username-changed';
+  | 'username-changed'
+  /** `invalidate` dropped the cached credential; a live connection still holds the old token. */
+  | 'invalidated';
 
 export interface TokenState {
   readonly connectionId: string;
@@ -82,6 +89,20 @@ export interface TokenManagerStats {
   readonly listenerErrors: number;
   /** 320 closes ignored because one was already being handled or came inside the floor. */
   readonly coalescedForcedCloses: number;
+  /** User names kept for the continuity check (they survive eviction; `invalidate` drops them). */
+  readonly knownUsernames: number;
+  /** Tokens and logins refused for their user name (another, none, too long): DC-37. */
+  readonly usernameRefusals: number;
+  /** User names not kept because the table was full: the token was refused instead. */
+  readonly refusedKnownUsernames: number;
+  /** First-token requests answered from the failure of the last attempt, with no provider call. */
+  readonly coolingRefusals: number;
+  /** `capabilities()` calls that threw; the manager took the conservative branch. */
+  readonly capabilityErrors: number;
+  /** Deadlines the sweep found long past (a wall clock set forward) and acted on itself. */
+  readonly sweptDeadlines: number;
+  /** `invalidate` calls that found an entry. */
+  readonly invalidations: number;
 }
 
 /** What the broker can do, asked afresh at each use (a cluster can change under a connection). */
@@ -102,6 +123,10 @@ export interface TokenManagerLimits {
   /** Distinct (connection, protocol) entries held at once. */
   readonly maxEntries: number;
   readonly maxListeners: number;
+  /** User names kept for the continuity check; a full table refuses a token instead of forgetting. */
+  readonly maxKnownUsernames: number;
+  /** How often the sweep looks for deadlines that a wall-clock jump left behind. */
+  readonly sweepIntervalMs: number;
   /** Provider calls running at once. */
   readonly maxConcurrentAcquires: number;
   /** The longest one provider call, or one push to a connection, may take. */
@@ -116,6 +141,8 @@ export interface TokenManagerLimits {
 export const DEFAULT_TOKEN_MANAGER_LIMITS: TokenManagerLimits = Object.freeze({
   maxEntries: 256,
   maxListeners: 32,
+  maxKnownUsernames: 4096,
+  sweepIntervalMs: 10_000,
   maxConcurrentAcquires: 8,
   operationTimeoutMs: 30_000,
   minRefreshIntervalMs: MIN_REFRESH_INTERVAL_MS,
@@ -148,7 +175,25 @@ export interface TokenManager {
     readonly connectionId: string;
     readonly protocol: RenewalProtocol;
     readonly generation?: number;
+    /**
+     * The user name the connection logged in with, when the caller has it. It is checked against
+     * the name the manager remembers (another name is refused) or becomes that name, so the
+     * assertion of DC-37 can be set up again for a connection the manager has no record of.
+     */
+    readonly username?: string;
   }): { release(): void };
+  /**
+   * Drops what the manager holds for a connection (OQ-1506): the cached credential, the renewal
+   * timer, the failure count and any renewal or push in flight (aborted, and its late result is
+   * thrown away). A live connection still holds the token it has, so the expiry of that token is
+   * still watched; nothing is fetched until something asks `credentialFor`. The remembered user
+   * name is kept unless `forgetUsername` is true. Without a protocol it covers both.
+   */
+  invalidate(
+    connectionId: string,
+    protocol?: CredentialProtocol,
+    options?: { readonly forgetUsername?: boolean },
+  ): void;
   /** One renewal after the broker answered 401; a no-op if `generation` is no longer current. */
   refreshAfterUnauthorized(
     connectionId: string,
@@ -169,6 +214,10 @@ export interface TokenManager {
 const MAX_TIMER_MS = 2_147_483_647;
 /** The reason the broker is told in `connection.update-secret`: fixed, never the token. */
 const UPDATE_SECRET_REASON = 'token refresh';
+/** A user name longer than this is refused, so the table of names has a byte bound (I-6). */
+const MAX_USERNAME_CHARS = 256;
+/** A deadline is "long past" for the sweep when it is this far behind; a timer's own lateness is not. */
+const SWEEP_SLACK_MS = 1_000;
 
 type Why = 'scheduled' | 'demand' | 'unauthorized' | 'forced-close';
 
@@ -200,8 +249,12 @@ interface Entry {
   readonly protocol: CredentialProtocol;
   credential: IssuedCredential | undefined;
   generation: number;
-  /** The user name of the first token; undefined until there is one. */
-  expectedUsername: string | null | undefined;
+  /** True once any credential was adopted: a connection tracked after that holds an older one. */
+  everIssued: boolean;
+  /** Goes up at `invalidate`: a renewal or push that started before it is thrown away. */
+  epoch: number;
+  /** Aborted by `invalidate`; the renewal and the pushes of the current epoch hang off it. */
+  scope: AbortController;
   state: TokenStateName;
   problem: Problem | null;
   expiresAt: number | null;
@@ -244,6 +297,11 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   }
 
   const entries = new Map<string, Entry>();
+  // The first user name of each (connection, protocol), kept apart from the entries so that
+  // evicting an entry for room never forgets it. Bounded by `maxKnownUsernames`: a full table
+  // refuses the token that would need a new row, it never drops an old one. Only `invalidate`
+  // with `forgetUsername` removes a row.
+  const knownUsernames = new Map<string, string>();
   const listeners = new Set<{ readonly call: (state: TokenState) => void }>();
   const controllers = new Set<AbortController>();
   const background = new Set<Promise<unknown>>();
@@ -252,12 +310,19 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   let disposed = false;
   let disposing: Promise<void> | undefined;
   let generationCounter = 0;
+  let cancelSweep: (() => void) | undefined;
   const counters = {
     refusedEntries: 0,
     evictedEntries: 0,
     refusedListeners: 0,
     listenerErrors: 0,
     coalescedForcedCloses: 0,
+    usernameRefusals: 0,
+    refusedKnownUsernames: 0,
+    coolingRefusals: 0,
+    capabilityErrors: 0,
+    sweptDeadlines: 0,
+    invalidations: 0,
   };
 
   const shuttingDown = (): AppError =>
@@ -267,6 +332,10 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   const cancelled = (): AppError =>
     new AppError('BROKER_UNREACHABLE', {
       detail: 'The credential request was cancelled.',
+    });
+  const invalidated = (): AppError =>
+    new AppError('BROKER_UNREACHABLE', {
+      detail: 'The credential was invalidated while the request ran.',
     });
   // A function, so a check after an await is not narrowed away by the check before it.
   const isDisposed = (): boolean => disposed;
@@ -279,9 +348,13 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     protocol: RenewalProtocol,
   ): CredentialProtocol => (protocol === 'http' ? 'http' : 'amqp');
 
-  /** Runs `work` for the manager's own sake: bounded in time, and cut off at dispose. */
+  /**
+   * Runs `work` for the manager's own sake: bounded in time, and cut off at dispose and, when a
+   * `scope` is given, when that scope is aborted (`invalidate`).
+   */
   async function guarded<T>(
     work: (signal: AbortSignal) => Promise<T>,
+    scope?: AbortSignal,
   ): Promise<T> {
     const controller = new AbortController();
     controllers.add(controller);
@@ -292,6 +365,11 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
         }),
       );
     }, limits.operationTimeoutMs);
+    const onScope = (): void => {
+      controller.abort(invalidated());
+    };
+    if (scope?.aborted === true) onScope();
+    else scope?.addEventListener('abort', onScope, { once: true });
     try {
       return await raceSignal(
         (async () => work(controller.signal))(),
@@ -300,6 +378,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
       );
     } finally {
       cancelTimer();
+      scope?.removeEventListener('abort', onScope);
       controllers.delete(controller);
     }
   }
@@ -331,16 +410,19 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
         entry.nextWakeAt ??
         (entry.targets.size === 0 ? entry.plannedRefreshAt : null),
       consumersCancelled: entry.consumersCancelled,
-      problem: entry.problem,
+      // A copy for each reader: one that changes the Problem it was given changes nobody else's.
+      problem: entry.problem === null ? null : structuredClone(entry.problem),
     });
   }
 
   function publish(entry: Entry): void {
     if (disposed || listeners.size === 0) return;
-    const state = snapshot(entry);
+    // The listeners as they are now: one that subscribes while this runs is not called for this
+    // state, and one that left meanwhile is not called either. Each gets its own snapshot.
     for (const slot of [...listeners]) {
+      if (!listeners.has(slot)) continue;
       try {
-        slot.call(state);
+        slot.call(snapshot(entry));
       } catch {
         counters.listenerErrors += 1;
       }
@@ -384,9 +466,15 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     disarmWake(entry);
     entry.cancelExpiry?.();
     entry.cancelExpiry = undefined;
+    syncSweep();
   }
 
   function armWake(entry: Entry): void {
+    armWakeTimer(entry);
+    syncSweep();
+  }
+
+  function armWakeTimer(entry: Entry): void {
     disarmWake(entry);
     if (disposed || entry.targets.size === 0 || entry.terminal) return;
     if (entry.failures >= limits.maxAttempts) return;
@@ -417,17 +505,69 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   function armExpiry(entry: Entry): void {
     entry.cancelExpiry?.();
     entry.cancelExpiry = undefined;
-    if (disposed || entry.targets.size === 0 || entry.expiresAt === null) {
-      return;
+    if (!disposed && entry.targets.size > 0 && entry.expiresAt !== null) {
+      entry.cancelExpiry = armAt(entry.expiresAt, () => {
+        onExpiry(entry);
+      });
     }
-    entry.cancelExpiry = armAt(entry.expiresAt, () => {
-      onExpiry(entry);
-    });
+    syncSweep();
   }
 
   function arm(entry: Entry): void {
     armWake(entry);
     armExpiry(entry);
+  }
+
+  // -- the sweep (a wall clock set forward) ----------------------------------------------------
+
+  const hasTimer = (entry: Entry): boolean =>
+    entry.cancelWake !== undefined || entry.cancelExpiry !== undefined;
+
+  /**
+   * Keeps one timer running while any entry has a deadline timer, and none otherwise. Called at
+   * the end of every change to the deadline timers, never in the middle of one, so a busy retry
+   * loop does not keep restarting the sweep.
+   */
+  function syncSweep(): void {
+    const needed = !disposed && [...entries.values()].some(hasTimer);
+    if (!needed) {
+      cancelSweep?.();
+      cancelSweep = undefined;
+    } else {
+      cancelSweep ??= timers.setTimer(sweep, limits.sweepIntervalMs);
+    }
+  }
+
+  /**
+   * A timer counts monotonic time, so a wall clock set forward (or a machine that slept) leaves a
+   * deadline in the past and its timer still waiting. This looks at every entry once per interval
+   * and runs what is long overdue itself. Bounded by the entry cap; each action is counted.
+   */
+  function sweep(): void {
+    cancelSweep = undefined;
+    if (disposed) return;
+    const now = clock.now();
+    for (const entry of [...entries.values()]) {
+      if (
+        entry.cancelExpiry !== undefined &&
+        entry.expiresAt !== null &&
+        now - entry.expiresAt > SWEEP_SLACK_MS
+      ) {
+        counters.sweptDeadlines += 1;
+        entry.cancelExpiry();
+        onExpiry(entry);
+      }
+      if (
+        entry.cancelWake !== undefined &&
+        entry.nextWakeAt !== null &&
+        now - entry.nextWakeAt > SWEEP_SLACK_MS
+      ) {
+        counters.sweptDeadlines += 1;
+        entry.cancelWake();
+        onWake(entry);
+      }
+    }
+    syncSweep();
   }
 
   // -- entries --------------------------------------------------------------------------------
@@ -436,6 +576,15 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     entry.targets.size === 0 &&
     entry.inflight === undefined &&
     entry.pushing === undefined;
+
+  /**
+   * A first token that could not be had is not asked for again until the wait is over (the same
+   * floor and backoff as a renewal), and the entry that remembers the wait is kept meanwhile.
+   */
+  const isCooling = (entry: Entry, now: number): boolean =>
+    entry.credential === undefined &&
+    entry.failures > 0 &&
+    now < entry.retryNotBefore;
 
   /** Finds or creates the entry; a new one needs room, which an idle entry can make. */
   function entryFor(connectionId: string, protocol: CredentialProtocol): Entry {
@@ -448,8 +597,9 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     }
     if (entries.size >= limits.maxEntries) {
       let victim: Entry | undefined;
+      const now = clock.now();
       for (const candidate of entries.values()) {
-        if (isIdle(candidate)) {
+        if (isIdle(candidate) && !isCooling(candidate, now)) {
           victim = candidate;
           break;
         }
@@ -471,7 +621,9 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
       protocol,
       credential: undefined,
       generation: 0,
-      expectedUsername: undefined,
+      everIssued: false,
+      epoch: 0,
+      scope: new AbortController(),
       state: 'refreshing',
       problem: null,
       expiresAt: null,
@@ -497,7 +649,11 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   }
 
   function dropIfEmpty(entry: Entry): void {
-    if (entry.credential === undefined && isIdle(entry)) {
+    if (
+      entry.credential === undefined &&
+      isIdle(entry) &&
+      !isCooling(entry, clock.now())
+    ) {
       entries.delete(entry.key);
     }
   }
@@ -523,6 +679,52 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     });
   }
 
+  /**
+   * The first bearer token of an entry. The name it carries must be the one the manager remembers
+   * for this connection (the entry may have been evicted and made again since: DC-37 holds for the
+   * connection, not for the entry). Returns the name to remember, if it is new. A token that has an
+   * expiry but no name is refused, because every renewal of it would be (OQ-1532); one with no
+   * expiry is never renewed, so it needs no name.
+   */
+  function checkFirstToken(
+    entry: Entry,
+    issued: Extract<IssuedCredential, { kind: 'bearer' }>,
+  ): string | undefined {
+    const known = knownUsernames.get(entry.key);
+    if (issued.username === null) {
+      if (known === undefined && issued.expiresAt === null) return undefined;
+      counters.usernameRefusals += 1;
+      throw new Refusal(
+        'UNAUTHENTICATED',
+        known === undefined
+          ? 'The token names no user, so it could not be renewed safely and was not used.'
+          : 'The token names no user, but this connection used one before, so it was not used.',
+        'failed',
+        true,
+      );
+    }
+    if (known === undefined) {
+      if (knownUsernames.size >= limits.maxKnownUsernames) {
+        counters.refusedKnownUsernames += 1;
+        throw new AppError('BUDGET_EXCEEDED', {
+          detail:
+            'The identity service remembers as many user names as it allows.',
+        });
+      }
+      return issued.username;
+    }
+    if (known !== issued.username) {
+      counters.usernameRefusals += 1;
+      throw new Refusal(
+        'UNAUTHENTICATED',
+        'The token names another user than this connection used before, so it was not used.',
+        'username-changed',
+        true,
+      );
+    }
+    return undefined;
+  }
+
   /** Checks a credential a provider gave and, if it may replace the current one, adopts it. */
   function adopt(
     entry: Entry,
@@ -531,10 +733,21 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   ): ResolvedCredential {
     const now = clock.now();
     const previous = entry.credential;
+    const wasIssuedBefore = entry.everIssued;
+    let learnedUsername: string | undefined;
     if (issued.kind === 'bearer') {
       if (issued.expiresAt !== null && issued.expiresAt <= now) {
         throw new AppError('TOKEN_EXPIRED', {
           detail: 'The token is already expired.',
+        });
+      }
+      if (
+        issued.username !== null &&
+        issued.username.length > MAX_USERNAME_CHARS
+      ) {
+        counters.usernameRefusals += 1;
+        throw new AppError('VALIDATION_FAILED', {
+          detail: 'The token names a user whose name is too long.',
         });
       }
     }
@@ -546,10 +759,11 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
       }
       if (previous.kind === 'bearer' && issued.kind === 'bearer') {
         const verdict = checkUsername(
-          entry.expectedUsername ?? null,
+          knownUsernames.get(entry.key) ?? null,
           issued.username,
         );
         if (verdict === 'changed') {
+          counters.usernameRefusals += 1;
           throw new Refusal(
             'UNAUTHENTICATED',
             'The renewed token names another user than the first one, so it was not used.',
@@ -558,12 +772,20 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
           );
         }
         if (verdict === 'missing') {
+          counters.usernameRefusals += 1;
           throw new Refusal(
             'UNAUTHENTICATED',
             'The renewed token names no user, so it was not used.',
             'failed',
             true,
           );
+        }
+        // A token that drops its expiry would leave the connection with nothing watching it.
+        if (previous.expiresAt !== null && issued.expiresAt === null) {
+          throw new AppError('VALIDATION_FAILED', {
+            detail:
+              'The renewed token has no expiry, but the one it replaces had one.',
+          });
         }
         // A token that does not outlive the one it replaces would renew in a tight loop.
         if (
@@ -579,9 +801,13 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
         }
       }
     } else if (issued.kind === 'bearer') {
-      entry.expectedUsername = issued.username;
+      learnedUsername = checkFirstToken(entry, issued);
     }
 
+    if (learnedUsername !== undefined) {
+      knownUsernames.set(entry.key, learnedUsername);
+    }
+    entry.everIssued = true;
     const generation = ++generationCounter;
     entry.credential = issued;
     entry.generation = generation;
@@ -609,14 +835,10 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
       entry.expiresAt = null;
       entry.plannedRefreshAt = null;
     }
-    if (why === 'forced-close') {
-      // The connection that was closed reopens with this token: nothing to push to it.
-      const closed = entry.targets.get('amqp091');
-      if (closed !== undefined) closed.pushedGeneration = generation;
-    }
-    if (previous === undefined) {
+    if (previous === undefined && !wasIssuedBefore) {
       // A connection tracked before the first credential is taken to hold it (it asks
-      // `credentialFor` for its login): there is nothing to push.
+      // `credentialFor` for its login): there is nothing to push. After `invalidate` it holds the
+      // older token, and is brought up to date.
       for (const target of entry.targets.values()) {
         target.pushedGeneration = generation;
       }
@@ -652,12 +874,18 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     entry: Entry,
     why: Why,
   ): Promise<ResolvedCredential> {
+    // `invalidate` moves the epoch and aborts the scope: what this flight learns after that is
+    // thrown away, and it records nothing in the entry.
+    const epoch = entry.epoch;
+    const scope = entry.scope.signal;
     if (entry.credential !== undefined) {
       entry.state = 'refreshing';
       publish(entry);
     }
     try {
-      const release = await limiter.acquire(shutdown.signal);
+      const release = await limiter.acquire(
+        AbortSignal.any([shutdown.signal, scope]),
+      );
       let issued: IssuedCredential;
       try {
         entry.lastStartedAt = clock.now();
@@ -680,12 +908,14 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
             { connectionId: entry.connectionId, protocol: entry.protocol },
             signal,
           );
-        });
+        }, scope);
       } finally {
         release();
       }
+      if (entry.epoch !== epoch) throw invalidated();
       return adopt(entry, issued, why);
     } catch (error) {
+      if (entry.epoch !== epoch) throw invalidated();
       throw recordFailure(entry, error);
     }
   }
@@ -693,9 +923,12 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   /** The one renewal in flight for `entry`; callers that arrive meanwhile share it. */
   function refresh(entry: Entry, why: Why): Promise<ResolvedCredential> {
     if (entry.inflight !== undefined) return entry.inflight;
-    const flight = runFlight(entry, why).finally(() => {
-      entry.inflight = undefined;
-    });
+    const flight: Promise<ResolvedCredential> = runFlight(entry, why).finally(
+      () => {
+        // `invalidate` may have cleared this flight and a newer one may have taken its place.
+        if (entry.inflight === flight) entry.inflight = undefined;
+      },
+    );
     entry.inflight = flight;
     trackBackground(flight);
     // The push to the live connections starts only after `inflight` is clear.
@@ -711,6 +944,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     entry: Entry,
     protocol: RenewalProtocol,
     credential: Extract<IssuedCredential, { kind: 'bearer' }>,
+    scope: AbortSignal,
   ): Promise<void> {
     const id = entry.connectionId;
     const action = renewalActionFor(protocol, deps.capabilities(id));
@@ -735,17 +969,26 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
           await auth.reconnect(id, protocol);
           return;
       }
-    });
+    }, scope);
   }
 
+  /**
+   * The connections that hold an older token than the entry's. An AMQP 0-9-1 connection the broker
+   * has just closed (320) is not one of them: it reopens with the new token, and an `updateSecret`
+   * sent to it would only fail (OQ-1508).
+   */
   const behindOf = (entry: Entry): [RenewalProtocol, Target][] =>
     [...entry.targets].filter(
-      ([, target]) => target.pushedGeneration < entry.generation,
+      ([protocol, target]) =>
+        target.pushedGeneration < entry.generation &&
+        !(entry.closing && protocol === 'amqp091'),
     );
 
   /** Brings every tracked connection that holds an older token up to the current one. */
   function pushBehind(entry: Entry): void {
     if (disposed || entry.pushing !== undefined) return;
+    const epoch = entry.epoch;
+    const scope = entry.scope.signal;
     const run = (async () => {
       for (;;) {
         const credential = entry.credential;
@@ -772,8 +1015,13 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
         }
         let failure: AppError | undefined;
         for (const [protocol, target] of behind) {
+          // A newer token was adopted, or `invalidate` ran (it resets the generation), while an
+          // earlier connection was being pushed to: the rest of this list is for the next round.
+          if (entry.generation !== generation) break;
+          // A close that arrived while an earlier connection was being pushed to.
+          if (entry.closing && protocol === 'amqp091') continue;
           try {
-            await pushOne(entry, protocol, credential);
+            await pushOne(entry, protocol, credential, scope);
             target.pushedGeneration = Math.max(
               target.pushedGeneration,
               generation,
@@ -786,6 +1034,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
             });
           }
         }
+        if (entry.epoch !== epoch) return;
         if (failure !== undefined) {
           if (isDisposed()) return;
           const now = clock.now();
@@ -806,8 +1055,8 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
         }
       }
     })();
-    const pushing = run.finally(() => {
-      entry.pushing = undefined;
+    const pushing: Promise<void> = run.finally(() => {
+      if (entry.pushing === pushing) entry.pushing = undefined;
     });
     entry.pushing = pushing;
     trackBackground(pushing);
@@ -816,6 +1065,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   function onWake(entry: Entry): void {
     entry.cancelWake = undefined;
     entry.nextWakeAt = null;
+    syncSweep();
     if (disposed || entry.targets.size === 0) return;
     const now = clock.now();
     entry.retryAt = null;
@@ -833,11 +1083,21 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
 
   function onExpiry(entry: Entry): void {
     entry.cancelExpiry = undefined;
+    syncSweep();
     if (disposed || entry.expiresAt === null) return;
     if (clock.now() < entry.expiresAt) return;
     if (entry.state !== 'username-changed') entry.state = 'expired';
     publish(entry);
-    const rule = expiryRuleFor(deps.capabilities(entry.connectionId));
+    // This runs inside a timer callback: a throw here would end the process. A broker whose
+    // capabilities cannot be read is taken not to close the connection itself, which is the
+    // branch that leaves nothing running on an expired credential.
+    let rule: ExpiryRule;
+    try {
+      rule = expiryRuleFor(deps.capabilities(entry.connectionId));
+    } catch {
+      counters.capabilityErrors += 1;
+      rule = 'cancel-own-consumers';
+    }
     const hasConnections = [...entry.targets.keys()].some(
       (protocol) => protocol !== 'http',
     );
@@ -973,6 +1233,16 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     }
     const now = clock.now();
     if (entry.credential === undefined) {
+      // A first token that just failed is not asked for again before the wait is over: a caller
+      // that retries in a loop makes one provider call per wait, not one per attempt.
+      if (isCooling(entry, now)) {
+        counters.coolingRefusals += 1;
+        throw tooSoon(
+          entry,
+          'BROKER_ERROR',
+          'The credential could not be had a moment ago and is not asked for again yet.',
+        );
+      }
       try {
         return await until(refresh(entry, 'demand'), signal);
       } finally {
@@ -1027,16 +1297,98 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     return until(refresh(entry, 'unauthorized'), signal);
   }
 
+  /**
+   * The user name a live connection logged in with, as its owner reports it. If the manager has a
+   * name for the connection it must be this one; if not, this becomes the name, so a token that
+   * names someone else is refused from then on. Fails closed with a Problem when it cannot.
+   */
+  function assertLoginUsername(entry: Entry, username: string): void {
+    if (username.length === 0 || username.length > MAX_USERNAME_CHARS) {
+      counters.usernameRefusals += 1;
+      throw new AppError('VALIDATION_FAILED', {
+        detail: 'The user name of the connection is empty or too long.',
+      });
+    }
+    const known = knownUsernames.get(entry.key);
+    if (known === undefined) {
+      if (knownUsernames.size >= limits.maxKnownUsernames) {
+        counters.refusedKnownUsernames += 1;
+        throw new AppError('BUDGET_EXCEEDED', {
+          detail:
+            'The identity service remembers as many user names as it allows.',
+        });
+      }
+      knownUsernames.set(entry.key, username);
+    } else if (known !== username) {
+      counters.usernameRefusals += 1;
+      throw new AppError('UNAUTHENTICATED', {
+        detail:
+          'The connection logged in as another user than the one its credential names.',
+      });
+    }
+  }
+
+  /** See `TokenManager.invalidate`. */
+  function invalidate(
+    connectionId: string,
+    protocol?: CredentialProtocol,
+    options: { readonly forgetUsername?: boolean } = {},
+  ): void {
+    if (disposed) return;
+    const protocols: readonly CredentialProtocol[] =
+      protocol === undefined ? ['amqp', 'http'] : [protocol];
+    for (const each of protocols) {
+      const key = keyOf(connectionId, each);
+      if (options.forgetUsername === true) knownUsernames.delete(key);
+      const entry = entries.get(key);
+      if (entry === undefined) continue;
+      counters.invalidations += 1;
+      entry.epoch += 1;
+      entry.scope.abort(invalidated());
+      entry.scope = new AbortController();
+      entry.inflight = undefined;
+      entry.pushing = undefined;
+      if (entry.targets.size === 0) {
+        // Nothing live depends on it: the entry goes, with its wait after a failure.
+        disarm(entry);
+        entries.delete(key);
+        continue;
+      }
+      // A live connection keeps the token it has, so the expiry timer stays; the rest is dropped.
+      disarmWake(entry);
+      entry.credential = undefined;
+      entry.generation = 0;
+      entry.plannedRefreshAt = null;
+      entry.retryAt = null;
+      entry.failures = 0;
+      entry.terminal = false;
+      entry.pushFailed = false;
+      entry.problem = null;
+      entry.state = isExpired(entry, clock.now()) ? 'expired' : 'invalidated';
+      syncSweep();
+      publish(entry);
+    }
+  }
+
   function track(target: {
     readonly connectionId: string;
     readonly protocol: RenewalProtocol;
     readonly generation?: number;
+    readonly username?: string;
   }): { release(): void } {
     assertLive();
     const entry = entryFor(
       target.connectionId,
       credentialProtocolOf(target.protocol),
     );
+    if (target.username !== undefined) {
+      try {
+        assertLoginUsername(entry, target.username);
+      } catch (error) {
+        dropIfEmpty(entry);
+        throw error;
+      }
+    }
     const known = entry.targets.get(target.protocol);
     const held = target.generation ?? entry.generation;
     const slot: Target = known ?? { count: 0, pushedGeneration: held };
@@ -1072,6 +1424,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     listeners.clear();
     disposing = Promise.allSettled([...background]).then(() => {
       entries.clear();
+      knownUsernames.clear();
     });
     return disposing;
   }
@@ -1079,6 +1432,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   return {
     credentialFor,
     track,
+    invalidate,
     refreshAfterUnauthorized,
     state(connectionId, protocol) {
       const entry = entries.get(keyOf(connectionId, protocol));
@@ -1107,6 +1461,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
         ).length,
         pendingOperations: controllers.size,
         pendingTasks: background.size,
+        knownUsernames: knownUsernames.size,
         ...counters,
       };
     },

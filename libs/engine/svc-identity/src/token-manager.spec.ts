@@ -729,10 +729,11 @@ describe('TokenManager edges (slice C)', () => {
     expect(h.provider.calls).toBe(2);
   });
 
-  it('M1-23 slice C a token expired on arrival is refused and leaves no entry behind', async () => {
+  it('M1-23 slice C a token expired on arrival is refused and leaves no timer behind', async () => {
     const h = harness({ script: (n, now) => bearer({ n, iat: 0, exp: now }) });
     expect((await failureOf(credentialFor(h))).code).toBe('TOKEN_EXPIRED');
-    expect(h.manager.stats().entries).toBe(0);
+    // The entry stays only to remember the wait before the next attempt (slice C hardening).
+    expect(h.manager.stats().entries).toBe(1);
     expect(h.timers.pending()).toBe(0);
     const unknown = harness({ script: () => Promise.reject(new Error('x')) });
     expect((await failureOf(credentialFor(unknown))).code).toBe('INTERNAL');
@@ -1019,10 +1020,10 @@ describe('TokenManager edges (slice C)', () => {
     const h = harness();
     const one = await started(h);
     const two = h.manager.track({ connectionId: 'c1', protocol: 'amqp091' });
-    expect(h.timers.pending()).toBe(2);
+    expect(h.timers.pending()).toBe(3); // the refresh timer, the expiry timer and the sweep
     one.release();
     one.release(); // idempotent: it must not release the second handle's claim
-    expect(h.timers.pending()).toBe(2);
+    expect(h.timers.pending()).toBe(3);
     two.release();
     expect(h.timers.pending()).toBe(0);
     await h.timers.advance(2_000 * SECOND);
@@ -1223,7 +1224,7 @@ describe('TokenManager edges (slice C)', () => {
     }
   });
 
-  it('M1-23 slice C a profile with no provider is NOT_FOUND and keeps no entry', async () => {
+  it('M1-23 slice C a profile with no provider is NOT_FOUND and is not asked for again at once', async () => {
     const clock = createManualClock(0);
     const manager = createTokenManager({
       providers: { providerFor: () => Promise.resolve(undefined) },
@@ -1243,8 +1244,12 @@ describe('TokenManager edges (slice C)', () => {
     expect(
       (await failureOf(manager.credentialFor('c1', 'amqp', signal))).code,
     ).toBe('NOT_FOUND');
-    expect(manager.stats().entries).toBe(0);
-    expect(manager.state('c1', 'amqp')).toBeUndefined();
+    // Only the wait is kept: no credential, no timer. A second call inside it is answered at once.
+    expect(manager.state('c1', 'amqp')?.state).toBe('failed');
+    expect(
+      (await failureOf(manager.credentialFor('c1', 'amqp', signal))).code,
+    ).toBe('NOT_FOUND');
+    expect(manager.stats().coolingRefusals).toBe(1);
   });
 });
 
@@ -1700,6 +1705,8 @@ describe('TokenManager edges found by mutation (slice C)', () => {
     expect(DEFAULT_TOKEN_MANAGER_LIMITS).toEqual({
       maxEntries: 256,
       maxListeners: 32,
+      maxKnownUsernames: 4096,
+      sweepIntervalMs: 10_000,
       maxConcurrentAcquires: 8,
       operationTimeoutMs: 30_000,
       minRefreshIntervalMs: 5_000,
@@ -1793,7 +1800,540 @@ const helpers = {
     h.auth.calls.filter((c) => c.method === method),
 };
 
+describe('TokenManager user name continuity (slice C hardening)', () => {
+  it('M1-23 hardening a user name survives the eviction of its entry, and another user is refused', async () => {
+    // The chain of the security review: alice on c1, another connection takes the only slot,
+    // then c1 comes back with mallory. The first token of the new entry used to be accepted.
+    const h = harness({
+      limits: { maxEntries: 1 },
+      script: (n, now, request) =>
+        bearer({
+          n,
+          iat: now,
+          exp: now + LIFETIME,
+          username:
+            request.connectionId === 'c1' && n === 3 ? 'mallory' : 'alice',
+        }),
+    });
+    await credentialFor(h, 'c1');
+    await credentialFor(h, 'c2'); // evicts the idle entry of c1
+    expect(h.manager.stats().evictedEntries).toBe(1);
+    expect(h.manager.state('c1', 'amqp')).toBeUndefined();
+    expect(h.manager.stats().knownUsernames).toBe(2); // the names outlive the entries
+
+    const error = await failureOf(credentialFor(h, 'c1'));
+    expect(error.code).toBe('UNAUTHENTICATED');
+    expect(h.manager.stats().usernameRefusals).toBe(1);
+    expect(stateOf(h)?.state).toBe('username-changed');
+    expect(stateOf(h)?.problem?.code).toBe('UNAUTHENTICATED');
+    // Not asked again at once; after the wait alice gets her token.
+    expect((await failureOf(credentialFor(h, 'c1'))).code).toBe(
+      'UNAUTHENTICATED',
+    );
+    expect(h.provider.calls).toBe(3);
+    await h.timers.advance(5 * SECOND);
+    expect(reveal((await credentialFor(h, 'c1')).credential)).toBe('token-4');
+    expect(stateOf(h)?.state).toBe('valid');
+  });
+
+  it('M1-23 hardening a first token with another user is refused after invalidate unless the name is forgotten', async () => {
+    const h = harness({
+      script: (n, now) =>
+        bearer({
+          n,
+          iat: now,
+          exp: now + LIFETIME,
+          username: n === 1 ? 'alice' : 'bob',
+        }),
+    });
+    await credentialFor(h);
+    h.manager.invalidate('c1', 'amqp'); // keeps the user name by default
+    expect(h.manager.stats().knownUsernames).toBe(1);
+    expect((await failureOf(credentialFor(h))).code).toBe('UNAUTHENTICATED');
+    h.manager.invalidate('c1', 'amqp', { forgetUsername: true });
+    expect(h.manager.stats().knownUsernames).toBe(0);
+    expect(reveal((await credentialFor(h)).credential)).toBe('token-3');
+    expect(h.manager.stats().knownUsernames).toBe(1); // bob is the name from now on
+  });
+
+  it('M1-23 hardening the table of user names refuses a new name when it is full and never drops an old one', async () => {
+    const h = harness({ limits: { maxKnownUsernames: 2 } });
+    await credentialFor(h, 'c1');
+    await credentialFor(h, 'c2');
+    const error = await failureOf(credentialFor(h, 'c3'));
+    expect(error.code).toBe('BUDGET_EXCEEDED');
+    expect(h.manager.stats().refusedKnownUsernames).toBe(1);
+    expect(h.manager.stats().knownUsernames).toBe(2);
+    // Forgetting one makes room.
+    h.manager.invalidate('c1', 'amqp', { forgetUsername: true });
+    await h.timers.advance(5 * SECOND);
+    expect(reveal((await credentialFor(h, 'c3')).credential)).toBe('token-4');
+    expect(h.manager.stats().knownUsernames).toBe(2);
+    // A name that is already known needs no room.
+    expect((await credentialFor(h, 'c2')).generation).toBeGreaterThan(0);
+  });
+
+  it('M1-23 hardening the caller can pass the login user name to track, which sets the assertion up again', async () => {
+    // A user name that the manager has no record of becomes the name: a token for another user
+    // is refused from then on.
+    const h = harness({
+      script: (n, now) =>
+        bearer({ n, iat: now, exp: now + LIFETIME, username: 'mallory' }),
+    });
+    h.manager.track({
+      connectionId: 'c1',
+      protocol: 'amqp091',
+      username: 'alice',
+    });
+    expect(h.manager.stats().knownUsernames).toBe(1);
+    expect((await failureOf(credentialFor(h))).code).toBe('UNAUTHENTICATED');
+    expect(stateOf(h)?.state).toBe('username-changed');
+
+    // The same name is accepted; another name than the remembered one is refused with a Problem
+    // and counted, and a placeholder entry is not left behind.
+    const ok = harness();
+    await credentialFor(ok); // alice
+    ok.manager.track({
+      connectionId: 'c1',
+      protocol: 'amqp091',
+      username: 'alice',
+    });
+    const before = ok.manager.stats();
+    const mismatch = syncFailure(() =>
+      ok.manager.track({
+        connectionId: 'c1',
+        protocol: 'amqp091',
+        username: 'mallory',
+      }),
+    );
+    expect(mismatch.code).toBe('UNAUTHENTICATED');
+    expect(ok.manager.stats().usernameRefusals).toBe(
+      before.usernameRefusals + 1,
+    );
+    const fresh = harness();
+    await credentialFor(fresh, 'c1');
+    syncFailure(() =>
+      fresh.manager.track({
+        connectionId: 'c1',
+        protocol: 'amqp091',
+        username: 'mallory',
+      }),
+    );
+    expect(fresh.manager.stats().entries).toBe(1);
+    // Empty, too long, and a full table are refused too.
+    for (const username of ['', 'x'.repeat(257)]) {
+      expect(
+        syncFailure(() =>
+          fresh.manager.track({
+            connectionId: 'c9',
+            protocol: 'amqp091',
+            username,
+          }),
+        ).code,
+      ).toBe('VALIDATION_FAILED');
+    }
+    expect(fresh.manager.stats().entries).toBe(1); // the placeholder of c9 is gone
+    const small = harness({ limits: { maxKnownUsernames: 1 } });
+    small.manager.track({
+      connectionId: 'a',
+      protocol: 'amqp091',
+      username: 'u',
+    });
+    expect(
+      syncFailure(() =>
+        small.manager.track({
+          connectionId: 'b',
+          protocol: 'amqp091',
+          username: 'v',
+        }),
+      ).code,
+    ).toBe('BUDGET_EXCEEDED');
+    expect(small.manager.stats().refusedKnownUsernames).toBe(1);
+  });
+
+  it('M1-23 hardening a user name over 256 characters is refused, and 256 is not', async () => {
+    const long = harness({
+      script: (n, now) =>
+        bearer({ n, iat: now, exp: now + LIFETIME, username: 'x'.repeat(257) }),
+    });
+    expect((await failureOf(credentialFor(long))).code).toBe(
+      'VALIDATION_FAILED',
+    );
+    expect(long.manager.stats().usernameRefusals).toBe(1);
+    expect(long.manager.stats().knownUsernames).toBe(0);
+    const edge = harness({
+      script: (n, now) =>
+        bearer({ n, iat: now, exp: now + LIFETIME, username: 'x'.repeat(256) }),
+    });
+    await credentialFor(edge);
+    expect(edge.manager.stats().knownUsernames).toBe(1);
+  });
+
+  it('M1-23 hardening a first token with an expiry and no user name is refused, one with neither is held (OQ-1532)', async () => {
+    const named = harness({
+      script: (n, now) =>
+        bearer({ n, iat: now, exp: now + LIFETIME, username: null }),
+    });
+    const error = await failureOf(credentialFor(named));
+    expect(error.code).toBe('UNAUTHENTICATED');
+    expect(named.manager.stats().usernameRefusals).toBe(1);
+    expect(stateOf(named)?.state).toBe('failed');
+    expect(named.manager.stats().knownUsernames).toBe(0);
+    expect(named.timers.pending()).toBe(0);
+    // No retry loop: a refusal for the name is final until someone asks again after the wait.
+    await named.timers.advance(600 * SECOND);
+    expect(named.provider.calls).toBe(1);
+
+    // No expiry: it is never renewed, so nothing has to be compared with it.
+    const forever = harness({
+      script: (n, now) => bearer({ n, iat: now, exp: null, username: null }),
+    });
+    expect(reveal((await credentialFor(forever)).credential)).toBe('token-1');
+    expect(forever.manager.stats().knownUsernames).toBe(0);
+
+    // A connection that had a name does not take a token without one, expiry or not.
+    const lost = harness({
+      script: (n, now) =>
+        n === 1
+          ? bearer({ n, iat: now, exp: null })
+          : bearer({ n, iat: now, exp: null, username: null }),
+    });
+    await credentialFor(lost);
+    lost.manager.invalidate('c1', 'amqp');
+    expect((await failureOf(credentialFor(lost))).code).toBe('UNAUTHENTICATED');
+  });
+
+  it('M1-23 hardening a renewal that drops the expiry is refused, whatever asked for it', async () => {
+    const h = harness({
+      script: (n, now) =>
+        n === 1
+          ? bearer({ n, iat: now, exp: now + LIFETIME })
+          : bearer({ n, iat: now, exp: null }),
+    });
+    await started(h);
+    await h.timers.advance(750 * SECOND); // scheduled renewal
+    expect(h.provider.calls).toBe(2);
+    expect(stateOf(h)?.state).toBe('failed');
+    expect(stateOf(h)?.problem?.code).toBe('VALIDATION_FAILED');
+    expect(reveal((await credentialFor(h)).credential)).toBe('token-1');
+    // After a 401, too: the provider is asked, the old token is kept and the refusal is the answer.
+    const after = harness({
+      script: (n, now) =>
+        bearer({ n, iat: now, exp: n === 1 ? now + LIFETIME : null }),
+    });
+    const first = (await credentialFor(after)).generation;
+    await after.timers.advance(5 * SECOND);
+    const after401 = await failureOf(
+      after.manager.refreshAfterUnauthorized('c1', 'amqp', first, signal),
+    );
+    expect(after.provider.calls).toBe(2);
+    expect(after401.code).toBe('VALIDATION_FAILED');
+    expect((await credentialFor(after)).generation).toBe(first);
+    // The pairs that keep an expiry, or had none, are fine.
+    const none = harness({
+      script: (n, now) =>
+        bearer({ n, iat: now, exp: n === 1 ? null : now + LIFETIME }),
+    });
+    await credentialFor(none);
+    await none.timers.advance(5 * SECOND);
+    const second = await none.manager.refreshAfterUnauthorized(
+      'c1',
+      'amqp',
+      1,
+      signal,
+    );
+    expect(second.generation).toBe(2);
+  });
+});
+
+describe('TokenManager invalidate (slice C hardening, OQ-1506)', () => {
+  it('M1-23 hardening invalidate drops the cache of an untracked connection and the next call fetches again', async () => {
+    const h = harness();
+    const first = await credentialFor(h);
+    h.manager.invalidate('c1', 'amqp');
+    expect(h.manager.state('c1', 'amqp')).toBeUndefined();
+    expect(h.manager.stats().invalidations).toBe(1);
+    const second = await credentialFor(h);
+    expect(h.provider.calls).toBe(2);
+    expect(second.generation).toBeGreaterThan(first.generation);
+    // A connection the manager does not know is not an error, and is not counted.
+    h.manager.invalidate('nobody');
+    expect(h.manager.stats().invalidations).toBe(1);
+  });
+
+  it('M1-23 hardening invalidate covers both protocols without one and only the named one with it', async () => {
+    const h = harness();
+    await credentialFor(h, 'c1', 'amqp');
+    await credentialFor(h, 'c1', 'http');
+    h.manager.invalidate('c1', 'http');
+    expect(h.manager.state('c1', 'http')).toBeUndefined();
+    expect(h.manager.state('c1', 'amqp')).toBeDefined();
+    expect(h.manager.stats().invalidations).toBe(1);
+    h.manager.invalidate('c1', 'amqp');
+    expect(h.manager.stats().entries).toBe(0);
+    // And the forgotten names are per protocol too.
+    await credentialFor(h, 'c1', 'amqp');
+    await credentialFor(h, 'c1', 'http');
+    h.manager.invalidate('c1', 'http', { forgetUsername: true });
+    expect(h.manager.stats().knownUsernames).toBe(1);
+    h.manager.invalidate('c1', undefined, { forgetUsername: true });
+    expect(h.manager.stats().knownUsernames).toBe(0);
+  });
+
+  it('M1-23 hardening invalidate of a tracked connection stops the renewal, keeps watching the expiry, and the next fetch is pushed', async () => {
+    const h = harness();
+    await started(h);
+    h.manager.invalidate('c1', 'amqp');
+    expect(stateOf(h)?.state).toBe('invalidated');
+    expect(stateOf(h)?.nextRefreshAt).toBeNull();
+    expect(stateOf(h)?.expiresAt).toBe(LIFETIME);
+    expect(h.states.at(-1)?.state).toBe('invalidated');
+    // Nothing is renewed at 75 %: the cache is gone and nobody asked.
+    await h.timers.advance(800 * SECOND);
+    expect(h.provider.calls).toBe(1);
+    // The connection still holds the old token, so its expiry is still enforced.
+    await h.timers.advance(200 * SECOND);
+    expect(helpers.calls(h, 'cancelOwnConsumers').length).toBe(1);
+    expect(stateOf(h)?.state).toBe('expired');
+
+    // A tracked connection that asks again gets a new token and is brought up to date.
+    const live = harness();
+    await started(live);
+    live.manager.invalidate('c1', 'amqp');
+    const renewed = await credentialFor(live);
+    expect(reveal(renewed.credential)).toBe('token-2');
+    await live.timers.settle();
+    expect(live.auth.calls).toEqual([
+      { method: 'updateSecret', id: 'c1', arg: 'token-2' },
+    ]);
+    expect(stateOf(live)?.state).toBe('valid');
+    expect(stateOf(live)?.nextRefreshAt).toBe(live.clock.now() + 750 * SECOND);
+  });
+
+  it('M1-23 hardening invalidate clears the failure count and the wait after a failure', async () => {
+    const h = harness({ script: firstThenDown });
+    await credentialFor(h);
+    h.manager.invalidate('c1', 'amqp');
+    expect((await failureOf(credentialFor(h))).code).toBe('BROKER_UNREACHABLE');
+    expect(h.provider.calls).toBe(2);
+    expect((await failureOf(credentialFor(h))).code).toBe('BROKER_UNREACHABLE');
+    expect(h.provider.calls).toBe(2); // inside the wait
+    h.manager.invalidate('c1', 'amqp');
+    expect(h.manager.state('c1', 'amqp')).toBeUndefined();
+    await failureOf(credentialFor(h));
+    expect(h.provider.calls).toBe(3); // the wait is gone with the entry
+  });
+
+  it('M1-23 hardening invalidate aborts a renewal in flight and throws its late result away', async () => {
+    const gate = deferred<IssuedCredential>();
+    const h = harness({ script: () => gate.promise });
+    const waiting = failureOf(credentialFor(h));
+    await h.timers.settle();
+    expect(h.manager.stats().pendingOperations).toBe(1);
+    h.manager.invalidate('c1', 'amqp');
+    const error = await waiting;
+    expect(error.code).toBe('BROKER_UNREACHABLE');
+    expect(error.detail).toContain('invalidated');
+    await h.timers.settle();
+    expect(h.manager.stats().pendingOperations).toBe(0);
+    // The provider answers late: the token is not kept and nothing is recorded.
+    gate.resolve(bearer({ n: 1, iat: 0, exp: LIFETIME }));
+    await h.timers.settle();
+    expect(h.manager.state('c1', 'amqp')).toBeUndefined();
+    expect(h.manager.stats().entries).toBe(0);
+    expect(h.manager.stats().pendingTasks).toBe(0);
+  });
+
+  it('M1-23 hardening a renewal that fails after invalidate records nothing, and a newer renewal is not disturbed by the old one finishing', async () => {
+    const first = deferred<IssuedCredential>();
+    const second = deferred<IssuedCredential>();
+    const h = harness({
+      script: (n) => (n === 1 ? first.promise : second.promise),
+    });
+    const track = h.manager.track({ connectionId: 'c1', protocol: 'amqp091' });
+    const old = failureOf(credentialFor(h));
+    await h.timers.settle();
+    h.manager.invalidate('c1', 'amqp');
+    const mine = credentialFor(h);
+    await h.timers.settle();
+    expect(h.provider.calls).toBe(2);
+    expect((await old).detail).toContain('invalidated'); // the old caller was told
+    // The old flight has ended in a failure of its own: it must not touch the state of the new
+    // epoch, and it must not clear the new flight, so a third caller still joins that one.
+    first.reject(new AppError('BROKER_UNREACHABLE', { detail: 'late' }));
+    await h.timers.settle();
+    expect(stateOf(h)?.problem).toBeNull();
+    const third = credentialFor(h);
+    await h.timers.settle();
+    expect(h.provider.calls).toBe(2);
+    expect(h.manager.stats().inflightRefreshes).toBe(1);
+    second.resolve(bearer({ n: 2, iat: 0, exp: LIFETIME }));
+    expect(reveal((await mine).credential)).toBe('token-2');
+    expect(reveal((await third).credential)).toBe('token-2');
+    track.release();
+  });
+
+  it('M1-23 hardening invalidate cuts off a push to a live connection and records no failure', async () => {
+    const h = harness();
+    await started(h);
+    h.auth.updateSecretGate = new Promise<void>(() => undefined);
+    await h.timers.advance(750 * SECOND); // the renewal is pushed, and the push waits
+    expect(h.manager.stats().pendingOperations).toBe(1);
+    h.manager.invalidate('c1', 'amqp');
+    await h.timers.settle();
+    expect(h.manager.stats().pendingOperations).toBe(0);
+    expect(h.manager.stats().pendingTasks).toBe(0);
+    expect(stateOf(h)?.state).toBe('invalidated');
+    expect(stateOf(h)?.problem).toBeNull();
+    // Nothing retries the push of a token that was dropped.
+    h.auth.updateSecretGate = undefined;
+    await h.timers.advance(120 * SECOND);
+    expect(helpers.calls(h, 'updateSecret').length).toBe(1);
+  });
+
+  it('M1-23 hardening invalidate does nothing after dispose and does not throw', async () => {
+    const h = harness();
+    await credentialFor(h);
+    await h.manager.dispose();
+    h.manager.invalidate('c1');
+    expect(h.manager.stats().invalidations).toBe(0);
+  });
+
+  it('M1-23 hardening an entry that is cooling after a failure is not evicted for room', async () => {
+    const h = harness({
+      limits: { maxEntries: 1 },
+      script: () => Promise.reject(new AppError('BROKER_UNREACHABLE', {})),
+    });
+    await failureOf(credentialFor(h, 'c1'));
+    expect((await failureOf(credentialFor(h, 'c2'))).code).toBe(
+      'BUDGET_EXCEEDED',
+    );
+    expect(h.manager.stats().refusedEntries).toBe(1);
+    expect(h.provider.calls).toBe(1);
+    await h.timers.advance(5 * SECOND);
+    await failureOf(credentialFor(h, 'c2')); // the wait is over: c1's entry makes room
+    expect(h.manager.stats().evictedEntries).toBe(1);
+    expect(h.provider.calls).toBe(2);
+  });
+});
+
 describe('TokenManager first-token requests and the sweep (slice C hardening)', () => {
+  it('M1-23 hardening twenty failing immediate requests make one provider call (F4)', async () => {
+    const h = harness({
+      script: () =>
+        Promise.reject(new AppError('BROKER_UNREACHABLE', { detail: 'down' })),
+    });
+    for (let i = 0; i < 20; i += 1) {
+      const error = await failureOf(credentialFor(h));
+      expect(error.code).toBe('BROKER_UNREACHABLE');
+    }
+    expect(h.provider.calls).toBe(1);
+    expect(h.manager.stats().coolingRefusals).toBe(19);
+    // Twenty at the same moment share the one flight.
+    const burst = harness({
+      script: () =>
+        Promise.reject(new AppError('BROKER_UNREACHABLE', { detail: 'down' })),
+    });
+    await Promise.all(
+      Array.from({ length: 20 }, () => failureOf(credentialFor(burst))),
+    );
+    expect(burst.provider.calls).toBe(1);
+    // The wait is the floor (5 s) at first, then the backoff once it is longer.
+    await h.timers.advance(4_999);
+    await failureOf(credentialFor(h));
+    expect(h.provider.calls).toBe(1);
+    await h.timers.advance(1);
+    await failureOf(credentialFor(h));
+    expect(h.provider.calls).toBe(2);
+    expect(h.manager.stats().coolingRefusals).toBe(20);
+    // 2 s, 4 s, 8 s: the third failure waits 8 s, not the floor.
+    await h.timers.advance(5 * SECOND);
+    await failureOf(credentialFor(h));
+    expect(h.provider.calls).toBe(3);
+    await h.timers.advance(7_999);
+    await failureOf(credentialFor(h));
+    expect(h.provider.calls).toBe(3);
+    await h.timers.advance(1);
+    await failureOf(credentialFor(h));
+    expect(h.provider.calls).toBe(4);
+    // A success clears the wait.
+    const recovers = harness({
+      script: (n, now) =>
+        n === 1
+          ? Promise.reject(new AppError('BROKER_UNREACHABLE', {}))
+          : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    await failureOf(credentialFor(recovers));
+    await recovers.timers.advance(5 * SECOND);
+    await credentialFor(recovers);
+    expect(reveal((await credentialFor(recovers)).credential)).toBe('token-2');
+    expect(recovers.provider.calls).toBe(2);
+  });
+
+  it('M1-23 hardening the sweep renews and expires a tracked token after the wall clock was set forward', async () => {
+    const h = harness();
+    await started(h);
+    expect(h.timers.pending()).toBe(3);
+    // The wall clock jumps 800 s; the timers count monotonic time and have not moved.
+    h.clock.setNow(h.clock.now() + 800 * SECOND);
+    await h.timers.advance(9_999);
+    expect(h.provider.calls).toBe(1);
+    await h.timers.advance(1); // the sweep ticks at 10 s
+    expect(h.provider.calls).toBe(2);
+    expect(h.manager.stats().sweptDeadlines).toBe(1);
+    expect(stateOf(h)?.state).toBe('valid');
+    expect(helpers.calls(h, 'updateSecret').length).toBe(1);
+
+    // Past the expiry, with the renewal failing: the consumers are cancelled by the sweep.
+    const gone = harness({ script: firstThenDown });
+    await started(gone);
+    gone.clock.setNow(gone.clock.now() + 1_100 * SECOND);
+    await gone.timers.advance(10 * SECOND);
+    expect(stateOf(gone)?.state).toBe('expired');
+    expect(helpers.calls(gone, 'cancelOwnConsumers').length).toBe(1);
+    // And only once: its own timer was cancelled.
+    await gone.timers.advance(2_000 * SECOND);
+    expect(helpers.calls(gone, 'cancelOwnConsumers').length).toBe(1);
+  });
+
+  it('M1-23 hardening the sweep leaves a deadline that is only a little late to its own timer, and runs one timer for all entries', async () => {
+    const h = harness();
+    await started(h);
+    // 500 ms behind at the tick: a timer's own lateness, not a jump.
+    h.clock.setNow(h.clock.now() + 740_500);
+    await h.timers.advance(10 * SECOND);
+    expect(h.manager.stats().sweptDeadlines).toBe(0);
+    expect(h.provider.calls).toBe(1);
+
+    const many = harness();
+    for (const id of ['a', 'b', 'c', 'd']) {
+      await credentialFor(many, id);
+      many.manager.track({ connectionId: id, protocol: 'amqp091' });
+    }
+    expect(many.timers.pending()).toBe(4 * 2 + 1); // two deadline timers each, one sweep
+    await many.manager.dispose();
+    expect(many.timers.pending()).toBe(0);
+  });
+
+  it('M1-23 hardening the sweep stops when no entry has a deadline timer and starts again with the next', async () => {
+    const h = harness();
+    const handle = await started(h);
+    expect(h.timers.pending()).toBe(3);
+    handle.release();
+    expect(h.timers.pending()).toBe(0);
+    // A token with no expiry has no timer, so no sweep either.
+    const forever = harness({
+      script: (n, now) => bearer({ n, iat: now, exp: null }),
+    });
+    await started(forever);
+    expect(forever.timers.pending()).toBe(0);
+    // The sweep keeps ticking while a deadline is pending.
+    const keep = harness();
+    await started(keep);
+    await keep.timers.advance(95 * SECOND);
+    expect(keep.timers.pending()).toBe(3);
+  });
+
   it('M1-23 hardening a retry that is due a little before the token point is made at the point (armWake)', async () => {
     // A 401 fails at 749 s with a retry due at 751 s; the 75 % point (750 s) is sooner, so the
     // wake is at the point and the scheduled renewal does not wait for the backoff.
@@ -1819,6 +2359,38 @@ describe('TokenManager first-token requests and the sweep (slice C hardening)', 
 });
 
 describe('TokenManager reviews: timers, tasks and the edges they found (slice C hardening)', () => {
+  it('M1-23 hardening a capabilities() that throws inside the expiry timer does not escape it (F1)', async () => {
+    let broken = false;
+    const h = harness({
+      script: firstThenDown,
+      capabilities: () => {
+        if (broken) throw new Error('registry unavailable');
+        return {
+          amqp10TokenRenewalEndpoint: false,
+          amqp091ClosesAtCredentialExpiry: false,
+        };
+      },
+    });
+    await started(h);
+    broken = true;
+    // A throw out of the callback would reject the advance (the manual timers call it directly).
+    await h.timers.advance(LIFETIME);
+    expect(h.manager.stats().capabilityErrors).toBe(1);
+    // The conservative branch: the engine cancels its own consumers.
+    expect(helpers.calls(h, 'cancelOwnConsumers').length).toBe(1);
+    expect(stateOf(h)?.state).toBe('expired');
+    // Even a broker that claims to close by itself is not believed when its answer is unreadable.
+    const closes = harness({
+      script: firstThenDown,
+      capabilities: () => {
+        throw new Error('registry unavailable');
+      },
+    });
+    await started(closes);
+    await closes.timers.advance(LIFETIME);
+    expect(helpers.calls(closes, 'cancelOwnConsumers').length).toBe(1);
+  });
+
   it('M1-23 hardening the slot of the limiter is given back when the provider fails (F2a)', async () => {
     const h = harness({
       limits: { maxConcurrentAcquires: 1 },
@@ -2078,9 +2650,291 @@ describe('TokenManager reviews: timers, tasks and the edges they found (slice C 
     expect(reveal(unknown.credential)).toBe('token-3');
     expect(h.provider.calls).toBe(3);
   });
+
+  it('M1-23 hardening a listener that joins or leaves while a state is published is neither called late nor called after it left (F2)', async () => {
+    const h = harness();
+    const seen: string[] = [];
+    let leaveB: () => void = () => undefined;
+    h.manager.subscribe(() => {
+      seen.push('A');
+      leaveB();
+      h.manager.subscribe(() => {
+        seen.push('C');
+      });
+    });
+    leaveB = h.manager.subscribe(() => {
+      seen.push('B');
+    });
+    await credentialFor(h, 'a');
+    expect(seen).toEqual(['A']); // B left before its turn; the first C joined too late
+    await credentialFor(h, 'b');
+    expect(seen).toEqual(['A', 'A', 'C']); // the first C is heard now
+  });
+
+  it('M1-23 hardening a Problem handed out is a copy: changing it changes nobody else (item 5)', async () => {
+    const h = harness({ script: firstThenDown });
+    const heard: TokenState['problem'][] = [];
+    h.manager.subscribe((state) => heard.push(state.problem));
+    h.manager.subscribe((state) => heard.push(state.problem));
+    await started(h);
+    await h.timers.advance(750 * SECOND);
+    expect(stateOf(h)?.state).toBe('failed');
+    const failures = heard.filter((p) => p !== null);
+    expect(failures.length).toBeGreaterThanOrEqual(2);
+    const [one, two] = failures;
+    expect(one).toEqual(two);
+    expect(one).not.toBe(two); // each listener has its own
+    const asked = stateOf(h)?.problem;
+    expect(asked).not.toBe(one);
+    expect(asked).not.toBe(stateOf(h)?.problem);
+
+    (one as unknown as { detail: string; code: string }).detail = 'changed';
+    (one as unknown as { detail: string; code: string }).code = 'INTERNAL';
+    expect(stateOf(h)?.problem?.detail).toBe('down');
+    expect(stateOf(h)?.problem?.code).toBe('BROKER_UNREACHABLE');
+    expect(two?.detail).toBe('down');
+    h.states.length = 0;
+    await h.timers.advance(2 * SECOND); // the next failed attempt is published afresh
+    expect(h.states.at(-1)?.problem?.detail).toBe('down');
+  });
+
+  it('M1-23 hardening a 320 close during a scheduled renewal does not send update-secret to the closed connection (F5, OQ-1508)', async () => {
+    const gate = deferred<IssuedCredential>();
+    const h = harness({
+      script: (n, now) =>
+        n === 2 ? gate.promise : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    let login: string | undefined;
+    h.auth.onReconnect = async () => {
+      login = reveal((await credentialFor(h)).credential);
+    };
+    await started(h);
+    await h.timers.advance(750 * SECOND); // the scheduled renewal waits for the provider
+    h.auth.emitClose('c1');
+    gate.resolve(
+      bearer({ n: 2, iat: h.clock.now(), exp: h.clock.now() + LIFETIME }),
+    );
+    await h.timers.settle();
+    expect(h.auth.calls).toEqual([
+      { method: 'reconnect', id: 'c1', arg: 'amqp091' },
+    ]);
+    expect(login).toBe('token-2');
+    await h.timers.advance(60 * SECOND);
+    expect(h.auth.calls.length).toBe(1);
+    expect(stateOf(h)?.state).toBe('valid');
+    expect(stateOf(h)?.problem).toBeNull();
+  });
+
+  it('M1-23 hardening a push in the middle of its list does not send a token that was replaced, or reach a connection that was just closed', async () => {
+    // Two connections on one entry: a stream (reconnect) first, then AMQP 0-9-1 (update-secret).
+    const pushGate = deferred<undefined>();
+    const renewal = deferred<IssuedCredential>();
+    const h = harness({
+      script: (n, now) =>
+        n === 3
+          ? renewal.promise
+          : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    await credentialFor(h);
+    h.manager.track({ connectionId: 'c1', protocol: 'stream' });
+    h.manager.track({ connectionId: 'c1', protocol: 'amqp091' });
+    h.auth.onReconnect = (_id, protocol) =>
+      protocol === 'stream' ? pushGate.promise : Promise.resolve();
+    await h.timers.advance(750 * SECOND); // renewal 2; the stream is being reconnected
+    expect(helpers.calls(h, 'reconnect').length).toBe(1);
+    h.auth.emitClose('c1'); // the broker closes the AMQP 0-9-1 connection; its renewal waits
+    await h.timers.settle();
+    pushGate.resolve(undefined); // the push loop goes on to the connection that was just closed
+    await h.timers.settle();
+    expect(helpers.calls(h, 'updateSecret')).toEqual([]);
+    renewal.resolve(
+      bearer({ n: 3, iat: h.clock.now(), exp: h.clock.now() + LIFETIME }),
+    );
+    await h.timers.settle();
+    // The closed connection reopened with token 3 and was not pushed; the stream got token 3.
+    expect(helpers.calls(h, 'updateSecret')).toEqual([]);
+    expect(helpers.calls(h, 'reconnect').map((c) => c.arg)).toEqual([
+      'stream',
+      'stream',
+      'amqp091',
+    ]);
+  });
+
+  it('M1-23 hardening a newer token adopted in the middle of a push list replaces the one being pushed', async () => {
+    const pushGate = deferred<undefined>();
+    const h = harness();
+    const first = await credentialFor(h);
+    h.manager.track({ connectionId: 'c1', protocol: 'stream' });
+    h.manager.track({ connectionId: 'c1', protocol: 'amqp091' });
+    h.auth.onReconnect = (_id, protocol) =>
+      protocol === 'stream' ? pushGate.promise : Promise.resolve();
+    await h.timers.advance(750 * SECOND); // token 2; the stream is being reconnected
+    await h.timers.advance(5 * SECOND);
+    const second = await h.manager.refreshAfterUnauthorized(
+      'c1',
+      'amqp',
+      first.generation + 1,
+      signal,
+    );
+    expect(reveal(second.credential)).toBe('token-3');
+    pushGate.resolve(undefined);
+    await h.timers.settle();
+    // Token 2 is never sent to the AMQP 0-9-1 connection: it gets token 3.
+    expect(helpers.calls(h, 'updateSecret').map((c) => c.arg)).toEqual([
+      'token-3',
+    ]);
+  });
 });
 
 describe('TokenManager edges found by the mutation pass over the hardening (slice C hardening)', () => {
+  it('M1-23 hardening every refusal for a user name is counted, whichever check made it', async () => {
+    for (const second of ['bob', null]) {
+      const h = harness({
+        script: (n, now) =>
+          bearer({
+            n,
+            iat: now,
+            exp: now + LIFETIME,
+            username: n === 1 ? 'alice' : second,
+          }),
+      });
+      await started(h);
+      await h.timers.advance(750 * SECOND);
+      expect(h.manager.stats().usernameRefusals).toBe(1);
+    }
+    const h = harness();
+    expect(
+      syncFailure(() =>
+        h.manager.track({
+          connectionId: 'c1',
+          protocol: 'amqp091',
+          username: '',
+        }),
+      ).code,
+    ).toBe('VALIDATION_FAILED');
+    expect(h.manager.stats().usernameRefusals).toBe(1);
+    // 256 characters are fine.
+    h.manager.track({
+      connectionId: 'c1',
+      protocol: 'amqp091',
+      username: 'x'.repeat(256),
+    });
+    expect(h.manager.stats().usernameRefusals).toBe(1);
+  });
+
+  it('M1-23 hardening invalidate leaves no failure, no problem and no wait behind, and an expired token stays expired', async () => {
+    const h = harness({ script: firstThenDown });
+    await started(h);
+    await h.timers.advance(750 * SECOND); // the renewal failed
+    expect(stateOf(h)?.problem).not.toBeNull();
+    h.manager.invalidate('c1', 'amqp');
+    expect(stateOf(h)?.problem).toBeNull();
+    expect(stateOf(h)?.state).toBe('invalidated');
+    // Asked again at once, the provider is called (not answered from the old failure).
+    expect((await failureOf(credentialFor(h))).code).toBe('BROKER_UNREACHABLE');
+    expect(h.provider.calls).toBe(3);
+
+    const gone = harness({ script: firstThenDown });
+    await started(gone);
+    await gone.timers.advance(LIFETIME);
+    expect(stateOf(gone)?.state).toBe('expired');
+    gone.manager.invalidate('c1', 'amqp');
+    expect(stateOf(gone)?.state).toBe('expired');
+  });
+
+  it('M1-23 hardening invalidate takes a request out of the line for a provider slot, and a call right after dispose is ignored', async () => {
+    const gate = deferred<IssuedCredential>();
+    const h = harness({
+      limits: { maxConcurrentAcquires: 1 },
+      script: (n, now) =>
+        n === 1 ? gate.promise : bearer({ n, iat: now, exp: now + LIFETIME }),
+    });
+    const holder = credentialFor(h, 'c1');
+    const waiting = failureOf(credentialFor(h, 'c2'));
+    await h.timers.settle();
+    expect(h.provider.calls).toBe(1);
+    h.manager.invalidate('c2', 'amqp');
+    expect((await waiting).detail).toContain('invalidated');
+    gate.resolve(bearer({ n: 1, iat: 0, exp: LIFETIME }));
+    await holder;
+    await h.timers.settle();
+    expect(h.provider.calls).toBe(1); // c2 never reached the provider
+
+    const disposing = h.manager.dispose();
+    h.manager.invalidate('c1');
+    expect(h.manager.stats().invalidations).toBe(1); // the one for c2
+    await disposing;
+  });
+
+  it('M1-23 hardening invalidate with no protocol drops both entries at once', async () => {
+    const h = harness();
+    await credentialFor(h, 'c1', 'amqp');
+    await credentialFor(h, 'c1', 'http');
+    h.manager.invalidate('c1');
+    expect(h.manager.state('c1', 'amqp')).toBeUndefined();
+    expect(h.manager.state('c1', 'http')).toBeUndefined();
+    expect(h.manager.stats().invalidations).toBe(2);
+  });
+
+  it('M1-23 hardening the sweep leaves a late expiry alone, counts what it does, cancels the timers it replaces and keeps its own in step', async () => {
+    // The expiry is 500 ms past at the tick: left to its own timer. The refresh is far past.
+    const late = harness({ script: firstThenDown });
+    await started(late);
+    late.clock.setNow(late.clock.now() + 990_500);
+    await late.timers.advance(10 * SECOND);
+    expect(late.manager.stats().sweptDeadlines).toBe(1);
+    expect(helpers.calls(late, 'cancelOwnConsumers')).toEqual([]);
+
+    // Both far past: both are counted.
+    const both = harness({ script: firstThenDown });
+    await started(both);
+    both.clock.setNow(both.clock.now() + 1_100 * SECOND);
+    await both.timers.advance(10 * SECOND);
+    expect(both.manager.stats().sweptDeadlines).toBe(2);
+
+    // The refresh timer the sweep ran is cancelled, not left to fire again.
+    const h = harness();
+    await started(h);
+    h.clock.setNow(h.clock.now() + 800 * SECOND);
+    await h.timers.advance(10 * SECOND);
+    expect(h.provider.calls).toBe(2);
+    expect(h.timers.pending()).toBe(3);
+    await h.timers.advance(700 * SECOND); // past the old wake timer, before the new point
+    expect(h.provider.calls).toBe(2);
+    expect(h.timers.pending()).toBe(3);
+
+    // When the expiry has fired and nothing else is waiting, the sweep stops with it.
+    // (1,005 s: the expiry does not fall on a tick of the sweep, which would stop it as well.)
+    const over = harness({
+      script: (n, now) =>
+        n === 1
+          ? bearer({ n, iat: now, exp: now + 1_005 * SECOND })
+          : Promise.reject(new AppError('BROKER_UNREACHABLE', {})),
+    });
+    await started(over);
+    await over.timers.advance(1_005 * SECOND);
+    expect(helpers.calls(over, 'cancelOwnConsumers').length).toBe(1);
+    expect(over.timers.pending()).toBe(0);
+
+    // An entry that is refused for good has no refresh timer but still has its expiry timer,
+    // and the sweep follows it when the handle is taken again.
+    const stuck = harness({
+      script: (n, now) =>
+        bearer({
+          n,
+          iat: now,
+          exp: now + LIFETIME,
+          username: n === 1 ? 'alice' : 'bob',
+        }),
+    });
+    const handle = await started(stuck);
+    await stuck.timers.advance(750 * SECOND); // refused for the user name: final
+    handle.release();
+    expect(stuck.timers.pending()).toBe(0);
+    stuck.manager.track({ connectionId: 'c1', protocol: 'amqp091' });
+    expect(stuck.timers.pending()).toBe(2); // the expiry timer and the sweep
+  });
+
   it('M1-23 hardening an entry whose renewal failed is evicted for room like any idle entry', async () => {
     const h = harness({ limits: { maxEntries: 1 }, script: firstThenDown });
     await credentialFor(h, 'c1');

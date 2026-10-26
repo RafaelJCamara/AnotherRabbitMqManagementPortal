@@ -1,8 +1,10 @@
 // The registry data this release ships. Each table is a typed constant in its own `*.data.ts` file;
 // this file only assembles them. M0-12 fills the cells (settle matrix, broker-side counter events,
 // dead-letter family, delayed retry); M0-13 fills the other tables (gates stay empty: no work
-// package owns a feature gate yet). M1-01 adds the k.3 effective-config tables.
+// package owns a feature gate yet). M1-01 adds the k.3 effective-config tables. M1-23 adds the
+// credential-expiry and token-renewal capability rules.
 import type { RegistryData } from '../registry.ts';
+import { authCapabilityRules } from './auth-capabilities.data.ts';
 import { capabilityRules } from './capabilities.data.ts';
 import { counters } from './counters.data.ts';
 import { delayedRetry } from './delayed-retry.data.ts';
@@ -22,7 +24,7 @@ export const registryData: RegistryData = {
   cells: [...settleMatrix, ...delayedRetry, ...dlxCarryover, ...counters],
   warnings: [...warnings],
   hazards: [...hazardRules],
-  capabilities: [...capabilityRules],
+  capabilities: [...capabilityRules, ...authCapabilityRules],
   gates: [],
   peekCaps: [...peekCaps],
   tapRules: [...tapRules],

@@ -46,11 +46,32 @@ import {
 import { abortReason, raceSignal } from './internal/signals';
 import { checkUsername } from './internal/username-claim';
 import type { CredentialProvider, IssuedCredential } from './provider';
+import {
+  preflightCredential,
+  type SizeWarning,
+  type SizeWarningCode,
+} from './size-preflight';
 
 export interface ResolvedCredential {
   readonly credential: IssuedCredential;
   /** Goes up with each adopted renewal. A 401 handler passes the generation it used, never the token. */
   readonly generation: number;
+  /**
+   * Size warnings for this credential on this protocol (DC-38), already reported to the sink of
+   * the manager when this value is returned. A warning never blocks: the credential is usable.
+   */
+  readonly warnings: readonly SizeWarning[];
+}
+
+/** What the manager keeps and shares between callers; the warnings are added at the edge. */
+type Resolved = Omit<ResolvedCredential, 'warnings'>;
+
+/** One size warning, as the sink hears it: once per generation of a connection's credential. */
+export interface SizeWarningEvent {
+  readonly connectionId: string;
+  readonly protocol: CredentialProtocol;
+  readonly generation: number;
+  readonly warning: SizeWarning;
 }
 
 export type TokenStateName =
@@ -99,6 +120,8 @@ export interface TokenManagerStats {
   readonly coolingRefusals: number;
   /** `capabilities()` calls that threw; the manager took the conservative branch. */
   readonly capabilityErrors: number;
+  /** Size warnings reported to the sink (DC-38); one per credential generation and code. */
+  readonly sizeWarnings: number;
   /** Deadlines the sweep found long past (a wall clock set forward) and acted on itself. */
   readonly sweptDeadlines: number;
   /** `invalidate` calls that found an entry. */
@@ -110,6 +133,18 @@ export interface RenewalCapabilities {
   readonly amqp10TokenRenewalEndpoint: boolean;
   readonly amqp091ClosesAtCredentialExpiry: boolean;
 }
+
+/** Everything the manager asks of the registry: the renewal rules and the pre-auth frame size. */
+export interface IdentityCapabilities extends RenewalCapabilities {
+  readonly amqp091PreAuthFrame8192: boolean;
+}
+
+/** Nothing is proven: the answer when the capabilities cannot be read (the conservative side). */
+const NO_CAPABILITIES: IdentityCapabilities = Object.freeze({
+  amqp10TokenRenewalEndpoint: false,
+  amqp091ClosesAtCredentialExpiry: false,
+  amqp091PreAuthFrame8192: false,
+});
 
 export interface ProviderLookup {
   /** The provider configured for a profile and protocol, or undefined when there is none. */
@@ -154,7 +189,14 @@ export const DEFAULT_TOKEN_MANAGER_LIMITS: TokenManagerLimits = Object.freeze({
 export interface TokenManagerDeps {
   readonly providers: ProviderLookup;
   readonly auth: ConnectionAuthPort;
-  readonly capabilities: (connectionId: string) => RenewalCapabilities;
+  /**
+   * Asked afresh at each use. A call that throws (a registry without the rule is a
+   * `SemanticsGapError`) is counted and answered as "nothing is proven": the engine cancels its own
+   * consumers at expiry, reconnects AMQP 1.0, and measures logins against the smaller frame.
+   */
+  readonly capabilities: (connectionId: string) => IdentityCapabilities;
+  /** Hears each size warning before the credential it belongs to is returned. A throw is counted. */
+  readonly onSizeWarning?: (event: SizeWarningEvent) => void;
   readonly clock: Clock;
   readonly timers: Timers;
   readonly limits?: Partial<TokenManagerLimits>;
@@ -272,12 +314,14 @@ interface Entry {
   pushFailed: boolean;
   consumersCancelled: number;
   readonly targets: Map<RenewalProtocol, Target>;
-  inflight: Promise<ResolvedCredential> | undefined;
+  inflight: Promise<Resolved> | undefined;
   pushing: Promise<void> | undefined;
   cancelWake: (() => void) | undefined;
   cancelExpiry: (() => void) | undefined;
   lastForcedCloseAt: number | null;
   closing: boolean;
+  /** The size warnings the sink already heard for `generation` of this entry's credential. */
+  warned: { generation: number; codes: Set<SizeWarningCode> } | undefined;
 }
 
 const noop = (): void => undefined;
@@ -321,6 +365,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     refusedKnownUsernames: 0,
     coolingRefusals: 0,
     capabilityErrors: 0,
+    sizeWarnings: 0,
     sweptDeadlines: 0,
     invalidations: 0,
   };
@@ -643,6 +688,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
       cancelExpiry: undefined,
       lastForcedCloseAt: null,
       closing: false,
+      warned: undefined,
     };
     entries.set(key, entry);
     return entry;
@@ -658,7 +704,20 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     }
   }
 
-  const resolved = (entry: Entry): ResolvedCredential => {
+  /**
+   * The capabilities, or "nothing is proven" when they cannot be read. This runs inside timer
+   * callbacks and pushes: a throw must neither end the process nor leave a connection unattended.
+   */
+  function readCapabilities(connectionId: string): IdentityCapabilities {
+    try {
+      return deps.capabilities(connectionId);
+    } catch {
+      counters.capabilityErrors += 1;
+      return NO_CAPABILITIES;
+    }
+  }
+
+  const resolved = (entry: Entry): Resolved => {
     if (entry.credential === undefined) throw new Error('unreachable');
     return { credential: entry.credential, generation: entry.generation };
   };
@@ -726,11 +785,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   }
 
   /** Checks a credential a provider gave and, if it may replace the current one, adopts it. */
-  function adopt(
-    entry: Entry,
-    issued: IssuedCredential,
-    why: Why,
-  ): ResolvedCredential {
+  function adopt(entry: Entry, issued: IssuedCredential, why: Why): Resolved {
     const now = clock.now();
     const previous = entry.credential;
     const wasIssuedBefore = entry.everIssued;
@@ -870,10 +925,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     return failure;
   }
 
-  async function runFlight(
-    entry: Entry,
-    why: Why,
-  ): Promise<ResolvedCredential> {
+  async function runFlight(entry: Entry, why: Why): Promise<Resolved> {
     // `invalidate` moves the epoch and aborts the scope: what this flight learns after that is
     // thrown away, and it records nothing in the entry.
     const epoch = entry.epoch;
@@ -921,14 +973,12 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
   }
 
   /** The one renewal in flight for `entry`; callers that arrive meanwhile share it. */
-  function refresh(entry: Entry, why: Why): Promise<ResolvedCredential> {
+  function refresh(entry: Entry, why: Why): Promise<Resolved> {
     if (entry.inflight !== undefined) return entry.inflight;
-    const flight: Promise<ResolvedCredential> = runFlight(entry, why).finally(
-      () => {
-        // `invalidate` may have cleared this flight and a newer one may have taken its place.
-        if (entry.inflight === flight) entry.inflight = undefined;
-      },
-    );
+    const flight: Promise<Resolved> = runFlight(entry, why).finally(() => {
+      // `invalidate` may have cleared this flight and a newer one may have taken its place.
+      if (entry.inflight === flight) entry.inflight = undefined;
+    });
     entry.inflight = flight;
     trackBackground(flight);
     // The push to the live connections starts only after `inflight` is clear.
@@ -947,7 +997,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     scope: AbortSignal,
   ): Promise<void> {
     const id = entry.connectionId;
-    const action = renewalActionFor(protocol, deps.capabilities(id));
+    const action = renewalActionFor(protocol, readCapabilities(id));
     await guarded(async () => {
       switch (action) {
         case 'push-none':
@@ -1091,13 +1141,9 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     // This runs inside a timer callback: a throw here would end the process. A broker whose
     // capabilities cannot be read is taken not to close the connection itself, which is the
     // branch that leaves nothing running on an expired credential.
-    let rule: ExpiryRule;
-    try {
-      rule = expiryRuleFor(deps.capabilities(entry.connectionId));
-    } catch {
-      counters.capabilityErrors += 1;
-      rule = 'cancel-own-consumers';
-    }
+    const rule: ExpiryRule = expiryRuleFor(
+      readCapabilities(entry.connectionId),
+    );
     const hasConnections = [...entry.targets.keys()].some(
       (protocol) => protocol !== 'http',
     );
@@ -1206,9 +1252,9 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
    */
   async function waitForRenewal(
     entry: Entry,
-    renewal: Promise<ResolvedCredential>,
+    renewal: Promise<Resolved>,
     signal: AbortSignal,
-  ): Promise<ResolvedCredential> {
+  ): Promise<Resolved> {
     try {
       return await until(renewal, signal);
     } catch (error) {
@@ -1220,11 +1266,88 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     }
   }
 
+  /**
+   * Measures the credential for the protocol that will carry it and reports each new warning to
+   * the sink before the value is handed back (DC-38). The capabilities are asked only for an AMQP
+   * login, the one measure that depends on the broker; an HTTP header does not.
+   */
+  function withWarnings(
+    connectionId: string,
+    protocol: CredentialProtocol,
+    value: Resolved,
+  ): ResolvedCredential {
+    if (value.credential.kind !== 'bearer') return { ...value, warnings: [] };
+    const caps =
+      protocol === 'http'
+        ? { amqp091PreAuthFrame8192: false }
+        : readCapabilities(connectionId);
+    const warnings = preflightCredential(
+      value.credential,
+      protocol === 'http' ? 'http' : 'amqp091',
+      caps,
+    );
+    const entry = entries.get(keyOf(connectionId, protocol));
+    // Only the last generation's codes are kept (at most two), so the memory is bounded (I-6).
+    const reported =
+      entry?.warned?.generation === value.generation
+        ? entry.warned.codes
+        : new Set<SizeWarningCode>();
+    for (const warning of warnings) {
+      if (reported.has(warning.code)) continue;
+      reported.add(warning.code);
+      counters.sizeWarnings += 1;
+      try {
+        deps.onSizeWarning?.({
+          connectionId,
+          protocol,
+          generation: value.generation,
+          warning,
+        });
+      } catch {
+        counters.listenerErrors += 1;
+      }
+    }
+    if (entry !== undefined) {
+      entry.warned = { generation: value.generation, codes: reported };
+    }
+    return { ...value, warnings };
+  }
+
   async function credentialFor(
     connectionId: string,
     protocol: CredentialProtocol,
     signal: AbortSignal,
   ): Promise<ResolvedCredential> {
+    return withWarnings(
+      connectionId,
+      protocol,
+      await resolveCredential(connectionId, protocol, signal),
+    );
+  }
+
+  async function refreshAfterUnauthorized(
+    connectionId: string,
+    protocol: CredentialProtocol,
+    generation: number,
+    signal: AbortSignal,
+  ): Promise<ResolvedCredential> {
+    return withWarnings(
+      connectionId,
+      protocol,
+      await resolveAfterUnauthorized(
+        connectionId,
+        protocol,
+        generation,
+        signal,
+      ),
+    );
+  }
+
+  async function resolveCredential(
+    connectionId: string,
+    protocol: CredentialProtocol,
+    signal: AbortSignal,
+  ): Promise<Resolved> {
     assertLive();
     if (signal.aborted) throw cancelled();
     const entry = entryFor(connectionId, protocol);
@@ -1270,22 +1393,22 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     return until(refresh(entry, 'demand'), signal);
   }
 
-  async function refreshAfterUnauthorized(
+  async function resolveAfterUnauthorized(
     connectionId: string,
     protocol: CredentialProtocol,
     generation: number,
     signal: AbortSignal,
-  ): Promise<ResolvedCredential> {
+  ): Promise<Resolved> {
     assertLive();
     if (signal.aborted) throw cancelled();
     const entry = entries.get(keyOf(connectionId, protocol));
     if (entry?.credential === undefined) {
-      return credentialFor(connectionId, protocol, signal);
+      return resolveCredential(connectionId, protocol, signal);
     }
     if (entry.inflight !== undefined) return until(entry.inflight, signal);
     // Another caller already renewed since this one took its token: use that one.
     if (generation !== entry.generation) {
-      return credentialFor(connectionId, protocol, signal);
+      return resolveCredential(connectionId, protocol, signal);
     }
     if (clock.now() < entry.retryNotBefore) {
       throw tooSoon(

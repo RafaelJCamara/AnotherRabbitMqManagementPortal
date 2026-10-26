@@ -22,7 +22,7 @@ import { isRetryableAfter401 } from './retry-policy';
 import {
   DEFAULT_TOKEN_MANAGER_LIMITS,
   createTokenManager,
-  type RenewalCapabilities,
+  type IdentityCapabilities,
   type TokenManager,
   type TokenManagerLimits,
   type TokenState,
@@ -91,7 +91,7 @@ interface Harness {
     onReconnect: (id: string, protocol: RenewalProtocol) => Promise<void>;
     onCancel: () => Promise<{ cancelled: number }>;
   };
-  readonly caps: RenewalCapabilities;
+  readonly caps: IdentityCapabilities;
   readonly states: TokenState[];
 }
 
@@ -107,8 +107,8 @@ function harness(
       now: number,
       request: { connectionId: string; protocol: CredentialProtocol },
     ) => IssuedCredential | Promise<IssuedCredential>;
-    caps?: Partial<RenewalCapabilities>;
-    capabilities?: (connectionId: string) => RenewalCapabilities;
+    caps?: Partial<IdentityCapabilities>;
+    capabilities?: (connectionId: string) => IdentityCapabilities;
     limits?: Partial<TokenManagerLimits>;
     withPutAuthToken?: boolean;
     timers?: (inner: Timers) => Timers;
@@ -177,9 +177,10 @@ function harness(
         }
       : {}),
   };
-  const caps: RenewalCapabilities = {
+  const caps: IdentityCapabilities = {
     amqp10TokenRenewalEndpoint: false,
     amqp091ClosesAtCredentialExpiry: false,
+    amqp091PreAuthFrame8192: false,
     ...options.caps,
   };
   const manager = createTokenManager({
@@ -349,7 +350,7 @@ describe('TokenManager renewal', () => {
   it('M1-23 AC-12 token manager renews each protocol its own way', async () => {
     interface Row {
       protocol: RenewalProtocol;
-      caps: Partial<RenewalCapabilities>;
+      caps: Partial<IdentityCapabilities>;
       putAuthToken: boolean;
       expected: AuthCall[];
     }
@@ -1238,6 +1239,7 @@ describe('TokenManager edges (slice C)', () => {
       },
       capabilities: () => ({
         amqp10TokenRenewalEndpoint: false,
+        amqp091PreAuthFrame8192: false,
         amqp091ClosesAtCredentialExpiry: false,
       }),
       clock,
@@ -2369,6 +2371,7 @@ describe('TokenManager reviews: timers, tasks and the edges they found (slice C 
         if (broken) throw new Error('registry unavailable');
         return {
           amqp10TokenRenewalEndpoint: false,
+          amqp091PreAuthFrame8192: false,
           amqp091ClosesAtCredentialExpiry: false,
         };
       },

@@ -28,9 +28,11 @@ export {
 export {
   DEFAULT_TOKEN_MANAGER_LIMITS,
   createTokenManager,
+  type IdentityCapabilities,
   type ProviderLookup,
   type RenewalCapabilities,
   type ResolvedCredential,
+  type SizeWarningEvent,
   type TokenManager,
   type TokenManagerDeps,
   type TokenManagerLimits,

@@ -16,13 +16,17 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   createFakeEvidence,
   createScriptedManagement,
+  effectiveConfigAnswer,
   queuePath,
   type FakeEvidenceOptions,
   type ManagementRow,
   type VhostDescription,
 } from './preflight-fakes.ts';
+import { QueueRowSchema } from './preflight-rows.ts';
 import {
   createPeekPreflight,
+  DEFAULT_PREFLIGHT_LIMITS,
+  queueFromRow,
   type PeekPreflightDeps,
   type PreflightLimits,
   type PreflightProfile,
@@ -158,10 +162,15 @@ function plan(preflight: PeekPreflight, principal: PeekPrincipal = human) {
 }
 
 /** A `queues.effective-config` entry as the topology service answers it. */
-const decidedBy = (layer: 'argument' | 'operator-policy', value: number) => ({
-  key: 'delivery-limit',
-  argument: 'x-delivery-limit',
-  status: 'effective' as const,
+const entryOf = (
+  key: string,
+  status: 'effective' | 'default' | 'unset' | 'unknown' | 'invalid',
+  value: number | string | null,
+  layer: 'argument' | 'user-policy' | 'operator-policy' = 'argument',
+) => ({
+  key,
+  argument: `x-${key}`,
+  status,
   value,
   rule: null,
   mergeRule: null,
@@ -169,6 +178,21 @@ const decidedBy = (layer: 'argument' | 'operator-policy', value: number) => ({
   provenance: [{ layer, name: layer, value, role: 'deciding' as const }],
   warnings: [],
 });
+const configOf = (entries: Record<string, ReturnType<typeof entryOf>>) =>
+  effectiveConfigAnswer(
+    { connectionId: CID, vhost: VHOST, queue: 'q' },
+    {
+      queueType: 'quorum',
+      effective: {
+        queueType: 'quorum',
+        version: '4.3.6',
+        entries,
+        mergedPolicy: { notEffective: true, entries: {} },
+        unrecognisedArguments: [],
+        warnings: [],
+      },
+    },
+  );
 
 describe('peek preflight', () => {
   it('M1-13 AC-1 the preflight issues only GETs on the interactive lane and reaches no write port or lease', async () => {
@@ -221,7 +245,7 @@ describe('peek preflight', () => {
     const effective = {
       queueType: 'quorum' as const,
       version: '4.3.6',
-      entries: { 'delivery-limit': decidedBy('argument', 20) },
+      entries: { 'delivery-limit': entryOf('delivery-limit', 'effective', 20) },
       mergedPolicy: { notEffective: true as const, entries: {} },
       unrecognisedArguments: [],
       warnings: [],
@@ -622,5 +646,391 @@ describe('peek preflight', () => {
     expect(() =>
       createPeekPreflight({ ...deps, quarantinePrefix: 'RabbitTool' }),
     ).toThrow(RangeError);
+  });
+});
+
+describe('peek preflight mapping', () => {
+  const map = (
+    row: Record<string, unknown>,
+    entries: Record<string, ReturnType<typeof entryOf>> = {},
+    consumers: { seen?: number; active?: boolean } = {},
+  ) =>
+    queueFromRow(
+      QueueRowSchema.parse({ name: 'q', type: 'quorum', ...row }),
+      configOf(entries),
+      { seen: consumers.seen, active: consumers.active ?? false },
+    );
+
+  it('an unlimited quorum limit is unset only when nothing could have set it', () => {
+    const bare = {
+      delivery_limit: 'unlimited',
+      arguments: {},
+      policy: null,
+      operator_policy: null,
+    };
+
+    expect(map(bare)).toMatchObject({
+      deliveryLimit: { kind: 'unlimited' },
+      limitState: 'unset',
+      limitFixedBy: null,
+    });
+    expect(map({ ...bare, policy: 'p' }).limitState).toBe('minus1');
+    expect(map({ ...bare, delivery_limit: -1 }).limitState).toBe('unset');
+    expect(
+      map({ ...bare, arguments: { 'x-delivery-limit': -1 } }),
+    ).toMatchObject({ limitState: 'minus1', limitFixedBy: 'argument' });
+    expect(map({ ...bare, operator_policy: 'op' })).toMatchObject({
+      limitState: 'minus1',
+      limitFixedBy: 'operator-policy',
+    });
+    expect(
+      map(
+        { ...bare, policy: 'p' },
+        { 'delivery-limit': entryOf('delivery-limit', 'unset', null) },
+      ).limitState,
+    ).toBe('unset');
+    expect(map({ ...bare, arguments: undefined }).limitState).toBe('minus1');
+    // The rules name who decides; a user policy can be raised, an unknown fixer cannot be trusted.
+    const user = entryOf('delivery-limit', 'effective', 5, 'user-policy');
+    expect(
+      map({ operator_policy: 'op' }, { 'delivery-limit': user }).limitFixedBy,
+    ).toBeNull();
+    const operator = entryOf(
+      'delivery-limit',
+      'effective',
+      5,
+      'operator-policy',
+    );
+    expect(map({}, { 'delivery-limit': operator }).limitFixedBy).toBe(
+      'operator-policy',
+    );
+    for (const status of ['unknown', 'invalid'] as const) {
+      const unclear = {
+        'delivery-limit': entryOf('delivery-limit', status, null),
+      };
+      expect(map({ operator_policy: 'op' }, unclear).limitFixedBy).toBe(
+        'operator-policy',
+      );
+    }
+    expect(
+      map(
+        { operator_policy: null },
+        { 'delivery-limit': entryOf('delivery-limit', 'unknown', null) },
+      ).limitFixedBy,
+    ).toBeNull();
+  });
+
+  it('the delivery-limit stat is finite only for a positive whole number', () => {
+    const limit = (delivery_limit: unknown) =>
+      map({ delivery_limit }).deliveryLimit;
+
+    expect(limit(1)).toEqual({ kind: 'finite', value: 1 });
+    expect(limit('20')).toEqual({ kind: 'finite', value: 20 });
+    expect(limit(-1)).toEqual({ kind: 'unlimited' });
+    for (const odd of [0, 1.5, 'x', null, undefined, ''])
+      expect(limit(odd)).toEqual({ kind: 'unknown' });
+    expect(map({ type: 'classic', delivery_limit: 5 })).toMatchObject({
+      deliveryLimit: { kind: 'unlimited' },
+      limitState: 'unset',
+    });
+  });
+
+  it('a setting takes the decided value, else the lowest the row shows, and absent stays absent', () => {
+    const row = {
+      arguments: {
+        'x-delivery-limit': 4,
+        'x-message-ttl': 1_000,
+        'x-max-length': 50,
+        'x-consumer-timeout': 0,
+        'x-overflow': 'reject-publish-dlx',
+      },
+      effective_policy_definition: {
+        'message-ttl': 700,
+        'max-length': 90,
+        overflow: 'drop-head',
+        'delivery-limit': 9,
+      },
+    };
+
+    expect(map(row)).toMatchObject({
+      ttlMs: 700,
+      maxLength: 50,
+      consumerTimeoutMs: 0,
+      overflow: 'drop-head',
+      visibleLimits: [4, 9],
+    });
+    const decided = {
+      'message-ttl': entryOf('message-ttl', 'effective', 500),
+      'max-length': entryOf('max-length', 'default', 10),
+      'consumer-timeout': entryOf('consumer-timeout', 'effective', 100),
+      overflow: entryOf('overflow', 'effective', 'reject-publish'),
+      'delivery-limit': entryOf('delivery-limit', 'effective', 3, 'argument'),
+    };
+    expect(map(row, decided)).toMatchObject({
+      ttlMs: 500,
+      consumerTimeoutMs: 100,
+      maxLength: 10,
+      overflow: 'reject-publish',
+      visibleLimits: [3, 4, 9],
+    });
+    // A status without a decision falls back to the row.
+    const undecided = {
+      'message-ttl': entryOf('message-ttl', 'unknown', null),
+    };
+    expect(map(row, undecided).ttlMs).toBe(700);
+    const keys = Object.keys(
+      map({
+        arguments: {
+          'x-message-ttl': -5,
+          'x-max-length': 'x',
+          'x-overflow': 'weird',
+        },
+      }),
+    );
+    for (const absent of [
+      'ttlMs',
+      'maxLength',
+      'overflow',
+      'consumerTimeoutMs',
+      'delayedRetry',
+      'visibleLimits',
+    ]) {
+      expect(keys).not.toContain(absent);
+    }
+    expect(
+      map({ arguments: { 'x-overflow': 'reject-publish-dlx' } }).overflow,
+    ).toBe('reject-publish-dlx');
+  });
+
+  it('delayed retry, quorum health and the queue type come from the sources the broker gives', () => {
+    expect(map({ delayed_retry: 'all' }).delayedRetry).toEqual({ type: 'all' });
+    expect(
+      map({ arguments: { 'x-delayed-retry-type': 'failed' } }).delayedRetry,
+    ).toEqual({ type: 'failed' });
+    const viaRules = map(
+      {},
+      {
+        'delayed-retry-type': entryOf(
+          'delayed-retry-type',
+          'effective',
+          'returned',
+        ),
+      },
+    );
+    expect(viaRules.delayedRetry).toEqual({ type: 'returned' });
+    expect(map({ delayed_retry: 'bogus' })).not.toHaveProperty('delayedRetry');
+    const health = (leader: string | null, members: number, online: number) =>
+      map({
+        leader,
+        members: Array(members).fill('n'),
+        online: Array(online).fill('n'),
+      }).quorumOk;
+    expect(health('a', 3, 2)).toBe(true);
+    expect(health('a', 4, 2)).toBe(false);
+    expect(health('a', 4, 3)).toBe(true);
+    expect(health('', 3, 3)).toBe(false);
+    expect(health(null, 3, 3)).toBe(false);
+    expect(
+      map({ type: 'classic', leader: 'a', members: ['n'], online: ['n'] }),
+    ).not.toHaveProperty('quorumOk');
+    expect(
+      map({ type: undefined, arguments: { 'x-queue-type': 'classic' } }).type,
+    ).toBe('classic');
+    expect(() => map({ type: undefined, arguments: {} })).toThrow(AppError);
+  });
+
+  it('sizes, owners and consumers are read as the row gives them', () => {
+    expect(map({ messages_ready: 2, message_bytes_ready: 10 }).avgBytes).toBe(
+      5,
+    );
+    expect(map({ messages_ready: 1, message_bytes_ready: 7 }).avgBytes).toBe(7);
+    expect(
+      map({ messages_ready: 0, message_bytes_ready: 10 }),
+    ).not.toHaveProperty('avgBytes');
+    expect(map({ messages_ready: 3 })).not.toHaveProperty('avgBytes');
+    expect(map({ exclusive: true }).exclusiveOwnedByOther).toBe(true);
+    expect(map({ exclusive: false }).exclusiveOwnedByOther).toBe(false);
+    expect(map({ exclusive: null }).exclusiveOwnedByOther).toBe(false);
+    const idle = map({ arguments: {} });
+    expect(idle).toMatchObject({
+      consumers: 0,
+      hasActiveConsumer: false,
+      singleActiveConsumer: false,
+    });
+    expect(map({ arguments: {} }, {}, { seen: 2 })).toMatchObject({
+      consumers: 2,
+      hasActiveConsumer: true,
+    });
+    expect(
+      map({ arguments: {}, consumers: 1 }, {}, { seen: 2 }).consumers,
+    ).toBe(1);
+    expect(
+      map(
+        { arguments: { 'x-single-active-consumer': true }, consumers: 3 },
+        {},
+        { active: false },
+      ).hasActiveConsumer,
+    ).toBe(false);
+  });
+
+  it('lists are requested with one page of the broker maximum and cut rows are counted', async () => {
+    expect(DEFAULT_PREFLIGHT_LIMITS).toEqual({
+      maxPolicies: 1_000,
+      maxConsumerRows: 1_000,
+      maxConnectionRows: 1_000,
+      maxReads: 9,
+    });
+    const plain = setup({
+      queues: { orders: sacRow },
+      user: 'ada',
+      permission: { configure: '', write: '' },
+    });
+    const done = await plain.run('orders', 'check');
+    const queries = Object.fromEntries(
+      plain.api.requests.map((r) => [r.path, r.query]),
+    );
+    expect(queries[queuePath(VHOST, 'orders')]).toEqual({
+      enable_queue_totals: true,
+    });
+    expect(queries[queuePath(VHOST, 'product.quarantine')]).toEqual({
+      enable_queue_totals: true,
+    });
+    expect(queries[consumersPath]).toEqual({ page_size: 500 });
+    expect(queries['/api/nodes']).toEqual({
+      columns: 'name,mem_alarm,disk_free_alarm',
+      page_size: 500,
+    });
+    expect(done.cut).toEqual({
+      consumers: 0,
+      policies: 0,
+      operatorPolicies: 0,
+      connections: 0,
+    });
+    expect(done.reads?.nodes).toEqual({ state: 'read', value: [] });
+    expect((await setup().run()).cut).toEqual(done.cut);
+
+    const item = { name: 'c', state: 'running' };
+    const cases = [
+      [{ items: [item, item], page_count: 1, total_count: 2 }, 0],
+      [{ items: [item, item] }, 0],
+      [{ items: [] }, 0],
+      [{ items: [item], page_count: 2 }, 1],
+      [{ items: [item], page_count: 3 }, 1],
+      [{ items: [item], total_count: 5 }, 4],
+      [{ items: [item], page_count: 1, total_count: 1 }, 0],
+    ] as const;
+    for (const [connections, cut] of cases) {
+      const made = await setup({ connections }).run('orders', 'check');
+      expect(made.cut.connections, JSON.stringify(connections)).toBe(cut);
+    }
+    const cutNodes = await setup({
+      nodes: { items: [{ name: 'a' }], page_count: 2 },
+    }).run('orders', 'check');
+    expect(cutNodes.reads?.nodes).toEqual({ state: 'unreadable' });
+    const wholeNodes = await setup({
+      nodes: { items: [{ name: 'a' }], page_count: 1 },
+    }).run('orders', 'check');
+    expect(wholeNodes.reads?.nodes.state).toBe('read');
+    const items = Array.from({ length: 1_001 }, () => item);
+    expect(
+      (await setup({ connections: items }).run('orders', 'check')).cut
+        .connections,
+    ).toBe(1);
+    const sources = await setup({}, { dlxSources: { sourcesMore: 0 } }).run();
+    expect(sources.preflight.dlxSources.complete).toBe(true);
+    // Only the consumers of this queue count, and only an active one makes it busy.
+    const mine = (active?: boolean) => ({
+      queue: { name: 'orders' },
+      ...(active === undefined ? {} : { active }),
+    });
+    const other = { queue: { name: 'other' }, active: true };
+    const busy = async (consumers: unknown[]) =>
+      (await setup({ queues: { orders: sacRow }, consumers }).run()).preflight
+        .queue.hasActiveConsumer;
+    expect(await busy([mine(false), other])).toBe(false);
+    expect(await busy([mine()])).toBe(true);
+    expect(await busy([mine(false), mine(true)])).toBe(true);
+    expect(await busy(Array.from({ length: 1_001 }, () => other))).toBe(true);
+    expect(await busy([mine(true)])).toBe(true);
+    const noType = {
+      name: 'product.quarantine',
+      arguments: { 'x-queue-type': 'classic' },
+    };
+    const found = await setup({ queues: { 'product.quarantine': noType } }).run(
+      'orders',
+      'check',
+    );
+    expect(found.reads?.quarantine).toMatchObject({
+      state: 'present',
+      found: { type: 'classic' },
+    });
+  });
+
+  it('an abort or a shutdown is never turned into a gap', async () => {
+    const aborted = new AbortController();
+    const idle = setup();
+    const service = createPeekPreflight({
+      mgmt: idle.api.mgmt,
+      evidence: idle.evidence,
+      clock: idle.clock,
+      quarantinePrefix: 'product',
+    });
+    aborted.abort();
+    const request = {
+      connectionId: CID,
+      vhost: VHOST,
+      queue: 'orders',
+      principal: caller,
+      profile: preflightProfile,
+      rescue: 'skip',
+    } as const;
+    const outcome = await service
+      .run(request, aborted.signal)
+      .catch((error: unknown) => error);
+    expect(outcome).not.toBeInstanceOf(AppError);
+
+    // An abort that lands during the quarantine read is rethrown, not read as "unreadable".
+    const mid = new AbortController();
+    const quarantinePath = queuePath(VHOST, 'product.quarantine');
+    const during = setup({
+      failures: { [quarantinePath]: 500 },
+      onRequest: (r) => {
+        if (r.path === quarantinePath) mid.abort();
+      },
+    });
+    const midService = createPeekPreflight({
+      mgmt: during.api.mgmt,
+      evidence: during.evidence,
+      clock: during.clock,
+      quarantinePrefix: 'product',
+    });
+    await expect(
+      midService.run({ ...request, rescue: 'check' }, mid.signal),
+    ).rejects.toMatchObject({ code: 'BROKER_ERROR' });
+
+    const stopping = setup(
+      {},
+      { failWith: new AppError('ENGINE_SHUTTING_DOWN') },
+    );
+    await expect(stopping.run()).rejects.toMatchObject({
+      code: 'ENGINE_SHUTTING_DOWN',
+    });
+    const refusing = setup({
+      queues: { orders: sacRow },
+      failures: { [consumersPath]: 403 },
+    });
+    expect((await refusing.run()).preflight.queue.hasActiveConsumer).toBe(true);
+    const unlisted = await setup({ queues: { orders: sacRow } }).run(
+      'orders',
+      'check',
+    );
+    expect(unlisted.reads?.permission).toEqual({ state: 'unreadable' });
+  });
+
+  it('rttMs keeps a fraction of a millisecond above the floor', async () => {
+    const holder: { clock?: ReturnType<typeof createManualClock> } = {};
+    const made = setup({ onRequest: () => holder.clock?.advance(1.5) });
+    holder.clock = made.clock;
+    expect((await made.run()).preflight.rttMs).toBe(1.5);
   });
 });

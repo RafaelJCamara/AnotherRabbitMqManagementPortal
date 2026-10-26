@@ -26,7 +26,24 @@ export interface EditorOptions {
 /** Monaco's four built-in theme names (plain strings; no Monaco type crosses this file). */
 export type EditorThemeName = 'vs' | 'vs-dark' | 'hc-black' | 'hc-light';
 
+/** A JSON Schema document. The editor library never reads it; the JSON worker does. */
+export type JsonSchema = Readonly<Record<string, unknown>>;
+
+/** One schema bound to the models whose URI matches `fileMatch`. */
+export interface SchemaEntry {
+  readonly uri: string;
+  readonly fileMatch: readonly string[];
+  readonly schema: JsonSchema;
+}
+
+/** Replaces the whole list of schemas the JSON worker validates with (Monaco's options are global). */
+export interface SchemaPort {
+  setSchemas(entries: readonly SchemaEntry[]): void;
+}
+
 export interface EditorHandle extends EditorDisposable {
+  /** The URI of the model; the key a schema is bound to. */
+  readonly modelUri: string;
   getValue(): string;
   setValue(value: string): void;
   setLanguage(language: EditorLanguage): void;
@@ -40,6 +57,7 @@ export interface EditorHost {
   createEditor(container: HTMLElement, options: EditorOptions): EditorHandle;
   /** Monaco's theme is global to the page. */
   setTheme(theme: EditorThemeName): void;
+  readonly schemas: SchemaPort;
 }
 
 /** What the loader hands out. `load()` is single flight; a failure is not cached. */

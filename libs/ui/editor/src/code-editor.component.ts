@@ -24,8 +24,10 @@ import type {
   EditorHost,
   EditorLanguage,
   EditorMarker,
+  JsonSchema,
 } from './facade';
 import { type EditorLoadError, MONACO_LOADER, toLoadError } from './loader';
+import { schemaRegistryFor } from './schema';
 import { EditorThemeBridge } from './theme-bridge';
 
 /** Markers kept per model (I-6); the rest are counted in `markersDropped`. */
@@ -64,6 +66,8 @@ export class CodeEditor {
   readonly ariaLabel = input.required<string>();
   /** A sentence shown under the editor, e.g. how to leave it with the keyboard. */
   readonly hint = input<string>();
+  /** Applies only while `language` is `json`. */
+  readonly schema = input<JsonSchema>();
   readonly maxBytes = input<number>();
   readonly markers = input<readonly EditorMarker[]>([]);
 
@@ -107,6 +111,18 @@ export class CodeEditor {
       handle?.setMarkers(all.slice(0, EDITOR_MAX_MARKERS));
       if (handle !== null && all.length > EDITOR_MAX_MARKERS) {
         this.markersDropped.emit(all.length - EDITOR_MAX_MARKERS);
+      }
+    });
+    effect(() => {
+      const handle = this.handle();
+      const schema = this.schema();
+      const host = this.host;
+      if (handle === null || host === null) return;
+      const registry = schemaRegistryFor(host);
+      if (schema !== undefined && this.language() === 'json') {
+        registry.set(handle.modelUri, schema);
+      } else {
+        registry.remove(handle.modelUri);
       }
     });
     effect(() => {
@@ -154,6 +170,9 @@ export class CodeEditor {
     this.destroyed = true;
     const handle = this.handle();
     this.subscription?.dispose();
+    if (handle !== null && this.host !== null) {
+      schemaRegistryFor(this.host).remove(handle.modelUri);
+    }
     handle?.dispose();
   }
 }

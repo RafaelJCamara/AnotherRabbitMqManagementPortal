@@ -11,7 +11,10 @@ export type {
   EditorMarker,
   EditorOptions,
   EditorThemeName,
+  JsonSchema,
   MonacoLoader,
+  SchemaEntry,
+  SchemaPort,
 } from './facade';
 export {
   createMonacoLoader,

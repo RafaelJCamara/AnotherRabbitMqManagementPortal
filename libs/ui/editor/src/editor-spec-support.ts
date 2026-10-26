@@ -9,6 +9,7 @@ import type {
   EditorMarker,
   EditorOptions,
   EditorThemeName,
+  SchemaEntry,
 } from './facade';
 import { MONACO_LOADER } from './loader';
 
@@ -31,6 +32,8 @@ export interface FakeEditor extends EditorHandle {
 export interface FakeHost extends EditorHost {
   readonly editors: FakeEditor[];
   readonly themes: EditorThemeName[];
+  /** Every list `setSchemas` was given, in order. */
+  readonly schemaCalls: (readonly SchemaEntry[])[];
 }
 
 /** `normalize` is what an editor does to text it is given (Monaco rewrites line endings). */
@@ -39,15 +42,19 @@ export function fakeHost(
 ): FakeHost {
   const editors: FakeEditor[] = [];
   const themes: EditorThemeName[] = [];
+  const schemaCalls: (readonly SchemaEntry[])[] = [];
   return {
     editors,
     themes,
+    schemaCalls,
+    schemas: { setSchemas: (entries) => schemaCalls.push(entries) },
     setTheme: (theme) => themes.push(theme),
     createEditor(container, options) {
       const listeners = new Set<(value: string) => void>();
       const editor: FakeEditor = {
         options,
         container,
+        modelUri: `inmemory://model/${String(editors.length + 1)}`,
         value: options.value,
         language: options.language,
         readOnly: options.readOnly,

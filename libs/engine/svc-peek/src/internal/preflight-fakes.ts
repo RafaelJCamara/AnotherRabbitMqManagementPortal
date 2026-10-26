@@ -342,7 +342,9 @@ export const peekedQuorumRow: ManagementRow = {
   members: ['rabbit@a'],
   online: ['rabbit@a'],
 };
-export const quarantineRow = (overrides: ManagementRow = {}): ManagementRow => ({
+export const quarantineRow = (
+  overrides: ManagementRow = {},
+): ManagementRow => ({
   name: 'product.quarantine',
   type: 'classic',
   durable: true,
@@ -368,4 +370,3 @@ export const healthyNodes = [
   { name: 'rabbit@a', mem_alarm: false, disk_free_alarm: false },
 ];
 export const openPermission = { configure: '.*', write: '.*', read: '.*' };
-

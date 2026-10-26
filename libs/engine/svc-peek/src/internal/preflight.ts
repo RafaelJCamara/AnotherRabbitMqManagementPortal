@@ -560,8 +560,10 @@ export function createPeekPreflight(
   });
   return {
     async run(request, signal) {
-      const { preflight, reads, quarantineName, cut } =
-        await gatherer.gather(request, signal);
+      const { preflight, reads, quarantineName, cut } = await gatherer.gather(
+        request,
+        signal,
+      );
       if (reads === null) {
         return { preflight, rescue: null, quarantineName, cut };
       }

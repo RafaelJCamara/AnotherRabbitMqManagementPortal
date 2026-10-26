@@ -26,6 +26,19 @@ export {
   createClientCredentialsProvider,
 } from './providers/client-credentials';
 export {
+  DEFAULT_TOKEN_MANAGER_LIMITS,
+  createTokenManager,
+  type ProviderLookup,
+  type RenewalCapabilities,
+  type ResolvedCredential,
+  type TokenManager,
+  type TokenManagerDeps,
+  type TokenManagerLimits,
+  type TokenManagerStats,
+  type TokenState,
+  type TokenStateName,
+} from './token-manager';
+export {
   backoffDelayMs,
   expiryRuleFor,
   plannedRefreshAt,

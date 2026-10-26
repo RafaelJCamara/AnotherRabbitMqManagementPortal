@@ -1,0 +1,10 @@
+{
+  "identity": {
+    "BEARER_HEADER_LARGE": {
+      "v1": "The sign-in token makes the HTTP Authorization header {{bytes}} bytes, above the {{limit}} bytes this tool warns at. A broker, or a proxy in front of it, may refuse a header this large (HTTP 431), so requests may fail. A token with fewer claims keeps the header smaller."
+    },
+    "PLAIN_RESPONSE_LARGE": {
+      "v1": "The sign-in token is {{bytes}} bytes as the AMQP login response, and the broker accepts at most {{limit}} bytes for the whole login frame before it knows who is signing in. The frame holds more than the response, so the connection may fail to open. A token with fewer claims keeps the response smaller."
+    }
+  }
+}

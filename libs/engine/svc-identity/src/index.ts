@@ -48,3 +48,15 @@ export {
   type RenewalAction,
 } from './internal/renewal-plan';
 export { isRetryableAfter401 } from './retry-policy';
+export {
+  BEARER_HEADER_WARN_BYTES,
+  PREAUTH_FRAME_LIMIT_BYTES,
+  PREAUTH_FRAME_LIMIT_LEGACY_BYTES,
+  PREAUTH_HEADROOM_BYTES,
+  httpAuthorization,
+  preflightCredential,
+  preflightSize,
+  type PreflightInput,
+  type SizeWarning,
+  type SizeWarningCode,
+} from './size-preflight';

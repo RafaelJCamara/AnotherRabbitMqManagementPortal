@@ -19,7 +19,7 @@
       "cache": false,
       "dependsOn": ["build"],
       "options": {
-        "command": "node --test packaging/docker/dockerfile.test.mjs packaging/docker/image.live.test.mjs",
+        "command": "node --test packaging/docker/dockerfile.test.mjs packaging/docker/daemon.test.mjs packaging/docker/image.live.test.mjs",
         "cwd": "{workspaceRoot}"
       }
     }

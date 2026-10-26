@@ -11,8 +11,9 @@ Tags: `type:tooling`, `runtime:node`. Plain Node, no dependencies of its own (th
 | `Dockerfile` | Two stages. `build` (`node:24.22.0-trixie-slim`, pinned by digest) installs from the lockfile with the pnpm that `packageManager` pins and builds `engine` and `web`. `runtime` (`gcr.io/distroless/nodejs24-debian13:nonroot`, pinned by digest) holds the bundle in `/app/engine`, the web build in `/app/web/browser` (where the engine looks for it), `healthcheck.mjs`, the licence files in `/licenses` and an empty `/data` owned by uid 65532. No shell, no source map, no secret. |
 | `Dockerfile.dockerignore` | The build context: no `node_modules`, `dist`, git data, env files or keys. BuildKit reads it before any root `.dockerignore`. |
 | `compose.yaml` | The single-user run: port on `127.0.0.1` only, read-only root filesystem, `/tmp` as tmpfs, no capability, no privilege gain, token and key as secret files, data in a named volume. |
-| `dockerfile.mjs`, `daemon.mjs`, `docker-tool.mjs` | A small Dockerfile reader for the checks, the daemon probe, and the `docker:build` command. |
+| `dockerfile.mjs`, `daemon.mjs`, `docker-tool.mjs` | A small Dockerfile reader for the checks, the daemon probe (`docker info --format '{{.OSType}}'`: a daemon must answer and run Linux containers) with the skip-or-fail decision, and the `docker:build` command. |
 | `dockerfile.test.mjs` | The static checks (no daemon): pins, user, stages, runtime contract, build context, compose, the image workflow. |
+| `daemon.test.mjs` | The probe and the build decision with an injected `docker info` (Linux daemon, Windows daemon, no daemon, `DOCKER_REQUIRE=1`), and `docker-tool.mjs build` with no `docker` on `PATH`. No daemon needed. |
 | `image.live.test.mjs` | The live checks (need a daemon and the built image). |
 | `../../.github/workflows/image.yml` | Native amd64 and arm64 builds, the docker tests, Trivy, then (tag or manual publish, with the `IMAGE_NAME` repository variable set) push by digest with SBOM and provenance, one manifest list, cosign keyless signature and its verification. |
 
@@ -39,8 +40,8 @@ Publish on `127.0.0.1` only (ADR-016). The engine prints the launch URL, with th
 
 | Command | What it proves |
 | --- | --- |
-| `pnpm nx run docker:test` | The static checks always; the live checks when a Docker daemon answers and the image exists (it builds first). Without a daemon the live checks print `SKIPPED ... Nothing was proved` and pass; `DOCKER_REQUIRE=1` makes that a failure. |
-| `pnpm nx run docker:build` | Builds the image (same skip rule). |
+| `pnpm nx run docker:test` | The static checks always; the live checks when a Docker daemon answers and the image exists (it builds first). Without a daemon that runs Linux containers the live checks print `SKIPPED ... Nothing was proved` and pass; `DOCKER_REQUIRE=1` makes that a failure. |
+| `pnpm nx run docker:build` | Builds the image (same skip rule). The Windows runners of `ci` have a daemon that runs Windows containers and the base images are Linux-only, so there `docker:build` and the live checks skip loudly; the image is built and tested natively on Linux by `image.yml`, which sets `DOCKER_REQUIRE=1`. |
 | `pnpm nx run supply-chain:actions-pinned` | Every action in `image.yml` is pinned by SHA. |
 
 Not covered by anything in this folder: the multi-architecture manifest, the signature, the SBOM and provenance attestations and the Trivy scan are steps of `image.yml` and are proved by a workflow run (a tag or a manual publish on the repository).

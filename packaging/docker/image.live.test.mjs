@@ -3,7 +3,7 @@
 // checks cannot: the process is not root, the root filesystem is read-only and the engine still
 // serves, SIGTERM ends it within 2 s, the image holds what it should and nothing else.
 //
-// Without a daemon, or without the image, every test here is skipped and the run says so on stderr:
+// Without a daemon that runs Linux containers, or without the image, every test here is skipped and the run says so on stderr:
 // nothing was proved. DOCKER_REQUIRE=1 (the image workflow sets it) makes that a failure.
 //
 //   pnpm nx run docker:test
@@ -15,17 +15,17 @@ import { after, describe, it } from 'node:test';
 
 import {
   IMAGE,
-  daemonAnswers,
+  daemonProblem,
   imageExists,
   required,
   skipped,
 } from './daemon.mjs';
 
-const reason = !daemonAnswers()
-  ? 'no Docker daemon answers'
-  : !imageExists()
+const reason =
+  daemonProblem() ??
+  (!imageExists()
     ? `the image ${IMAGE} does not exist (run pnpm nx run docker:build)`
-    : undefined;
+    : undefined);
 if (reason !== undefined)
   process.stderr.write(`${skipped('live tests', reason)}\n`);
 

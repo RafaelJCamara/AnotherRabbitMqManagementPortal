@@ -1,0 +1,30 @@
+{
+  "name": "ui-editor",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/editor/src",
+  "projectType": "library",
+  "tags": ["type:ui-lib", "runtime:browser"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "ngc -p libs/ui/editor/tsconfig.lib.json --noEmit",
+          "ngc -p libs/ui/editor/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/ui/editor/vitest.config.mts"
+      }
+    }
+  }
+}

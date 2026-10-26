@@ -16,14 +16,13 @@ Spec: [specs/M1-14.md](../specs/M1-14.md).
   - The executor is not wired to anything. M1-15 (guard and dispositions) and M1-16 (actions, receipts, captures) wire it. The peek flag stays off until the chaos evidence of M1-38 exists (IP-6).
   - An ADR for the quorum wait, if the maintainer wants one (the DoD asks that decisions have an ADR).
 
-### M1-19 Publish engine (#104): slices A and B landed
+### M1-19 Publish engine (#104): slices A, B and C landed
 
-Spec: [specs/M1-19.md](../specs/M1-19.md), with "As built" sections for slices A and B (read them before slice C: the code differs from the spec text in places).
+Spec: [specs/M1-19.md](../specs/M1-19.md), with "As built" sections for slices A, B and C (read them before slice D: the code differs from the spec text in places).
 
-- **Landed:** slice A, the `messages.publish` contract and action over the publish lease (AC-1 to AC-10). Slice B, the `PublishHistoryRepository` port, migration `0011`, and the repository for SQLite and Postgres with its contract suite (AC-17, AC-18).
+- **Landed:** slice A, the `messages.publish` contract and action over the publish lease (AC-1 to AC-10). Slice B, the `PublishHistoryRepository` port, migration `0011`, and the repository for SQLite and Postgres with its contract suite (AC-17, AC-18). Slice C, the mask and the history store (`createPublishHistory`: record, window, get, purge, sealing) over a memory repository (AC-11 to AC-16).
 - **Left:**
-  - Slice C: `mask.ts` and `publish-history.ts` (record, window, get, purge, sealing) over the memory repository (AC-11 to AC-16). `get` does not filter expiry, so the service must check `expiresAt`.
-  - Slice D: the two history actions, the record-on-publish hook, `apps/engine` registration, README, `AGENTS.md` rows (AC-19). Slice D must remove the `messages.publish` entry that `compose-services.spec.ts` lists as intentionally unserved. Writes are unwired in the composed engine, so publish returns `CAPABILITY_MISSING` there until the ConnectionManager wiring exists.
+  - Slice D: the two history actions (built on the store's `window` and `get`, whose types the contracts must match), building the store in `createMessagesModule` and passing it to the action as `recorder`, `apps/engine` registration, README, `AGENTS.md` rows (AC-19). Slice D must remove the `messages.publish` entry that `compose-services.spec.ts` lists as intentionally unserved. Writes are unwired in the composed engine, so publish returns `CAPABILITY_MISSING` there until the ConnectionManager wiring exists.
   - Slice E: the `svc-messages:it` target and the lab cases (AC-20), which need the lab and a Docker daemon.
   - **Postgres is unconfirmed.** Slice B was built and tested without a Docker daemon; the SQLite contract passes. The first CI run of `persistence:it` on Postgres 16 and 18 is the proof. Check it before building on the repository.
 

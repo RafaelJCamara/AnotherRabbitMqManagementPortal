@@ -11,6 +11,9 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import {
   CAPTURE_MAX_WINDOW,
   CaptureSearchUnavailableError,
+  PUBLISH_HISTORY_MAX_PURGE,
+  PUBLISH_HISTORY_MAX_SEALED_BYTES,
+  PUBLISH_HISTORY_MAX_WINDOW,
   type AppendBatch,
   type AppendLimits,
   type AppendRejectReason,
@@ -23,6 +26,9 @@ import {
   type MessageSummary,
   type NewCapture,
   type NewMessage,
+  type NewPublishHistory,
+  type PublishHistoryHead,
+  type PublishHistoryRepository,
   type StoredMessage,
 } from '@app/ports';
 
@@ -64,6 +70,166 @@ export function createMemoryPublishRecorder(): MemoryPublishRecorder {
       }
       entries.push(entry);
       return Promise.resolve(`history-${String(entries.length)}`);
+    },
+  };
+}
+
+export interface MemoryPublishHistory extends PublishHistoryRepository {
+  /** Makes the next `insert` calls reject with `error`, `times` times, as a dead store would. */
+  failInserts(times: number, error?: unknown): void;
+  /** Every plain value the repository holds, as text; the sealed bytes are left out (leak checks). */
+  dump(): string;
+  /** The sealed bytes of one row, as stored. */
+  sealedOf(id: string): Uint8Array | undefined;
+  /** Puts a row in without any check, for rows a spec wants in a state `insert` would refuse. */
+  seed(row: NewPublishHistory): void;
+  readonly size: () => number;
+}
+
+/** Splits a window cursor `<published at>.<id>`; anything else is not one. */
+function parseHistoryCursor(cursor: string): { at: number; id: string } {
+  const match = /^(\d{1,16})\.(.+)$/s.exec(cursor);
+  if (match === null) {
+    throw new RangeError('The cursor is not a window cursor.');
+  }
+  return { at: Number(match[1]), id: match[2] ?? '' };
+}
+
+/**
+ * The publish history repository in memory (M1-19). It keeps the rules of the real one that the
+ * service relies on, as `persistence`'s contract states them: windows ordered by (at, id) descending
+ * with a keyset cursor, expired rows filtered by the caller's `now`, `get` without any expiry check,
+ * a case-sensitive routing-key prefix, purges oldest first, the same bounds with the same `RangeError`.
+ */
+export function createMemoryPublishHistory(): MemoryPublishHistory {
+  const rows = new Map<string, NewPublishHistory>();
+  let failures = 0;
+  let failure: unknown = new Error('the history store is down');
+  const head = (row: NewPublishHistory): PublishHistoryHead => ({
+    id: row.id,
+    ownerId: row.ownerId,
+    connectionId: row.connectionId,
+    vhost: row.vhost,
+    at: row.at,
+    expiresAt: row.expiresAt,
+    exchange: row.exchange,
+    routingKey: row.routingKey,
+    copies: row.copies,
+    summary: row.summary,
+    bodyBytes: row.bodyBytes,
+    bodySha256: row.bodySha256,
+  });
+  return {
+    size: () => rows.size,
+    failInserts(times, error) {
+      failures = times;
+      if (error !== undefined) failure = error;
+    },
+    seed(row) {
+      rows.set(row.id, row);
+    },
+    dump() {
+      return JSON.stringify([...rows.values()].map(head));
+    },
+    sealedOf: (id) => rows.get(id)?.dataSealed,
+
+    insert(row) {
+      if (failures > 0) {
+        failures -= 1;
+        return Promise.reject(
+          failure instanceof Error
+            ? failure
+            : new Error('the history store is down'),
+        );
+      }
+      if (rows.has(row.id)) {
+        return Promise.reject(new Error('the entry exists'));
+      }
+      if (row.dataSealed.byteLength > PUBLISH_HISTORY_MAX_SEALED_BYTES) {
+        return Promise.reject(
+          new RangeError('The sealed document is too big.'),
+        );
+      }
+      rows.set(row.id, { ...row, dataSealed: Uint8Array.from(row.dataSealed) });
+      return Promise.resolve();
+    },
+
+    window(ownerId, query) {
+      if (
+        !Number.isInteger(query.limit) ||
+        query.limit < 1 ||
+        query.limit > PUBLISH_HISTORY_MAX_WINDOW
+      ) {
+        return Promise.reject(new RangeError('The limit is out of range.'));
+      }
+      let cursor: { at: number; id: string } | undefined;
+      try {
+        cursor =
+          query.cursor === undefined
+            ? undefined
+            : parseHistoryCursor(query.cursor);
+      } catch {
+        return Promise.reject(
+          new RangeError('The cursor is not a window cursor.'),
+        );
+      }
+      const found = [...rows.values()]
+        .filter(
+          (row) =>
+            row.ownerId === ownerId &&
+            row.connectionId === query.connectionId &&
+            row.expiresAt > query.now &&
+            (query.vhost === undefined || row.vhost === query.vhost) &&
+            (query.exchange === undefined || row.exchange === query.exchange) &&
+            (query.routingKeyPrefix === undefined ||
+              row.routingKey.startsWith(query.routingKeyPrefix)) &&
+            (query.from === undefined || row.at >= query.from) &&
+            (query.to === undefined || row.at <= query.to) &&
+            (cursor === undefined ||
+              row.at < cursor.at ||
+              (row.at === cursor.at && row.id < cursor.id)),
+        )
+        .sort((a, b) =>
+          a.at !== b.at ? b.at - a.at : a.id < b.id ? 1 : a.id > b.id ? -1 : 0,
+        );
+      const page = found.slice(0, query.limit).map(head);
+      const last = page.at(-1);
+      return Promise.resolve(
+        found.length > query.limit && last !== undefined
+          ? { rows: page, nextCursor: `${String(last.at)}.${last.id}` }
+          : { rows: page },
+      );
+    },
+
+    get(ownerId, connectionId, id) {
+      const row = rows.get(id);
+      return Promise.resolve(
+        row?.ownerId === ownerId && row.connectionId === connectionId
+          ? { ...head(row), dataSealed: row.dataSealed }
+          : undefined,
+      );
+    },
+
+    purgeExpired(now, limit) {
+      if (
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > PUBLISH_HISTORY_MAX_PURGE
+      ) {
+        return Promise.reject(new RangeError('The limit is out of range.'));
+      }
+      const due = [...rows.values()]
+        .filter((row) => row.expiresAt <= now)
+        .sort((a, b) =>
+          a.expiresAt !== b.expiresAt
+            ? a.expiresAt - b.expiresAt
+            : a.id < b.id
+              ? -1
+              : 1,
+        )
+        .slice(0, limit);
+      for (const row of due) rows.delete(row.id);
+      return Promise.resolve(due.length);
     },
   };
 }

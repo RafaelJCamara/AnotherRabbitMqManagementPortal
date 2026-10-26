@@ -9,11 +9,13 @@ export type { EngineModule } from './module';
 export {
   createFakeSealer,
   createMemoryCaptureRepository,
+  createMemoryPublishHistory,
   createMemoryPublishRecorder,
   createMessagesFakeDeps,
   sampleMessage,
   type FakeSealer,
   type MemoryCaptureRepository,
+  type MemoryPublishHistory,
   type MemoryPublishRecorder,
 } from './testing';
 // The capture store (M1-09): sealed captures, blobs, the redacted projection and the ingest queue.
@@ -43,3 +45,24 @@ export type {
   SaveResult,
 } from './internal/types';
 export { createMessagesPublishAction } from './actions/messages-publish';
+// The publish history (M1-19, PUB-02): masked, sealed and kept 30 days per owner and connection.
+export {
+  createPublishHistory,
+  PUBLISH_HISTORY_DEFAULT_WINDOW,
+  PUBLISH_HISTORY_PURGE_BATCH,
+  PUBLISH_HISTORY_RETENTION_MS,
+  type HistoryEntry,
+  type HistoryQuery,
+  type HistorySummary,
+  type HistoryWindow,
+  type PublishHistory,
+  type PublishHistoryDeps,
+  type ResendData,
+} from './internal/publish-history';
+export {
+  maskBody,
+  maskMessage,
+  MASK_MAX_BODY_BYTES,
+  type BodyOmitted,
+  type MaskedMessage,
+} from './internal/mask';

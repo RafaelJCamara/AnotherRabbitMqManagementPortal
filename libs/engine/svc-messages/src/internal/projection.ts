@@ -75,6 +75,17 @@ const NAMED_SECRET =
   /\b(password|passwd|passphrase|pwd|secret|client_secret|token|access_token|refresh_token|api[_-]?key|apikey|authorization|auth|cookie|set-cookie)(["']?\s*[:=]\s*["']?)[^\s"',;&}]{1,512}/gi;
 const AUTH_SCHEME = /\b(Basic|Digest|Negotiate)\s+[A-Za-z0-9+/=._~-]{8,}/g;
 
+/**
+ * The two rules the kernel's redaction lacks: `name=value` and `"name": "value"` for names that say
+ * a secret, and Basic, Digest and Negotiate authorization values. Linear: a name, a separator, then a
+ * bounded value. The publish history (M1-19) applies them too, so the engine keeps one policy.
+ */
+export function redactNamedCredentials(text: string): string {
+  return text
+    .replace(AUTH_SCHEME, `$1 ${REDACTED}`)
+    .replace(NAMED_SECRET, `$1$2${REDACTED}`);
+}
+
 /** Every encoded form of every secret that is long enough to be told from ordinary text. */
 export function secretPatterns(secrets: readonly string[]): readonly RegExp[] {
   const patterns: RegExp[] = [];
@@ -110,9 +121,7 @@ export function redactProjectionText(
     new RegExp(`\\S{${String(MAX_RUN + 1)},}`, 'g'),
     '[long]',
   );
-  let out = redactText(bounded)
-    .replace(AUTH_SCHEME, `$1 ${REDACTED}`)
-    .replace(NAMED_SECRET, `$1$2${REDACTED}`);
+  let out = redactNamedCredentials(redactText(bounded));
   for (const pattern of secrets) out = out.replace(pattern, REDACTED);
   return out;
 }

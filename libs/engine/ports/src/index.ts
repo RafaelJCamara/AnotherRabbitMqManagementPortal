@@ -79,6 +79,16 @@ export type {
 } from './connection-manager.ts';
 export type { DialCheck, DialerPort, DialTarget } from './dialer.ts';
 export type {
+  CommandRunnerPort,
+  ConnectionAuthPort,
+  RenewalProtocol,
+  StoredLoginPort,
+  TokenEndpointFailure,
+  TokenEndpointPort,
+  TokenRequest,
+  TokenResponse,
+} from './identity.ts';
+export type {
   AmqpHandshakeResult,
   BrokerProfileRecord,
   BrokerProfileStore,

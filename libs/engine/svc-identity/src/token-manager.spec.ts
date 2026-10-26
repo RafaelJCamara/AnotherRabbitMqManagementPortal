@@ -2997,3 +2997,225 @@ describe('TokenManager edges found by the mutation pass over the hardening (slic
     expect(h.provider.calls).toBe(1);
   });
 });
+
+// -- slice D security fixes (F3: async sinks, F4: capabilities that are not an object) -----------
+
+const settle = async (): Promise<void> => {
+  for (let i = 0; i < 4; i += 1) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+};
+
+/** The unhandled rejections of the process while `run` and a few ticks go by. */
+async function unhandledDuring(run: () => Promise<void>): Promise<unknown[]> {
+  const seen: unknown[] = [];
+  const onUnhandled = (reason: unknown): void => {
+    seen.push(reason);
+  };
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    await run();
+    await settle();
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+  return seen;
+}
+
+describe('TokenManager slice D security fixes', () => {
+  it('M1-23 slice D hardening a state listener that fails in any way is counted once and never unhandled', async () => {
+    const failing: ((state: TokenState) => unknown)[] = [
+      async () => {
+        await Promise.resolve();
+        throw new Error('async listener down');
+      },
+      () => {
+        throw new Error('sync listener down');
+      },
+      () => Promise.reject(new Error('rejected promise')),
+      () => ({
+        then: (_ok: unknown, fail: () => void) => {
+          fail();
+        },
+      }),
+      () => ({
+        then: (_ok: unknown, fail: () => void) => {
+          fail();
+          fail();
+        },
+      }),
+      () => ({
+        then: () => {
+          throw new Error('then throws');
+        },
+      }),
+    ];
+    for (const [index, listener] of failing.entries()) {
+      const h = harness();
+      let called = 0;
+      h.manager.subscribe((state) => {
+        called += 1;
+        return listener(state) as undefined;
+      });
+      const unhandled = await unhandledDuring(async () => {
+        await started(h);
+      });
+      expect(unhandled, `listener ${String(index)}`).toEqual([]);
+      expect(called, `listener ${String(index)} was called`).toBeGreaterThan(0);
+      // Exactly one count for each call that failed: none lost, none doubled.
+      expect(
+        h.manager.stats().listenerErrors,
+        `listener ${String(index)}`,
+      ).toBe(called);
+    }
+    // A listener that resolves is not an error.
+    const ok = harness();
+    ok.manager.subscribe(() => Promise.resolve() as unknown as undefined);
+    expect(
+      await unhandledDuring(async () => {
+        await started(ok);
+      }),
+    ).toEqual([]);
+    expect(ok.manager.stats().listenerErrors).toBe(0);
+  });
+
+  const notObjects: [string, unknown][] = [
+    ['undefined', undefined],
+    ['null', null],
+    ['a string', 'yes'],
+    ['a number', 1],
+    ['an array', [true, true, true]],
+  ];
+  const huge = (n: number): IssuedCredential => ({
+    kind: 'bearer',
+    token: new SecretValue('a'.repeat(5000)),
+    issuedAt: n,
+    expiresAt: 1_000 * SECOND,
+    username: 'alice',
+  });
+
+  it('M1-23 slice D hardening capabilities() that is not an object proves nothing, through credentialFor', async () => {
+    for (const [name, value] of notObjects) {
+      const h = harness({
+        capabilities: () => value as IdentityCapabilities,
+        script: (n) => huge(n),
+      });
+      const got = await credentialFor(h, 'c1', 'amqp'); // no raw TypeError
+      expect(h.manager.stats().capabilityErrors, name).toBe(1);
+      // The conservative frame limit (4,096), not the 8,192 of a broker that is not proven.
+      expect(got.warnings[0], name).toMatchObject({
+        code: 'PLAIN_RESPONSE_LARGE',
+        limit: 4096,
+      });
+    }
+    // A promise is not an answer either, and its rejection stays handled.
+    const unhandled = await unhandledDuring(async () => {
+      const h = harness({
+        capabilities: () =>
+          Promise.reject(new Error('async registry')) as never,
+        script: (n) => huge(n),
+      });
+      await credentialFor(h, 'c1', 'amqp');
+      expect(h.manager.stats().capabilityErrors).toBe(1);
+    });
+    expect(unhandled).toEqual([]);
+  });
+
+  it('M1-23 slice D hardening a flag that is truthy but not true is not believed, a partial object is read flag by flag', async () => {
+    for (const truthy of [1, 'yes', {}, [], 'true']) {
+      const h = harness({
+        capabilities: () =>
+          ({
+            amqp10TokenRenewalEndpoint: truthy,
+            amqp091ClosesAtCredentialExpiry: truthy,
+            amqp091PreAuthFrame8192: truthy,
+          }) as unknown as IdentityCapabilities,
+        script: (n) => huge(n),
+      });
+      const got = await credentialFor(h, 'c1', 'amqp');
+      expect(got.warnings[0]?.limit, JSON.stringify(truthy)).toBe(4096);
+      expect(h.manager.stats().capabilityErrors).toBe(0);
+    }
+    // Only the flag that is true is read as true.
+    const partial = harness({
+      capabilities: () =>
+        ({ amqp091PreAuthFrame8192: true }) as unknown as IdentityCapabilities,
+      script: (n) => huge(n),
+    });
+    expect((await credentialFor(partial, 'c1', 'amqp')).warnings).toEqual([]);
+    expect(partial.manager.stats().capabilityErrors).toBe(0);
+    const none = harness({
+      capabilities: () => ({}) as unknown as IdentityCapabilities,
+      script: (n) => huge(n),
+    });
+    expect((await credentialFor(none, 'c1', 'amqp')).warnings[0]?.limit).toBe(
+      4096,
+    );
+  });
+
+  it('M1-23 slice D hardening capabilities() that is not an object does not escape the expiry timer and cancels the own consumers', async () => {
+    const cases: [string, unknown][] = [
+      ...notObjects,
+      ['a truthy flag', { amqp091ClosesAtCredentialExpiry: 'yes' }],
+      ['a promise', Promise.resolve({ amqp091ClosesAtCredentialExpiry: true })],
+    ];
+    for (const [name, value] of cases) {
+      let broken = false;
+      const h = harness({
+        script: firstThenDown,
+        capabilities: () =>
+          broken
+            ? (value as IdentityCapabilities)
+            : {
+                amqp10TokenRenewalEndpoint: false,
+                amqp091PreAuthFrame8192: false,
+                amqp091ClosesAtCredentialExpiry: false,
+              },
+      });
+      await started(h);
+      broken = true;
+      // A throw out of the callback would reject the advance (the manual timers call it directly).
+      await h.timers.advance(LIFETIME);
+      expect(helpers.calls(h, 'cancelOwnConsumers').length, name).toBe(1);
+      expect(stateOf(h)?.state, name).toBe('expired');
+    }
+  });
+
+  it('M1-23 slice D hardening capabilities() that is not an object, or a truthy flag, does not choose put-auth-token on the push path', async () => {
+    const cases: unknown[] = [
+      undefined,
+      null,
+      'yes',
+      [],
+      { amqp10TokenRenewalEndpoint: 1 },
+      { amqp10TokenRenewalEndpoint: 'yes' },
+      {},
+    ];
+    for (const value of cases) {
+      const h = harness({
+        withPutAuthToken: true,
+        capabilities: () => value as IdentityCapabilities,
+      });
+      await started(h, 'amqp10');
+      await h.timers.advance(750 * SECOND); // the renewal and the push
+      expect(h.provider.calls, JSON.stringify(value)).toBe(2);
+      expect(h.auth.calls, JSON.stringify(value)).toEqual([
+        { method: 'reconnect', id: 'c1', arg: 'amqp10' },
+      ]);
+    }
+    // A flag that is really true still chooses it.
+    const ok = harness({
+      withPutAuthToken: true,
+      capabilities: () => ({
+        amqp10TokenRenewalEndpoint: true,
+        amqp091ClosesAtCredentialExpiry: false,
+        amqp091PreAuthFrame8192: false,
+      }),
+    });
+    await started(ok, 'amqp10');
+    await ok.timers.advance(750 * SECOND);
+    expect(ok.auth.calls).toEqual([
+      { method: 'putAuthToken', id: 'c1', arg: 'token-2' },
+    ]);
+  });
+});

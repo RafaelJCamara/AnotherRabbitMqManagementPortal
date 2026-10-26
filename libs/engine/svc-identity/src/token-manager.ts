@@ -370,6 +370,34 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     invalidations: 0,
   };
 
+  /**
+   * Calls an injected callback that is typed to return nothing. A throw is counted; so is the
+   * failure of a thenable it returns (an `async` function type-checks as `() => void`), which
+   * is observed with a handler so it never becomes an unhandled rejection. The result is not
+   * awaited and nothing is held, and the error value is dropped, never logged (I-10).
+   * Each call counts at most once.
+   */
+  function callSink<A>(sink: (arg: A) => unknown, arg: A): void {
+    let counted = false;
+    const count = (): void => {
+      if (counted) return;
+      counted = true;
+      counters.listenerErrors += 1;
+    };
+    try {
+      const result = sink(arg);
+      const then =
+        typeof result === 'object' || typeof result === 'function'
+          ? (result as { then?: unknown } | null)?.then
+          : undefined;
+      if (typeof then === 'function') {
+        then.call(result, undefined, count);
+      }
+    } catch {
+      count();
+    }
+  }
+
   const shuttingDown = (): AppError =>
     new AppError('ENGINE_SHUTTING_DOWN', {
       detail: 'The identity service is shutting down.',
@@ -466,11 +494,7 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     // state, and one that left meanwhile is not called either. Each gets its own snapshot.
     for (const slot of [...listeners]) {
       if (!listeners.has(slot)) continue;
-      try {
-        slot.call(snapshot(entry));
-      } catch {
-        counters.listenerErrors += 1;
-      }
+      callSink(slot.call, snapshot(entry));
     }
   }
 
@@ -710,11 +734,30 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
    */
   function readCapabilities(connectionId: string): IdentityCapabilities {
     try {
-      return deps.capabilities(connectionId);
+      const raw: unknown = deps.capabilities(connectionId);
+      if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
+        const then = (raw as { then?: unknown }).then;
+        // A promise is not an answer; its failure is observed so it cannot go unhandled.
+        if (typeof then !== 'function') {
+          const flags = raw as Partial<
+            Record<keyof IdentityCapabilities, unknown>
+          >;
+          // Only `true` counts: a truthy 1, 'yes' or {} proves nothing about the broker.
+          return {
+            amqp10TokenRenewalEndpoint:
+              flags.amqp10TokenRenewalEndpoint === true,
+            amqp091ClosesAtCredentialExpiry:
+              flags.amqp091ClosesAtCredentialExpiry === true,
+            amqp091PreAuthFrame8192: flags.amqp091PreAuthFrame8192 === true,
+          };
+        }
+        then.call(raw, undefined, noop);
+      }
     } catch {
-      counters.capabilityErrors += 1;
-      return NO_CAPABILITIES;
+      // Falls through to the conservative answer.
     }
+    counters.capabilityErrors += 1;
+    return NO_CAPABILITIES;
   }
 
   const resolved = (entry: Entry): Resolved => {
@@ -1296,15 +1339,13 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
       if (reported.has(warning.code)) continue;
       reported.add(warning.code);
       counters.sizeWarnings += 1;
-      try {
-        deps.onSizeWarning?.({
+      if (deps.onSizeWarning !== undefined) {
+        callSink(deps.onSizeWarning, {
           connectionId,
           protocol,
           generation: value.generation,
           warning,
         });
-      } catch {
-        counters.listenerErrors += 1;
       }
     }
     if (entry !== undefined) {

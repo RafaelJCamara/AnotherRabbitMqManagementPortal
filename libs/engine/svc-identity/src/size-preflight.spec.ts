@@ -1,6 +1,6 @@
 // M1-23 slice D: the size preflight (AC-18 to AC-21). The sizes are exact byte counts, so each
 // boundary is tested on both sides; the texts are keys into `i18n/en/warnings.json`.
-import { createManualClock, createManualTimers } from '@app/kernel';
+import { AppError, createManualClock, createManualTimers } from '@app/kernel';
 import type { ConnectionAuthPort } from '@app/ports';
 import { describe, expect, it } from 'vitest';
 
@@ -333,7 +333,7 @@ describe('size preflight (M1-23, DC-38)', () => {
 /** A manager whose provider hands out `next(n)` (1-based) and whose sink records what it hears. */
 function warningRig(
   next: (n: number, now: number) => IssuedCredential,
-  sink?: (event: SizeWarningEvent) => void,
+  sink?: (event: SizeWarningEvent) => unknown,
 ) {
   const clock = createManualClock(0);
   const heard: SizeWarningEvent[] = [];
@@ -362,7 +362,7 @@ function warningRig(
     }),
     onSizeWarning: (event) => {
       heard.push(event);
-      sink?.(event);
+      return sink?.(event);
     },
     clock,
     timers: createManualTimers(clock),
@@ -457,5 +457,211 @@ describe('size warnings in the TokenManager (M1-23, slice D)', () => {
       expect(rig.heard).toEqual([]);
       expect(rig.manager.stats().sizeWarnings).toBe(0);
     }
+  });
+});
+
+describe('slice D security fixes: the Authorization header (F2)', () => {
+  const bearerWith = (token: string): IssuedCredential => ({
+    kind: 'bearer',
+    token: new SecretValue(token),
+    issuedAt: 0,
+    expiresAt: 1000,
+    username: 'alice',
+  });
+  const passwordWith = (
+    username: string,
+    password: string,
+  ): IssuedCredential => ({
+    kind: 'password',
+    username,
+    password: new SecretValue(password),
+  });
+  const refusal = (credential: IssuedCredential): unknown => {
+    try {
+      httpAuthorization(credential);
+    } catch (error) {
+      return error;
+    }
+    return undefined;
+  };
+
+  it('M1-23 slice D hardening a bearer token that could end the header or add one yields no header', () => {
+    for (const token of [
+      'abc\r\nX-Evil: 1',
+      'abc\nX-Evil: 1',
+      'abc\rdef',
+      'abc\0def',
+      'abc def',
+      ' abc',
+      'abc ',
+      'abc\tdef',
+      'abc\u007fdef',
+      'tökén',
+      'abc def',
+      '',
+    ]) {
+      const error = refusal(bearerWith(token));
+      expect(error, JSON.stringify(token)).toBeInstanceOf(AppError);
+      expect((error as AppError).code).toBe('VALIDATION_FAILED');
+      // Fixed text: no token, no cause.
+      expect((error as AppError).message).not.toContain('abc');
+      expect((error as AppError).cause).toBeUndefined();
+    }
+  });
+
+  it('M1-23 slice D hardening a Basic login with a colon in the user name or a control character is refused', () => {
+    expect(refusal(passwordWith('al:ice', 'pw'))).toBeInstanceOf(AppError);
+    expect(refusal(passwordWith(':', 'pw'))).toBeInstanceOf(AppError);
+    for (const bad of ['a\r\nb', 'a\nb', 'a\rb', 'a\0b']) {
+      expect(
+        refusal(passwordWith(bad, 'pw')),
+        JSON.stringify(bad),
+      ).toBeInstanceOf(AppError);
+      expect(
+        refusal(passwordWith('alice', bad)),
+        JSON.stringify(bad),
+      ).toBeInstanceOf(AppError);
+    }
+    const error = refusal(passwordWith('al:ice', 'topsecret')) as AppError;
+    expect(error.code).toBe('VALIDATION_FAILED');
+    expect(error.message).not.toContain('topsecret');
+    expect(error.message).not.toContain('al:ice');
+    expect(error.cause).toBeUndefined();
+  });
+
+  it('M1-23 slice D hardening valid tokens and logins give the same header as before, base64 padding included', () => {
+    // Every printable ASCII character, none of them a space.
+    let printable = '';
+    for (let code = 0x21; code <= 0x7e; code += 1) {
+      printable += String.fromCharCode(code);
+    }
+    expect(httpAuthorization(bearerWith(printable))).toBe(
+      `Bearer ${printable}`,
+    );
+    expect(httpAuthorization(bearerWith('a.b-c_d~e+f/g='))).toBe(
+      'Bearer a.b-c_d~e+f/g=',
+    );
+    // A colon, a space and non-ASCII in the password are valid Basic (RFC 7617).
+    expect(httpAuthorization(passwordWith('alice', 'p:w dé'))).toBe(
+      `Basic ${Buffer.from('alice:p:w dé', 'utf8').toString('base64')}`,
+    );
+    expect(httpAuthorization(passwordWith('élise', ''))).toBe(
+      `Basic ${Buffer.from('élise:', 'utf8').toString('base64')}`,
+    );
+    // Thirty-one sizes cover every padding case: the encoding is that of `alice:<token>`.
+    for (let size = 2980; size < 3011; size += 1) {
+      const token = 'a'.repeat(size);
+      expect(httpAuthorization(passwordWith('alice', token))).toBe(
+        `Basic ${Buffer.from(`alice:${token}`).toString('base64')}`,
+      );
+      expect(httpAuthorization(bearerWith(token))).toBe(`Bearer ${token}`);
+    }
+  });
+});
+
+describe('slice D security fixes: a sink that fails after an await (F3)', () => {
+  const unhandledWhile = async (
+    run: () => Promise<void>,
+  ): Promise<unknown[]> => {
+    const seen: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      seen.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      await run();
+      for (let i = 0; i < 4; i += 1) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+    return seen;
+  };
+
+  it('M1-23 slice D hardening every way a sink can fail is counted once and none is unhandled', async () => {
+    const sinks: [string, (event: SizeWarningEvent) => unknown, number][] = [
+      [
+        'async that rejects after an await',
+        async () => {
+          await Promise.resolve();
+          throw new Error('async sink down');
+        },
+        1,
+      ],
+      [
+        'sync that throws',
+        () => {
+          throw new Error('sync sink down');
+        },
+        1,
+      ],
+      ['a rejected promise', () => Promise.reject(new Error('rejected')), 1],
+      [
+        'a rejected thenable that is not a Promise',
+        () => ({
+          then: (_ok: unknown, fail: () => void) => {
+            fail();
+          },
+        }),
+        1,
+      ],
+      [
+        'a thenable that rejects twice',
+        () => ({
+          then: (_ok: unknown, fail: () => void) => {
+            fail();
+            fail();
+          },
+        }),
+        1,
+      ],
+      [
+        'a thenable whose then throws',
+        () => ({
+          then: () => {
+            throw new Error('then throws');
+          },
+        }),
+        1,
+      ],
+      [
+        'a rejected thenable that is a function',
+        () =>
+          Object.assign(() => undefined, {
+            then: (_ok: unknown, fail: () => void) => {
+              fail();
+            },
+          }),
+        1,
+      ],
+      ['an async that resolves', () => Promise.resolve(), 0],
+      ['a sync that returns', () => undefined, 0],
+    ];
+    for (const [name, sink, errors] of sinks) {
+      const { manager, heard } = warningRig(
+        () => bearerOf('a'.repeat(4100)),
+        sink,
+      );
+      const unhandled = await unhandledWhile(async () => {
+        const got = await manager.credentialFor('c1', 'http', signal);
+        // The credential is handed back whatever the sink does, and it does not wait for it.
+        expect(got.credential.kind).toBe('bearer');
+      });
+      expect(unhandled, name).toEqual([]);
+      expect(heard, name).toHaveLength(1);
+      expect(manager.stats().listenerErrors, name).toBe(errors);
+    }
+  });
+
+  it('M1-23 slice D hardening a sink that never settles holds nothing', async () => {
+    const { manager } = warningRig(
+      () => bearerOf('a'.repeat(4100)),
+      () => new Promise<void>(() => undefined),
+    );
+    const got = await manager.credentialFor('c1', 'http', signal);
+    expect(got.warnings).toHaveLength(1);
+    await expect(manager.dispose()).resolves.toBeUndefined();
+    expect(manager.stats().listenerErrors).toBe(0);
   });
 });

@@ -9,6 +9,7 @@
 // the issue states, the frame limits are the ones the research notes read from the broker source
 // (V41), and `PREAUTH_HEADROOM_BYTES` is a stated estimate (OQ-1457). The texts therefore say a
 // request "may" fail.
+import { AppError } from '@app/kernel';
 import type { RenewalProtocol } from '@app/ports';
 
 import type { IssuedCredential } from './provider';
@@ -84,22 +85,52 @@ export function preflightSize(input: PreflightInput): readonly SizeWarning[] {
     : [];
 }
 
+/** A bearer token is printable ASCII with no space, so it cannot end the header or add another. */
+const HEADER_TOKEN = /^[\x21-\x7e]+$/;
+/** CR, LF, NUL and the other C0 controls (and DEL) have no place in a login. */
+const CONTROL = /[\x00-\x1f\x7f]/;
+
+/** Fixed text: never the credential, never a cause (I-10). */
+const unsendable = (): AppError =>
+  new AppError('VALIDATION_FAILED', {
+    detail: 'The credential cannot be sent as an HTTP Authorization header.',
+  });
+
 /**
  * The value of the HTTP `Authorization` header for a credential (AC-20): a token is always sent
  * as `Bearer`, never as Basic; only a password credential is Basic; the certificate login has no
- * HTTP header. The HTTP client calls this at each request and holds the value no longer than that.
+ * HTTP header (`undefined`). The HTTP client calls this at each request and holds the value no
+ * longer than that.
+ *
+ * It throws a `VALIDATION_FAILED` Problem (fixed text) for a credential that is not a valid
+ * header value: a token outside printable ASCII or with a space, a Basic user name with a colon,
+ * or a control character in either Basic part. It never returns `undefined` for those, so a
+ * caller cannot take a refusal for "no header" and send the request without credentials.
  */
 export function httpAuthorization(
   credential: IssuedCredential,
 ): string | undefined {
   switch (credential.kind) {
-    case 'bearer':
-      return `Bearer ${credential.token.reveal()}`;
-    case 'password':
+    case 'bearer': {
+      const token = credential.token.reveal();
+      if (!HEADER_TOKEN.test(token)) throw unsendable();
+      return `Bearer ${token}`;
+    }
+    case 'password': {
+      // RFC 7617: the user name holds no colon (the first one splits user from password).
+      const password = credential.password.reveal();
+      if (
+        credential.username.includes(':') ||
+        CONTROL.test(credential.username) ||
+        CONTROL.test(password)
+      ) {
+        throw unsendable();
+      }
       return `Basic ${Buffer.from(
-        `${credential.username}:${credential.password.reveal()}`,
+        `${credential.username}:${password}`,
         'utf8',
       ).toString('base64')}`;
+    }
     case 'external':
       return undefined;
   }

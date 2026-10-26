@@ -571,3 +571,112 @@ describe('credential providers hardening', () => {
     }
   });
 });
+
+// The gaps the fresh review of slice A found by mutation: behaviour that was right but that no test
+// held in place. Each test names the mutant it kills.
+describe('credential providers test strength', () => {
+  const absent: StoredLoginPort = {
+    open: () => Promise.resolve({ kind: 'absent' as const }),
+  };
+
+  it('M1-23 strength a missing or locked stored login is refused by each provider that reads one', async () => {
+    const locked = fakeStored({ username: 'u', secret: 'whatever' });
+    locked.lock();
+
+    expect(
+      (
+        await failure(
+          createPasswordProvider({ stored: absent }).acquire(request(), signal),
+        )
+      ).code,
+    ).toBe('NOT_FOUND');
+    expect(
+      (
+        await failure(
+          createStaticTokenProvider({ stored: absent, clock }).acquire(
+            request(),
+            signal,
+          ),
+        )
+      ).code,
+    ).toBe('NOT_FOUND');
+    // Without the `locked` branch the static token provider would read a token that is not there.
+    expect(
+      (
+        await failure(
+          createStaticTokenProvider({ stored: locked, clock }).acquire(
+            request(),
+            signal,
+          ),
+        )
+      ).code,
+    ).toBe('GATE_BLOCKED');
+  });
+
+  it('M1-23 strength a token that expires exactly now is expired, and one second later is not', async () => {
+    const at = (exp: number) =>
+      createStaticTokenProvider({
+        stored: fakeStored({
+          username: null,
+          secret: jwt({ exp, sub: 'u' }),
+        }),
+        clock,
+      }).acquire(request(), signal);
+
+    expect((await failure(at(seconds(NOW)))).code).toBe('TOKEN_EXPIRED');
+    expect(await at(seconds(NOW) + 1)).toMatchObject({
+      kind: 'bearer',
+      expiresAt: NOW + 1000,
+    });
+  });
+
+  it('M1-23 strength the output cap counts bytes, not characters', async () => {
+    // 40 characters of three bytes each: under a 64-character cap, over a 64-byte cap.
+    const wide = '€'.repeat(40);
+    const { runner } = fakeRunner({ ok: true, stdout: wide });
+    const error = await failure(
+      createTokenCommandProvider({
+        config: commandConfig({ maxStdoutBytes: 64 }),
+        runner,
+        clock,
+      }).acquire(request(), signal),
+    );
+
+    expect(error.code).toBe('UNAUTHENTICATED');
+    expect(error.message).toContain('more than the allowed output');
+  });
+
+  it('M1-23 strength a SecretValue prints its marker when toString and toJSON are called explicitly', () => {
+    // AC-5 reaches the marker through `String()` and `format`, which use `Symbol.toPrimitive`; a
+    // `toString` or `toJSON` that returned the value would survive that test.
+    const secret = new SecretValue('CANARY-explicit-Lk2pV8sD4n');
+
+    expect(secret.toString()).toBe('[secret]');
+    expect(secret.toJSON()).toBe('[secret]');
+  });
+
+  it('M1-23 strength only a three-part token with JSON header and payload is read, and exp takes only a non-negative number', () => {
+    // A two-part token (no signature segment) and a four-part token are not JWTs.
+    expect(
+      readTokenClaims(`${b64({ alg: 'none' })}.${b64({ sub: 'u' })}`),
+    ).toBe(undefined);
+    expect(readTokenClaims(`${jwt({ sub: 'u' })}.extra`)).toBe(undefined);
+    // An empty signature is allowed; a header or payload that is not an object is not.
+    expect(readTokenClaims(jwt({ sub: 'u' }, ''))).toMatchObject({
+      username: 'u',
+    });
+    expect(readTokenClaims(`${b64([1])}.${b64({ sub: 'u' })}.c2ln`)).toBe(
+      undefined,
+    );
+    expect(readTokenClaims(`${b64({ alg: 'x' })}.${b64('u')}.c2ln`)).toBe(
+      undefined,
+    );
+    // exp: zero is a date (the epoch), a negative number, a string and a float NaN are not.
+    expect(readTokenClaims(jwt({ exp: 0 }))?.expiresAt).toBe(0);
+    expect(readTokenClaims(jwt({ exp: -1 }))?.expiresAt).toBe(null);
+    expect(readTokenClaims(jwt({ exp: '600' }))?.expiresAt).toBe(null);
+    expect(readTokenClaims(jwt({ exp: null }))?.expiresAt).toBe(null);
+    // A claim that is only on the prototype chain is not the user name.
+    expect(readTokenClaims(jwt({}), ['toString'])?.username).toBe(null);
+  });
+});

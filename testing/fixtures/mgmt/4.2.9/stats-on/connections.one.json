@@ -6,7 +6,7 @@
   "recv_cnt": 8,
   "host": "192.0.2.2",
   "ssl_cipher": "",
-  "connected_at": 1792419238031,
+  "connected_at": 1793002458659,
   "user_provided_name": "golden/recorder/source/seed",
   "node": "rabbit@lab-node",
   "auth_mechanism": "PLAIN",
@@ -23,7 +23,7 @@
     },
     "connection_name": "golden/recorder/source/seed",
     "information": "https://amqp-node.github.io/amqplib/",
-    "platform": "Node.JS v24.19.0",
+    "platform": "Node.JS v24.22.0",
     "product": "amqplib",
     "version": "2.2.0"
   },
@@ -35,33 +35,33 @@
     "minor_gcs": 1
   },
   "ssl_key_exchange": "",
-  "send_cnt": 7,
+  "send_cnt": 6,
   "user": "guest",
   "timeout": 30,
   "peer_cert_subject": "",
-  "reductions": 12812,
-  "send_oct_details": {
-    "rate": 0
-  },
+  "reductions": 12800,
   "send_pend": 0,
   "peer_cert_serial_number": "",
   "protocol": "AMQP 0-9-1",
   "channel_max": 2047,
   "send_oct": 936,
   "ssl_hash": "",
-  "peer_cert_validity": "",
   "user_who_performed_action": "guest",
+  "peer_cert_validity": "",
   "port": 5672,
+  "recv_oct_details": {
+    "rate": 0
+  },
   "ssl": false,
-  "name": "192.0.2.1:59242 -> 192.0.2.2:5672",
+  "send_oct_details": {
+    "rate": 0
+  },
+  "name": "192.0.2.1:42526 -> 192.0.2.2:5672",
   "peer_cert_issuer": "",
   "frame_max": 131072,
   "type": "network",
   "reductions_details": {
     "rate": 166
   },
-  "peer_port": 59242,
-  "recv_oct_details": {
-    "rate": 0
-  }
+  "peer_port": 42526
 }

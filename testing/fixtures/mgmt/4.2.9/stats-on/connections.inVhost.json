@@ -14,11 +14,11 @@
       },
       "connection_name": "golden/recorder/source/seed",
       "information": "https://amqp-node.github.io/amqplib/",
-      "platform": "Node.JS v24.19.0",
+      "platform": "Node.JS v24.22.0",
       "product": "amqplib",
       "version": "2.2.0"
     },
-    "connected_at": 1792419238031,
+    "connected_at": 1793002458659,
     "frame_max": 131072,
     "garbage_collection": {
       "fullsweep_after": 65535,
@@ -28,14 +28,14 @@
       "minor_gcs": 1
     },
     "host": "192.0.2.2",
-    "name": "192.0.2.1:59242 -> 192.0.2.2:5672",
+    "name": "192.0.2.1:42526 -> 192.0.2.2:5672",
     "node": "rabbit@lab-node",
     "peer_cert_issuer": null,
     "peer_cert_serial_number": null,
     "peer_cert_subject": null,
     "peer_cert_validity": null,
     "peer_host": "192.0.2.1",
-    "peer_port": 59242,
+    "peer_port": 42526,
     "port": 5672,
     "protocol": "AMQP 0-9-1",
     "recv_cnt": 8,
@@ -43,11 +43,11 @@
     "recv_oct_details": {
       "rate": 0
     },
-    "reductions": 12812,
+    "reductions": 12800,
     "reductions_details": {
       "rate": 166
     },
-    "send_cnt": 7,
+    "send_cnt": 6,
     "send_oct": 936,
     "send_oct_details": {
       "rate": 0

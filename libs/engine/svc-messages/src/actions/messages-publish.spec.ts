@@ -7,6 +7,7 @@
 // a lease type may be named only by an action module or a spec (I-2).
 import {
   checkRegistry,
+  messagesPublishHistoryGet,
   MessagesPublishOutputSchema,
   type InputOf,
 } from '@app/contracts';
@@ -34,7 +35,13 @@ import {
 } from '@app/ports';
 import { describe, expect, it } from 'vitest';
 
-import { createMemoryPublishRecorder } from '../testing';
+import { createPublishHistory } from '../internal/publish-history';
+import {
+  createFakeSealer,
+  createMemoryPublishHistory,
+  createMemoryPublishRecorder,
+} from '../testing';
+import { createMessagesPublishHistoryGetAction } from './messages-publish-history-get';
 import { createSubject, sampleInput } from './messages-publish.fixture';
 
 const subject = createSubject;
@@ -129,9 +136,10 @@ function setup(
   options: {
     lines?: string[];
     recorder?: ReturnType<typeof createMemoryPublishRecorder>;
+    /** Record in a real history store and serve `messages.publish-history.get` from it. */
+    withHistory?: boolean;
   } = {},
 ) {
-  const recorder = options.recorder ?? createMemoryPublishRecorder();
   const logger = createLogger({
     level: 'trace',
     sink: { write: (line) => options.lines?.push(line) },
@@ -139,7 +147,29 @@ function setup(
   const engine = createWiredExecutor({
     executor: { writes: script.writes, logger },
   });
-  engine.executor.register(subject({ recorder, logger }));
+  let entries = 0;
+  const store = createPublishHistory({
+    history: createMemoryPublishHistory(),
+    sealer: createFakeSealer(),
+    newId: () => {
+      entries += 1;
+      return `entry-${String(entries)}`;
+    },
+    clock: engine.clock,
+    logger,
+  });
+  // `recorder` is the memory recorder specs read `entries` from; with a history it is idle, because
+  // the store records instead.
+  const recorder = options.recorder ?? createMemoryPublishRecorder();
+  engine.executor.register(
+    subject({
+      recorder: options.withHistory === true ? store : recorder,
+      logger,
+    }),
+  );
+  if (options.withHistory === true) {
+    engine.executor.register(createMessagesPublishHistoryGetAction({ store }));
+  }
   let keys = 0;
   const context = (over: Partial<ExecutorContext> = {}): ExecutorContext => {
     keys += 1;
@@ -157,7 +187,17 @@ function setup(
     if (outcome.kind !== 'output') throw new Error(`got ${outcome.kind}`);
     return outcome.output;
   };
-  return { engine, recorder, context, publish };
+  /** Reads one history entry as the default principal, through the executor. */
+  const readEntry = async (entryId: string) => {
+    const outcome = await engine.executor.run(
+      messagesPublishHistoryGet,
+      { cid: 'c1', entryId },
+      context(),
+    );
+    if (outcome.kind !== 'output') throw new Error(`got ${outcome.kind}`);
+    return outcome.output;
+  };
+  return { engine, recorder, store, context, publish, readEntry };
 }
 
 const withCopies = (copies: number) => ({ ...sampleInput, copies });
@@ -678,6 +718,7 @@ describe('messages.publish (M1-19 slice A)', () => {
     };
     const lines: string[] = [];
     const seen: unknown[] = [];
+    const read: unknown[] = [];
 
     // Confirmed, returned (the broker's own text carries a canary), and throwing.
     const runs: Step[][] = [
@@ -699,13 +740,20 @@ describe('messages.publish (M1-19 slice A)', () => {
     ];
     const engines: WiredExecutor[] = [];
     for (const steps of runs) {
-      const { engine, publish } = setup(createScript(steps), { lines });
+      const { engine, publish, readEntry } = setup(createScript(steps), {
+        lines,
+        withHistory: true,
+      });
       engines.push(engine);
-      const answer: unknown = await publish({
+      const answer = await publish({
         ...input,
         copies: steps.length,
       }).catch((error: unknown) => toProblem(error));
       seen.push(answer);
+      // The history read: what the studio would be prefilled with.
+      if ('historyId' in answer && typeof answer.historyId === 'string') {
+        read.push(await readEntry(answer.historyId));
+      }
     }
     for (const engine of engines) {
       seen.push(engine.auditRows.rows, [...engine.receiptRows.rows.values()]);
@@ -720,6 +768,23 @@ describe('messages.publish (M1-19 slice A)', () => {
     ).toEqual([0, 1, 2]);
     expect(scanner.scan(JSON.stringify(seen))).toEqual([]);
     expect(lines.length).toBeGreaterThan(0);
+
+    // `messages.publish-history.get` reads three of the four runs back (the fourth sent nothing). The
+    // body, header and reply canaries are in none of it. The property canary is: a bare value in a
+    // plain property has no shape the mask can know, which is the stated limit (OQ-1442).
+    expect(read).toHaveLength(3);
+    const maskable = createCanaryScanner([
+      canary.body,
+      canary.header,
+      canary.reply,
+    ]);
+    expect(maskable.scan(JSON.stringify(read))).toEqual([]);
+    expect(JSON.stringify(read)).toContain(canary.prop);
+    const first = read[0] as { resend: { masked: string[] } };
+    expect([...first.resend.masked].sort()).toEqual([
+      'body',
+      'header:authorization',
+    ]);
   });
 });
 

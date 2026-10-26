@@ -62,3 +62,8 @@ export {
   type SizeWarning,
   type SizeWarningCode,
 } from './size-preflight';
+export {
+  createRegistryCapabilities,
+  type CapabilitySource,
+  type RegistryCapabilitiesDeps,
+} from './registry-capabilities';

@@ -59,7 +59,7 @@ export const REFUSAL_KEYS: Readonly<Record<LayoutRefusal, string>> = {
     @if (store.saveProblem(); as problem) {
       <div class="notice problem" role="alert">
         <span class="headline">{{
-          (store.saveState() === 'save-failed'
+          (store.problemOrigin() === 'save'
             ? 'shell.saveFailed.title'
             : 'shell.saveFailed.loadTitle'
           ) | transloco
@@ -78,8 +78,12 @@ export const REFUSAL_KEYS: Readonly<Record<LayoutRefusal, string>> = {
             <span class="source">{{ source }}</span>
           }
         }
-        @if (store.saveState() === 'save-failed') {
-          <button type="button" (click)="retry()">
+        @if (store.problemOrigin() === 'save') {
+          <button
+            type="button"
+            [disabled]="store.saveState() === 'saving'"
+            (click)="retry()"
+          >
             {{ 'shell.saveFailed.retry' | transloco }}
           </button>
         }

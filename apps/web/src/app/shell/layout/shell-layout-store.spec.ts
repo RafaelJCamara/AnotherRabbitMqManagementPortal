@@ -1,7 +1,16 @@
-import { TestBed } from '@angular/core/testing';
+import type { EnvironmentProviders, Provider } from '@angular/core';
+import { TestBed, type ComponentFixture } from '@angular/core/testing';
+import type { TransportRequest, TransportResponse } from '@app/ui-platform';
 import { problemResponse } from '@app/ui-platform/testing';
 import { describe, expect, it } from 'vitest';
 
+import {
+  SCOPE_LOADERS,
+  provideI18n,
+  provideScopes,
+} from '../../i18n/i18n.config';
+import { markerLoaders, settle } from '../../i18n/test-fixtures';
+import { LayoutNotices } from '../notices/layout-notices';
 import { fitLayout } from './fit-layout';
 import {
   LayoutBackend,
@@ -42,12 +51,55 @@ function storedFor(cid: string, extra: Partial<ShellLayout['sidebar']> = {}) {
   } satisfies ShellLayout;
 }
 
-function start(backend: LayoutBackend, timer = new ManualTimer()) {
+/** An engine whose `layouts.put` waits for the spec while `hold` is set. */
+class HeldBackend extends LayoutBackend {
+  hold: Promise<void> | null = null;
+  override handle(
+    request: TransportRequest,
+  ): TransportResponse | Promise<TransportResponse> {
+    if (request.method !== 'GET' && this.hold !== null) {
+      return this.hold.then(() => super.handle(request));
+    }
+    return super.handle(request);
+  }
+}
+
+function start(
+  backend: LayoutBackend,
+  timer = new ManualTimer(),
+  extra: readonly (EnvironmentProviders | Provider)[] = [],
+) {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    providers: layoutProviders(backend, timer, VIEWPORT_1280),
+    providers: [...layoutProviders(backend, timer, VIEWPORT_1280), ...extra],
   });
   return { store: TestBed.inject(ShellLayoutStore), timer };
+}
+
+/** The words a spec sees: every key is answered as `[[key]]`; engine data is shown as it is. */
+const noticeProviders: readonly (EnvironmentProviders | Provider)[] = [
+  provideI18n(),
+  provideScopes('shell'),
+  { provide: SCOPE_LOADERS, useValue: markerLoaders() },
+];
+
+/** Whether a person can see the element: no `hidden`, `aria-hidden`, `display: none` or `visibility: hidden` on it or above it. */
+function isVisible(element: Element | null): boolean {
+  for (let node = element; node !== null; node = node.parentElement) {
+    if (node.hasAttribute('hidden') || node.hasAttribute('aria-hidden')) {
+      return false;
+    }
+    const style = getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden') {
+      return false;
+    }
+  }
+  return element !== null;
+}
+
+/** The save-failure alert of the shell, or null when it is not there. */
+function alertOf(fixture: ComponentFixture<LayoutNotices>): HTMLElement | null {
+  return (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]');
 }
 
 describe('ShellLayoutStore', () => {
@@ -114,9 +166,12 @@ describe('ShellLayoutStore', () => {
 
   it("AC-7 saves are debounced, failures are shown with the engine's reason and nothing is lost", async () => {
     const backend = new LayoutBackend();
-    const { store, timer } = start(backend);
+    const { store, timer } = start(backend, new ManualTimer(), noticeProviders);
     await store.open(cidOf('c1'));
     expect(store.saveState()).toBe('ready');
+    const notices = TestBed.createComponent(LayoutNotices);
+    await settle(notices);
+    expect(alertOf(notices)).toBeNull();
 
     // A burst of 20 splitter moves inside the idle delay is one save.
     backend.putAnswers.push(
@@ -150,6 +205,30 @@ describe('ShellLayoutStore', () => {
     expect(store.saveProblem()?.gate?.reason).toBe('prod-lock');
     expect(store.layout().sidebar.width).toBe(219);
 
+    // The shell shows it: an alert, in words the person can see, with the engine's own text.
+    await settle(notices);
+    const first = alertOf(notices);
+    expect(first).not.toBeNull();
+    expect(isVisible(first)).toBe(true);
+    expect(first?.textContent).toContain('[[shell.saveFailed.title]]');
+    expect(first?.textContent).not.toContain('[[shell.saveFailed.loadTitle]]');
+    for (const shown of [
+      'Blocked by the guardrail',
+      'Writes are locked on this connection.',
+      'prod-lock',
+      'guardrail',
+    ]) {
+      const part = [...(first?.querySelectorAll('span') ?? [])].find(
+        (span) => span.textContent.trim() === shown,
+      );
+      expect(part, shown).toBeDefined();
+      expect(isVisible(part ?? null), shown).toBe(true);
+    }
+    const retryButton = first?.querySelector('button');
+    expect(retryButton?.textContent).toContain('[[shell.saveFailed.retry]]');
+    expect(isVisible(retryButton ?? null)).toBe(true);
+    expect(retryButton?.disabled).toBe(false);
+
     // A change after the failure arms the timer again; the next save carries the latest layout.
     store.update((layout) => setSidebarWidth(layout, 230));
     expect(store.saveState()).toBe('save-failed');
@@ -159,15 +238,82 @@ describe('ShellLayoutStore', () => {
     expect(backend.puts[1]?.layout).toMatchObject({ sidebar: { width: 230 } });
     expect(store.saveProblem()?.code).toBe('ENGINE_SHUTTING_DOWN');
     expect(store.saveState()).toBe('save-failed');
+    await settle(notices);
+    expect(alertOf(notices)?.textContent).toContain('Going away');
+    expect(alertOf(notices)?.textContent).not.toContain(
+      'Blocked by the guardrail',
+    );
 
-    // retrySave sends the latest document at once; a 200 clears the failure.
-    await store.retrySave();
+    // The Retry button sends the latest document at once (it is `retrySave`); a 200 clears the
+    // failure, and with it the alert.
+    alertOf(notices)?.querySelector('button')?.click();
+    await store.flush();
+    await settle(notices);
     expect(backend.puts).toHaveLength(3);
     expect(backend.puts[2]?.layout).toMatchObject({ sidebar: { width: 230 } });
     expect(store.saveState()).toBe('ready');
     expect(store.saveProblem()).toBeNull();
+    expect(alertOf(notices)).toBeNull();
     expect(backend.docs.get('c1')).toMatchObject({ sidebar: { width: 230 } });
     expect(timer.pending).toBe(0);
+  });
+
+  it('keeps the save-failure alert, and a visible Retry button, while a retry is in flight (review N2)', async () => {
+    const backend = new HeldBackend();
+    const { store, timer } = start(backend, new ManualTimer(), noticeProviders);
+    await store.open(cidOf('c1'));
+    const notices = TestBed.createComponent(LayoutNotices);
+    backend.putAnswers.push(
+      problemResponse(problem(503, 'ENGINE_SHUTTING_DOWN', { title: 'Away' })),
+    );
+    store.update((layout) => setSidebarWidth(layout, 240));
+    timer.fire();
+    await store.flush();
+    await settle(notices);
+    expect(store.saveState()).toBe('save-failed');
+    expect(alertOf(notices)?.textContent).toContain(
+      '[[shell.saveFailed.title]]',
+    );
+
+    // The retry is sent and not answered yet: the state is `saving`, the failure is still the
+    // story, and the button is still there (it cannot be pressed twice).
+    let release: () => void = () => undefined;
+    backend.hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    alertOf(notices)?.querySelector('button')?.click();
+    await settle(notices);
+    expect(store.saveState()).toBe('saving');
+    const during = alertOf(notices);
+    expect(during).not.toBeNull();
+    expect(during?.textContent).toContain('[[shell.saveFailed.title]]');
+    expect(during?.textContent).not.toContain('[[shell.saveFailed.loadTitle]]');
+    expect(during?.textContent).toContain('Away');
+    const button = during?.querySelector('button');
+    expect(button?.textContent).toContain('[[shell.saveFailed.retry]]');
+    expect(isVisible(button ?? null)).toBe(true);
+    expect(button?.disabled).toBe(true);
+
+    release();
+    await store.flush();
+    await settle(notices);
+    expect(store.saveState()).toBe('ready');
+    expect(alertOf(notices)).toBeNull();
+  });
+
+  it('says the stored layout could not be loaded, without a Retry button, when the read failed (review N2)', async () => {
+    const backend = new LayoutBackend();
+    backend.getAnswer = problemResponse(
+      problem(503, 'ENGINE_SHUTTING_DOWN', { title: 'Away' }),
+    );
+    const { store } = start(backend, new ManualTimer(), noticeProviders);
+    await store.open(cidOf('c1'));
+    const notices = TestBed.createComponent(LayoutNotices);
+    await settle(notices);
+    const shown = alertOf(notices);
+    expect(shown?.textContent).toContain('[[shell.saveFailed.loadTitle]]');
+    expect(shown?.textContent).not.toContain('[[shell.saveFailed.title]]');
+    expect(shown?.querySelector('button')).toBeNull();
   });
 
   it('flushes a pending save when asked (the page becomes hidden)', async () => {

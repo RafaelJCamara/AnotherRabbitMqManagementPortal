@@ -8,7 +8,13 @@ import { App } from '../../app';
 import { PAGE_RELOAD } from '../../boot/page-reload';
 import { SCOPE_LOADERS, provideI18n } from '../../i18n/i18n.config';
 import { markerLoaders, settle } from '../../i18n/test-fixtures';
-import { LayoutBackend, layoutProviders } from '../layout/layout-fixtures';
+import {
+  LayoutBackend,
+  cidOf,
+  layoutProviders,
+} from '../layout/layout-fixtures';
+import { setSidebarWidth } from '../layout/layout-ops';
+import { ShellLayoutStore } from '../layout/shell-layout-store';
 import {
   CHUNK_CLOCK,
   CHUNK_RELOAD_STATE,
@@ -52,6 +58,7 @@ const gone = (): Promise<never> =>
 
 async function setup(storage: Storage | null = new FakeStorage()) {
   let now = 1_000_000;
+  const backend = new LayoutBackend();
   const assign = vi.fn<(url: string) => void>();
   const reload = vi.fn<() => void>();
   TestBed.configureTestingModule({
@@ -66,7 +73,7 @@ async function setup(storage: Storage | null = new FakeStorage()) {
       ]),
       provideChunkReload(),
       provideI18n(),
-      ...layoutProviders(new LayoutBackend()),
+      ...layoutProviders(backend),
       { provide: SCOPE_LOADERS, useValue: markerLoaders() },
       { provide: CHUNK_RELOAD_STATE, useValue: storage },
       { provide: CHUNK_CLOCK, useValue: () => now },
@@ -89,6 +96,7 @@ async function setup(storage: Storage | null = new FakeStorage()) {
     );
   return {
     assign,
+    backend,
     reload,
     storage,
     go,
@@ -144,6 +152,37 @@ describe('chunk reload', () => {
     t.advance(2);
     await t.go('/lazy');
     expect(t.assign).toHaveBeenCalledTimes(3);
+
+    // An unrelated navigation error never reloads. Proved from a fresh start, with no reload
+    // behind it: inside the window after a reload the window alone would stop it.
+    TestBed.resetTestingModule();
+    const fresh = await setup();
+    await fresh.go('/broken');
+    expect(fresh.assign).not.toHaveBeenCalled();
+    expect(fresh.failure()).toBeNull();
+    expect((fresh.storage as FakeStorage).data.size).toBe(0);
+
+    // No layout loss: a change still waiting for its idle delay is sent before the page is
+    // opened again, and the reload goes to the same address.
+    TestBed.resetTestingModule();
+    const dirty = await setup();
+    const store = TestBed.inject(ShellLayoutStore);
+    await store.open(cidOf('c1'));
+    store.update((layout) => setSidebarWidth(layout, 250));
+    expect(dirty.backend.puts).toEqual([]);
+    const sentBeforeReload: number[] = [];
+    dirty.assign.mockImplementation(() => {
+      sentBeforeReload.push(dirty.backend.puts.length);
+    });
+    await dirty.go('/lazy?tab=2');
+    await vi.waitFor(() => {
+      expect(dirty.assign).toHaveBeenCalledTimes(1);
+    });
+    expect(sentBeforeReload).toEqual([1]);
+    expect(dirty.backend.puts[0]?.layout).toMatchObject({
+      sidebar: { width: 250 },
+    });
+    expect(dirty.assign).toHaveBeenCalledWith('/lazy?tab=2');
   });
 
   it('never reloads when the reload cannot be remembered (it could loop)', async () => {

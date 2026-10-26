@@ -43,6 +43,9 @@ export const VIEWPORT = new InjectionToken<() => Viewport>('VIEWPORT', {
 
 export type LayoutSaveState = 'loading' | 'ready' | 'saving' | 'save-failed';
 
+/** Which call the engine's Problem belongs to: reading the stored layout or writing it. */
+export type LayoutProblemOrigin = 'load' | 'save';
+
 /** An error as a Problem; the carrier failures have none, so the UI makes one up (flagged). */
 function asProblem(error: unknown): EngineProblemError {
   return error instanceof EngineProblemError
@@ -60,6 +63,7 @@ export class ShellLayoutStore {
   readonly #notice = signal<LayoutNotice | null>(null);
   readonly #saveState = signal<LayoutSaveState>('loading');
   readonly #saveProblem = signal<EngineProblemError | null>(null);
+  readonly #problemOrigin = signal<LayoutProblemOrigin | null>(null);
   readonly #refusal = signal<LayoutRefusal | null>(null);
   readonly #refusals = signal(0);
 
@@ -68,6 +72,11 @@ export class ShellLayoutStore {
   readonly saveState = this.#saveState.asReadonly();
   /** The engine's Problem for the last failed load or save, as sent. */
   readonly saveProblem = this.#saveProblem.asReadonly();
+  /**
+   * Whether `saveProblem` came from loading or from saving. It stays `save` while a retry is in
+   * flight (the state is `saving` then), so the UI keeps saying what failed (AC-7).
+   */
+  readonly problemOrigin = this.#problemOrigin.asReadonly();
   /** The reason the last change was refused for a cap, until it is dismissed. */
   readonly refusal = this.#refusal.asReadonly();
   /** How many changes were refused since the shell started (I-6, I-13: a refusal is counted). */
@@ -88,6 +97,7 @@ export class ShellLayoutStore {
     this.#layout.set(defaultLayout());
     this.#notice.set(null);
     this.#saveProblem.set(null);
+    this.#problemOrigin.set(null);
     this.#refusal.set(null);
     this.#saveState.set('loading');
     let layout: ShellLayout;
@@ -106,6 +116,7 @@ export class ShellLayoutStore {
     this.#layout.set(fitLayout(layout, this.#viewport()));
     this.#notice.set(notice);
     this.#saveProblem.set(problem);
+    this.#problemOrigin.set(problem === null ? null : 'load');
     this.#saveState.set('ready');
   }
 
@@ -207,10 +218,12 @@ export class ShellLayoutStore {
       } catch (error) {
         this.#dirty = true;
         this.#saveProblem.set(asProblem(error));
+        this.#problemOrigin.set('save');
         this.#saveState.set('save-failed');
         return;
       }
       this.#saveProblem.set(null);
+      this.#problemOrigin.set(null);
       this.#saveState.set('ready');
     }
   }

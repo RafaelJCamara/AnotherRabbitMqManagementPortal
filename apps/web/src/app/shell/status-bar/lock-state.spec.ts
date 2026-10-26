@@ -45,7 +45,7 @@ const lock = (host: HTMLElement): string | undefined =>
   host.querySelector('app-status-bar .lock .value')?.textContent.trim();
 
 describe('the lock segment of the status bar', () => {
-  it('AC-10 reads locked until this page armed the active connection, armed while the window is open, and locked again at its end', async () => {
+  it('M0-52 AC-10 reads locked until this page armed the active connection, armed while the window is open, and locked again at its end', async () => {
     const backend = new StatusBackend();
     for (const cid of ['c1', 'c2']) {
       backend.connections.set(

@@ -5,18 +5,18 @@
         "name": "golden.classic",
         "vhost": "golden"
       },
-      "consumer_tag": "amq.ctag-phmQCKook_TdnrWvX57_VN7_4jXSATzq",
+      "consumer_tag": "amq.ctag-MGdqQxa23bDztPqQVKA6khcLc-8MLRav",
       "exclusive": false,
       "ack_required": true,
       "prefetch_count": 2,
       "priority": 0,
       "channel_details": {
         "peer_host": "192.0.2.1",
-        "peer_port": 35992,
-        "connection_name": "192.0.2.1:35992 -> 192.0.2.2:5672",
+        "peer_port": 32912,
+        "connection_name": "192.0.2.1:32912 -> 192.0.2.2:5672",
         "user": "guest",
         "number": 1,
-        "name": "192.0.2.1:35992[1]"
+        "name": "192.0.2.1:32912[1]"
       }
     }
   ],

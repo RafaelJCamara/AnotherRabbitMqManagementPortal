@@ -51,6 +51,9 @@ export const FUNNEL_EXEMPT_PREFIXES: readonly string[] = [
   // The ConnectionManager is plumbing like the runner: it hands the role leases to the executor's
   // context and to nothing else. The rest of svc-connections is checked like any other service.
   'libs/engine/svc-connections/src/internal/connection-manager/',
+  // The peek executor is plumbing like the runner: it drives the one peek lease the peek action
+  // (M1-16) hands it and is called from that action only. The rest of svc-peek is checked.
+  'libs/engine/svc-peek/src/internal/executor.ts',
   'libs/engine/persistence/',
   'libs/engine/adapter-',
   'libs/engine/net-',

@@ -65,12 +65,57 @@ function hasNoControlCharacters(text: string): boolean {
   return true;
 }
 
+const LOOPBACK_V4 = /^127(?:\.\d{1,3}){3}$/;
+
+/**
+ * A token endpoint the engine may call (OQ-1462): `https`, or `http` only for a loopback issuer (the
+ * lab). A login in the URL would be a secret in a URL (I-10), and a fragment is never sent.
+ */
+function isAcceptableEndpoint(text: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return false;
+  }
+  if (url.username !== '' || url.password !== '' || url.hash !== '') {
+    return false;
+  }
+  if (url.protocol === 'https:') return url.hostname !== '';
+  return (
+    url.protocol === 'http:' &&
+    (url.hostname === 'localhost' ||
+      url.hostname === '[::1]' ||
+      LOOPBACK_V4.test(url.hostname))
+  );
+}
+
 /**
  * The non-secret settings of a provider, a strict union keyed by `kind`. The secret itself (a
- * password, a token) stays in the profile's sealed credential. Slice B adds `client-credentials`.
+ * password, a token, a client secret) stays in the profile's sealed credential.
  */
 export const ProviderConfigSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('password') }),
+  z.strictObject({
+    kind: z.literal('client-credentials'),
+    endpoint: z.string().min(1).max(2048).refine(isAcceptableEndpoint, {
+      message: 'The token endpoint must be https, or http on a loopback host.',
+    }),
+    clientId: z.string().min(1).max(256).refine(hasNoControlCharacters),
+    scope: z
+      .string()
+      .min(1)
+      .max(1024)
+      .refine(hasNoControlCharacters)
+      .optional(),
+    audience: z
+      .string()
+      .min(1)
+      .max(512)
+      .refine(hasNoControlCharacters)
+      .optional(),
+    usernameClaims: UsernameClaimsSchema,
+  }),
   z.strictObject({
     kind: z.literal('static-token'),
     usernameClaims: UsernameClaimsSchema,

@@ -10,6 +10,7 @@ Tags: `type:service`, `runtime:node`, `trust:critical`.
 - `IdentityModuleDeps` (`src/deps.ts`): the ports the module needs.
 - `createIdentityFakeDeps()` (`src/testing.ts`): fakes for those ports, for specs, the architecture manifest and the HTTP specs.
 - Credential providers (M1-23, slice A): `createPasswordProvider`, `createStaticTokenProvider`, `createTokenCommandProvider` and `createX509ExternalProvider`, each a `CredentialProvider` that returns an `IssuedCredential` or rejects with an `AppError` of fixed text. `ProviderConfigSchema` is the strict union of their non-secret settings.
+- The client-credentials provider (M1-23, slice B): `createClientCredentialsProvider` asks the configured token endpoint for an access token through `TokenEndpointPort` (the `adapter-token-endpoint` project implements it), with a fixed-text Problem per failure and a bounded wait. `ProviderConfigSchema` gains the `client-credentials` kind: an `https` endpoint (plain `http` only on a loopback host), a client id, an optional scope and audience; the client secret stays in the profile's sealed credential.
 - `SecretValue`: a secret that prints `[secret]` in `String`, `JSON.stringify` and `util.inspect`; `reveal()` is the one way to the value.
 - `readTokenClaims`: reads `exp`, `iat` and the user name claim of a JWT. It checks no signature; the broker does.
 - Ports (in `@app/ports`, `identity.ts`): `StoredLoginPort`, `CommandRunnerPort`, `TokenEndpointPort` and `ConnectionAuthPort`; the composition root implements them.

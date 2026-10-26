@@ -13,6 +13,9 @@ import type {
   CommandRunnerPort,
   CredentialProtocol,
   StoredLoginPort,
+  TokenEndpointPort,
+  TokenRequest,
+  TokenResponse,
 } from '@app/ports';
 import { describe, expect, it } from 'vitest';
 
@@ -24,6 +27,7 @@ import {
   type IssuedCredential,
 } from '../provider';
 
+import { createClientCredentialsProvider } from './client-credentials';
 import { createPasswordProvider } from './password';
 import { createStaticTokenProvider } from './static-token';
 import { createTokenCommandProvider } from './token-command';
@@ -321,6 +325,11 @@ describe('credential providers', () => {
         'CANARY-cmd-Lp6yB1sV5e',
       ),
       badToken: 'CANARY-notajwt-Jf2gU7aK0m',
+      clientSecret: 'CANARY-client-secret-Rt5xM0eW8h',
+      issuedToken: jwt(
+        { exp: seconds(NOW) + 600, sub: 'u3' },
+        'CANARY-issued-Wc9dF4gJ6n',
+      ),
     };
     const scanner = createCanaryScanner(Object.values(CANARY));
     const lines: string[] = [];
@@ -384,6 +393,44 @@ describe('credential providers', () => {
       command({ ok: true, stdout: CANARY.commandToken }),
       true,
     );
+    // Client credentials: the secret goes to the endpoint port as its argument and stays there.
+    const asked: TokenRequest[] = [];
+    const endpoint = (
+      answer: (request: TokenRequest) => TokenResponse,
+    ): TokenEndpointPort => ({
+      requestToken: (tokenRequest) => {
+        asked.push(tokenRequest);
+        return Promise.resolve(answer(tokenRequest));
+      },
+    });
+    const clientConfig = ProviderConfigSchema.parse({
+      kind: 'client-credentials',
+      endpoint: 'https://idp.example.test/token',
+      clientId: 'engine-client',
+    });
+    if (clientConfig.kind !== 'client-credentials') throw new Error('config');
+    const clientProvider = (port: TokenEndpointPort) =>
+      createClientCredentialsProvider({
+        config: clientConfig,
+        stored: stored(CANARY.clientSecret),
+        endpoint: port,
+        clock,
+      });
+    const issued = await run(
+      clientProvider(
+        endpoint(() => ({
+          ok: true,
+          accessToken: CANARY.issuedToken,
+          expiresInSeconds: 300,
+          tokenType: 'Bearer',
+        })),
+      ),
+      true,
+    );
+    expect(issued?.kind === 'bearer' && issued.token.reveal()).toBe(
+      CANARY.issuedToken,
+    );
+    expect(asked[0]?.clientSecret).toBe(CANARY.clientSecret);
     expect(password?.kind === 'password' && password.password.reveal()).toBe(
       CANARY.password,
     );
@@ -396,15 +443,8 @@ describe('credential providers', () => {
     // The scanner is not vacuous: it finds each canary in the revealed value.
     expect(scanner.scan(CANARY.password).length).toBeGreaterThan(0);
     expect(
-      scanner.scan(
-        JSON.stringify([
-          CANARY.password,
-          CANARY.staticToken,
-          CANARY.commandToken,
-          CANARY.badToken,
-        ]),
-      ).length,
-    ).toBeGreaterThanOrEqual(4);
+      scanner.scan(JSON.stringify([...Object.values(CANARY)])).length,
+    ).toBeGreaterThanOrEqual(6);
 
     // Failures: the canary is what the provider was fed, and no Problem repeats it.
     const lockedStore = stored(CANARY.password);
@@ -424,10 +464,28 @@ describe('credential providers', () => {
       false,
     );
 
+    // The client secret: an issuer that refuses, and a port that rejects with it in the message
+    // and in the cause chain. Neither reaches a Problem.
+    await run(
+      clientProvider(endpoint(() => ({ ok: false, reason: 'refused' }))),
+      false,
+    );
+    await run(
+      clientProvider({
+        requestToken: (tokenRequest) =>
+          Promise.reject(
+            new Error(`refused ${tokenRequest.clientSecret}`, {
+              cause: new Error(tokenRequest.clientSecret),
+            }),
+          ),
+      }),
+      false,
+    );
+
     expect(seen.length).toBeGreaterThan(20);
     expect(scanner.scan(seen.join('\n'))).toEqual([]);
     expect(scanner.scan(lines.join('\n'))).toEqual([]);
-    expect(lines.length).toBe(7);
+    expect(lines.length).toBe(10);
 
     // The wrapper itself prints a marker everywhere and has one way to the value.
     const direct = new SecretValue('CANARY-direct-Xv3nQ9tR2k');

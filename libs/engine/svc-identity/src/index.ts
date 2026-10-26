@@ -21,3 +21,7 @@ export { createPasswordProvider } from './providers/password';
 export { createStaticTokenProvider } from './providers/static-token';
 export { createTokenCommandProvider } from './providers/token-command';
 export { createX509ExternalProvider } from './providers/x509-external';
+export {
+  TOKEN_REQUEST_TIMEOUT_MS,
+  createClientCredentialsProvider,
+} from './providers/client-credentials';

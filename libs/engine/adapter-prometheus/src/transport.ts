@@ -80,6 +80,20 @@ class DialerAgent extends Agent {
   }
 }
 
+/**
+ * The `Host` header of an origin. The agent's default port is 80, so left alone Node would add `:443`
+ * to an https origin; here the scheme's default port is left out, any other port is kept and an IPv6
+ * literal is bracketed.
+ */
+export function hostHeader(dial: DialInfo): string {
+  const bare =
+    dial.host.includes(':') && !dial.host.startsWith('[')
+      ? `[${dial.host}]`
+      : dial.host;
+  const schemeDefault = dial.tls === undefined ? 80 : 443;
+  return dial.port === schemeDefault ? bare : `${bare}:${String(dial.port)}`;
+}
+
 export interface Exchange {
   readonly status: number;
   readonly response: IncomingMessage;
@@ -131,7 +145,7 @@ export function startExchange(request: ExchangeRequest): Promise<Exchange> {
         port: request.dial.port,
         method: 'GET',
         path: request.target,
-        headers: request.headers,
+        headers: { ...request.headers, host: hostHeader(request.dial) },
       },
       (response) => {
         response.once('close', stop);

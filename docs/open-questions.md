@@ -1443,11 +1443,11 @@ Peek preflight and rescue preflight, trust-critical. Agile mode: working default
 
 ## Spec questions: M0-51 close-out (issue #47, docs/specs/M0-51.md)
 
-The web shell landed in five slices (A to E). The spec's section "Status on 2026-10-26" proposes two closing slices (F: `layouts.put` and the prod lock, G: real-router proof, review, budget settings and close-out). Agile mode: working defaults in use. Ids start at OQ-1481.
+The web shell landed in five slices (A to E). The spec's section "Status on 2026-10-26" proposes two closing slices (F: `layouts.put` and the prod lock, G: real-router proof, review, budget settings and close-out). Agile mode: working defaults in use. Ids are OQ-1482 to OQ-1485 and OQ-1526 (the number OQ-1481 was already taken by the publish-history question of M1-19, slice C).
 
 | ID | Question | Context | Closes when |
 | --- | --- | --- | --- |
-| OQ-1481 | Are the landed slice sizes accepted, and is M0-51 closed after F and G (M0-51)? | The five slices changed 360, 1,217, 2,800, 1,710 and 1,404 lines (about 7,500 in all, 40 to 45 percent specs, fixtures and docs) against the 800-line limit and the spec's 2,550 to 3,000 estimate, and none carried `oversize-approved`. Same kind of question as OQ-498. Working default: accepted after the fact, `Closes #47` on the last close-out slice. Status: open - working default in use. | A maintainer labels #47 `oversize-approved` or says otherwise. |
+| OQ-1526 | Are the landed slice sizes accepted, and is M0-51 closed after F and G (M0-51)? | The five slices changed 360, 1,217, 2,800, 1,710 and 1,404 lines (about 7,500 in all, 40 to 45 percent specs, fixtures and docs) against the 800-line limit and the spec's 2,550 to 3,000 estimate, and none carried `oversize-approved`. Same kind of question as OQ-498. Working default: accepted after the fact, `Closes #47` on the last close-out slice. Status: open - working default in use. | A maintainer labels #47 `oversize-approved` or says otherwise. |
 | OQ-1482 | Is `layouts.put` made `scope: 'local'` so the first criterion of #47 holds on an unarmed connection (M0-51; extends OQ-529 and OQ-784)? | Today a layout save on an unarmed connection answers 422 `GATE_BLOCKED`, so a restart restores nothing there; the shell shows the Problem and keeps the layout in memory. Options are those of OQ-784: (a) drop the target and keep `cid` in the input (one contract line, the audit rows lose the connection id), (b) a second kind of local target (kernel, trust-critical), (c) leave it armed-only. Working default: no engine change until ruled; slice G proves the failure path (AC-16). Status: open - working default in use. | The maintainer rules at OQ-784. |
 | OQ-1483 | What happens to the Angular raw-size budget of `web` (M0-51)? | `apps/web/project.json` warns at 500 kB and fails at 1 MB raw; the initial total is 893.37 kB raw (245,810 bytes gzip against the real limit of 350,000), so every production build prints a warning and a real one is easy to miss. The cause is mostly `zod` with every locale (OQ-690). Options: raise the limits, remove the raw budget and rely on `web:budgets`, or trim zod. Working default: warning 950 kB and error 1.25 MB, gzip gate unchanged. Status: open - working default in use. | A maintainer picks. |
 | OQ-1484 | Is a fresh-session `/review-wp` of slices C to E required before M0-51 closes (M0-51)? | The spec asked for it for the status bar (fail-closed segments, AC-12); none is recorded. The WP is not trust-critical. Working default: one `/review-wp` over `5322aa7..80e8615`, no `security-review`. Status: open - working default in use. | A maintainer says otherwise, or the review is recorded. |
@@ -1455,7 +1455,7 @@ The web shell landed in five slices (A to E). The spec's section "Status on 2026
 
 ## Spec questions: M0-64 (issue #57, docs/specs/M0-64.md)
 
-Container image. Agile mode: working defaults in use. The machine that wrote the first slice had no Docker daemon, so the live and workflow criteria are unproved until a daemon or the repository runners run them. Ids start at OQ-1486 (the M0-51 close-out used OQ-1481 to OQ-1485).
+Container image. Agile mode: working defaults in use. The machine that wrote the first slice had no Docker daemon, so the live and workflow criteria are unproved until a daemon or the repository runners run them. Ids start at OQ-1486 (the M0-51 close-out used OQ-1482 to OQ-1485 and OQ-1526).
 
 | ID | Question | Context | Closes when |
 | --- | --- | --- | --- |

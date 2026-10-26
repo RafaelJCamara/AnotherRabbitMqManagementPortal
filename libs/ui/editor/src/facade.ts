@@ -1,8 +1,7 @@
 /**
  * The narrow types the rest of the application sees. No Monaco type or value crosses this file:
  * a feature talks to an `EditorHost`, and only the Monaco entry (slice A2) knows what is behind it.
- * The shape of `EditorHost` is settled by the components of slice B; today it is just enough for the
- * loader to be typed and for specs to provide a fake.
+ * Slice B settled this shape against a fake host; slice A2 implements it with Monaco.
  */
 
 export type EditorLanguage = 'plaintext' | 'json' | 'xml' | 'yaml';
@@ -24,6 +23,9 @@ export interface EditorOptions {
   readonly ariaLabel: string;
 }
 
+/** Monaco's four built-in theme names (plain strings; no Monaco type crosses this file). */
+export type EditorThemeName = 'vs' | 'vs-dark' | 'hc-black' | 'hc-light';
+
 export interface EditorHandle extends EditorDisposable {
   getValue(): string;
   setValue(value: string): void;
@@ -34,7 +36,10 @@ export interface EditorHandle extends EditorDisposable {
 }
 
 export interface EditorHost {
+  /** The host lays the editor out by itself when its container resizes (and stops on dispose). */
   createEditor(container: HTMLElement, options: EditorOptions): EditorHandle;
+  /** Monaco's theme is global to the page. */
+  setTheme(theme: EditorThemeName): void;
 }
 
 /** What the loader hands out. `load()` is single flight; a failure is not cached. */

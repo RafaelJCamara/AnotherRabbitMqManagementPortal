@@ -6,6 +6,8 @@ describe('ui-editor public API', () => {
   // Update this list, and the README, together with every export you add.
   it('exports exactly the documented names', () => {
     expect(Object.keys(api).sort()).toEqual([
+      'CodeEditor',
+      'EDITOR_MAX_MARKERS',
       'EDITOR_WORKER_PATHS',
       'EditorLoadError',
       'MONACO_LOADER',

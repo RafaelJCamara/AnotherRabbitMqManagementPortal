@@ -24,6 +24,21 @@
       "inputs": ["default", "^production"],
       "options": {
         "command": "vitest run --config libs/ui/editor/vitest.config.mts"
+      },
+      "dependsOn": ["test-components"]
+    },
+    "test-components": {
+      "executor": "@angular/build:unit-test",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "buildTarget": "web:build:development",
+        "tsConfig": "libs/ui/editor/tsconfig.spec.json",
+        "runner": "vitest",
+        "watch": false,
+        "include": [
+          "**/{code-editor.component,diff-editor.component,schema,theme-bridge}.spec.ts"
+        ]
       }
     }
   }

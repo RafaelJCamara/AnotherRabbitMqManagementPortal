@@ -1,14 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 
+import { fakeHost } from './editor-spec-support';
 import type { EditorHost } from './facade';
 import { createMonacoLoader, EditorLoadError, MONACO_LOADER } from './loader';
 
-const FAKE_HOST: EditorHost = {
-  createEditor: () => {
-    throw new Error('not used');
-  },
-};
+const FAKE_HOST: EditorHost = fakeHost();
 
 describe('the Monaco loader', () => {
   it('M1-46 AC-5 installs the environment before Monaco, single flight, and retries after a failure', async () => {

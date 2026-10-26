@@ -2,6 +2,7 @@
 export { installEditorEnvironment } from './environment/monaco-environment';
 export type { EditorRealm } from './environment/realm';
 export { EDITOR_WORKER_PATHS } from './environment/trusted-types';
+export { CodeEditor, EDITOR_MAX_MARKERS } from './code-editor.component';
 export type {
   EditorDisposable,
   EditorHandle,
@@ -9,6 +10,7 @@ export type {
   EditorLanguage,
   EditorMarker,
   EditorOptions,
+  EditorThemeName,
   MonacoLoader,
 } from './facade';
 export {

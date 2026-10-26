@@ -22,6 +22,15 @@ export class EditorLoadError extends Error {
   }
 }
 
+/** Any failure of `load()` as the typed error the components report. */
+export function toLoadError(cause: unknown): EditorLoadError {
+  return cause instanceof EditorLoadError
+    ? cause
+    : new EditorLoadError('module', 'The editor could not be loaded.', {
+        cause,
+      });
+}
+
 export interface MonacoLoaderParts {
   /** Runs before the factory, every attempt. Defaults to `installEditorEnvironment`. */
   readonly install?: () => void;

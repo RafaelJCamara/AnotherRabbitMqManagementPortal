@@ -1,14 +1,118 @@
-// Fakes for the peek preflight and the rescue preflight (M1-13). Slice A holds what the quarantine
-// spec needs: a recording `send`, a `send` that fails the run when touched, and a found queue built
-// from a spec. The scripted management API and the fake `PeekEvidencePort` arrive with the preflight
-// that reads them (slice B), so no fake exists here that no test uses.
-import type { MgmtSendRequest } from '@app/ports';
+// Fakes for the peek preflight and the rescue preflight (M1-13): a scripted management API, a fake
+// `PeekEvidencePort`, a recording `send`, a `send` that fails the run when touched, and a found queue
+// built from a spec. The specs of the three slices and `testing.ts` use them.
+//
+// The scripted API is a plain description of a vhost: the rows are raw management JSON, so a spec can
+// leave a field out the way a stats-off or provider-restricted broker does. It records every request
+// and parses the answer with the schema the caller sent, as the real adapter does (a body of the wrong
+// shape is a BROKER_ERROR Problem, the adapter's `unexpected-body`). The paths are the ones the
+// management API serves; a path with no row answers 404, and `failures` makes a path answer a status.
+import { AppError } from '@app/kernel';
+import type {
+  Lane,
+  MgmtQuery,
+  MgmtReadPort,
+  MgmtSendRequest,
+  PeekEvidencePort,
+  PeekEvidenceRequest,
+  QueuesEffectiveConfigOutput,
+  RoutingDlxSourcesOutput,
+} from '@app/ports';
+import { ZodError } from 'zod';
 
 import type {
   FoundQueue,
   QuarantineQueueSpec,
   QuarantineSend,
 } from './quarantine.ts';
+
+/** A raw management row: whatever the broker would send, fields left out on purpose. */
+export type ManagementRow = Readonly<Record<string, unknown>>;
+
+export interface RecordedRequest {
+  readonly method: 'GET' | 'STREAM';
+  readonly path: string;
+  readonly query: MgmtQuery | undefined;
+  readonly lane: Lane;
+}
+
+export interface VhostDescription {
+  readonly vhost: string;
+  /** Queue rows by queue name. */
+  readonly queues?: Readonly<Record<string, ManagementRow>>;
+  readonly consumers?: readonly ManagementRow[];
+  /** HTTP status a path answers with instead of a body: 403, 404 and 5xx become Problems. */
+  readonly failures?: Readonly<Record<string, number>>;
+  /** Called before each answer; a spec uses it to move a manual clock during a read. */
+  readonly onRequest?: (request: RecordedRequest) => void;
+}
+
+export interface ScriptedManagement {
+  readonly mgmt: MgmtReadPort;
+  readonly requests: readonly RecordedRequest[];
+}
+
+export const queuePath = (vhost: string, queue: string): string =>
+  `/api/queues/${encodeURIComponent(vhost)}/${encodeURIComponent(queue)}`;
+
+const STATUS_CODE: Readonly<
+  Record<number, ConstructorParameters<typeof AppError>[0]>
+> = { 403: 'FORBIDDEN_BROKER', 404: 'NOT_FOUND' };
+
+export function createScriptedManagement(
+  description: VhostDescription,
+): ScriptedManagement {
+  const { vhost } = description;
+  const enc = encodeURIComponent(vhost);
+  const routes = new Map<string, unknown>();
+  for (const [name, row] of Object.entries(description.queues ?? {})) {
+    routes.set(queuePath(vhost, name), row);
+  }
+  routes.set(`/api/consumers/${enc}`, description.consumers ?? []);
+  const requests: RecordedRequest[] = [];
+  const record = (request: RecordedRequest): void => {
+    requests.push(request);
+    description.onRequest?.(request);
+  };
+  const mgmt: MgmtReadPort = {
+    get(request, signal) {
+      signal.throwIfAborted();
+      record({
+        method: 'GET',
+        path: request.path,
+        query: request.query,
+        lane: request.lane,
+      });
+      const status = description.failures?.[request.path];
+      if (status !== undefined) {
+        return Promise.reject(
+          new AppError(STATUS_CODE[status] ?? 'BROKER_ERROR'),
+        );
+      }
+      if (!routes.has(request.path)) {
+        return Promise.reject(new AppError('NOT_FOUND'));
+      }
+      try {
+        return Promise.resolve(request.schema.parse(routes.get(request.path)));
+      } catch (error) {
+        if (error instanceof ZodError) {
+          return Promise.reject(new AppError('BROKER_ERROR'));
+        }
+        throw error;
+      }
+    },
+    stream(request) {
+      record({
+        method: 'STREAM',
+        path: request.path,
+        query: request.query,
+        lane: request.lane,
+      });
+      return Promise.reject(new Error('stream is not scripted'));
+    },
+  };
+  return { mgmt, requests };
+}
 
 export interface RecordedSend {
   readonly method: MgmtSendRequest<unknown>['method'];
@@ -52,5 +156,106 @@ export function foundFromSpec(
     autoDelete: spec.autoDelete,
     arguments: { ...spec.arguments },
     ...overrides,
+  };
+}
+
+export interface FakeEvidenceOptions {
+  readonly dlxSources?: Partial<RoutingDlxSourcesOutput>;
+  readonly effectiveConfig?: Partial<QueuesEffectiveConfigOutput>;
+  /** When set, both calls reject with it (a timeout, a Problem). */
+  readonly failWith?: Error;
+}
+
+export interface FakeEvidence extends PeekEvidencePort {
+  readonly calls: readonly {
+    readonly op: 'dlxSources' | 'effectiveConfig';
+    readonly request: PeekEvidenceRequest & {
+      readonly heldDeathSources?: readonly string[];
+    };
+  }[];
+}
+
+const SNAPSHOT: RoutingDlxSourcesOutput['snapshot'] = {
+  takenAt: 0,
+  truncation: {
+    queues: 0,
+    exchanges: 0,
+    bindings: 0,
+    consumers: 0,
+    policies: 0,
+    operatorPolicies: 0,
+  },
+  consumers: 'read',
+};
+
+/** A complete, hazard-free `routing.dlx-sources` answer; `overrides` make it differ. */
+export function dlxAnswer(
+  request: PeekEvidenceRequest,
+  overrides: Partial<RoutingDlxSourcesOutput> = {},
+): RoutingDlxSourcesOutput {
+  return {
+    vhost: request.vhost,
+    queue: request.queue,
+    sources: [],
+    sourcesMore: 0,
+    complete: true,
+    unknownReasons: [],
+    unknownReasonsMore: 0,
+    truncation: { sources: 0, steps: 0, paths: 0, loops: 0, candidates: 0 },
+    heldDeathSourcesConsidered: [],
+    gaps: [],
+    snapshot: SNAPSHOT,
+    ...overrides,
+  };
+}
+
+/** A `queues.effective-config` answer that decided nothing (`effective` is null); `overrides` fill it in. */
+export function effectiveConfigAnswer(
+  request: PeekEvidenceRequest,
+  overrides: Partial<QueuesEffectiveConfigOutput> = {},
+): QueuesEffectiveConfigOutput {
+  return {
+    vhost: request.vhost,
+    queue: request.queue,
+    queueType: null,
+    version: null,
+    mixedVersions: false,
+    layers: { user: { state: 'none' }, operator: { state: 'none' } },
+    effective: null,
+    gaps: [],
+    snapshot: SNAPSHOT,
+    ...overrides,
+  };
+}
+
+export function createFakeEvidence(
+  options: FakeEvidenceOptions = {},
+): FakeEvidence {
+  const calls: {
+    op: 'dlxSources' | 'effectiveConfig';
+    request: PeekEvidenceRequest & { heldDeathSources?: readonly string[] };
+  }[] = [];
+  const answer = <T>(
+    op: 'dlxSources' | 'effectiveConfig',
+    request: PeekEvidenceRequest,
+    signal: AbortSignal,
+    make: () => T,
+  ): Promise<T> => {
+    signal.throwIfAborted();
+    calls.push({ op, request });
+    return options.failWith === undefined
+      ? Promise.resolve(make())
+      : Promise.reject(options.failWith);
+  };
+  return {
+    calls,
+    dlxSources: (request, _principal, signal) =>
+      answer('dlxSources', request, signal, () =>
+        dlxAnswer(request, options.dlxSources),
+      ),
+    effectiveConfig: (request, _principal, signal) =>
+      answer('effectiveConfig', request, signal, () =>
+        effectiveConfigAnswer(request, options.effectiveConfig),
+      ),
   };
 }

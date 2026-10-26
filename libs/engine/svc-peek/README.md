@@ -14,8 +14,9 @@ Tags: `type:service`, `runtime:node`, `trust:critical`.
 - `ExecutionHooks`: the guard (returns `doomed` or `not-doomed`) and the copy. M1-15 and M1-16 supply the real ones.
 - `quarantineName(prefix)`, `buildQuarantineSpec(name, vhost, type)`, `conformsToSpec(found, spec)`, `ensureQuarantine(args, signal)` (`src/internal/quarantine.ts`, M1-13 slice A): the rescue preflight's quarantine queue. The name is `${prefix}.quarantine` with the prefix injected by the composition root (a bad prefix throws `RangeError` at start). The spec is literal (A-5): durable, not auto-delete, `x-overflow: reject-publish`, no max-length, never `drop-head`; classic by default, quorum with `x-delivery-limit: -1` as the fallback where classic is disabled. `ensureQuarantine` reuses a conforming queue, never touches a queue of another shape, and otherwise sends one `PUT /api/queues/{vhost}/{name}` through the `send` its caller passes. The peek action (M1-16) calls it from `execute()` with `ctx.writes.mgmt.send`.
 - `PeekEvidencePort` (`@app/ports`, `peek-evidence.ts`): the DLX sources and the effective configuration of the peeked queue, as `routing.dlx-sources` and `queues.effective-config` answer them. The composition root implements it over the query actions; this project sees only the port (a service never imports a service, OQ-1468).
+- `createPeekPreflight({mgmt, evidence, clock, limits?})` (`src/internal/preflight.ts`, M1-13 slice B, DC-06): `run({connectionId, vhost, queue, principal}, signal)` fills the planner's `PeekPreflight` with HTTP GET requests only: the queue row (one read, timed for `rttMs`, floor 1 ms), the consumer list for a single-active-consumer queue only, and the dead-letter evidence and effective configuration through the `PeekEvidencePort`. Its deps hold the read port and the evidence port and nothing that can write (I-2); every read is on the `interactive` lane (I-8) and counted against `maxReads` (9). A field the broker did not send stays absent; an unreadable consumer list, a cut list or an unreadable evidence answer fails closed (a busy single-active-consumer queue, incomplete evidence). The outcome holds numbers, names and closed codes only (I-10). The management rows it parses are in `src/internal/preflight-rows.ts`.
 - `createPeekModule(deps)`: returns the `EngineModule` the composition root registers.
-- `createPeekFakeDeps()` (`src/testing.ts`): fakes for the module's ports, for specs and the architecture manifest.
+- `createPeekFakeDeps()` (`src/testing.ts`): fakes for the module's ports (a scripted management API and a fake evidence port, `src/internal/preflight-fakes.ts`), for specs and the architecture manifest.
 
 ## States
 
@@ -36,12 +37,14 @@ Tags: `type:service`, `runtime:node`, `trust:critical`.
 - The quarantine code names no write port, lease or connection manager: it takes `send` as an argument, so the architecture test (I-2) needs no exemption for it (M1-13 AC-25).
 - A quarantine queue of the right name but another shape (non-durable, another type, any extra argument) is reported `wrong-shape` and is never reused, changed or deleted (A-5). Its outcome holds closed codes only, never the broker's text (I-10).
 
+- The peek preflight never throws a non-Problem: a missing, refused or malformed queue is a Problem (`NOT_FOUND`, `FORBIDDEN_BROKER`, `BROKER_ERROR`) without the broker's text; an evidence failure is `evidence-unavailable`, never a hazard-free answer; a list past its bound is cut and counted, and a cut consumer list counts as an active consumer (M1-13 AC-1 to AC-7).
+
 ## Proof commands
 
 ```sh
 pnpm nx run-many -t lint typecheck test -p svc-peek
 pnpm nx test svc-peek --testNamePattern=executor
-pnpm nx test svc-peek --testNamePattern=preflight   # the quarantine spec (M1-13 slice A: AC-22 to AC-24)
+pnpm nx test svc-peek --testNamePattern=preflight   # the quarantine spec (slice A: AC-22 to AC-24) and the peek preflight (slice B: AC-1 to AC-7)
 pnpm nx test arch-tests --testNamePattern=M1-13     # AC-25
 ```
 

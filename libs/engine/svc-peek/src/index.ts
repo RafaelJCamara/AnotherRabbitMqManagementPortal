@@ -30,3 +30,15 @@ export type {
   QuarantineSend,
   QuorumQuarantineSpec,
 } from './internal/quarantine.ts';
+// The peek preflight (M1-13, DC-06): fills the planner's input with HTTP GET requests only.
+export {
+  createPeekPreflight,
+  DEFAULT_PREFLIGHT_LIMITS,
+} from './internal/preflight.ts';
+export type {
+  PeekPreflightDeps,
+  PeekPreflightRequest,
+  PeekPreflightService,
+  PreflightLimits,
+  PreflightOutcome,
+} from './internal/preflight.ts';

@@ -1,16 +1,18 @@
 // The draft as the contract's publish input (R4). The studio composes; the engine decides. Every bound of the
 // contract is checked here too, so a field that is over one is named before any call. `mandatory` and `confirm`
 // are always true (DC-12, OQ-1438): there is nothing in the draft that could turn them off.
-import {
-  MessagesPublishInputSchema,
-  PUBLISH_LIMITS,
-  publishBodyBytes,
-  type ConnectionId,
-  type InputOf,
-  type messagesPublish,
-  type PublishProps,
+import type {
+  ConnectionId,
+  InputOf,
+  messagesPublish,
+  PublishProps,
 } from '@app/contracts';
 
+import {
+  parsePublishInput,
+  PUBLISH_LIMITS,
+  publishBodyBytes,
+} from './contract-values';
 import type { DraftIssue, PublishDraft } from './draft';
 import { rowsToHeaders } from './header-model';
 import { PROP_TEXT_FIELDS } from './limits';
@@ -130,7 +132,7 @@ export function draftToInput(
   );
   if (issues.length > 0) return { ok: false, issues };
 
-  const parsed = MessagesPublishInputSchema.safeParse({
+  const parsed = parsePublishInput({
     cid,
     vhost: draft.vhost,
     exchange: draft.exchange,

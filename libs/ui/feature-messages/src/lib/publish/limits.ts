@@ -2,7 +2,7 @@
 // mirrors them to hint and to name a field that is over one, and never to decide whether a person may publish.
 import type { EditorLanguage } from '@app/ui-editor';
 
-export { PUBLISH_LIMITS } from '@app/contracts';
+export { PUBLISH_LIMITS, publishBodyBytes } from './contract-values';
 
 /** The text properties of a message, in the order the form shows them. */
 export const PROP_TEXT_FIELDS = [

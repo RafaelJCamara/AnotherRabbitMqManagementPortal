@@ -13,7 +13,6 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { PUBLISH_LIMITS, publishBodyBytes } from '@app/contracts';
 import { TranslocoDirective } from '@jsverse/transloco';
 
 import { PUBLISH_CONNECTION } from '../connection';
@@ -25,7 +24,7 @@ import { EditorField } from './editor-field.component';
 import { Field } from './field.component';
 import { HeaderGrid } from './header-grid.component';
 import { issueText, issuesOf } from './issue-text';
-import { BODY_LANGUAGES } from './limits';
+import { BODY_LANGUAGES, PUBLISH_LIMITS, publishBodyBytes } from './limits';
 import { prefillFromQuery, type PrefillParam } from './prefill';
 import { PropsForm } from './props-form.component';
 import type { Translate } from '../translate';

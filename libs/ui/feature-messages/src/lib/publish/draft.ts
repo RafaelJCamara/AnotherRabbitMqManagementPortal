@@ -1,6 +1,8 @@
 // The publish draft: what the studio holds while a person composes. In memory only (R7, OQ-1518).
-import { PUBLISH_LIMITS, type PublishProps } from '@app/contracts';
+import type { PublishProps } from '@app/contracts';
 import type { EditorLanguage } from '@app/ui-editor';
+
+import { PUBLISH_LIMITS } from './contract-values';
 
 import type {
   HeaderIssueCode,

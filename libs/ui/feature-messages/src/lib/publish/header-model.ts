@@ -1,13 +1,14 @@
 // The header table as rows a person edits, and back to the contract's typed table `{ t, v }` (R4). A row keeps
 // its AMQP type; its value is the text typed in (a number, true or false, base64, or JSON for decimal, array and
 // table). Nothing here guesses: a value that does not fit its type is a named problem on its row.
+import type { PublishHeaders } from '@app/contracts';
+
 import {
+  parseHeaders,
+  parseHeaderValue,
   PUBLISH_LIMITS,
-  PublishHeaderValueSchema,
-  PublishHeadersSchema,
   publishBodyBytes,
-  type PublishHeaders,
-} from '@app/contracts';
+} from './contract-values';
 
 import { HEADER_TYPES, type HeaderType } from './limits';
 
@@ -132,9 +133,7 @@ export function rowValue(
   if (containerDepth(value) > PUBLISH_LIMITS.headerDepthMax) {
     return { code: 'too-deep' };
   }
-  return PublishHeaderValueSchema.safeParse(value).success
-    ? { value }
-    : { code: 'bad-value' };
+  return parseHeaderValue(value).success ? { value } : { code: 'bad-value' };
 }
 
 export function rowsToHeaders(rows: readonly HeaderRow[]): HeaderBuild {
@@ -216,7 +215,7 @@ export function parseHeadersJson(
   } catch {
     return { ok: false, error: 'json' };
   }
-  const parsed = PublishHeadersSchema.safeParse(raw);
+  const parsed = parseHeaders(raw);
   return parsed.success
     ? { ok: true, headers: parsed.data }
     : { ok: false, error: 'shape' };

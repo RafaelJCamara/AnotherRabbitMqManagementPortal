@@ -23,6 +23,7 @@ Slice C of M1-46: the project, its `publish` Transloco scope, the connection tok
 - All copy lives in `src/i18n/en.json`; templates contain bindings only (`@app/ui-no-raw-template-text`, `@app/honest-wording`).
 - The draft is in memory only (R7). Header values and properties are typed in clear and can hold a secret, so they are never written anywhere.
 - The UI never computes authorisation; this slice renders no gate and sends nothing.
+- Contract values (limits, schemas) are read only through `publish/contract-values.ts`, never imported by a component or the route directly: the bundler's chunk order would otherwise build the publish schemas before zod's Trusted Types switch (OQ-1572, #304).
 - Renders text through bindings, never `innerHTML` (`@app/no-inner-html`).
 
 ## Not done yet

@@ -22,8 +22,22 @@
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": ["default", "^production"],
+      "dependsOn": ["test-components"],
       "options": {
         "command": "vitest run --config libs/ui/feature-messages/vitest.config.mts"
+      }
+    },
+    "test-components": {
+      "executor": "@angular/build:unit-test",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "buildTarget": "web:build:development",
+        "tsConfig": "libs/ui/feature-messages/tsconfig.spec.json",
+        "runner": "vitest",
+        "runnerConfig": "libs/ui/feature-messages/vitest.components.config.mts",
+        "watch": false,
+        "include": ["**/*.component.spec.ts"]
       }
     }
   }

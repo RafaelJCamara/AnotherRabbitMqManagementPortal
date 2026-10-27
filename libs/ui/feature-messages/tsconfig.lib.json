@@ -5,5 +5,10 @@
     "types": []
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "src/test-setup.ts"]
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/test-setup.ts",
+    "src/lib/publish/spec-support.ts",
+    "src/lib/publish/studio-bed.ts"
+  ]
 }

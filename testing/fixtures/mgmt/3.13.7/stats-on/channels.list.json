@@ -10,9 +10,9 @@
       "acks_uncommitted": 0,
       "confirm": false,
       "connection_details": {
-        "name": "192.0.2.1:56636 -> 192.0.2.2:5672",
+        "name": "192.0.2.1:59906 -> 192.0.2.2:5672",
         "peer_host": "192.0.2.1",
-        "peer_port": 56636
+        "peer_port": 59906
       },
       "consumer_count": 1,
       "garbage_collection": {
@@ -20,10 +20,10 @@
         "max_heap_size": 0,
         "min_bin_vheap_size": 46422,
         "min_heap_size": 233,
-        "minor_gcs": 8
+        "minor_gcs": 0
       },
       "global_prefetch_count": 0,
-      "idle_since": "2026-10-19T14:10:02.617+00:00",
+      "idle_since": "2026-10-27T08:26:59.856+00:00",
       "message_stats": {
         "ack": 0,
         "ack_details": {
@@ -61,12 +61,12 @@
       "messages_unacknowledged": 2,
       "messages_uncommitted": 0,
       "messages_unconfirmed": 0,
-      "name": "192.0.2.1:56636 -> 192.0.2.2:5672 (1)",
+      "name": "192.0.2.1:59906 -> 192.0.2.2:5672 (1)",
       "node": "rabbit@lab-node",
       "number": 1,
       "pending_raft_commands": 0,
       "prefetch_count": 2,
-      "reductions": 2668,
+      "reductions": 2736,
       "reductions_details": {
         "rate": 0
       },

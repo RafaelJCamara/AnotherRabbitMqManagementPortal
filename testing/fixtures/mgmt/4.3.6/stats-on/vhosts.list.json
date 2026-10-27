@@ -31,7 +31,7 @@
     "messages": 11,
     "name": "golden",
     "recv_oct": 487,
-    "send_oct": 944,
+    "send_oct": 936,
     "description": "golden fixtures",
     "metadata": {
       "description": "golden fixtures",
@@ -53,6 +53,21 @@
     "cluster_state": {
       "rabbit@lab-node": "running"
     },
+    "recv_oct_details": {
+      "rate": 0
+    },
+    "send_oct_details": {
+      "rate": 0
+    },
+    "messages_details": {
+      "rate": 0
+    },
+    "messages_unacknowledged_details": {
+      "rate": 0
+    },
+    "messages_ready_details": {
+      "rate": 0
+    },
     "message_stats": {
       "ack": 0,
       "ack_details": {
@@ -68,7 +83,7 @@
       },
       "deliver_get": 4,
       "deliver_get_details": {
-        "rate": 0
+        "rate": 0.4
       },
       "deliver_no_ack": 0,
       "deliver_no_ack_details": {
@@ -80,7 +95,7 @@
       },
       "get": 2,
       "get_details": {
-        "rate": 0
+        "rate": 0.4
       },
       "get_empty": 0,
       "get_empty_details": {
@@ -102,21 +117,6 @@
       "return_unroutable_details": {
         "rate": 0
       }
-    },
-    "recv_oct_details": {
-      "rate": 0
-    },
-    "send_oct_details": {
-      "rate": 1.6
-    },
-    "messages_details": {
-      "rate": 0
-    },
-    "messages_unacknowledged_details": {
-      "rate": 0
-    },
-    "messages_ready_details": {
-      "rate": 0
     }
   }
 ]

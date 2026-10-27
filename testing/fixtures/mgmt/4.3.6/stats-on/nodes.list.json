@@ -2,6 +2,11 @@
   {
     "auth_mechanisms": [
       {
+        "name": "PLAIN",
+        "description": "SASL PLAIN authentication mechanism",
+        "enabled": true
+      },
+      {
         "name": "RABBIT-CR-DEMO",
         "description": "RabbitMQ Demo challenge-response authentication mechanism",
         "enabled": false
@@ -9,11 +14,6 @@
       {
         "name": "ANONYMOUS",
         "description": "SASL ANONYMOUS authentication mechanism",
-        "enabled": true
-      },
-      {
-        "name": "PLAIN",
-        "description": "SASL PLAIN authentication mechanism",
         "enabled": true
       },
       {

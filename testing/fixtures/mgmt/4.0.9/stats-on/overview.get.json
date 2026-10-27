@@ -61,7 +61,7 @@
   "cluster_tags": {},
   "node_tags": {},
   "erlang_version": "27.3.4.19",
-  "erlang_full_version": "Erlang/OTP 27 [erts-15.2.7.14] [source] [64-bit] [smp:32:32] [ds:32:32:10] [async-threads:1] [jit:ns]",
+  "erlang_full_version": "Erlang/OTP 27 [erts-15.2.7.14] [source] [64-bit] [smp:4:4] [ds:4:4:10] [async-threads:1] [jit:ns]",
   "disable_stats": false,
   "default_queue_type": "classic",
   "is_op_policy_updating_enabled": true,
@@ -85,7 +85,7 @@
       "rate": 0
     },
     "deliver_get_details": {
-      "rate": 0.4
+      "rate": 0
     },
     "ack_details": {
       "rate": 0
@@ -97,7 +97,7 @@
       "rate": 0
     },
     "deliver_details": {
-      "rate": 0.4
+      "rate": 0
     },
     "get_no_ack_details": {
       "rate": 0
@@ -112,16 +112,16 @@
       "rate": 0
     },
     "confirm_details": {
-      "rate": 2.2
+      "rate": 0
     },
     "publish_details": {
-      "rate": 2.2
+      "rate": 0
     },
     "disk_writes_details": {
-      "rate": 1
+      "rate": 0
     },
     "disk_reads_details": {
-      "rate": 0.4
+      "rate": 0
     }
   },
   "churn_rates": {
@@ -159,13 +159,13 @@
     "messages_ready": 9,
     "messages_unacknowledged": 2,
     "messages_details": {
-      "rate": 1.6
+      "rate": 0.6
     },
     "messages_unacknowledged_details": {
-      "rate": 0.4
+      "rate": 0
     },
     "messages_ready_details": {
-      "rate": 1.2
+      "rate": 0.6
     }
   },
   "object_totals": {

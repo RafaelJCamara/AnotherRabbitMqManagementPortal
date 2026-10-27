@@ -21,11 +21,11 @@ rabbitmq_detailed_queue_messages{vhost="golden",queue="golden.quorum"} 3
 rabbitmq_detailed_queue_messages{vhost="golden",queue="golden.dead"} 0
 # TYPE rabbitmq_detailed_queue_process_reductions_total counter
 # HELP rabbitmq_detailed_queue_process_reductions_total Total number of queue process reductions
-rabbitmq_detailed_queue_process_reductions_total{vhost="/",queue="default.classic"} 9049
+rabbitmq_detailed_queue_process_reductions_total{vhost="/",queue="default.classic"} 9034
 rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.stream"} 0
-rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.classic"} 17962
-rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.quorum"} 24825
-rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.dead"} 8243
+rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.classic"} 18049
+rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.quorum"} 24893
+rabbitmq_detailed_queue_process_reductions_total{vhost="golden",queue="golden.dead"} 8246
 # TYPE rabbitmq_detailed_queue_consumers gauge
 # HELP rabbitmq_detailed_queue_consumers Consumers on a queue
 rabbitmq_detailed_queue_consumers{vhost="/",queue="default.classic"} 0
@@ -38,7 +38,7 @@ rabbitmq_detailed_queue_consumers{vhost="golden",queue="golden.dead"} 0
 rabbitmq_build_info{rabbitmq_version="4.0.9",prometheus_plugin_version="4.0.9",prometheus_client_version="4.11.0",erlang_version="27.3.4.19"} 1
 # TYPE rabbitmq_identity_info untyped
 # HELP rabbitmq_identity_info RabbitMQ node & cluster identity info
-rabbitmq_identity_info{rabbitmq_node="rabbit@lab-node",rabbitmq_cluster="rabbit@lab-node",rabbitmq_cluster_permanent_id="rabbitmq-cluster-id-eczjg0qXxNK2F947zGC0yg",rabbitmq_endpoint="detailed"} 1
+rabbitmq_identity_info{rabbitmq_node="rabbit@lab-node",rabbitmq_cluster="rabbit@lab-node",rabbitmq_cluster_permanent_id="rabbitmq-cluster-id-RKtUGQqC0vKvFUgA4oiVgg",rabbitmq_endpoint="detailed"} 1
 # TYPE telemetry_scrape_size_bytes summary
 # HELP telemetry_scrape_size_bytes Scrape size, not encoded
 # TYPE telemetry_scrape_duration_seconds summary

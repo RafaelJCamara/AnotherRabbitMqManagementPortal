@@ -55,6 +55,7 @@
       "@app/feature-explorer/testing": [
         "./libs/ui/feature-explorer/src/testing.ts"
       ],
+      "@app/feature-messages": ["./libs/ui/feature-messages/src/index.ts"],
       "@app/forecast": ["./libs/shared/forecast/src/index.ts"],
       "@app/generators": ["./tools/generators/src/index.ts"],
       "@app/jobs": ["./libs/engine/jobs/src/index.ts"],

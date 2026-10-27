@@ -1,0 +1,30 @@
+{
+  "name": "feature-messages",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ui/feature-messages/src",
+  "projectType": "library",
+  "tags": ["type:ui-feature", "runtime:browser"],
+  "targets": {
+    "lint": {},
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "commands": [
+          "ngc -p libs/ui/feature-messages/tsconfig.lib.json --noEmit",
+          "ngc -p libs/ui/feature-messages/tsconfig.spec.json --noEmit"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest run --config libs/ui/feature-messages/vitest.config.mts"
+      }
+    }
+  }
+}

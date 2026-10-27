@@ -34,6 +34,20 @@ function explorerMount(
   };
 }
 
+/**
+ * The publish studio (M1-46): one lazy mount of the messages library at `publish`, given the shell's active
+ * connection. The library is loaded when the address is first visited, never statically; with no connection (an id
+ * that failed validation) the shell shows its no-connection view before this route is reached. There is no activity
+ * entry or command yet (slice G).
+ */
+const publishMount: Route = {
+  path: 'publish',
+  loadChildren: () =>
+    import('@app/feature-messages').then((feature) =>
+      feature.messagesRoutesFor(() => inject(ActiveConnection).cid),
+    ),
+};
+
 const entityMount = (kind: ExplorerKind): Route =>
   explorerMount(kind, (feature) =>
     feature.entityRoutesFor(kind, () => inject(ActiveConnection).cid),
@@ -58,6 +72,7 @@ export const shellRoute: Route = {
       feature.explorerRoutesFor(() => inject(ActiveConnection).cid),
     ),
     ...EXPLORER_KINDS.map(entityMount),
+    publishMount,
     {
       path: '**',
       loadComponent: () =>

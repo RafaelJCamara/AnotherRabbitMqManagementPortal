@@ -1,0 +1,113 @@
+{
+  "title": "Publish a message",
+  "draft": {
+    "notice": "Your draft stays in memory while this page is open. It is not saved to disk, not put in the address and is lost when you reload."
+  },
+  "prefill": {
+    "refused": "These address parameters were not used because they are longer than {{limit}} characters: {{names}}."
+  },
+  "fixed": {
+    "label": "Delivery settings that cannot be changed",
+    "mandatory": "Mandatory is always on: if the broker finds no queue for this exchange and routing key, it returns the message and this page says so.",
+    "confirm": "Publisher confirms are always on: each copy waits for the broker's confirm, or times out."
+  },
+  "form": {
+    "legend": "Where to publish",
+    "vhost": "Virtual host",
+    "exchange": "Exchange",
+    "exchangeHint": "Leave empty for the default exchange. The routing key is then the name of a queue.",
+    "routingKey": "Routing key",
+    "copies": "Copies",
+    "timeoutMs": "Wait for each confirm (milliseconds)"
+  },
+  "props": {
+    "legend": "Message properties",
+    "contentType": "Content type",
+    "contentEncoding": "Content encoding",
+    "correlationId": "Correlation id",
+    "replyTo": "Reply to",
+    "expiration": "Expiration (milliseconds, as text)",
+    "messageId": "Message id",
+    "type": "Type",
+    "userId": "User id",
+    "appId": "Application id",
+    "deliveryMode": "Delivery mode",
+    "deliveryModeNone": "Not set",
+    "deliveryMode1": "1, transient",
+    "deliveryMode2": "2, persistent",
+    "priority": "Priority (0 to 255)",
+    "timestamp": "Timestamp (seconds since 1970)"
+  },
+  "headers": {
+    "legend": "Headers",
+    "mode": "How to edit the headers",
+    "modeGrid": "Table",
+    "modeJson": "JSON",
+    "nameOf": "Name of header {{n}}",
+    "typeOf": "Type of header {{n}}",
+    "valueOf": "Value of header {{n}}",
+    "columnName": "Name",
+    "columnType": "Type",
+    "columnValue": "Value",
+    "add": "Add a header",
+    "remove": "Remove header {{n}}",
+    "none": "No headers.",
+    "typedHint": "Decimal, list and table values are typed as JSON. Bytes are base64.",
+    "jsonLabel": "Headers as typed JSON",
+    "jsonHint": "Each header is written as {\"t\": its type, \"v\": its value}.",
+    "switchRow": "A header needs fixing before the JSON can be shown. Fix the marked row first.",
+    "switchJson": "The JSON is not valid. Fix it before going back to the table.",
+    "switchShape": "The JSON is not a table of typed headers. Fix it before going back to the table.",
+    "types": {
+      "string": "string",
+      "byte": "byte",
+      "short": "short",
+      "int": "int",
+      "long": "long",
+      "float": "float",
+      "double": "double",
+      "bool": "bool",
+      "timestamp": "timestamp",
+      "decimal": "decimal",
+      "bytes": "bytes",
+      "void": "void",
+      "array": "list",
+      "table": "table"
+    }
+  },
+  "body": {
+    "legend": "Message body",
+    "label": "Message body",
+    "encoding": "Body encoding",
+    "encodingUtf8": "Text (UTF-8)",
+    "encodingBase64": "Binary (base64 text)",
+    "language": "Highlighting",
+    "languages": {
+      "plaintext": "Plain text",
+      "json": "JSON",
+      "xml": "XML",
+      "yaml": "YAML"
+    },
+    "highlightingNote": "XML and YAML are coloured only; they are not checked.",
+    "size": "{{bytes}} of {{max}} bytes."
+  },
+  "editor": {
+    "hint": "Press Ctrl+M to let the Tab key leave the editor.",
+    "fallback": "The code editor could not be loaded, so a plain text box is used. Nothing is lost."
+  },
+  "issues": {
+    "summary": "{{count}} to fix before this can be sent.",
+    "required": "This is required.",
+    "tooLong": "At most {{limit}} characters.",
+    "outOfRange": "Between {{min}} and {{limit}}.",
+    "invalidBase64": "This is not valid base64 text.",
+    "invalidJson": "The headers JSON is not valid or is not a table of typed headers. Fix it or go back to the table.",
+    "overLimit": "The body is over the limit of {{limit}} bytes.",
+    "tooMany": "At most {{limit}} headers.",
+    "tooDeep": "Lists and tables can be nested at most {{limit}} levels.",
+    "duplicate": "Another header has the same name.",
+    "badValue": "This value does not fit its type.",
+    "nameRequired": "A header needs a name.",
+    "invalid": "The message does not fit the publish contract."
+  }
+}

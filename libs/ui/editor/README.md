@@ -20,6 +20,7 @@ Slices A1 and B of M1-46: the environment, the loader and the components, all pr
 - **Theme bridge** (`theme-bridge.ts`, internal): `ThemeService.resolved()` as `vs`, `vs-dark` or `hc-black`; an unknown mode is `vs`. Editors apply it with `EditorHost.setTheme` when it changes, without being recreated (high contrast is always the dark one, OQ-1539).
 - **Schema registry** (`schema.ts`, internal): Monaco's JSON diagnostics options are global, so a registry keeps one entry per model URI and gives `SchemaPort.setSchemas` the whole list on every change; removing a model that has no entry calls nothing.
 - **Facade types** (`facade.ts`): `EditorLanguage`, `EditorMarker`, `EditorOptions`, `EditorHandle`, `DiffEditorOptions`, `DiffEditorHandle`, `EditorHost`, `EditorThemeName`, `JsonSchema`, `SchemaEntry`, `SchemaPort`, `EditorDisposable`, `MonacoLoader`. `EditorRealm` is exported for tests.
+- **`@app/ui-editor/testing`** (`testing.ts`): `fakeHost` (the recording fake host the component specs use) and `provideFakeLoader`, for the specs of a feature that uses the editor (M1-46 slice C); never part of the production API.
 
 ## Invariants
 

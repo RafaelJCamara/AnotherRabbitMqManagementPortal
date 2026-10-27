@@ -56,6 +56,9 @@
         "./libs/ui/feature-explorer/src/testing.ts"
       ],
       "@app/feature-messages": ["./libs/ui/feature-messages/src/index.ts"],
+      "@app/feature-messages/testing": [
+        "./libs/ui/feature-messages/src/testing.ts"
+      ],
       "@app/forecast": ["./libs/shared/forecast/src/index.ts"],
       "@app/generators": ["./tools/generators/src/index.ts"],
       "@app/jobs": ["./libs/engine/jobs/src/index.ts"],
@@ -99,6 +102,7 @@
       "@app/ui-data": ["./libs/ui/data/src/index.ts"],
       "@app/ui-design": ["./libs/ui/design/src/index.ts"],
       "@app/ui-editor": ["./libs/ui/editor/src/index.ts"],
+      "@app/ui-editor/testing": ["./libs/ui/editor/src/testing.ts"],
       "@app/ui-grid": ["./libs/ui/grid/src/index.ts"],
       "@app/ui-grid/testing": ["./libs/ui/grid/src/testing/index.ts"],
       "@app/ui-grid/testing/components": [

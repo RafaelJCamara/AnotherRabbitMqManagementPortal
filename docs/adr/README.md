@@ -39,6 +39,7 @@ ADRs use the MADR style (status, context/decision, rationale, alternatives, cons
 | [ADR-033](ADR-033-github-as-system-of-record.md) | GitHub as system of record | Accepted |
 | [ADR-034](ADR-034-docs-policy.md) | Docs policy (banned terms) | Accepted |
 | [ADR-035](ADR-035-web-1-0-by-2026-11-30-desktop-after.md) | Web 1.0 public release by 2026-11-30; desktop after | Accepted |
+| [ADR-036](ADR-036-credential-providers-and-token-renewal-model.md) | Credential providers, the TokenManager renewal model and the oidc Dialer purpose | Proposed |
 
 ## Template
 

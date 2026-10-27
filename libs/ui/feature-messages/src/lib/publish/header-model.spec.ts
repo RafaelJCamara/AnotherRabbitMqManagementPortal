@@ -1,10 +1,13 @@
+import type { PublishHeaders } from '@app/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
   containerDepth,
+  headersToJson,
   headersToRows,
   isHeaderType,
   newRow,
+  parseHeadersJson,
   rowValue,
   rowsToHeaders,
 } from './header-model';
@@ -135,6 +138,7 @@ describe('header rows', () => {
       v: { t: 'void', v: null },
       d: { t: 'decimal', v: { places: 1, digits: 2 } },
       t: { t: 'timestamp', v: 7 },
+      u: { t: 'bool', v: true },
     });
     expect(rows.map(({ name, type, text }) => [name, type, text])).toEqual([
       ['s', 'string', 'x'],
@@ -145,8 +149,31 @@ describe('header rows', () => {
       ['v', 'void', ''],
       ['d', 'decimal', '{"places":1,"digits":2}'],
       ['t', 'timestamp', '7'],
+      ['u', 'bool', 'true'],
     ]);
     expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
+  });
+
+  it('reads the typed table written as JSON, and says which way it is wrong', () => {
+    const headers: PublishHeaders = {
+      a: { t: 'long', v: 1 },
+      b: { t: 'string', v: 'x' },
+    };
+    expect(parseHeadersJson(JSON.stringify(headers))).toEqual({
+      ok: true,
+      headers,
+    });
+    expect(parseHeadersJson('')).toEqual({ ok: true, headers: {} });
+    expect(parseHeadersJson('  \n ')).toEqual({ ok: true, headers: {} });
+    expect(parseHeadersJson('{')).toEqual({ ok: false, error: 'json' });
+    expect(parseHeadersJson('[]')).toEqual({ ok: false, error: 'shape' });
+    expect(parseHeadersJson('{"a":1}')).toEqual({ ok: false, error: 'shape' });
+    expect(parseHeadersJson('{"a":{"t":"long","v":"1"}}')).toEqual({
+      ok: false,
+      error: 'shape',
+    });
+    expect(JSON.parse(headersToJson(headers))).toEqual(headers);
+    expect(headersToJson(headers)).toContain('\n  "a"');
   });
 
   it('knows exactly the AMQP types it offers', () => {

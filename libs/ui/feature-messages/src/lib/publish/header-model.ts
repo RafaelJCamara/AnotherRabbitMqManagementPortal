@@ -4,6 +4,7 @@
 import {
   PUBLISH_LIMITS,
   PublishHeaderValueSchema,
+  PublishHeadersSchema,
   publishBodyBytes,
   type PublishHeaders,
 } from '@app/contracts';
@@ -200,3 +201,26 @@ export function headersToRows(headers: PublishHeaders): HeaderRow[] {
 
 export const isHeaderType = (value: string): value is HeaderType =>
   (HEADER_TYPES as readonly string[]).includes(value);
+
+export type HeaderJsonError = 'json' | 'shape';
+
+/** The typed table written as JSON; an empty text is an empty table. */
+export function parseHeadersJson(
+  text: string,
+):
+  | { readonly ok: true; readonly headers: PublishHeaders }
+  | { readonly ok: false; readonly error: HeaderJsonError } {
+  let raw: unknown;
+  try {
+    raw = text.trim() === '' ? {} : JSON.parse(text);
+  } catch {
+    return { ok: false, error: 'json' };
+  }
+  const parsed = PublishHeadersSchema.safeParse(raw);
+  return parsed.success
+    ? { ok: true, headers: parsed.data }
+    : { ok: false, error: 'shape' };
+}
+
+export const headersToJson = (headers: PublishHeaders): string =>
+  JSON.stringify(headers, null, 2);

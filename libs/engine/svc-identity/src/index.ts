@@ -2,7 +2,11 @@ export { createIdentityModule } from './module';
 export type { IdentityModuleDeps } from './deps';
 export type { EngineModule } from './module';
 // Fakes for the ports of this module, for the architecture manifest and the HTTP specs.
-export { createIdentityFakeDeps } from './testing';
+export {
+  createIdentityFakeDeps,
+  createInMemoryCredentialProviderStore,
+  type InMemoryCredentialProviderStore,
+} from './testing';
 export {
   ProviderConfigSchema,
   TOKEN_COMMAND_DEFAULT_MAX_STDOUT_BYTES,
@@ -16,6 +20,13 @@ export {
 } from './provider';
 export { DEFAULT_USERNAME_CLAIMS, readTokenClaims } from './internal/claims';
 export type { TokenClaims } from './internal/claims';
+export {
+  createProviderConfigStore,
+  type ProviderConfigRead,
+  type ProviderConfigRefusal,
+  type ProviderConfigStore,
+  type ProviderConfigWrite,
+} from './provider-store';
 export { SecretValue } from './internal/secret-value';
 export { createPasswordProvider } from './providers/password';
 export { createStaticTokenProvider } from './providers/static-token';

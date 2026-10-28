@@ -13,6 +13,8 @@
 //  - Integer header widths: a `byte`, `short` or `int` is written as an int32 and a `long` as an
 //    int64; a `double` is written as a float32 unless it is integral. Reading is exact.
 //  - Decimal headers cannot be written.
+//  - `connection.update-secret` does not exist in 4.1.1: `updateSecret` rejects. The suite does not
+//    cover it for this library.
 //  - `connection.serverProperties` is not kept, so `ConnectionInfo.serverVersion` is `undefined`.
 import {
   AMQPClient,
@@ -504,6 +506,13 @@ export const cloudamqpDriver: Amqp091Driver = {
       async close() {
         await translated(client.close());
         events.emit('close');
+      },
+      updateSecret() {
+        return Promise.reject(
+          new Error(
+            '@cloudamqp/amqp-client 4.1.1 has no connection.update-secret',
+          ),
+        );
       },
       connection: {},
     };

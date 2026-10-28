@@ -134,12 +134,11 @@ describe('<app-lock-strip>', () => {
 
   it('locks again, shows a refusal of that, and moves focus to the control that is there afterwards', async () => {
     let attempt = 0;
+    const held = new Subject<{ wasArmed: boolean }>();
     const bed = await open({
       disarm: () => {
         attempt += 1;
-        return attempt === 1
-          ? throwError(() => refused('Cannot lock'))
-          : of({ wasArmed: true });
+        return attempt === 1 ? held : of({ wasArmed: true });
       },
     });
     bed.button().click();
@@ -149,8 +148,12 @@ describe('<app-lock-strip>', () => {
     await bed.settle();
     expect(bed.el.querySelector('[data-lock="armed"]')).not.toBeNull();
 
-    bed.button().click(); // Lock again: refused
+    bed.button().click(); // Lock again: on its way
     await bed.settle();
+    expect(bed.button().getAttribute('aria-disabled')).toBe('true');
+    held.error(refused('Cannot lock')); // refused
+    await bed.settle();
+    expect(bed.button().hasAttribute('aria-disabled')).toBe(false);
     expect(
       squash(bed.el.querySelector('app-problem-alert')?.textContent),
     ).toContain('Cannot lock');

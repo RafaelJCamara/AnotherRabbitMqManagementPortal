@@ -176,7 +176,9 @@ describe('<app-dialog>', () => {
     el.querySelector<HTMLButtonElement>('#opener')?.focus();
     expect(key(panel, 'Tab').defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(inner);
-    // Other keys are left alone.
+    // Other keys are left alone, also at the end of the dialog where Tab would wrap.
+    confirm?.focus();
     expect(key(panel, 'a').defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(confirm);
   });
 });

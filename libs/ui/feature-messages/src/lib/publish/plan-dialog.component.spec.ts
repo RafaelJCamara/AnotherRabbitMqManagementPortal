@@ -321,7 +321,7 @@ describe('<app-plan-dialog>', () => {
         preview: {
           exchange: 'fanout.x',
           routingKey: '',
-          copies: 1,
+          copies: 0,
           bodyBytes: 0,
           headerCount: 0,
         },
@@ -331,6 +331,7 @@ describe('<app-plan-dialog>', () => {
     const field = (name: string): string =>
       squash(el.querySelector(`[data-field="${name}"]`)?.textContent);
     expect(field('routingKey')).toBe('');
+    expect(field('copies')).toBe('0');
     expect(field('bodyBytes')).toBe('0');
     expect(field('headerCount')).toBe('0');
     expect(el.querySelector('[data-needs]')).toBeNull();

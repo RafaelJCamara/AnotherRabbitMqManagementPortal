@@ -9,6 +9,7 @@ export {
   formatConnectionName,
   parseConnectionName,
   type Amqp091Credentials,
+  type Amqp091CredentialsSource,
   type Amqp091Endpoint,
   type ConnectionInfo,
   type ConnectionListener,

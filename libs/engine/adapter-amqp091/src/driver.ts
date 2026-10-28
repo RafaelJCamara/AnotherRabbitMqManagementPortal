@@ -9,7 +9,11 @@
 import {
   connect as amqplibConnect,
   credentials as amqplibCredentials,
+  type ChannelModel,
 } from 'amqplib';
+
+/** amqplib's own model type; the specs check that the seam below matches it where it matters. */
+export type AmqplibModel = ChannelModel;
 
 /** The fields of a delivery, get-ok or return that the adapter reads. */
 export interface AmqpMessage {
@@ -88,6 +92,13 @@ export interface AmqpModel {
   createChannel(): Promise<AmqpChannel>;
   createConfirmChannel(): Promise<AmqpChannel>;
   close(): Promise<void>;
+  /**
+   * `connection.update-secret`. amqplib 2.2.0 wants the secret as a `Buffer` (a string throws) and
+   * settles only on the broker's `update-secret-ok`: a broker that refuses the secret closes the
+   * connection instead, and the promise then never settles. The caller bounds it and listens for
+   * the close (connect.ts).
+   */
+  updateSecret(secret: Buffer, reason: string): Promise<void>;
   readonly connection: {
     readonly serverProperties?: Readonly<Record<string, unknown>>;
   };

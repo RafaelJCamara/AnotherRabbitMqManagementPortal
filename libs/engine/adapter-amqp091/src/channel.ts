@@ -9,7 +9,12 @@ import { Amqp091Error, mapAmqplibError } from './errors.ts';
 export type ConnectionEvent =
   | { readonly type: 'blocked'; readonly reason: string }
   | { readonly type: 'unblocked' }
-  | { readonly type: 'closed'; readonly error?: Amqp091Error }
+  | {
+      readonly type: 'closed';
+      readonly error?: Amqp091Error;
+      /** The broker's reply code when it closed the connection (320 when a token ran out). */
+      readonly code?: number | string;
+    }
   | { readonly type: 'channel-error'; readonly error: Amqp091Error }
   /** The broker cancelled a consumer (queue deleted, node lost). Its deliveries may still be held. */
   | { readonly type: 'server-cancel'; readonly consumerTag: string }

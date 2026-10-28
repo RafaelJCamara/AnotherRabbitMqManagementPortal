@@ -314,6 +314,28 @@ export class FakeModel extends EventEmitter {
     return channel;
   }
 
+  /** What `updateSecret` received: the text at call time and the very buffer it was given. */
+  readonly secretUpdates: {
+    secret: string;
+    reason: string;
+    buffer: Buffer;
+  }[] = [];
+  /** What the broker does with an update; the default answers `update-secret-ok` at once. */
+  onUpdateSecret: (secret: string, reason: string) => Promise<void> = () =>
+    Promise.resolve();
+
+  updateSecret(secret: Buffer, reason: string): Promise<void> {
+    // amqplib 2.2.0 refuses anything but a Buffer.
+    if (!Buffer.isBuffer(secret)) {
+      throw new TypeError(
+        "Field 'newSecret' is the wrong type; must be a Buffer",
+      );
+    }
+    const text = secret.toString('utf8');
+    this.secretUpdates.push({ secret: text, reason, buffer: secret });
+    return this.onUpdateSecret(text, reason);
+  }
+
   close(): Promise<void> {
     if (!this.closed) {
       this.closed = true;

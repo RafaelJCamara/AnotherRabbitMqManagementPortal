@@ -38,6 +38,7 @@ import { createObserveLease } from './leases/observe.ts';
 import { createPeekLease, type PeekLeaseOptions } from './leases/peek.ts';
 import { createPublishLease } from './leases/publish.ts';
 import { createSourceLease } from './leases/source.ts';
+import { assertSecretUpdate, mapSecretUpdateError } from './update-secret.ts';
 
 // ---------------------------------------------------------------------------------------------
 // connection_name: <product>/<mode>/<role>/<user-or-session> (blueprint 5.3)
@@ -128,13 +129,24 @@ export type Amqp091Credentials =
     }
   | { readonly kind: 'external' };
 
+/**
+ * Asked at each connect, so a reconnect logs in with what is current (a renewed token) and not
+ * with what was current when the options were made (blueprint 7.5, "lazy credentials"). It runs
+ * inside the connect budget (`connectTimeoutMs`) and the caller's `signal`. What it throws is not
+ * kept: the connect fails with `credentials-unavailable` and no cause.
+ */
+export type Amqp091CredentialsSource = () =>
+  | Amqp091Credentials
+  | Promise<Amqp091Credentials>;
+
 export interface ConnectOptions {
   /** The Dialer (I-9). Only `forwarder` is used. */
   readonly dialer: Pick<DialerPort, 'forwarder'>;
   /** The profile's route; its shape belongs to net-dialer. */
   readonly route: unknown;
   readonly endpoint: Amqp091Endpoint;
-  readonly credentials: Amqp091Credentials;
+  /** A value, or a function asked at each connect (see `Amqp091CredentialsSource`). */
+  readonly credentials: Amqp091Credentials | Amqp091CredentialsSource;
   readonly name: ConnectionNameParts;
   /** Seconds. Default 30 (blueprint 5.3). */
   readonly heartbeatSeconds?: number;
@@ -165,6 +177,14 @@ export interface OpenedLease<L> {
   readonly info: ConnectionInfo;
   /** Events of the connection (blocked, closed, channel errors, server cancels). */
   readonly subscribe: (listener: ConnectionListener) => () => void;
+  /**
+   * AMQP 0-9-1 `connection.update-secret`: hands the broker a renewed token on this connection.
+   * Resolves when the broker acknowledges it. A refusal (another user, a bad token) is an
+   * `Amqp091Error` with reason `secret-refused` and the broker closes the connection. The secret
+   * is sent once and kept by nothing; no error carries it. Not part of any lease: the connector
+   * offers it to the manager as `OpenedConnection.renew`.
+   */
+  readonly updateSecret: (secret: string, reason: string) => Promise<void>;
 }
 
 const DEFAULT_HEARTBEAT_SECONDS = 30;
@@ -206,6 +226,8 @@ export class Amqp091Connection {
   #ended: Amqp091Error | 'client' | undefined;
   #lastError: Amqp091Error | undefined;
   #closing: Promise<void> | undefined;
+  /** Set while an `update-secret` waits for its answer; ends it with the connection's end. */
+  #abortUpdate: ((error: Amqp091Error) => void) | undefined;
 
   constructor(args: {
     role: ConnectionRole;
@@ -224,15 +246,23 @@ export class Amqp091Connection {
     this.#forwarder = args.forwarder;
     // Listeners first: an 'error' event with no listener crashes the process.
     args.model.on('error', (error) => {
-      this.#lastError = mapAmqplibError(error, 'the connection');
+      this.#lastError = this.#describe(error);
     });
     args.model.on('close', (error) => {
       if (this.#ended !== undefined) return;
       this.#ended =
         error === undefined && this.#lastError === undefined
           ? new Amqp091Error('connection-closed', 'the connection was closed')
-          : (this.#lastError ?? mapAmqplibError(error, 'the connection'));
-      this.emit({ type: 'closed', error: this.#ended });
+          : (this.#lastError ?? this.#describe(error));
+      // The broker's reply code (320 CONNECTION_FORCED when a token ran out, 530 when it refused a
+      // secret) lets the manager tell this close from another without reading the error.
+      const code = this.#ended.broker?.code;
+      this.emit({
+        type: 'closed',
+        error: this.#ended,
+        ...(code === undefined ? {} : { code }),
+      });
+      this.#abortUpdate?.(this.#ended);
       void this.#forwarder.close().catch(() => undefined);
     });
     args.model.on('blocked', (reason) => {
@@ -246,6 +276,16 @@ export class Amqp091Connection {
       this.blocked.unblock();
       this.emit({ type: 'unblocked' });
     });
+  }
+
+  /**
+   * How a connection error is told. While a secret update waits, the broker may close over the
+   * secret and may quote it, so the error is built from fixed text only (update-secret.ts).
+   */
+  #describe(error: unknown): Amqp091Error {
+    return this.#abortUpdate === undefined
+      ? mapAmqplibError(error, 'the connection')
+      : mapSecretUpdateError(error);
   }
 
   get isOpen(): boolean {
@@ -312,6 +352,38 @@ export class Amqp091Connection {
   }
 
   /**
+   * Sends a renewed secret and waits for the broker's `update-secret-ok`. amqplib never settles a
+   * refused update (the broker closes the connection instead), so the wait ends with the
+   * connection's end, the operation timeout, or the answer, whichever comes first. One update at a
+   * time: a second call while one waits is `busy`.
+   */
+  async updateSecret(secret: string, reason: string): Promise<void> {
+    assertSecretUpdate(secret, reason);
+    this.assertOpen();
+    if (this.#abortUpdate !== undefined) {
+      throw new Amqp091Error('busy', 'a secret update is already waiting');
+    }
+    // The library takes bytes; they are wiped when the call is over (the library copies them into
+    // its frame at once, and the text of `secret` is the caller's to drop).
+    const bytes = Buffer.from(secret, 'utf8');
+    try {
+      await new Promise<void>((resolve, reject) => {
+        this.#abortUpdate = reject;
+        withTimeout(
+          this.#model.updateSecret(bytes, reason),
+          this.operationTimeoutMs,
+          'updating the secret',
+        ).then(resolve, reject);
+      });
+    } catch (error) {
+      throw mapSecretUpdateError(error);
+    } finally {
+      this.#abortUpdate = undefined;
+      bytes.fill(0);
+    }
+  }
+
+  /**
    * Closes the connection. `graceful` runs the AMQP close handshake; `abort` drops the local
    * endpoint at once (and still tries the handshake, best effort). Idempotent.
    */
@@ -320,6 +392,9 @@ export class Amqp091Connection {
       // A connection that already ended has told its subscribers; a client close tells them once.
       const alreadyEnded = this.#ended !== undefined;
       this.#ended ??= 'client';
+      this.#abortUpdate?.(
+        new Amqp091Error('released', 'the lease was released'),
+      );
       if (mode === 'abort') {
         await this.#forwarder.close().catch(() => undefined);
       }
@@ -388,30 +463,32 @@ async function openConnection(
         : {
             ...endpoint.tls.connectOptions(endpoint.host, endpoint.servername),
           };
-    const login =
-      options.credentials.kind === 'external'
-        ? driver.external()
-        : driver.plain(
-            options.credentials.username,
-            options.credentials.password,
-          );
-    const connecting = driver.connect(
-      {
-        protocol: endpoint.tls === undefined ? 'amqp' : 'amqps',
-        hostname: UNROUTABLE_HOST,
-        port: 1,
-        vhost: encodeURIComponent(vhost),
-        heartbeat,
-      },
-      {
-        path: forwarder.path,
-        timeout: connectTimeoutMs,
-        noDelay: true,
-        clientProperties: { connection_name: connectionName },
-        credentials: login,
-        ...(tlsOptions === undefined ? {} : { tls: tlsOptions }),
-      },
-    );
+    // The credentials are asked for now, as late as possible, and inside the connect budget: a
+    // function (a renewed token) may take time, and the caller's signal still ends it.
+    const connecting = (async (): Promise<AmqpModel> => {
+      const credentials = await resolveCredentials(options.credentials);
+      const login =
+        credentials.kind === 'external'
+          ? driver.external()
+          : driver.plain(credentials.username, credentials.password);
+      return driver.connect(
+        {
+          protocol: endpoint.tls === undefined ? 'amqp' : 'amqps',
+          hostname: UNROUTABLE_HOST,
+          port: 1,
+          vhost: encodeURIComponent(vhost),
+          heartbeat,
+        },
+        {
+          path: forwarder.path,
+          timeout: connectTimeoutMs,
+          noDelay: true,
+          clientProperties: { connection_name: connectionName },
+          credentials: login,
+          ...(tlsOptions === undefined ? {} : { tls: tlsOptions }),
+        },
+      );
+    })();
     model = await settleConnect(
       connecting,
       connectTimeoutMs,
@@ -438,6 +515,41 @@ async function openConnection(
     operationTimeoutMs,
     now,
   });
+}
+
+/**
+ * The login for this connect. A function is called once per connect and what it throws is dropped
+ * (it may hold a token); a value that is not a login is refused with a fixed text.
+ */
+async function resolveCredentials(
+  source: Amqp091Credentials | Amqp091CredentialsSource,
+): Promise<Amqp091Credentials> {
+  let value: unknown;
+  try {
+    value = typeof source === 'function' ? await source() : source;
+  } catch {
+    throw new Amqp091Error(
+      'credentials-unavailable',
+      'the credentials could not be obtained',
+    );
+  }
+  const candidate = value as {
+    kind?: unknown;
+    username?: unknown;
+    password?: unknown;
+  } | null;
+  if (
+    candidate?.kind === 'external' ||
+    (candidate?.kind === 'plain' &&
+      typeof candidate.username === 'string' &&
+      typeof candidate.password === 'string')
+  ) {
+    return candidate as Amqp091Credentials;
+  }
+  throw new Amqp091Error(
+    'credentials-unavailable',
+    'the credentials are not a login',
+  );
 }
 
 /** Waits for the handshake, the deadline or the caller's signal, whichever comes first. */
@@ -503,6 +615,7 @@ function opened<L>(connection: Amqp091Connection, lease: L): OpenedLease<L> {
     lease,
     info: connection.info,
     subscribe: (listener) => connection.subscribe(listener),
+    updateSecret: (secret, reason) => connection.updateSecret(secret, reason),
   };
 }
 

@@ -46,7 +46,11 @@ export type Amqp091Reason =
   | 'not-own-queue'
   | 'busy'
   | 'released'
-  | 'invalid-argument';
+  | 'invalid-argument'
+  /** The broker refused a new secret (`connection.update-secret`), for example another user. */
+  | 'secret-refused'
+  /** The credentials function threw, or gave something that is not a login. */
+  | 'credentials-unavailable';
 
 /** What the broker said when it closed a channel or the connection. */
 export interface BrokerClose {
@@ -85,6 +89,8 @@ const DEFAULT_CODE: Readonly<Record<Amqp091Reason, Amqp091ErrorCode>> = {
   busy: 'INTERNAL',
   released: 'INTERNAL',
   'invalid-argument': 'VALIDATION_FAILED',
+  'secret-refused': 'UNAUTHENTICATED',
+  'credentials-unavailable': 'UNAUTHENTICATED',
 };
 
 const RETRYABLE: ReadonlySet<Amqp091Reason> = new Set([

@@ -22,6 +22,12 @@ export interface ConnectorRequest {
 /** A connection event the manager cares about. The adapter's events are assignable to it. */
 export interface ConnectorEvent {
   type: string;
+  /**
+   * On a `closed` event the broker closed the connection with this reply code: 320 means the
+   * connection was forced (4.2.6 and later close this way when a token runs out), 530 that it
+   * refused a renewed secret. Absent when the client closed it or the socket dropped.
+   */
+  code?: number | string;
 }
 
 /** A lease and the connection behind it. `subscribe` reports `closed` when the connection ends. */
@@ -29,6 +35,12 @@ export interface OpenedConnection<L> {
   lease: L;
   info: { connectionName: string };
   subscribe(listener: (event: ConnectorEvent) => void): () => void;
+  /**
+   * Hands the broker a renewed secret on this connection (AMQP 0-9-1 `connection.update-secret`).
+   * Resolves when the broker acknowledges it; rejects when it refuses or the connection ends. The
+   * secret is not kept and appears in no error. Absent when the connector cannot renew.
+   */
+  renew?(secret: string, reason: string): Promise<void>;
 }
 
 /** One open per role: one connection serves one role and hands out that role's lease. */

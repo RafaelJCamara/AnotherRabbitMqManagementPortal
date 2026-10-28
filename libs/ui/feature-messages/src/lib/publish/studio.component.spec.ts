@@ -1,6 +1,43 @@
+import type { Problem } from '@app/contracts';
+import { EngineProblemError } from '@app/ui-data';
+import { Subject, of, throwError } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 
-import { field, mount, settle, typeInto } from './studio-bed';
+import { confirmedResult } from './fake-api';
+import { profileFixture } from './profile-fixture';
+import { squash } from './spec-support';
+import {
+  field,
+  mount,
+  sendButton,
+  settle,
+  typeInto,
+  until,
+  VALID,
+  withDraft,
+  type Bed,
+} from './studio-bed';
+
+const refusal = (over: Partial<Problem> = {}): EngineProblemError =>
+  new EngineProblemError({
+    type: 'about:blank',
+    title: 'Locked',
+    status: 403,
+    code: 'GATE_BLOCKED',
+    correlationId: 'x',
+    retryable: false,
+    ...over,
+  });
+
+const strip = (bed: Bed): Element | null =>
+  bed.el.querySelector('app-lock-strip [data-lock]');
+const stripButton = (bed: Bed): HTMLButtonElement => {
+  const button = bed.el.querySelector<HTMLButtonElement>(
+    'app-lock-strip .lock button',
+  );
+  if (button === null) throw new Error('no lock button');
+  return button;
+};
 
 describe('<app-publish-studio>', () => {
   it('M1-46 AC-22 mandatory and confirms are fixed facts, not options', async () => {
@@ -205,5 +242,196 @@ describe('<app-publish-studio>', () => {
     expect(bed.el.querySelector('textarea')?.getAttribute('aria-label')).toBe(
       'Message body',
     );
+  });
+
+  it('M1-46 AC-32 shows the prod lock as sent and arms through ArmingStore', async () => {
+    const bed = await mount('/c/c1/publish', {
+      seed: withDraft(VALID),
+      engine: {
+        profiles: [
+          profileFixture('c1', { envClass: 'prod', name: 'Production' }),
+        ],
+        plan: () => throwError(() => refusal()),
+        execute: () => of({ output: confirmedResult() }),
+      },
+    });
+    await until(bed, () => strip(bed) !== null, 'the lock strip');
+    const publishCalls = (): number =>
+      bed.api.calls.filter((call) => call.id === 'messages.publish').length;
+
+    // Unarmed: the lock as the engine's rule, Send closed with its reason and source, and no call.
+    expect(strip(bed)?.getAttribute('data-lock')).toBe('locked');
+    expect(squash(strip(bed)?.textContent)).toContain(
+      'Locked. Changes that name this connection need an unlock first.',
+    );
+    expect(sendButton(bed).getAttribute('aria-disabled')).toBe('true');
+    const reason = squash(bed.el.querySelector('.send .reason')?.textContent);
+    expect(reason).toContain(
+      'This connection is locked. Unlock it to send messages for 15 minutes.',
+    );
+    expect(reason).toContain('Source: prod-lock');
+    sendButton(bed).click();
+    await settle(bed.harness);
+    expect(publishCalls()).toBe(0);
+
+    // The unlock asks first, names the connection, and Cancel changes nothing.
+    stripButton(bed).click();
+    await settle(bed.harness);
+    expect(squash(bed.el.querySelector('app-dialog h2')?.textContent)).toBe(
+      'Unlock Production?',
+    );
+    expect(
+      squash(bed.el.querySelector('app-dialog .body')?.textContent),
+    ).toContain('The unlock is recorded in the audit log.');
+    bed.el.querySelector<HTMLButtonElement>('app-dialog .secondary')?.click();
+    await settle(bed.harness);
+    expect(bed.el.querySelector('app-dialog')).toBeNull();
+    expect(bed.api.calls.some((call) => call.id === 'ops.arm')).toBe(false);
+    expect(sendButton(bed).getAttribute('aria-disabled')).toBe('true');
+
+    // Confirm: one `ops.arm` for this connection, then the strip says so and Send is open.
+    stripButton(bed).click();
+    await settle(bed.harness);
+    bed.el.querySelector<HTMLButtonElement>('app-dialog .primary')?.click();
+    await until(
+      bed,
+      () => strip(bed)?.getAttribute('data-lock') === 'armed',
+      'the armed strip',
+    );
+    expect(
+      bed.api.calls
+        .filter((call) => call.id === 'ops.arm')
+        .map((call) => call.kind === 'call' && call.input),
+    ).toEqual([{ connectionId: 'c1' }]);
+    expect(squash(strip(bed)?.textContent)).toContain('Unlocked until');
+    expect(sendButton(bed).hasAttribute('aria-disabled')).toBe(false);
+
+    // Armed, and the engine still refuses with its rule: shown as a Problem, with the hint.
+    sendButton(bed).click();
+    await until(
+      bed,
+      () => bed.el.querySelector('app-problem-alert') !== null,
+      'the Problem',
+    );
+    expect(
+      squash(bed.el.querySelector('app-problem-alert')?.textContent),
+    ).toContain('GATE_BLOCKED');
+    expect(
+      squash(
+        bed.el.querySelector('app-problem-alert [data-hint]')?.textContent,
+      ),
+    ).toContain('The engine refused because a rule is in the way.');
+    expect(publishCalls()).toBe(1); // the plan; nothing was executed
+  });
+
+  it('fails closed on a connection whose class is not known, and shows no lock for an open one', async () => {
+    const unknown = await mount('/c/c1/publish', {
+      seed: withDraft(VALID),
+      engine: { profiles: [] },
+    });
+    await until(unknown, () => strip(unknown) !== null, 'the lock strip');
+    expect(strip(unknown)?.getAttribute('data-lock')).toBe('locked');
+    expect(sendButton(unknown).getAttribute('aria-disabled')).toBe('true');
+
+    const open = await mount('/c/c1/publish', { seed: withDraft(VALID) });
+    await until(
+      open,
+      () => sendButton(open).getAttribute('aria-disabled') === null,
+      'Send open',
+    );
+    expect(open.el.querySelector('app-lock-strip [data-lock]')).toBeNull();
+  });
+
+  it('offers the unlock when the engine refused with the lock and named it as the fix', async () => {
+    const bed = await mount('/c/c1/publish', {
+      seed: withDraft(VALID),
+      engine: {
+        plan: () =>
+          throwError(() =>
+            refusal({
+              gate: {
+                enabled: false,
+                reason: 'Locked until armed',
+                source: 'prod-lock',
+                fix: {
+                  actionId: 'ops.arm' as never,
+                  input: { connectionId: 'c1' },
+                },
+              },
+            }),
+          ),
+      },
+    });
+    await until(
+      bed,
+      () => sendButton(bed).getAttribute('aria-disabled') === null,
+      'Send open',
+    );
+    sendButton(bed).click();
+    await until(
+      bed,
+      () => bed.el.querySelector('app-problem-alert') !== null,
+      'the Problem',
+    );
+    expect(
+      squash(bed.el.querySelector('app-problem-alert')?.textContent),
+    ).toContain('Locked until armed');
+    const unlock = [
+      ...bed.el.querySelectorAll<HTMLButtonElement>('.after button'),
+    ].find((button) => squash(button.textContent) === 'Unlock this connection');
+    if (unlock === undefined) throw new Error('no unlock offered');
+    unlock.click();
+    await settle(bed.harness);
+    expect(squash(bed.el.querySelector('app-dialog h2')?.textContent)).toBe(
+      'Unlock Broker c1?',
+    );
+    bed.el.querySelector<HTMLButtonElement>('app-dialog .primary')?.click();
+    await until(
+      bed,
+      () => bed.el.querySelector('app-dialog') === null,
+      'the dialog closed',
+    );
+    expect(bed.api.calls.filter((call) => call.id === 'ops.arm')).toHaveLength(
+      1,
+    );
+
+    // A refusal without that fix offers nothing.
+    const plain = await mount('/c/c1/publish', {
+      seed: withDraft(VALID),
+      engine: { plan: () => throwError(() => refusal()) },
+    });
+    await until(
+      plain,
+      () => sendButton(plain).getAttribute('aria-disabled') === null,
+      'Send open',
+    );
+    sendButton(plain).click();
+    await until(
+      plain,
+      () => plain.el.querySelector('app-problem-alert') !== null,
+      'the Problem',
+    );
+    expect(
+      [...plain.el.querySelectorAll('.after button')].map((button) =>
+        squash(button.textContent),
+      ),
+    ).toEqual(['Clear']);
+  });
+
+  it('waits for the connection to be read before it says what the lock is, and keeps Send closed meanwhile', async () => {
+    const list = new Subject<{ items: ReturnType<typeof profileFixture>[] }>();
+    const bed = await mount('/c/c1/publish', {
+      seed: withDraft(VALID),
+      engine: { list: () => list },
+    });
+    expect(bed.el.querySelector('app-lock-strip')).toBeNull();
+    expect(sendButton(bed).getAttribute('aria-disabled')).toBe('true');
+    expect(
+      squash(bed.el.querySelector('.send .reason')?.textContent),
+    ).toContain('Reading the environment of this connection before sending.');
+    list.next({ items: [profileFixture('c1', { envClass: 'prod' })] });
+    list.complete();
+    await until(bed, () => strip(bed) !== null, 'the lock strip');
+    expect(strip(bed)?.getAttribute('data-lock')).toBe('locked');
   });
 });

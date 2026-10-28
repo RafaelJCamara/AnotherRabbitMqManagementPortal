@@ -1,7 +1,9 @@
-// The publish studio (M1-46, PUB-01): where a message is composed. It builds a `MessagesPublishInput` from the
-// draft and names, field by field, what the contract's bounds refuse (R4); the engine decides everything else. This
-// slice has no Send yet: nothing here calls the engine. `mandatory` and publisher confirms are stated as fixed facts,
-// never as options (DC-12). The draft stays in memory (R7). With no connection the page shows nothing.
+// The publish studio (M1-46, PUB-01): where a message is composed and sent. It builds a `MessagesPublishInput` from
+// the draft and names, field by field, what the contract's bounds refuse (R4); the engine decides everything else.
+// Send plans and executes through `SendFlow`: the plan's gates, consents and phrase are shown as the engine sent them,
+// and the answer is shown one copy at a time (R5). The prod lock is shown as the engine's rule (`lockGate`, the
+// arming window); a closed lock keeps Send closed with its reason. `mandatory` and publisher confirms are stated as
+// fixed facts, never as options (DC-12). The draft stays in memory (R7). With no connection the page shows nothing.
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,12 +12,18 @@ import {
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
+import { ArmingStore, ConnectionDirectory, lockGate } from '@app/ui-data';
+import { Gated } from '@app/ui-design';
 import { TranslocoDirective } from '@jsverse/transloco';
 
+import type { GateDecision } from '@app/contracts';
+
 import { PUBLISH_CONNECTION } from '../connection';
+import { gatedLabels } from '../labels';
 import { controlValue } from './dom';
 import { type DraftIssue, type PublishDraft } from './draft';
 import { DraftStore } from './draft-store';
@@ -25,8 +33,14 @@ import { Field } from './field.component';
 import { HeaderGrid } from './header-grid.component';
 import { issueText, issuesOf } from './issue-text';
 import { BODY_LANGUAGES, PUBLISH_LIMITS, publishBodyBytes } from './limits';
+import { LockStrip } from './lock-strip.component';
+import { PlanDialog } from './plan-dialog.component';
 import { prefillFromQuery, type PrefillParam } from './prefill';
+import { offersUnlock } from './problem';
+import { ProblemAlert } from './problem-alert.component';
 import { PropsForm } from './props-form.component';
+import { ResultPanel } from './result-panel.component';
+import { SendFlow } from './send-flow';
 import type { Translate } from '../translate';
 
 type TextField = 'vhost' | 'exchange' | 'routingKey';
@@ -50,7 +64,19 @@ const LANGUAGE_LABELS = {
 @Component({
   selector: 'app-publish-studio',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EditorField, Field, HeaderGrid, PropsForm, TranslocoDirective],
+  imports: [
+    EditorField,
+    Field,
+    Gated,
+    HeaderGrid,
+    LockStrip,
+    PlanDialog,
+    ProblemAlert,
+    PropsForm,
+    ResultPanel,
+    TranslocoDirective,
+  ],
+  providers: [SendFlow],
   template: `
     <ng-container *transloco="let t">
       @if (view(); as d) {
@@ -66,6 +92,15 @@ const LANGUAGE_LABELS = {
                 })
               }}
             </p>
+          }
+          @if (connection(); as cid) {
+            @if (classKnown()) {
+              <app-lock-strip
+                [cid]="cid"
+                [name]="profile()?.name ?? cid"
+                [envClass]="profile()?.envClass ?? null"
+              />
+            }
           }
           <ul class="facts" [attr.aria-label]="t('publish.fixed.label')">
             <li data-fact="mandatory">{{ t('publish.fixed.mandatory') }}</li>
@@ -165,6 +200,51 @@ const LANGUAGE_LABELS = {
               {{ t('publish.issues.summary', { count: issues().length }) }}
             }
           </p>
+          <div class="send">
+            <app-gated
+              [gate]="sendGate(t)"
+              [labels]="gatedLabels(t)"
+              (activated)="send()"
+              >{{
+                flow.busy() ? t('publish.send.busy') : t('publish.send.label')
+              }}</app-gated
+            >
+          </div>
+          @if (flow.phase() === 'failed') {
+            @if (flow.problem(); as problem) {
+              <app-problem-alert [problem]="problem" />
+              <div class="after">
+                @if (unlockOffered()) {
+                  <button type="button" (click)="unlock()">
+                    {{ t('publish.send.unlock') }}
+                  </button>
+                }
+                <button type="button" (click)="flow.dismiss()">
+                  {{ t('publish.send.dismiss') }}
+                </button>
+              </div>
+            }
+          }
+          @if (flow.result(); as result) {
+            <app-result-panel [result]="result" />
+            <div class="after">
+              <button type="button" (click)="flow.dismiss()">
+                {{ t('publish.send.dismiss') }}
+              </button>
+            </div>
+          }
+          @if (flow.plan(); as plan) {
+            <app-plan-dialog
+              [plan]="plan"
+              [busy]="flow.phase() === 'executing'"
+              [problem]="flow.problem()"
+              (confirmed)="flow.confirm($event.consents, $event.confirmation)"
+              (cancelled)="flow.cancel()"
+            />
+          }
+          <p class="sr-only" role="status" data-announce>
+            {{ announcement(t) }}
+          </p>
         </section>
       }
     </ng-container>
@@ -203,11 +283,46 @@ const LANGUAGE_LABELS = {
       color: var(--ds-color-text-muted);
       margin: 0;
     }
+    .send,
+    .after {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--ds-space-3);
+      align-items: flex-start;
+    }
+    button {
+      min-height: var(--ds-target-size);
+      padding: 0 var(--ds-space-3);
+      border: 1px solid var(--ds-color-border-strong);
+      border-radius: var(--ds-radius);
+      background: var(--ds-color-surface);
+      color: var(--ds-color-text);
+      font: inherit;
+      cursor: pointer;
+    }
+    button:focus-visible {
+      outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+      outline-offset: 2px;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   `,
 })
 export class PublishStudio {
-  private readonly connection = inject(PUBLISH_CONNECTION);
+  protected readonly connection = inject(PUBLISH_CONNECTION);
   private readonly store = inject(DraftStore);
+  private readonly directory = inject(ConnectionDirectory);
+  private readonly arming = inject(ArmingStore);
+  protected readonly flow = inject(SendFlow);
+  private readonly lockStrip = viewChild(LockStrip);
   private readonly query = toSignal(inject(ActivatedRoute).queryParamMap);
 
   protected readonly textFields: readonly TextField[] = [
@@ -223,6 +338,22 @@ export class PublishStudio {
   protected readonly textMax = PUBLISH_LIMITS.textMax;
   protected readonly bodyMax = PUBLISH_LIMITS.bodyBytesMax;
   protected readonly refused = signal<readonly PrefillParam[]>([]);
+
+  /** The connection's profile as the engine sent it, or undefined while it is not known. */
+  protected readonly profile = computed(() => {
+    const cid = this.connection();
+    return cid === null ? undefined : this.directory.find(cid);
+  });
+  /** The connections are read (or the read failed): until then the page cannot say what the lock is. */
+  protected readonly classKnown = computed(() => {
+    const status = this.directory.status();
+    return status === 'ready' || status === 'error';
+  });
+  /** The engine is offering the unlock as the fix of a refusal of this connection. */
+  protected readonly unlockOffered = computed(() => {
+    const cid = this.connection();
+    return cid !== null && offersUnlock(this.flow.problem(), cid);
+  });
 
   private readonly draft = computed(() => {
     const cid = this.connection();
@@ -252,6 +383,14 @@ export class PublishStudio {
   });
 
   constructor() {
+    // The connection's class decides what the lock strip says (the engine decides the lock itself).
+    effect(() => {
+      if (this.connection() !== null) {
+        untracked(() => {
+          this.directory.ensureLoaded();
+        });
+      }
+    });
     // The address may carry a starting point (R7): the three parameters, each bounded; the rest is ignored.
     effect(() => {
       const params = this.query();
@@ -262,6 +401,72 @@ export class PublishStudio {
         if (Object.keys(patch).length > 0) this.patch(patch);
       });
     });
+  }
+
+  protected gatedLabels = gatedLabels;
+
+  /**
+   * The gate of Send. The lock is the engine's rule, shown from the connection's class and this page's own unlock; a
+   * send in flight and a draft the contract refuses close it with their reason. None of this authorises anything:
+   * the engine still decides.
+   */
+  protected sendGate(t: Translate): GateDecision {
+    const cid = this.connection();
+    if (cid === null) return { enabled: false };
+    if (!this.classKnown()) {
+      return { enabled: false, reason: t('publish.send.reading') };
+    }
+    const lock = lockGate({
+      cid,
+      envClass: this.profile()?.envClass,
+      armed: this.arming.armed(cid)(),
+      reason: t('publish.lock.reason'),
+    });
+    if (!lock.enabled) return lock;
+    if (this.flow.busy() || this.flow.phase() === 'review') {
+      return { enabled: false, reason: t('publish.send.inFlight') };
+    }
+    const count = this.issues().length;
+    if (count > 0) {
+      return { enabled: false, reason: t('publish.send.fix', { count }) };
+    }
+    return { enabled: true };
+  }
+
+  protected send(): void {
+    const cid = this.connection();
+    const draft = this.view();
+    if (cid === null || draft === null) return;
+    const result = draftToInput(cid, draft);
+    if (result.ok) this.flow.send(result.input);
+  }
+
+  protected unlock(): void {
+    this.lockStrip()?.open();
+  }
+
+  /** What the live region says as a send moves on: counts and words, nothing the person typed. */
+  protected announcement(t: Translate): string {
+    switch (this.flow.phase()) {
+      case 'planning':
+      case 'executing':
+        return t('publish.send.busy');
+      case 'done': {
+        const result = this.flow.result();
+        if (result === null) return '';
+        const total = result.copies.length;
+        return result.allConfirmed
+          ? t('publish.result.allConfirmed', { count: total })
+          : t('publish.result.notAll', {
+              confirmed: result.summary.confirmed,
+              count: total,
+            });
+      }
+      case 'failed':
+        return t('publish.send.failed');
+      default:
+        return '';
+    }
   }
 
   protected label(name: TextField | NumberField): string {

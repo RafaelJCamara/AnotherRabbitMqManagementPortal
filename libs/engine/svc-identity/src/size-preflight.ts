@@ -55,7 +55,15 @@ const warning = (
   code: SizeWarningCode,
   bytes: number,
   limit: number,
-): SizeWarning => ({ code, textKey: `identity.${code}.v1`, bytes, limit });
+): SizeWarning =>
+  // Frozen: the object is handed to every caller and to the sink, so none may change what
+  // another reads (M1-23 slice E hardening).
+  Object.freeze({ code, textKey: `identity.${code}.v1`, bytes, limit });
+
+const frozenList = (list: SizeWarning[]): readonly SizeWarning[] =>
+  Object.freeze(list);
+/** The one frozen list of "no warning", shared: nobody can push a warning into it. */
+const NO_WARNINGS: readonly SizeWarning[] = Object.freeze([]);
 
 /**
  * The warnings for sending `token` over `protocol`, none when it fits. The sizes are computed
@@ -72,8 +80,10 @@ export function preflightSize(input: PreflightInput): readonly SizeWarning[] {
       ? 'Basic '.length + base64Length(userBytes + 1 + tokenBytes)
       : 'Bearer '.length + tokenBytes;
     return bytes > BEARER_HEADER_WARN_BYTES
-      ? [warning('BEARER_HEADER_LARGE', bytes, BEARER_HEADER_WARN_BYTES)]
-      : [];
+      ? frozenList([
+          warning('BEARER_HEADER_LARGE', bytes, BEARER_HEADER_WARN_BYTES),
+        ])
+      : NO_WARNINGS;
   }
   const limit =
     input.protocol === 'amqp091' && input.caps.amqp091PreAuthFrame8192
@@ -81,8 +91,8 @@ export function preflightSize(input: PreflightInput): readonly SizeWarning[] {
       : PREAUTH_FRAME_LIMIT_LEGACY_BYTES;
   const response = 1 + userBytes + 1 + tokenBytes;
   return response + PREAUTH_HEADROOM_BYTES > limit
-    ? [warning('PLAIN_RESPONSE_LARGE', response, limit)]
-    : [];
+    ? frozenList([warning('PLAIN_RESPONSE_LARGE', response, limit)])
+    : NO_WARNINGS;
 }
 
 /** A bearer token is printable ASCII with no space, so it cannot end the header or add another. */
@@ -145,7 +155,7 @@ export function preflightCredential(
   protocol: RenewalProtocol | 'http',
   caps: { readonly amqp091PreAuthFrame8192: boolean },
 ): readonly SizeWarning[] {
-  if (credential.kind !== 'bearer') return [];
+  if (credential.kind !== 'bearer') return NO_WARNINGS;
   return preflightSize({
     token: credential.token.reveal(),
     username: credential.username ?? '',

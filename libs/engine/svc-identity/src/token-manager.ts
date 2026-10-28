@@ -1319,7 +1319,9 @@ export function createTokenManager(deps: TokenManagerDeps): TokenManager {
     protocol: CredentialProtocol,
     value: Resolved,
   ): ResolvedCredential {
-    if (value.credential.kind !== 'bearer') return { ...value, warnings: [] };
+    if (value.credential.kind !== 'bearer') {
+      return { ...value, warnings: Object.freeze([]) };
+    }
     const caps =
       protocol === 'http'
         ? { amqp091PreAuthFrame8192: false }

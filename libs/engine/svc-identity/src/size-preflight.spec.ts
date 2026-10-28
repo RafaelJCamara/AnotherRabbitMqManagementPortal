@@ -334,6 +334,11 @@ describe('size preflight (M1-23, DC-38)', () => {
 function warningRig(
   next: (n: number, now: number) => IssuedCredential,
   sink?: (event: SizeWarningEvent) => unknown,
+  capabilities: () => IdentityCapabilities = () => ({
+    amqp10TokenRenewalEndpoint: true,
+    amqp091ClosesAtCredentialExpiry: true,
+    amqp091PreAuthFrame8192: true,
+  }),
 ) {
   const clock = createManualClock(0);
   const heard: SizeWarningEvent[] = [];
@@ -355,11 +360,7 @@ function warningRig(
       cancelOwnConsumers: () => Promise.resolve({ cancelled: 0 }),
       onCredentialExpiredClose: () => () => undefined,
     },
-    capabilities: () => ({
-      amqp10TokenRenewalEndpoint: true,
-      amqp091ClosesAtCredentialExpiry: true,
-      amqp091PreAuthFrame8192: true,
-    }),
+    capabilities,
     onSizeWarning: (event) => {
       heard.push(event);
       return sink?.(event);
@@ -663,5 +664,175 @@ describe('slice D security fixes: a sink that fails after an await (F3)', () => 
     expect(got.warnings).toHaveLength(1);
     await expect(manager.dispose()).resolves.toBeUndefined();
     expect(manager.stats().listenerErrors).toBe(0);
+  });
+});
+
+describe('size preflight and warnings: slice E hardening (mutation probes of the slice D review)', () => {
+  it('M1-23 slice E hardening the token and the user name are measured in UTF-8 bytes, not in UTF-16 code units', () => {
+    const base = input({ username: 'alice', asBasic: false, caps: OLD_FRAME });
+    // 2,000 two-byte characters: `Bearer ` + 4,000 = 4,007 bytes, but only 2,007 code units.
+    expect(
+      preflightSize({ ...base, protocol: 'http', token: 'é'.repeat(2000) }),
+    ).toEqual([
+      {
+        code: 'BEARER_HEADER_LARGE',
+        textKey: 'identity.BEARER_HEADER_LARGE.v1',
+        bytes: 4007,
+        limit: 4000,
+      },
+    ]);
+    // PLAIN: 1 + 5 + 1 + 3,066 (1,533 two-byte characters) = 3,073; with the 1,024 headroom that
+    // is over 4,096, but 1,533 code units alone (1,540) would not be.
+    expect(
+      preflightSize({ ...base, protocol: 'amqp091', token: 'é'.repeat(1533) }),
+    ).toEqual([
+      {
+        code: 'PLAIN_RESPONSE_LARGE',
+        textKey: 'identity.PLAIN_RESPONSE_LARGE.v1',
+        bytes: 3073,
+        limit: 4096,
+      },
+    ]);
+    // A user name in two-byte characters counts in bytes too: 1 + 6 + 1 + 3,070 = 3,078 bytes.
+    expect(
+      preflightSize({
+        ...base,
+        protocol: 'amqp091',
+        username: 'ééé',
+        token: 'a'.repeat(3070),
+      })[0]?.bytes,
+    ).toBe(3078);
+    // Three-byte and four-byte characters in a Basic header (the base64 of the byte count).
+    const token = '€'.repeat(1000) + '😀'.repeat(250);
+    const tokenBytes = 3 * 1000 + 4 * 250;
+    expect(
+      preflightSize({ ...base, protocol: 'http', asBasic: true, token })[0]
+        ?.bytes,
+    ).toBe('Basic '.length + 4 * Math.ceil((5 + 1 + tokenBytes) / 3));
+  });
+
+  it('M1-23 slice E hardening the AMQP entry reports once per generation too, and again after a renewal', async () => {
+    // 3,100 bytes: over the 4,096-byte frame with the headroom, so it warns for the old frame.
+    const { manager, heard, clock } = warningRig(
+      (n) => bearerOf('a'.repeat(3100), 1_000_000 + n),
+      undefined,
+      () => ({
+        amqp10TokenRenewalEndpoint: true,
+        amqp091ClosesAtCredentialExpiry: true,
+        amqp091PreAuthFrame8192: false,
+      }),
+    );
+    const first = await manager.credentialFor('c1', 'amqp', signal);
+    const again = await manager.credentialFor('c1', 'amqp', signal);
+    expect(first.warnings.map((w) => w.code)).toEqual(['PLAIN_RESPONSE_LARGE']);
+    expect(again.warnings).toEqual(first.warnings);
+    expect(heard).toHaveLength(1);
+    expect(heard[0]).toMatchObject({
+      protocol: 'amqp',
+      generation: first.generation,
+    });
+    expect(manager.stats().sizeWarnings).toBe(1);
+    clock.setNow(clock.now() + 6_000); // past the 5 s floor between renewals
+    const renewed = await manager.refreshAfterUnauthorized(
+      'c1',
+      'amqp',
+      first.generation,
+      signal,
+    );
+    expect(renewed.generation).toBeGreaterThan(first.generation);
+    expect(heard).toHaveLength(2);
+    expect(heard[1]?.generation).toBe(renewed.generation);
+    await manager.credentialFor('c1', 'amqp', signal);
+    expect(heard).toHaveLength(2);
+    expect(manager.stats().sizeWarnings).toBe(2);
+    // The HTTP entry of the same connection is its own entry: 3,100 bytes fit a header.
+    expect(
+      (await manager.credentialFor('c1', 'http', signal)).warnings,
+    ).toEqual([]);
+    expect(heard).toHaveLength(2);
+  });
+
+  it('M1-23 slice E hardening a password or a certificate login never reads the capabilities', async () => {
+    const throwing = (): never => {
+      throw new Error('registry down');
+    };
+    const password = warningRig(
+      () => ({
+        kind: 'password',
+        username: 'alice',
+        password: new SecretValue('p'.repeat(9000)),
+      }),
+      undefined,
+      throwing,
+    );
+    expect(
+      (await password.manager.credentialFor('c1', 'amqp', signal)).warnings,
+    ).toEqual([]);
+    expect(password.manager.stats().capabilityErrors).toBe(0);
+    const external = warningRig(
+      () => ({ kind: 'external' }),
+      undefined,
+      throwing,
+    );
+    expect(
+      (await external.manager.credentialFor('c1', 'amqp', signal)).warnings,
+    ).toEqual([]);
+    expect(external.manager.stats().capabilityErrors).toBe(0);
+    // The control: a token does read them, so the throwing callback is what the test would catch.
+    const bearer = warningRig(
+      () => bearerOf('a'.repeat(100)),
+      undefined,
+      throwing,
+    );
+    await bearer.manager.credentialFor('c1', 'amqp', signal);
+    expect(bearer.manager.stats().capabilityErrors).toBe(1);
+  });
+
+  it('M1-23 slice E hardening a SizeWarning is frozen: a caller cannot change what the next caller, the sink or the kept state reads', async () => {
+    const direct = preflightSize(input({ token: 'a'.repeat(4100) }));
+    expect(Object.isFrozen(direct)).toBe(true);
+    expect(Object.isFrozen(direct[0])).toBe(true);
+    expect(Object.isFrozen(preflightSize(input({ token: 'a' })))).toBe(true);
+    const plain = preflightSize(
+      input({ protocol: 'amqp091', token: 'a'.repeat(4100) }),
+    );
+    expect(Object.isFrozen(plain[0])).toBe(true);
+    expect(
+      Object.isFrozen(
+        preflightCredential({ kind: 'external' }, 'amqp091', OLD_FRAME),
+      ),
+    ).toBe(true);
+
+    const { manager, heard } = warningRig(() => bearerOf('a'.repeat(4100)));
+    const first = await manager.credentialFor('c1', 'http', signal);
+    const warning = first.warnings[0] as { bytes: number; textKey: string };
+    expect(() => {
+      warning.bytes = 1;
+    }).toThrow(TypeError);
+    expect(() => {
+      warning.textKey = 'x';
+    }).toThrow(TypeError);
+    expect(() => {
+      (first.warnings as SizeWarning[]).push(warning as SizeWarning);
+    }).toThrow(TypeError);
+    // The event the sink heard is frozen too; the next caller reads the same numbers.
+    expect(Object.isFrozen(heard[0]?.warning)).toBe(true);
+    const again = await manager.credentialFor('c1', 'http', signal);
+    expect(again.warnings).toEqual([
+      {
+        code: 'BEARER_HEADER_LARGE',
+        textKey: 'identity.BEARER_HEADER_LARGE.v1',
+        bytes: 4107,
+        limit: 4000,
+      },
+    ]);
+    // A credential with nothing to warn about gets a frozen empty list too.
+    const external = warningRig(() => ({ kind: 'external' }));
+    const none = (await external.manager.credentialFor('c1', 'amqp', signal))
+      .warnings;
+    expect(Object.isFrozen(none)).toBe(true);
+    expect(() => (none as SizeWarning[]).push(warning as SizeWarning)).toThrow(
+      TypeError,
+    );
   });
 });

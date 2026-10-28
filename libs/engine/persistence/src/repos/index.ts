@@ -5,6 +5,7 @@ import { createBrokerProfileStore } from './broker-profiles';
 import { createCaptureRepository } from './captures';
 import { createConnectionProfileRepository } from './connection-profiles';
 import { createConnectionStore } from './connections';
+import { createCredentialProviderStore } from './credential-providers';
 import { createDataKeyRepository } from './data-keys';
 import { createJobStore } from './jobs';
 import { createPublishHistory } from './publish-history';
@@ -39,5 +40,6 @@ export function createRepositories(
     brokerProfiles: createBrokerProfileStore(handle.db),
     captures: createCaptureRepository(handle.db, handle.dialect, now),
     publishHistory: createPublishHistory(handle.db),
+    credentialProviders: createCredentialProviderStore(handle.db, now),
   };
 }

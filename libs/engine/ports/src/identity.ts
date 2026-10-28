@@ -109,3 +109,56 @@ export interface ConnectionAuthPort {
     listener: (connectionId: string) => void,
   ): () => void;
 }
+
+/**
+ * The most bytes of JSON one provider config may take (M1-23 slice E). The schema of the config is
+ * `svc-identity`'s and bounds every field (the largest valid `token-command` config is under 150 KiB
+ * of UTF-8); this is the store's own bound, so a row can never be larger than the reader will parse
+ * (I-6). A write over it is refused, and a stored row over it reads as `unreadable`.
+ */
+export const CREDENTIAL_PROVIDER_MAX_CONFIG_BYTES = 262_144;
+
+/**
+ * The non-secret settings of one credential provider of one profile, as stored
+ * (`credential_providers`, ADR-036). `config` is a JSON document that the owner of the schema,
+ * `svc-identity`, validates on every read: the store holds it as it was written and never decides
+ * what it means. It holds no secret; the secret stays in the profile's sealed `credentials` row.
+ */
+export interface CredentialProviderRecord {
+  readonly connectionId: string;
+  readonly protocol: CredentialProtocol;
+  readonly config: unknown;
+  readonly updatedAt: number;
+}
+
+/**
+ * What a read finds. `unreadable` is a row whose stored text is not JSON or is over the size bound
+ * (a damaged or hand-edited database): a fixed answer, never a thrown parse error and never the text.
+ */
+export type CredentialProviderRead =
+  | { readonly kind: 'found'; readonly record: CredentialProviderRecord }
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'unreadable' };
+
+/**
+ * The provider config of a profile, one per (connection id, protocol). The row goes with its
+ * connection (`ConnectionStore.delete`). No action or UI writes it yet (OQ-1455, a follow-up issue).
+ */
+export interface CredentialProviderStore {
+  get(
+    connectionId: string,
+    protocol: CredentialProtocol,
+  ): Promise<CredentialProviderRead>;
+  /**
+   * Inserts or replaces the config of one (connection, protocol). `config` must be a JSON value no
+   * larger than `CREDENTIAL_PROVIDER_MAX_CONFIG_BYTES` once serialised, or the call rejects with a
+   * fixed error that does not repeat it.
+   */
+  put(
+    connectionId: string,
+    protocol: CredentialProtocol,
+    config: unknown,
+  ): Promise<void>;
+  /** True when a row was removed. */
+  delete(connectionId: string, protocol: CredentialProtocol): Promise<boolean>;
+}

@@ -8,6 +8,7 @@ describe('ports public API', () => {
     expect(Object.keys(api).sort()).toEqual([
       'CAPTURE_MAX_BATCH',
       'CAPTURE_MAX_WINDOW',
+      'CREDENTIAL_PROVIDER_MAX_CONFIG_BYTES',
       'CaptureSearchUnavailableError',
       'ForgedProofError',
       'LANES',

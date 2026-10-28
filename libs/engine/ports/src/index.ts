@@ -79,9 +79,13 @@ export type {
 } from './connection-manager.ts';
 export type { DialCheck, DialerPort, DialTarget } from './dialer.ts';
 export { isLoopbackAddress, isLoopbackHost } from './loopback.ts';
+export { CREDENTIAL_PROVIDER_MAX_CONFIG_BYTES } from './identity.ts';
 export type {
   CommandRunnerPort,
   ConnectionAuthPort,
+  CredentialProviderRead,
+  CredentialProviderRecord,
+  CredentialProviderStore,
   RenewalProtocol,
   StoredLoginPort,
   TokenEndpointFailure,

@@ -4,6 +4,7 @@
 import type {
   AuditRepository,
   CaptureRepository,
+  CredentialProviderStore,
   PublishHistoryRepository,
   ConnectionStore,
   DataKeyRepository,
@@ -111,4 +112,6 @@ export interface Repositories {
   readonly captures: CaptureRepository;
   /** What a person published, per owner and connection, with the sealed masked document (M1-19). The port is @app/ports'. */
   readonly publishHistory: PublishHistoryRepository;
+  /** The non-secret provider settings of a profile, one per protocol (M1-23, OQ-1455). The port is @app/ports'. */
+  readonly credentialProviders: CredentialProviderStore;
 }

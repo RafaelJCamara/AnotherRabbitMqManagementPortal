@@ -198,6 +198,15 @@ export interface CredentialsTable {
   updated_at: number;
 }
 
+/** credential_providers (M1-23): the non-secret provider settings, one per profile and protocol; see 0012_credential_providers. */
+export interface CredentialProvidersTable {
+  connection_id: string;
+  protocol: 'http' | 'amqp';
+  /** JSON text; svc-identity validates it on every read. Holds no secret. */
+  config: string;
+  updated_at: number;
+}
+
 /** broker_profiles (M0-45): the cache of probed BrokerProfiles, one per connection; see 0008_broker_profiles. */
 export interface BrokerProfilesTable {
   connection_id: string;
@@ -317,6 +326,7 @@ export interface Database {
   job_events: JobEventsTable;
   views: ViewsTable;
   credentials: CredentialsTable;
+  credential_providers: CredentialProvidersTable;
   broker_profiles: BrokerProfilesTable;
   captures: CapturesTable;
   captured_messages: CapturedMessagesTable;

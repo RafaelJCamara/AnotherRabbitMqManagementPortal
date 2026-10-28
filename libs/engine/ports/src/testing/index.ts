@@ -4,3 +4,9 @@ export {
   jobStoreContract,
   type JobStoreContractOptions,
 } from './job-store-contract.ts';
+export {
+  CREDENTIAL_PROVIDER_NOT_STORABLE,
+  credentialProviderStoreContract,
+  type CredentialProviderStoreContractOptions,
+  type CredentialProviderStoreHarness,
+} from './credential-provider-store-contract.ts';

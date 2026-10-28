@@ -76,6 +76,11 @@ export function createConnectionStore(
           .deleteFrom('credentials')
           .where('connection_id', '=', id)
           .execute();
+        // The provider settings go with the connection (0012); the sealed secret went above.
+        await trx
+          .deleteFrom('credential_providers')
+          .where('connection_id', '=', id)
+          .execute();
         // The probed profile is the cache of what this connection's broker said (0008).
         await trx
           .deleteFrom('broker_profiles')

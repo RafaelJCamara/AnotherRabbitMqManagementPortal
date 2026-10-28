@@ -43,7 +43,6 @@
       "rate": 0,
       "log": [
         0,
-        0,
         0
       ]
     },
@@ -52,7 +51,6 @@
       "rate": 0,
       "log": [
         0.4,
-        0,
         0
       ]
     },
@@ -61,17 +59,15 @@
       "rate": 0,
       "log": [
         0,
-        0,
         0
       ]
     },
     "deliver_get": 4,
     "deliver_get_details": {
-      "rate": 0,
+      "rate": 0.4,
       "log": [
         0.4,
-        0.4,
-        0
+        0.4
       ]
     },
     "confirm": 0,
@@ -79,24 +75,21 @@
       "rate": 0,
       "log": [
         0,
-        0,
         0
       ]
     },
     "get": 2,
     "get_details": {
-      "rate": 0,
+      "rate": 0.4,
       "log": [
         0,
-        0.4,
-        0
+        0.4
       ]
     },
     "get_no_ack": 0,
     "get_no_ack_details": {
       "rate": 0,
       "log": [
-        0,
         0,
         0
       ]
@@ -106,7 +99,6 @@
       "rate": 0,
       "log": [
         1,
-        0,
         0
       ]
     },
@@ -115,24 +107,21 @@
       "rate": 0,
       "log": [
         0,
-        0,
         0
       ]
     },
     "reject": 2,
     "reject_details": {
-      "rate": 0,
+      "rate": 0.4,
       "log": [
         0,
-        0.4,
-        0
+        0.4
       ]
     },
     "return_unroutable": 0,
     "return_unroutable_details": {
       "rate": 0,
       "log": [
-        0,
         0,
         0
       ]
@@ -141,7 +130,6 @@
     "dedup_details": {
       "rate": 0,
       "log": [
-        0,
         0,
         0
       ]
@@ -153,18 +141,18 @@
         "name": "golden.classic",
         "vhost": "golden"
       },
-      "consumer_tag": "amq.ctag-phmQCKook_TdnrWvX57_VN7_4jXSATzq",
+      "consumer_tag": "amq.ctag-M4OwVl1f5_61pFy4GXm1nR6D87My7nhu",
       "exclusive": false,
       "ack_required": true,
       "prefetch_count": 2,
       "priority": 0,
       "channel_details": {
         "peer_host": "192.0.2.1",
-        "peer_port": 35992,
-        "connection_name": "192.0.2.1:35992 -> 192.0.2.2:5672",
+        "peer_port": 39162,
+        "connection_name": "192.0.2.1:39162 -> 192.0.2.2:5672",
         "user": "guest",
         "number": 1,
-        "name": "192.0.2.1:35992[1]"
+        "name": "192.0.2.1:39162[1]"
       }
     }
   ]

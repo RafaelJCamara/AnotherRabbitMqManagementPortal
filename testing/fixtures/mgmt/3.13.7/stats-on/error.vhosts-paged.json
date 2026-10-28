@@ -49,7 +49,7 @@
         },
         "deliver_get": 4,
         "deliver_get_details": {
-          "rate": 0
+          "rate": 0.4
         },
         "deliver_no_ack": 0,
         "deliver_no_ack_details": {
@@ -61,7 +61,7 @@
         },
         "get": 2,
         "get_details": {
-          "rate": 0
+          "rate": 0.4
         },
         "get_empty": 0,
         "get_empty_details": {
@@ -109,9 +109,9 @@
       "recv_oct_details": {
         "rate": 0
       },
-      "send_oct": 935,
+      "send_oct": 927,
       "send_oct_details": {
-        "rate": 1.6
+        "rate": 0
       },
       "tags": [
         "golden",

@@ -1,6 +1,6 @@
 {
   "channels": 1,
-  "connected_at": 1792419363000,
+  "connected_at": 1793178403800,
   "type": "network",
   "channel_max": 2048,
   "frame_max": 131072,
@@ -9,7 +9,7 @@
     "connection_name": "golden/recorder/source/seed",
     "product": "amqplib",
     "version": "2.2.0",
-    "platform": "Node.JS v24.19.0",
+    "platform": "Node.JS v24.22.0",
     "information": "https://amqp-node.github.io/amqplib/",
     "capabilities": {
       "publisher_confirms": true,
@@ -27,9 +27,9 @@
   "host": "192.0.2.2",
   "port": 5672,
   "peer_host": "192.0.2.1",
-  "peer_port": 35992,
-  "name": "192.0.2.1:35992 -> 192.0.2.2:5672",
-  "pid": "192.0.2.1:35992 -> 192.0.2.2:5672",
+  "peer_port": 39162,
+  "name": "192.0.2.1:39162 -> 192.0.2.2:5672",
+  "pid": "192.0.2.1:39162 -> 192.0.2.2:5672",
   "ssl": false,
   "tls_version": null,
   "cipher": null,
@@ -39,7 +39,6 @@
     "rate": 0,
     "log": [
       80.4,
-      0,
       0
     ]
   },
@@ -48,7 +47,6 @@
     "rate": 0,
     "log": [
       13.4,
-      0,
       0
     ]
   }

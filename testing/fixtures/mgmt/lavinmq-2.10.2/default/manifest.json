@@ -61,7 +61,7 @@
       "auth": "guest",
       "status": 200,
       "file": "nodes.list.json",
-      "bytes": 2113,
+      "bytes": 2088,
       "envelope": false
     },
     {
@@ -161,7 +161,7 @@
       "auth": "guest",
       "status": 200,
       "file": "queues.afterGet.json",
-      "bytes": 2947,
+      "bytes": 2821,
       "envelope": false
     },
     {
@@ -197,7 +197,7 @@
       "auth": "guest",
       "status": 200,
       "file": "exchanges.one.json",
-      "bytes": 817,
+      "bytes": 773,
       "envelope": false
     },
     {
@@ -300,12 +300,12 @@
       "id": "connections.one",
       "kind": "endpoint",
       "method": "GET",
-      "path": "/api/connections/192.0.2.1%3A35992%20-%3E%20192.0.2.2%3A5672",
-      "sent": "/api/connections/192.0.2.1%3A35992%20-%3E%20192.0.2.2%3A5672",
+      "path": "/api/connections/192.0.2.1%3A39162%20-%3E%20192.0.2.2%3A5672",
+      "sent": "/api/connections/192.0.2.1%3A39162%20-%3E%20192.0.2.2%3A5672",
       "auth": "guest",
       "status": 200,
       "file": "connections.one.json",
-      "bytes": 1190,
+      "bytes": 1172,
       "envelope": false
     },
     {
@@ -336,12 +336,12 @@
       "id": "channels.one",
       "kind": "endpoint",
       "method": "GET",
-      "path": "/api/channels/192.0.2.1%3A35992%5B1%5D",
-      "sent": "/api/channels/192.0.2.1%3A35992%5B1%5D",
+      "path": "/api/channels/192.0.2.1%3A39162%5B1%5D",
+      "sent": "/api/channels/192.0.2.1%3A39162%5B1%5D",
       "auth": "guest",
       "status": 200,
       "file": "channels.one.json",
-      "bytes": 2344,
+      "bytes": 2223,
       "envelope": false
     },
     {

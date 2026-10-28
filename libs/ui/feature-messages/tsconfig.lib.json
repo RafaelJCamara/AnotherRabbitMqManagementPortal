@@ -9,6 +9,8 @@
     "src/**/*.spec.ts",
     "src/test-setup.ts",
     "src/lib/publish/spec-support.ts",
+    "src/lib/publish/fake-api.ts",
+    "src/lib/publish/profile-fixture.ts",
     "src/lib/publish/studio-bed.ts"
   ]
 }

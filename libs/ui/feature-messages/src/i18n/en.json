@@ -109,5 +109,113 @@
     "badValue": "This value does not fit its type.",
     "nameRequired": "A header needs a name.",
     "invalid": "The message does not fit the publish contract."
+  },
+  "send": {
+    "label": "Send",
+    "busy": "Sending",
+    "reading": "Reading the environment of this connection before sending.",
+    "inFlight": "A send is already in progress.",
+    "fix": "{{count}} to fix before this can be sent.",
+    "unlock": "Unlock this connection",
+    "dismiss": "Clear",
+    "failed": "The engine answered with a failure. The details are on the page."
+  },
+  "gate": {
+    "whyDisabled": "Why this is disabled:",
+    "degraded": "Works with limits:",
+    "source": "Source:",
+    "noReason": "The engine gave no reason."
+  },
+  "lock": {
+    "region": "Lock of this connection",
+    "locked": "Locked. Changes that name this connection need an unlock first.",
+    "armedUntil": "Unlocked until {{time}}.",
+    "unlock": "Unlock…",
+    "lockAgain": "Lock again",
+    "reason": "This connection is locked. Unlock it to send messages for 15 minutes.",
+    "dialog": {
+      "title": "Unlock {{name}}?",
+      "confirm": "Unlock",
+      "cancel": "Cancel",
+      "busy": "Unlocking",
+      "body": "{{name}} is locked. Unlocking lets changes that name it go through for 15 minutes.",
+      "audit": "The unlock is recorded in the audit log."
+    }
+  },
+  "problem": {
+    "unknown": "The request failed.",
+    "why": "Why:",
+    "source": "Source:",
+    "code": "Code:"
+  },
+  "hint": {
+    "capabilityMissing": "This engine build cannot publish yet: no publish connection is wired. Nothing was sent and nothing was saved to the history.",
+    "planRequired": "The engine asked for a plan before it runs this publish, and this engine cannot show plans yet. Nothing was sent.",
+    "planExpired": "The plan is no longer valid. Send again to make a new one. The old plan sent nothing.",
+    "gateBlocked": "The engine refused because a rule is in the way. The reason above is the engine's. If it names an unlock, unlock the connection and send again.",
+    "forbidden": "Your login does not have the permission to publish on this engine.",
+    "forbiddenBroker": "The broker refused this connection's login for this exchange. Check the login of the connection and its permissions on the broker.",
+    "notFound": "The engine did not find something the send needs, such as the exchange or the connection.",
+    "unreachable": "The engine could not reach the broker. No confirm arrived.",
+    "validation": "The engine does not accept this message as it is. Read the detail above, fix the field and send again."
+  },
+  "plan": {
+    "title": "Send this message?",
+    "intro": "The engine made a plan for this publish. It asks for the following before it runs.",
+    "execute": "Send",
+    "cancel": "Cancel",
+    "busy": "Sending",
+    "exchange": "Exchange",
+    "defaultExchange": "(default exchange)",
+    "routingKey": "Routing key",
+    "copies": "Copies",
+    "bodyBytes": "Body size in bytes",
+    "headerCount": "Number of headers",
+    "notReported": "not reported",
+    "gates": "Blocked by",
+    "noReason": "The engine gave no reason.",
+    "source": "Source:",
+    "fix": "Fixed by:",
+    "warnings": "Warnings",
+    "approvals": "Approvals still needed: {{count}}. This page cannot grant them.",
+    "consents": "Consents the engine asks for",
+    "phrase": "Type {{phrase}} to confirm",
+    "closed": "Send stays closed until everything above is given and nothing blocks it."
+  },
+  "result": {
+    "title": "Result",
+    "allConfirmedOne": "The broker confirmed the copy.",
+    "allConfirmed": "The broker confirmed all {{count}} copies.",
+    "notAll": "{{confirmed}} of {{count}} copies confirmed by the broker. Read each copy below.",
+    "historyNotRecorded": "The message was published, but this publish could not be saved to the history.",
+    "summary": "Outcomes by count",
+    "copies": "Outcome of each copy",
+    "copy": "Copy {{n}}",
+    "noUndo": "A publish is a write: this page cannot take it back."
+  },
+  "outcome": {
+    "name": {
+      "confirmed": "Confirmed",
+      "nacked": "Nacked",
+      "returned": "Returned",
+      "blocked": "Blocked",
+      "timeout": "Timed out",
+      "failed": "Failed",
+      "notSent": "Not sent"
+    },
+    "returnedLabel": "returned: {{reason}}",
+    "failedLabel": "failed: {{reason}}",
+    "detail": "Detail: {{reason}}",
+    "explain": {
+      "confirmed": "The broker confirmed this copy. What happens to it afterwards is not reported here.",
+      "nacked": "The broker refused this copy with a negative confirm. It was not accepted.",
+      "returned": "The broker returned this message to the publisher.",
+      "returnedCode": "The broker returned this message to the publisher (reply code {{reason}}).",
+      "noRoute": "The broker found no queue for this exchange and routing key, and returned the message to the publisher. The broker did not keep it for this publish.",
+      "timeout": "No confirm arrived in time. The broker may still have routed this copy.",
+      "blocked": "The broker blocked the connection, so nothing was sent for this copy.",
+      "failed": "This copy could not be sent. The code is the contract's error code.",
+      "notSent": "The send stopped before this copy, so it was not sent."
+    }
   }
 }

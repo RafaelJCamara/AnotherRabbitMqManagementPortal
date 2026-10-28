@@ -5,6 +5,7 @@
 // that need them import this one and sit at least two steps from any entry. Nothing else belongs in this file.
 import {
   MessagesPublishInputSchema,
+  messagesPublish,
   PUBLISH_LIMITS as LIMITS,
   PublishHeaderValueSchema,
   PublishHeadersSchema,
@@ -12,6 +13,9 @@ import {
 } from '@app/contracts';
 
 export const PUBLISH_LIMITS = LIMITS;
+
+/** The action the send flow plans, executes and, where the engine has no plan route yet, calls (slice D). */
+export const PUBLISH_ACTION = messagesPublish;
 
 export const publishBodyBytes = (
   body: Parameters<typeof bodyBytes>[0],

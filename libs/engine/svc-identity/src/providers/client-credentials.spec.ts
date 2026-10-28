@@ -303,3 +303,67 @@ describe('client credentials config', () => {
     });
   });
 });
+
+describe('client credentials TLS trust per identity provider (N3, OQ-1559)', () => {
+  const pem = (body: string): string =>
+    `-----BEGIN CERTIFICATE-----\n${body}\n-----END CERTIFICATE-----\n`;
+  const CA_A = pem('QUFB');
+  const CA_B = pem('QkJC');
+
+  it('M1-23 slice E AC-8 the CA of a provider config travels with that provider only', async () => {
+    const endpoint = fakeEndpoint(() => ok(jwt({ sub: 'x', iat: NOW / 1000 })));
+    const run = (overrides: Record<string, unknown>) =>
+      createClientCredentialsProvider({
+        config: config(overrides),
+        stored: stored(),
+        endpoint: endpoint.port,
+        clock,
+      }).acquire({ connectionId: 'c1', protocol: 'amqp' }, signal);
+    await run({ tlsCa: [CA_A] });
+    await run({ tlsCa: [CA_B] });
+    await run({});
+    // Each request carries its own provider's CAs, and one that configured none carries none.
+    expect(endpoint.calls.map((call) => call.request.tlsCa)).toEqual([
+      [CA_A],
+      [CA_B],
+      undefined,
+    ]);
+    expect('tlsCa' in (endpoint.calls[2]?.request ?? {})).toBe(false);
+  });
+
+  it('M1-23 slice E AC-8 the config takes public CAs only: no key, no non-PEM text, at most eight, and no insecure switch', () => {
+    const parse = (overrides: Record<string, unknown>) =>
+      ProviderConfigSchema.safeParse({
+        kind: 'client-credentials',
+        endpoint: ENDPOINT,
+        clientId: 'engine-client',
+        ...overrides,
+      }).success;
+    expect(parse({ tlsCa: [CA_A, CA_B] })).toBe(true);
+    expect(parse({ tlsCa: [] })).toBe(true);
+    expect(parse({ tlsCa: Array.from({ length: 8 }, () => CA_A) })).toBe(true);
+    expect(parse({ tlsCa: Array.from({ length: 9 }, () => CA_A) })).toBe(false);
+    expect(parse({ tlsCa: [''] })).toBe(false);
+    expect(parse({ tlsCa: ['not a certificate'] })).toBe(false);
+    // One entry is at most 64 KiB: the cap itself is allowed, one character more is not.
+    const sized = (length: number): string =>
+      `${CA_A}${'a'.repeat(length - CA_A.length)}`;
+    expect(parse({ tlsCa: [sized(64 * 1024)] })).toBe(true);
+    expect(parse({ tlsCa: [sized(64 * 1024 + 1)] })).toBe(false);
+    for (const label of ['PRIVATE KEY', 'RSA PRIVATE KEY', 'EC PRIVATE KEY']) {
+      expect(
+        parse({
+          tlsCa: [
+            `${CA_A}-----BEGIN ${label}-----\nQUFB\n-----END ${label}-----`,
+          ],
+        }),
+        label,
+      ).toBe(false);
+    }
+    expect(parse({ tlsCa: 'x' })).toBe(false);
+    // The override has no spelling in the config (strict object).
+    expect(parse({ insecure: true })).toBe(false);
+    expect(parse({ tlsInsecure: true })).toBe(false);
+    expect(parse({ rejectUnauthorized: false })).toBe(false);
+  });
+});

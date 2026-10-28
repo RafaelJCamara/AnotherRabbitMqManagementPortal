@@ -147,6 +147,8 @@ export function createClientCredentialsProvider(deps: {
           ...(config.audience === undefined
             ? {}
             : { audience: config.audience }),
+          // This provider's own CAs travel with its own request, so no other issuer sees them (N3).
+          ...(config.tlsCa === undefined ? {} : { tlsCa: config.tlsCa }),
         },
         signal,
         timeoutMs,

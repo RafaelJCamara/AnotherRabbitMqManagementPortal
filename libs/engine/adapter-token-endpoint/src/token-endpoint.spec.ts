@@ -11,7 +11,7 @@ import {
   type Dialer,
   type DialerOptions,
 } from '@app/net-dialer';
-import { createTrustStore, type TlsTrust } from '@app/net-truststore';
+import { createTrustStore, type TrustStore } from '@app/net-truststore';
 import { createTestPki, startTestTlsServer } from '@app/net-truststore/testing';
 import type { TokenRequest, TokenResponse } from '@app/ports';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   createTokenEndpoint,
   MAX_RESPONSE_BYTES,
+  MAX_TLS_CA_ENTRIES,
   parseTokenResponse,
 } from './token-endpoint';
 
@@ -87,14 +88,14 @@ async function startIssuer(responder: Responder = json(OK_BODY)) {
   };
 }
 
-function trust(ca?: string): TlsTrust {
-  const store = createTrustStore({
+/** A TrustStore with no default CAs, so only what a request brings is trusted. */
+function store(): TrustStore {
+  return createTrustStore({
     runtime: {
       getCACertificates: () => [],
       setDefaultCACertificates: () => undefined,
     },
   });
-  return store.forProfile(ca === undefined ? {} : { ca: [ca] });
 }
 
 /** The real Dialer, with the purpose registry on, and a record of what was dialled. */
@@ -167,12 +168,16 @@ describe('token endpoint adapter', () => {
     const secure = spied();
     const adapter = createTokenEndpoint({
       dialer: secure.dialer,
-      trust: trust(pki.root.pem),
+      trustStore: store(),
     });
     const tlsUrl = `https://127.0.0.1:${String(tlsServer.port)}/oauth/token?tenant=a`;
 
     const issued = await adapter.requestToken(
-      request(tlsUrl, { scope: 'rabbitmq.read', audience: 'rabbitmq' }),
+      request(tlsUrl, {
+        scope: 'rabbitmq.read',
+        audience: 'rabbitmq',
+        tlsCa: [pki.root.pem],
+      }),
       signal,
     );
 
@@ -207,7 +212,7 @@ describe('token endpoint adapter', () => {
     });
     const refusedByPolicy = await createTokenEndpoint({
       dialer: denied.dialer,
-      trust: trust(),
+      trustStore: store(),
     }).requestToken(request(issuer.url), signal);
     expect(refusedByPolicy).toEqual({ ok: false, reason: 'egress-denied' });
     expect(denied.dialed.map((each) => each.purpose)).toEqual(['oidc']);
@@ -216,14 +221,14 @@ describe('token endpoint adapter', () => {
     // A certificate the trust does not accept, and plain http beyond loopback: no request is made.
     const untrusted = await createTokenEndpoint({
       dialer: spied().dialer,
-      trust: trust(),
+      trustStore: store(),
     }).requestToken(request(tlsUrl), signal);
     expect(untrusted).toEqual({ ok: false, reason: 'tls-untrusted' });
     const remote = spied();
     expect(
       await createTokenEndpoint({
         dialer: remote.dialer,
-        trust: trust(),
+        trustStore: store(),
       }).requestToken(request('http://issuer.example.test/token'), signal),
     ).toEqual({ ok: false, reason: 'egress-denied' });
     expect(remote.dialed).toEqual([]);
@@ -238,7 +243,7 @@ describe('token endpoint adapter', () => {
       const big = await startIssuer(json(padded(size)));
       const outcome = await createTokenEndpoint({
         dialer: spied().dialer,
-        trust: trust(),
+        trustStore: store(),
       }).requestToken(request(big.url), signal);
       expect(outcome.ok ? 'ok' : outcome.reason, String(size)).toBe(expected);
     }
@@ -251,7 +256,7 @@ describe('token endpoint adapter', () => {
     expect(
       await createTokenEndpoint({
         dialer: spied().dialer,
-        trust: trust(),
+        trustStore: store(),
       }).requestToken(request(endless.url), signal),
     ).toEqual({ ok: false, reason: 'too-large' });
 
@@ -282,7 +287,7 @@ describe('token endpoint adapter strength', () => {
     const issuer = await startIssuer(responder);
     return createTokenEndpoint({
       dialer: spied().dialer,
-      trust: trust(),
+      trustStore: store(),
       ...(timeoutMs === undefined ? {} : { timeoutMs }),
     }).requestToken(request(issuer.url, extra), signal);
   };
@@ -365,7 +370,7 @@ describe('token endpoint adapter strength', () => {
     const issuer = await startIssuer();
     const adapter = createTokenEndpoint({
       dialer: spied().dialer,
-      trust: trust(),
+      trustStore: store(),
     });
     await adapter.requestToken(request(issuer.url), signal);
     expect(issuer.requests).toHaveLength(1);
@@ -412,7 +417,7 @@ describe('token endpoint adapter strength', () => {
     const silent = await startIssuer(() => undefined);
     const adapter = createTokenEndpoint({
       dialer: spied().dialer,
-      trust: trust(),
+      trustStore: store(),
       timeoutMs: 80,
     });
     expect(await adapter.requestToken(request(silent.url), signal)).toEqual({
@@ -457,7 +462,7 @@ describe('token endpoint adapter strength', () => {
     expect(() =>
       createTokenEndpoint({
         dialer: spied().dialer,
-        trust: trust(),
+        trustStore: store(),
         timeoutMs: 0,
       }),
     ).toThrow(RangeError);
@@ -507,7 +512,7 @@ describe('token endpoint adapter Host header (N1)', () => {
     const via = viaIssuer(issuer.port);
     const outcome = await createTokenEndpoint({
       dialer: via.dialer,
-      trust: trust(),
+      trustStore: store(),
     }).requestToken(request(endpoint), signal);
     expect(outcome.ok, endpoint).toBe(true);
     expect(issuer.requests).toHaveLength(1);
@@ -560,7 +565,7 @@ describe('token endpoint adapter Host header (N1)', () => {
     const real = spied();
     await createTokenEndpoint({
       dialer: real.dialer,
-      trust: trust(),
+      trustStore: store(),
     }).requestToken(request(issuer.url), signal);
     expect(issuer.requests[0]?.headers.host).toBe(
       `127.0.0.1:${String(issuer.port)}`,
@@ -574,7 +579,7 @@ describe('token endpoint adapter loopback check (N2)', () => {
     const via = viaIssuer(issuer.port);
     const adapter = createTokenEndpoint({
       dialer: via.dialer,
-      trust: trust(),
+      trustStore: store(),
     });
     for (const endpoint of [
       'http://127.0.0.1.evil.test/t',
@@ -617,7 +622,7 @@ describe('token endpoint adapter loopback check (N2)', () => {
         const via = viaIssuer(issuer.port, { remoteAddress: peer });
         const outcome = await createTokenEndpoint({
           dialer: via.dialer,
-          trust: trust(),
+          trustStore: store(),
         }).requestToken(request(endpoint), signal);
         const label = `${endpoint} via ${String(peer)}`;
         expect(outcome, label).toEqual({ ok: false, reason: 'egress-denied' });
@@ -636,7 +641,7 @@ describe('token endpoint adapter loopback check (N2)', () => {
       const via = viaIssuer(issuer.port, { remoteAddress: peer });
       const outcome = await createTokenEndpoint({
         dialer: via.dialer,
-        trust: trust(),
+        trustStore: store(),
       }).requestToken(request('http://localhost/t'), signal);
       expect(outcome.ok, peer).toBe(true);
       expect(issuer.requests, peer).toHaveLength(1);
@@ -648,9 +653,202 @@ describe('token endpoint adapter loopback check (N2)', () => {
     const via = viaIssuer(issuer.port, { remoteAddress: '203.0.113.9' });
     const outcome = await createTokenEndpoint({
       dialer: via.dialer,
-      trust: trust(),
+      trustStore: store(),
     }).requestToken(request('https://idp.example.test/t'), signal);
     expect(outcome.ok).toBe(true);
     expect(issuer.requests).toHaveLength(1);
+  });
+});
+
+/** An https issuer on 127.0.0.1 with its own PKI; `served` counts the requests that got through TLS. */
+async function startTlsIssuer(name: string) {
+  const pki = createTestPki(name);
+  const { leaf, chainPem } = pki.issueServer();
+  const state = { served: 0 };
+  const server = await startTestTlsServer({
+    certPem: chainPem,
+    keyPem: leaf.keyPem,
+    onConnection: (socket) => {
+      const read = requestOf(() => {
+        state.served += 1;
+        socket.end(
+          `HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: ${String(OK_BODY.length)}\r\nconnection: close\r\n\r\n${OK_BODY}`,
+        );
+      });
+      socket.on('data', read);
+    },
+  });
+  closers.push(() => server.close());
+  return {
+    root: pki.root.pem,
+    state,
+    url: `https://127.0.0.1:${String(server.port)}/oauth/token`,
+  };
+}
+
+describe('token endpoint adapter TLS trust per identity provider (N3, OQ-1559)', () => {
+  const outcomeOf = (outcome: TokenResponse): string =>
+    outcome.ok ? 'token' : outcome.reason;
+
+  it('M1-23 slice E AC-8 a CA of one identity provider is not used for another issuer, in any order', async () => {
+    const a = await startTlsIssuer('Provider A Root');
+    const b = await startTlsIssuer('Provider B Root');
+    // One adapter for every issuer: whatever a request brings must not stay behind.
+    const adapter = createTokenEndpoint({
+      dialer: spied().dialer,
+      trustStore: store(),
+    });
+    const ask = async (url: string, tlsCa?: string[]): Promise<string> =>
+      outcomeOf(
+        await adapter.requestToken(
+          request(url, tlsCa === undefined ? {} : { tlsCa }),
+          signal,
+        ),
+      );
+
+    expect(await ask(a.url, [a.root])).toBe('token');
+    // The CA of A does not open B, and nothing of A's stays for a request that brings no CA.
+    expect(await ask(b.url, [a.root])).toBe('tls-untrusted');
+    expect(await ask(a.url)).toBe('tls-untrusted');
+    expect(await ask(b.url)).toBe('tls-untrusted');
+    expect(await ask(b.url, [b.root])).toBe('token');
+    expect(await ask(a.url, [b.root])).toBe('tls-untrusted');
+    expect(await ask(a.url)).toBe('tls-untrusted');
+    // Both CAs in one request are that request's business only.
+    expect(await ask(a.url, [a.root, b.root])).toBe('token');
+    expect(await ask(b.url)).toBe('tls-untrusted');
+    // A refused handshake never reached the application: no request was sent to the wrong issuer.
+    expect(a.state.served).toBe(2);
+    expect(b.state.served).toBe(1);
+  });
+
+  it('M1-23 slice E AC-8 the request CAs are added to the default trust, and replace nothing', async () => {
+    const a = await startTlsIssuer('Org Root');
+    const b = await startTlsIssuer('Provider B Root');
+    const withOrg = createTrustStore({
+      org: [a.root],
+      runtime: {
+        getCACertificates: () => [],
+        setDefaultCACertificates: () => undefined,
+      },
+    });
+    const adapter = createTokenEndpoint({
+      dialer: spied().dialer,
+      trustStore: withOrg,
+    });
+    const ask = async (url: string, tlsCa?: string[]) =>
+      outcomeOf(
+        await adapter.requestToken(
+          request(url, tlsCa === undefined ? {} : { tlsCa }),
+          signal,
+        ),
+      );
+    // The organisation CA still applies when a request brings its own, and the own one works too.
+    expect(await ask(a.url)).toBe('token');
+    expect(await ask(a.url, [b.root])).toBe('token');
+    expect(await ask(b.url, [b.root])).toBe('token');
+    // The default trust does not cover B.
+    expect(await ask(b.url)).toBe('tls-untrusted');
+  });
+
+  it('M1-23 slice E AC-8 the insecure override does not exist for oidc: the adapter never asks for it and refuses a trust that has it', async () => {
+    const issuer = await startTlsIssuer('Provider A Root');
+    const base = store();
+    // What the adapter asks the TrustStore for: the request CAs and nothing else.
+    const asked: unknown[] = [];
+    const spy = {
+      forProfile: (profile?: Parameters<TrustStore['forProfile']>[0]) => {
+        asked.push(profile);
+        return base.forProfile(profile);
+      },
+    };
+    const honest = createTokenEndpoint({
+      dialer: spied().dialer,
+      trustStore: spy,
+    });
+    await honest.requestToken(request(issuer.url), signal);
+    await honest.requestToken(
+      request(issuer.url, { tlsCa: [issuer.root] }),
+      signal,
+    );
+    expect(asked).toEqual([{}, { ca: [issuer.root] }]);
+
+    // A store that hands back a verification-off trust (a bug, or a profile that was built that
+    // way): nothing is dialled and the secret goes nowhere.
+    const dialled = spied();
+    const insecure = createTokenEndpoint({
+      dialer: dialled.dialer,
+      trustStore: {
+        forProfile: (profile) =>
+          base.forProfile({ ...profile, insecure: true }),
+      },
+    });
+    const before = issuer.state.served;
+    expect(await insecure.requestToken(request(issuer.url), signal)).toEqual({
+      ok: false,
+      reason: 'tls-untrusted',
+    });
+    expect(dialled.dialed).toEqual([]);
+    expect(issuer.state.served).toBe(before);
+    // The same override could not make a wrong certificate pass either.
+    const stranger = await startTlsIssuer('Provider B Root');
+    expect(await insecure.requestToken(request(stranger.url), signal)).toEqual({
+      ok: false,
+      reason: 'tls-untrusted',
+    });
+    expect(stranger.state.served).toBe(0);
+  });
+
+  it('M1-23 slice E AC-8 a request with CAs that do not parse, or too many, is malformed and dials nothing', async () => {
+    const issuer = await startTlsIssuer('Provider A Root');
+    const dialled = spied();
+    const adapter = createTokenEndpoint({
+      dialer: dialled.dialer,
+      trustStore: store(),
+    });
+    const tooMany = Array.from({ length: MAX_TLS_CA_ENTRIES + 1 }, () => {
+      return issuer.root;
+    });
+    for (const tlsCa of [
+      ['not a certificate'],
+      [issuer.root, 'garbage'],
+      tooMany,
+      [42 as unknown as string],
+    ]) {
+      expect(
+        await adapter.requestToken(request(issuer.url, { tlsCa }), signal),
+        JSON.stringify(tlsCa).slice(0, 40),
+      ).toEqual({ ok: false, reason: 'malformed' });
+    }
+    expect(dialled.dialed).toEqual([]);
+    // The cap itself is allowed.
+    expect(
+      (
+        await adapter.requestToken(
+          request(issuer.url, {
+            tlsCa: tooMany.slice(0, MAX_TLS_CA_ENTRIES),
+          }),
+          signal,
+        )
+      ).ok,
+    ).toBe(true);
+    // Plain loopback http has no TLS: CAs are not looked at, and the store is not asked.
+    const plain = await startIssuer();
+    const unasked = createTokenEndpoint({
+      dialer: spied().dialer,
+      trustStore: {
+        forProfile: () => {
+          throw new Error('must not be asked for plain http');
+        },
+      },
+    });
+    expect(
+      (
+        await unasked.requestToken(
+          request(plain.url, { tlsCa: ['not a certificate'] }),
+          signal,
+        )
+      ).ok,
+    ).toBe(true);
   });
 });

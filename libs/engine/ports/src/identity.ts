@@ -15,6 +15,13 @@ export interface TokenRequest {
   readonly clientSecret: string;
   readonly scope?: string;
   readonly audience?: string;
+  /**
+   * Extra CAs (PEM) for this issuer only, added to the system trust when the adapter verifies an
+   * https endpoint (N3, OQ-1559). They belong to the identity provider that sent the request and
+   * are never kept for another one. There is no field that switches verification off: the insecure
+   * override does not exist for a token request.
+   */
+  readonly tlsCa?: readonly string[];
 }
 
 export type TokenEndpointFailure =

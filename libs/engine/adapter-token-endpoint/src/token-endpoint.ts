@@ -21,7 +21,11 @@ import {
 import type { Duplex } from 'node:stream';
 
 import type { Dialer } from '@app/net-dialer';
-import { NetworkError, type TlsTrust } from '@app/net-truststore';
+import {
+  NetworkError,
+  type TlsTrust,
+  type TrustStore,
+} from '@app/net-truststore';
 import {
   isLoopbackAddress,
   isLoopbackHost,
@@ -43,6 +47,9 @@ export const DEFAULT_TIMEOUT_MS = 15_000;
 /** The most the request fields may add up to; a client id and secret are far smaller. */
 const MAX_REQUEST_FIELDS_CHARS = 16 * 1024;
 
+/** The most CAs one request may bring (a root and a few intermediates are far fewer). */
+export const MAX_TLS_CA_ENTRIES = 8;
+
 /** The characters of a bearer token (RFC 6750 b64token), so it can sit in a header unquoted. */
 const BEARER_TOKEN = /^[A-Za-z0-9._~+/-]+=*$/;
 const MAX_TOKEN_CHARS = 64 * 1024;
@@ -51,8 +58,13 @@ const TOKEN_TYPE = /^[A-Za-z][A-Za-z0-9._-]{0,31}$/;
 export interface TokenEndpointOptions {
   /** The Dialer (I-9). Only `dial` is used. */
   readonly dialer: Pick<Dialer, 'dial'>;
-  /** The TrustStore trust for an https issuer (`TrustStore.forProfile()`); unused for a loopback http one. */
-  readonly trust: TlsTrust;
+  /**
+   * The TrustStore. The trust of an https issuer is built from it for each request, from the
+   * request's own CAs (`TokenRequest.tlsCa`) added to the defaults (N3, OQ-1559): nothing a request
+   * brings is kept for the next one, so a CA configured for one identity provider is never used for
+   * another. Only `forProfile` is used, and never with the insecure switch.
+   */
+  readonly trustStore: Pick<TrustStore, 'forProfile'>;
   /** The profile's route; its shape belongs to net-dialer. Default: direct. */
   readonly route?: unknown;
   /** Milliseconds for the whole exchange. Default 15,000. */
@@ -242,6 +254,32 @@ export function createTokenEndpoint(
   }
   const route = options.route ?? { kind: 'direct' };
 
+  /**
+   * The trust for one request: the defaults of the TrustStore plus the CAs the request carries,
+   * and never the insecure switch. A store that hands back a trust with verification off is
+   * refused as untrusted before anything is dialled: for the purpose `oidc` the override does not
+   * exist (a client secret goes to this socket).
+   */
+  function trustOf(
+    tlsCa: readonly string[] | undefined,
+  ):
+    | { ok: true; trust: TlsTrust }
+    | { ok: false; reason: TokenEndpointFailure } {
+    const ca = tlsCa ?? [];
+    if (ca.length > MAX_TLS_CA_ENTRIES) {
+      return { ok: false, reason: 'malformed' };
+    }
+    let trust: TlsTrust;
+    try {
+      trust = options.trustStore.forProfile(ca.length === 0 ? {} : { ca });
+    } catch {
+      // A CA that does not parse (or is not text): the message is not copied (it could quote the request).
+      return { ok: false, reason: 'malformed' };
+    }
+    if (trust.insecureOverride) return { ok: false, reason: 'tls-untrusted' };
+    return { ok: true, trust };
+  }
+
   function exchange(
     request: TokenRequest,
     signal: AbortSignal,
@@ -263,6 +301,15 @@ export function createTokenEndpoint(
     }
     if (signal.aborted) return Promise.resolve(fail('unreachable'));
 
+    // The trust of this issuer only (N3). Plain http (loopback) has no TLS and needs none.
+    const secure = url.protocol === 'https:';
+    let tls: TlsTrust | undefined;
+    if (secure) {
+      const built = trustOf(request.tlsCa);
+      if (!built.ok) return Promise.resolve(fail(built.reason));
+      tls = built.trust;
+    }
+
     const form = new URLSearchParams({ grant_type: 'client_credentials' });
     if (request.scope !== undefined && request.scope !== '') {
       form.set('scope', request.scope);
@@ -275,14 +322,13 @@ export function createTokenEndpoint(
       `${formEncode(request.clientId)}:${formEncode(request.clientSecret)}`,
       'utf8',
     ).toString('base64');
-    const secure = url.protocol === 'https:';
     const port = url.port === '' ? (secure ? 443 : 80) : Number(url.port);
 
     return new Promise<TokenResponse>((resolve) => {
       const agent = new DialerAgent(options.dialer, {
         host: url.hostname,
         port,
-        tls: secure ? options.trust : undefined,
+        tls,
         route,
         loopbackOnly: !secure,
       });

@@ -65,6 +65,9 @@ function hasNoControlCharacters(text: string): boolean {
   return true;
 }
 
+/** The most CAs one provider config may hold (the token endpoint adapter caps a request the same). */
+const MAX_TLS_CA_ENTRIES = 8;
+
 /**
  * A token endpoint the engine may call (OQ-1462): `https`, or `http` only for a loopback issuer (the
  * lab). A login in the URL would be a secret in a URL (I-10), and a fragment is never sent.
@@ -110,6 +113,23 @@ export const ProviderConfigSchema = z.discriminatedUnion('kind', [
       .refine(hasNoControlCharacters)
       .optional(),
     usernameClaims: UsernameClaimsSchema,
+    // Extra CAs (PEM) for this identity provider only (N3, OQ-1559): a public certificate, never a
+    // key. The adapter adds them to the system trust for this issuer's requests and keeps nothing.
+    tlsCa: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .max(64 * 1024)
+          .refine(
+            (pem) =>
+              pem.includes('-----BEGIN CERTIFICATE-----') &&
+              !/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/.test(pem),
+            { message: 'A PEM certificate is expected, and never a key.' },
+          ),
+      )
+      .max(MAX_TLS_CA_ENTRIES)
+      .optional(),
   }),
   z.strictObject({
     kind: z.literal('static-token'),

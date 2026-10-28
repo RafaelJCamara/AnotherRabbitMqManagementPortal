@@ -7,7 +7,7 @@
 // sent (I-10). What survives is a reason from a closed list, a Problem code, whether a retry can
 // help, and the broker's numeric reply code.
 //
-// How a refusal arrives (read from amqplib 2.2.0, not yet seen on a lab broker, OQ-1573): the
+// How a refusal arrives (read from amqplib 2.2.0, not yet seen on a lab broker, OQ-1574): the
 // broker answers `update-secret-ok` or closes the whole connection (RabbitMQ replies 530
 // NOT_ALLOWED when a backend refuses the new secret, and the OAuth 2.0 backend names a user name
 // that differs from the login `mismatch_username_after_token_refresh`). amqplib's promise

@@ -5,7 +5,7 @@
 // intact, a refusal never rejects the library's promise by itself (the adapter ends it when the
 // connection closes), and a 320 close reaches subscribers with its code. The stand-in is written
 // from the protocol and from reading amqplib, not recorded from a RabbitMQ node: whether a real
-// broker answers a refusal this way is for the lab (AC-24, OQ-1573).
+// broker answers a refusal this way is for the lab (AC-24, OQ-1574).
 import { randomBytes } from 'node:crypto';
 import { createServer, type Server, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';

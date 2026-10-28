@@ -125,11 +125,20 @@
   ],
   "bindings": [
     {
-      "arguments": {},
-      "destination": "golden.dead",
+      "arguments": {
+        "x-golden": "direct"
+      },
+      "destination": "golden.classic",
       "destination_type": "queue",
-      "routing_key": "",
-      "source": "golden.dlx"
+      "routing_key": "classic",
+      "source": "golden.direct"
+    },
+    {
+      "arguments": {},
+      "destination": "golden.quorum",
+      "destination_type": "queue",
+      "routing_key": "10",
+      "source": "golden.hash"
     },
     {
       "arguments": {},
@@ -140,19 +149,10 @@
     },
     {
       "arguments": {},
-      "destination": "golden.quorum",
+      "destination": "golden.dead",
       "destination_type": "queue",
-      "routing_key": "10",
-      "source": "golden.hash"
-    },
-    {
-      "arguments": {
-        "x-golden": "direct"
-      },
-      "destination": "golden.classic",
-      "destination_type": "queue",
-      "routing_key": "classic",
-      "source": "golden.direct"
+      "routing_key": "",
+      "source": "golden.dlx"
     }
   ]
 }

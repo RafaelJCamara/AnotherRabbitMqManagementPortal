@@ -1,6 +1,6 @@
 {
   "number": 1,
-  "name": "192.0.2.1:35992[1]",
+  "name": "192.0.2.1:39162[1]",
   "vhost": "golden",
   "user": "guest",
   "consumer_count": 1,
@@ -11,8 +11,8 @@
   "messages_unacknowledged": 2,
   "connection_details": {
     "peer_host": "192.0.2.1",
-    "peer_port": 35992,
-    "name": "192.0.2.1:35992 -> 192.0.2.2:5672"
+    "peer_port": 39162,
+    "name": "192.0.2.1:39162 -> 192.0.2.2:5672"
   },
   "state": "running",
   "message_stats": {
@@ -20,7 +20,6 @@
     "ack_details": {
       "rate": 0,
       "log": [
-        0,
         0,
         0
       ]
@@ -30,7 +29,6 @@
       "rate": 0,
       "log": [
         0,
-        0,
         0
       ]
     },
@@ -38,7 +36,6 @@
     "get_no_ack_details": {
       "rate": 0,
       "log": [
-        0,
         0,
         0
       ]
@@ -48,7 +45,6 @@
       "rate": 0,
       "log": [
         0,
-        0,
         0
       ]
     },
@@ -57,7 +53,6 @@
       "rate": 0,
       "log": [
         0.4,
-        0,
         0
       ]
     },
@@ -65,7 +60,6 @@
     "deliver_no_ack_details": {
       "rate": 0,
       "log": [
-        0,
         0,
         0
       ]
@@ -75,7 +69,6 @@
       "rate": 0,
       "log": [
         0.4,
-        0,
         0
       ]
     },
@@ -83,7 +76,6 @@
     "redeliver_details": {
       "rate": 0,
       "log": [
-        0,
         0,
         0
       ]
@@ -93,7 +85,6 @@
       "rate": 0,
       "log": [
         0,
-        0,
         0
       ]
     },
@@ -102,7 +93,6 @@
       "rate": 0,
       "log": [
         0,
-        0,
         0
       ]
     },
@@ -110,7 +100,6 @@
     "return_unroutable_details": {
       "rate": 0,
       "log": [
-        0,
         0,
         0
       ]
@@ -122,18 +111,18 @@
         "name": "golden.classic",
         "vhost": "golden"
       },
-      "consumer_tag": "amq.ctag-phmQCKook_TdnrWvX57_VN7_4jXSATzq",
+      "consumer_tag": "amq.ctag-M4OwVl1f5_61pFy4GXm1nR6D87My7nhu",
       "exclusive": false,
       "ack_required": true,
       "prefetch_count": 2,
       "priority": 0,
       "channel_details": {
         "peer_host": "192.0.2.1",
-        "peer_port": 35992,
-        "connection_name": "192.0.2.1:35992 -> 192.0.2.2:5672",
+        "peer_port": 39162,
+        "connection_name": "192.0.2.1:39162 -> 192.0.2.2:5672",
         "user": "guest",
         "number": 1,
-        "name": "192.0.2.1:35992[1]"
+        "name": "192.0.2.1:39162[1]"
       }
     }
   ]

@@ -23,7 +23,7 @@
       "auth": "guest",
       "status": 200,
       "file": "overview.get.json",
-      "bytes": 5756,
+      "bytes": 5752,
       "envelope": false
     },
     {
@@ -161,7 +161,7 @@
       "auth": "guest",
       "status": 200,
       "file": "queues.afterGet.json",
-      "bytes": 2905,
+      "bytes": 2904,
       "envelope": false
     },
     {
@@ -257,7 +257,7 @@
       "auth": "guest",
       "status": 200,
       "file": "vhosts.list.json",
-      "bytes": 2434,
+      "bytes": 2436,
       "envelope": false
     },
     {
@@ -269,7 +269,7 @@
       "auth": "guest",
       "status": 200,
       "file": "vhosts.one.json",
-      "bytes": 1628,
+      "bytes": 1630,
       "envelope": false
     },
     {
@@ -281,7 +281,7 @@
       "auth": "guest",
       "status": 200,
       "file": "connections.list.json",
-      "bytes": 2039,
+      "bytes": 2034,
       "envelope": true
     },
     {
@@ -293,19 +293,19 @@
       "auth": "guest",
       "status": 200,
       "file": "connections.inVhost.json",
-      "bytes": 1774,
+      "bytes": 1769,
       "envelope": false
     },
     {
       "id": "connections.one",
       "kind": "endpoint",
       "method": "GET",
-      "path": "/api/connections/192.0.2.1%3A56222%20-%3E%20192.0.2.2%3A5672",
-      "sent": "/api/connections/192.0.2.1%3A56222%20-%3E%20192.0.2.2%3A5672",
+      "path": "/api/connections/192.0.2.1%3A37452%20-%3E%20192.0.2.2%3A5672",
+      "sent": "/api/connections/192.0.2.1%3A37452%20-%3E%20192.0.2.2%3A5672",
       "auth": "guest",
       "status": 200,
       "file": "connections.one.json",
-      "bytes": 1620,
+      "bytes": 1615,
       "envelope": false
     },
     {
@@ -336,8 +336,8 @@
       "id": "channels.one",
       "kind": "endpoint",
       "method": "GET",
-      "path": "/api/channels/192.0.2.1%3A56222%20-%3E%20192.0.2.2%3A5672%20(1)",
-      "sent": "/api/channels/192.0.2.1%3A56222%20-%3E%20192.0.2.2%3A5672%20(1)",
+      "path": "/api/channels/192.0.2.1%3A37452%20-%3E%20192.0.2.2%3A5672%20(1)",
+      "sent": "/api/channels/192.0.2.1%3A37452%20-%3E%20192.0.2.2%3A5672%20(1)",
       "auth": "guest",
       "status": 200,
       "file": "channels.one.json",

@@ -1,6 +1,6 @@
 [
   {
-    "uptime": 7967,
+    "uptime": 7303,
     "running": true,
     "name": "lab-node",
     "applications": [
@@ -11,15 +11,15 @@
       }
     ],
     "os_pid": "1",
-    "fd_total": 1048576,
+    "fd_total": 65536,
     "fd_used": 27,
-    "processors": 32,
-    "mem_limit": 16592478208,
-    "mem_used": 33628160,
+    "processors": 4,
+    "mem_limit": 16766414848,
+    "mem_used": 33177600,
     "mem_used_details": {
       "log": [
-        30814208,
-        33628160
+        30511104,
+        33177600
       ]
     },
     "io_write_count": 296,
@@ -29,40 +29,40 @@
         46.4
       ]
     },
-    "io_read_count": 47232,
+    "io_read_count": 0,
     "io_read_details": {
       "log": [
-        1912,
-        686.4
+        0,
+        0
       ]
     },
-    "cpu_user_time": 114,
+    "cpu_user_time": 49,
     "cpu_user_details": {
       "log": [
         0,
         0
       ]
     },
-    "cpu_sys_time": 125,
+    "cpu_sys_time": 36,
     "cpu_sys_details": {
       "log": [
         0,
-        0.01
+        0
       ]
     },
     "db_dir": "/var/lib/lavinmq",
-    "disk_total": 1081101176832,
+    "disk_total": 154894188544,
     "disk_total_details": {
       "log": [
-        1081101176832,
-        1081101176832
+        154894188544,
+        154894188544
       ]
     },
-    "disk_free": 960405704704,
+    "disk_free": 89468858368,
     "disk_free_details": {
       "log": [
-        960405786624,
-        960405704704
+        89468944384,
+        89468858368
       ]
     },
     "partitions": [],

@@ -68,7 +68,7 @@
       },
       "deliver_get": 4,
       "deliver_get_details": {
-        "rate": 0.4
+        "rate": 0
       },
       "deliver_no_ack": 0,
       "deliver_no_ack_details": {
@@ -80,7 +80,7 @@
       },
       "get": 2,
       "get_details": {
-        "rate": 0.4
+        "rate": 0
       },
       "get_empty": 0,
       "get_empty_details": {

@@ -53,6 +53,21 @@
     "cluster_state": {
       "rabbit@lab-node": "running"
     },
+    "recv_oct_details": {
+      "rate": 0
+    },
+    "send_oct_details": {
+      "rate": 0
+    },
+    "messages_details": {
+      "rate": 0
+    },
+    "messages_unacknowledged_details": {
+      "rate": 0
+    },
+    "messages_ready_details": {
+      "rate": 0
+    },
     "message_stats": {
       "ack": 0,
       "ack_details": {
@@ -102,21 +117,6 @@
       "return_unroutable_details": {
         "rate": 0
       }
-    },
-    "recv_oct_details": {
-      "rate": 0
-    },
-    "send_oct_details": {
-      "rate": 0
-    },
-    "messages_details": {
-      "rate": 0
-    },
-    "messages_unacknowledged_details": {
-      "rate": 0
-    },
-    "messages_ready_details": {
-      "rate": 0
     }
   }
 ]

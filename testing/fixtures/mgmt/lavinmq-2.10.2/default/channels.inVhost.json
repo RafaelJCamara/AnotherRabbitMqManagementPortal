@@ -2,7 +2,7 @@
   "items": [
     {
       "number": 1,
-      "name": "192.0.2.1:35992[1]",
+      "name": "192.0.2.1:46028[1]",
       "vhost": "golden",
       "user": "guest",
       "consumer_count": 1,
@@ -13,8 +13,8 @@
       "messages_unacknowledged": 2,
       "connection_details": {
         "peer_host": "192.0.2.1",
-        "peer_port": 35992,
-        "name": "192.0.2.1:35992 -> 192.0.2.2:5672"
+        "peer_port": 46028,
+        "name": "192.0.2.1:46028 -> 192.0.2.2:5672"
       },
       "state": "running",
       "message_stats": {

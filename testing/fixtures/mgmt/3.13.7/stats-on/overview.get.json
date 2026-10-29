@@ -54,7 +54,7 @@
   "rabbitmq_version": "3.13.7",
   "cluster_name": "rabbit@lab-node",
   "erlang_version": "26.2.5.16",
-  "erlang_full_version": "Erlang/OTP 26 [erts-14.2.5.12] [source] [64-bit] [smp:32:32] [ds:32:32:10] [async-threads:1] [jit:ns]",
+  "erlang_full_version": "Erlang/OTP 26 [erts-14.2.5.12] [source] [64-bit] [smp:4:4] [ds:4:4:10] [async-threads:1] [jit:ns]",
   "release_series_support_status": "supported",
   "disable_stats": false,
   "is_op_policy_updating_enabled": true,
@@ -152,13 +152,13 @@
     "messages_ready": 9,
     "messages_unacknowledged": 2,
     "messages_details": {
-      "rate": 0
+      "rate": 0.6
     },
     "messages_unacknowledged_details": {
       "rate": 0
     },
     "messages_ready_details": {
-      "rate": 0
+      "rate": 0.6
     }
   },
   "object_totals": {

@@ -30,7 +30,7 @@
       "auth": "guest",
       "status": 200,
       "file": "overview.get.json",
-      "bytes": 1838,
+      "bytes": 1834,
       "envelope": false
     },
     {
@@ -331,12 +331,12 @@
       "id": "connections.one",
       "kind": "endpoint",
       "method": "GET",
-      "path": "/api/connections/192.0.2.1%3A51528%20-%3E%20192.0.2.2%3A5672",
+      "path": "/api/connections/192.0.2.1%3A52880%20-%3E%20192.0.2.2%3A5672",
       "query": {
         "disable_stats": true,
         "enable_queue_totals": true
       },
-      "sent": "/api/connections/192.0.2.1%3A51528%20-%3E%20192.0.2.2%3A5672?disable_stats=true",
+      "sent": "/api/connections/192.0.2.1%3A52880%20-%3E%20192.0.2.2%3A5672?disable_stats=true",
       "auth": "guest",
       "status": 200,
       "file": "connections.one.json",

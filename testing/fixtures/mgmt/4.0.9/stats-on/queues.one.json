@@ -68,7 +68,7 @@
   "operator_policy": null,
   "policy": "golden-delivery-limit",
   "publishers": 0,
-  "reductions": 24107,
+  "reductions": 24172,
   "reductions_details": {
     "rate": 0
   },

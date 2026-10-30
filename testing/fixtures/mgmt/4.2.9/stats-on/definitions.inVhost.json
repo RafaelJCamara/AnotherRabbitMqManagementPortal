@@ -125,15 +125,6 @@
   ],
   "bindings": [
     {
-      "arguments": {
-        "x-golden": "direct"
-      },
-      "destination": "golden.classic",
-      "destination_type": "queue",
-      "routing_key": "classic",
-      "source": "golden.direct"
-    },
-    {
       "arguments": {},
       "destination": "golden.dead",
       "destination_type": "queue",
@@ -153,6 +144,15 @@
       "destination_type": "queue",
       "routing_key": "10",
       "source": "golden.hash"
+    },
+    {
+      "arguments": {
+        "x-golden": "direct"
+      },
+      "destination": "golden.classic",
+      "destination_type": "queue",
+      "routing_key": "classic",
+      "source": "golden.direct"
     }
   ]
 }

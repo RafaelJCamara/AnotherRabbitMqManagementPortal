@@ -4,11 +4,11 @@
     "max_heap_size": 0,
     "min_bin_vheap_size": 1727361,
     "min_heap_size": 233,
-    "minor_gcs": 7
+    "minor_gcs": 8
   },
-  "name": "192.0.2.1:56222 -> 192.0.2.2:5672 (1)",
+  "name": "192.0.2.1:46526 -> 192.0.2.2:5672 (1)",
   "node": "rabbit@lab-node",
-  "reductions": 2696,
+  "reductions": 2705,
   "state": "running",
   "user": "guest",
   "confirm": false,
@@ -17,7 +17,7 @@
   "prefetch_count": 2,
   "user_who_performed_action": "guest",
   "messages_unacknowledged": 2,
-  "idle_since": "2026-10-19T14:14:57.611+00:00",
+  "idle_since": "2026-10-31T08:59:43.574+00:00",
   "consumer_count": 1,
   "acks_uncommitted": 0,
   "cached_segments": 0,
@@ -26,9 +26,9 @@
   "pending_raft_commands": 0,
   "transactional": false,
   "connection_details": {
-    "name": "192.0.2.1:56222 -> 192.0.2.2:5672",
+    "name": "192.0.2.1:46526 -> 192.0.2.2:5672",
     "peer_host": "192.0.2.1",
-    "peer_port": 56222
+    "peer_port": 46526
   },
   "message_stats": {
     "ack": 0,
@@ -68,18 +68,18 @@
     {
       "arguments": {},
       "channel_details": {
-        "connection_name": "192.0.2.1:56222 -> 192.0.2.2:5672",
-        "name": "192.0.2.1:56222 -> 192.0.2.2:5672 (1)",
+        "connection_name": "192.0.2.1:46526 -> 192.0.2.2:5672",
+        "name": "192.0.2.1:46526 -> 192.0.2.2:5672 (1)",
         "node": "rabbit@lab-node",
         "number": 1,
         "peer_host": "192.0.2.1",
-        "peer_port": 56222,
+        "peer_port": 46526,
         "user": "guest"
       },
       "ack_required": true,
       "active": true,
       "activity_status": "blocked",
-      "consumer_tag": "amq.ctag-ukQe2Y77bp4c9cpv-j7KOQ",
+      "consumer_tag": "amq.ctag-05aTtdyOXrk7kim9Pp6c1Q",
       "consumer_timeout": 1800000,
       "exclusive": false,
       "prefetch_count": 2,

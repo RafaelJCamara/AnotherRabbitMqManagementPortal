@@ -135,10 +135,10 @@
     },
     {
       "arguments": {},
-      "destination": "golden.dead",
+      "destination": "golden.classic",
       "destination_type": "queue",
-      "routing_key": "",
-      "source": "golden.dlx"
+      "routing_key": "orders.#",
+      "source": "golden.topic"
     },
     {
       "arguments": {},
@@ -149,10 +149,10 @@
     },
     {
       "arguments": {},
-      "destination": "golden.classic",
+      "destination": "golden.dead",
       "destination_type": "queue",
-      "routing_key": "orders.#",
-      "source": "golden.topic"
+      "routing_key": "",
+      "source": "golden.dlx"
     }
   ]
 }
